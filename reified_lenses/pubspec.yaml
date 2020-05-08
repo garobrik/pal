@@ -1,0 +1,13 @@
+name: reified_lenses
+version: 0.1.0
+description: >-
+  Highly opinionated granular reactive state management for immutable state objects. (Words!)
+repository: https://gitlab.com/arrow/reified_lenses
+publish_to: none
+
+environment:
+  sdk: '>=2.6.0 <3.0.0'
+  # flutter: '>=1.9.0 <1.13.0'
+
+dependencies:
+  meta: ^1.1.8
