@@ -9,6 +9,12 @@ export 'src/reified_lenses.dart'
         ThenMut,
         ThenLens,
         Mutater,
+        Getter,
         Lens,
-        Traversal;
+        Traversal,
+        ThenGetExtension,
+        ThenMutExtension,
+        ThenLensExtension,
+        GetterExtension,
+        MutaterExtension;
 export 'src/state_management.dart' show State, Cursor, GetCursor, MutCursor, GetCursorInterfaceExtension;
