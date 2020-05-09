@@ -22,39 +22,51 @@ class MutResult<A> {
   MutResult.path(this.value, this.path) : this.mutated = Set.of([path]);
 }
 
-typedef IdF<T> = T Function(T);
-typedef GetterF<T, S> = GetResult<S> Function(T);
-typedef MutaterF<T, S> = MutResult<T> Function(T, S Function(S));
-typedef SetterF<T, S> = MutResult<T> Function(T, S);
-typedef TransformF<T> = MutResult<T> Function(T);
+typedef GetterF<T, S> = S Function(T);
+
+typedef ReifiedGetterF<T, S> = GetResult<S> Function(T);
+
+typedef MutaterF<T, S> = T Function(T, S Function(S));
+
+typedef ReifiedMutaterF<T, S> = MutResult<T> Function(T, S Function(S));
+
+typedef SetterF<T, S> = T Function(T, S);
+
+typedef ReifiedSetterF<T, S> = MutResult<T> Function(T, S);
+
+typedef TransformF<T> = T Function(T);
+
+typedef ReifiedTransformF<T> = MutResult<T> Function(T);
+
 GetResult<T> _identityGetter<T>(T t) => GetResult(t, Path());
 MutResult<T> _identityMutater<T>(T t, T Function(T) f) =>
     MutResult.path(f(t), Path());
 
 //////////////////////////////////////////////////////////
 abstract class ThenLensInterface<C extends ThenLens, S1>
-implements Zoom<C, S1> {
+    implements Zoom<C, S1> {
   @protected
   Zoom<C, S2> then<S2>(Zoom<Lens<S1>, S2> lens);
 }
 
 abstract class ThenLens {}
 
-extension ThenLensInterfaceExtension<C extends ThenLens, S1> on Zoom<C, S1> {
+extension ThenLensExtension<C extends ThenLens, S1> on Zoom<C, S1> {
   ThenLensInterface<C, S1> get _this => this as ThenLensInterface<C, S1>;
 
   Zoom<C, S2> then<S2>(Zoom<Lens<S1>, S2> lens) => _this.then(lens);
 }
 
 //////////////////////////////////////////////////////////
-mixin ThenGetInterface<C1 extends ThenGet<C2>, C2, S1> implements Zoom<C1, S1> {
+mixin ThenGetInterface<C1 extends ThenGet<C2>, C2, S1>
+    implements ThenLensInterface<C1, S1> {
   @protected
   Zoom<C2, S2> thenGet<S2>(Zoom<Getter<S1>, S2> getter);
 }
 
-mixin ThenGet<C2> {}
+mixin ThenGet<C2> implements ThenLens {}
 
-extension ThenGetInterfaceExtension<C2, S1> on Zoom<ThenGet<C2>, S1> {
+extension ThenGetExtension<C2, S1> on Zoom<ThenGet<C2>, S1> {
   ThenGetInterface<ThenGet<C2>, C2, S1> get _this =>
       this as ThenGetInterface<ThenGet<C2>, C2, S1>;
 
@@ -63,14 +75,15 @@ extension ThenGetInterfaceExtension<C2, S1> on Zoom<ThenGet<C2>, S1> {
 }
 
 //////////////////////////////////////////////////////////
-mixin ThenMutInterface<C1 extends ThenMut<C2>, C2, S1> implements Zoom<C1, S1> {
+mixin ThenMutInterface<C1 extends ThenMut<C2>, C2, S1>
+    implements ThenLensInterface<C1, S1> {
   @protected
   Zoom<C2, S2> thenMut<S2>(Zoom<Mutater<S1>, S2> mutater);
 }
 
-mixin ThenMut<C2> {}
+mixin ThenMut<C2> implements ThenLens {}
 
-extension ThenMutInterfaceExtension<C2, S1> on Zoom<ThenMut<C2>, S1> {
+extension ThenMutExtension<C2, S1> on Zoom<ThenMut<C2>, S1> {
   ThenMutInterface<ThenMut<C2>, C2, S1> get _this =>
       this as ThenMutInterface<ThenMut<C2>, C2, S1>;
 
@@ -80,7 +93,7 @@ extension ThenMutInterfaceExtension<C2, S1> on Zoom<ThenMut<C2>, S1> {
 
 //////////////////////////////////////////////////////////
 mixin GetterInterface<C extends Getter<T>, T, S>
-    implements ThenGetInterface<C, Getter<T>, S>, ThenLensInterface<C, S> {
+implements ThenGetInterface<C, Getter<T>, S>, ThenLensInterface<C, S> {
   @protected
   GetResult<S> getResult(T t);
 
@@ -95,14 +108,18 @@ mixin GetterInterface<C extends Getter<T>, T, S>
 }
 
 abstract class Getter<T> implements ThenGet<Getter<T>>, ThenLens {
-  static Zoom<Getter<T>, S> mk<T, S>(GetterF<T, S> getF) => _GetterImpl(getF);
+  static Zoom<Getter<T>, S> mk<T, S>(ReifiedGetterF<T, S> getF) =>
+      _GetterImpl(getF);
   static const _identity = _GetterImpl<dynamic, dynamic>(_identityGetter);
   static Zoom<Getter<T>, T> identity<T>() => _identity as _GetterImpl<T, T>;
+  static Zoom<Getter<T>, S> field<T, S>(
+          String fieldName, GetterF<T, S> getter) =>
+      Getter.mk((t) => GetResult(getter(t), Path(fieldName)));
 }
 
 @immutable
 class _GetterImpl<T, S> with GetterInterface<Getter<T>, T, S> {
-  final GetterF<T, S> _getter;
+  final ReifiedGetterF<T, S> _getter;
 
   const _GetterImpl(this._getter);
 
@@ -113,7 +130,7 @@ class _GetterImpl<T, S> with GetterInterface<Getter<T>, T, S> {
   Zoom<Getter<T>, S2> then<S2>(Zoom<Lens<S>, S2> lens) => this.thenGet(lens);
 }
 
-extension GetterInterfaceExtension<T, S> on Zoom<Getter<T>, S> {
+extension GetterExtension<T, S> on Zoom<Getter<T>, S> {
   GetterInterface<Getter<T>, T, S> get _this =>
       this as GetterInterface<Getter<T>, T, S>;
 
@@ -124,7 +141,7 @@ extension GetterInterfaceExtension<T, S> on Zoom<Getter<T>, S> {
 
 //////////////////////////////////////////////////////////
 abstract class MutaterInterface<C extends Mutater<T>, T, S>
-    implements ThenMutInterface<C, Mutater<T>, S>, ThenLensInterface<C, S> {
+implements ThenMutInterface<C, Mutater<T>, S>, ThenLensInterface<C, S> {
   @protected
   MutResult<T> mutResult(T t, S f(S s));
 
@@ -151,16 +168,24 @@ abstract class MutaterInterface<C extends Mutater<T>, T, S>
 }
 
 abstract class Mutater<T> implements ThenMut<Mutater<T>>, ThenLens {
-  static Zoom<Mutater<T>, S> mk<T, S>(MutaterF<T, S> mutater) =>
+  static Zoom<Mutater<T>, S> mk<T, S>(ReifiedMutaterF<T, S> mutater) =>
       _MutaterImpl(mutater);
 
   static const _identity = _MutaterImpl<dynamic, dynamic>(_identityMutater);
   static Zoom<Mutater<T>, T> identity<T>() => _identity as _MutaterImpl<T, T>;
+
+  static Zoom<Mutater<T>, S> field<T, S>(
+          String fieldName, MutaterF<T, S> mutater) =>
+      _MutaterImpl((t, f) => MutResult(
+            mutater(t, f),
+            Path(fieldName),
+            Set.of([Path(fieldName)]),
+          ));
 }
 
 @immutable
 class _MutaterImpl<T, S> with MutaterInterface<Mutater<T>, T, S> {
-  final MutaterF<T, S> _mutater;
+  final ReifiedMutaterF<T, S> _mutater;
 
   const _MutaterImpl(this._mutater);
 
@@ -171,7 +196,7 @@ class _MutaterImpl<T, S> with MutaterInterface<Mutater<T>, T, S> {
   Zoom<Mutater<T>, S2> then<S2>(Zoom<Lens<S>, S2> lens) => this.thenMut(lens);
 }
 
-extension MutaterInterfaceExtension<T, S> on Zoom<Mutater<T>, S> {
+extension MutaterExtension<T, S> on Zoom<Mutater<T>, S> {
   MutaterInterface<Mutater<T>, T, S> get _this =>
       this as MutaterInterface<Mutater<T>, T, S>;
 
@@ -186,14 +211,15 @@ extension MutaterInterfaceExtension<T, S> on Zoom<Mutater<T>, S> {
 
   T set(T t, S value) => _this.setResult(t, value).value;
 
-  SetterF<T, S> get setter => (t, s) => _this.setResult(t, s);
+  ReifiedSetterF<T, S> get setter => (t, s) => _this.setResult(t, s);
 
-  TransformF<T> transform(S Function(S) f) => (t) => _this.mutResult(t, f);
+  ReifiedTransformF<T> transform(S Function(S) f) =>
+      (t) => _this.mutResult(t, f);
 }
 
-extension SetterExt<T, S> on SetterF<T, S> {
+extension SetterExt<T, S> on ReifiedSetterF<T, S> {
   T set(T t, S value) => this(t, value).value;
-  TransformF<T> mut(S value) => (t) => this(t, value);
+  ReifiedTransformF<T> transform(S value) => (t) => this(t, value);
 }
 
 //////////////////////////////////////////////////////////
@@ -204,8 +230,8 @@ abstract class LensInterface<C extends Lens<T>, T, S>
 
 @immutable
 class _LensImpl<T, S> extends LensInterface<Lens<T>, T, S> {
-  final GetterF<T, S> _getF;
-  final MutaterF<T, S> _mutF;
+  final ReifiedGetterF<T, S> _getF;
+  final ReifiedMutaterF<T, S> _mutF;
 
   const _LensImpl(this._getF, this._mutF);
 
@@ -222,19 +248,19 @@ class _LensImpl<T, S> extends LensInterface<Lens<T>, T, S> {
 }
 
 abstract class Lens<T> implements Getter<T>, Mutater<T> {
-  static Zoom<Lens<T>, S> mk<T, S>(GetterF<T, S> getF, MutaterF<T, S> mutF) =>
+  static Zoom<Lens<T>, S> mk<T, S>(
+          ReifiedGetterF<T, S> getF, ReifiedMutaterF<T, S> mutF) =>
       _LensImpl(getF, mutF);
 
   static const _identity =
       _LensImpl<dynamic, dynamic>(_identityGetter, _identityMutater);
   static Zoom<Lens<T>, T> identity<T>() => _identity as _LensImpl<T, T>;
 
-  static Zoom<Lens<T>, S> field<T, S>(String fdName, S Function(T t) getter,
+  static Zoom<Lens<T>, S> field<T, S>(String fieldName, S Function(T t) getter,
           T Function(T t, S Function(S s) s) mutater) =>
       _LensImpl(
-        (t) => GetResult(getter(t), Path(fdName)),
-        (t, s) =>
-            MutResult(mutater(t, s), Path(fdName), Set.of([Path(fdName)])),
+        Getter.field(fieldName, getter).getResult,
+        Mutater.field(fieldName, mutater).mutResult,
       );
 }
 
