@@ -1,0 +1,15 @@
+name: flutter_reified_lenses
+version: 0.1.0
+description: >-
+  Flutter extensions for the reified_lenses library.
+repository: https://gitlab.com/arrow/flutter_reified_lenses
+publish_to: none
+
+environment:
+  sdk: '>=2.6.0 <3.0.0'
+
+dependencies:
+  reified_lenses:
+    path: ../reified_lenses
+  flutter:
+    sdk: flutter
