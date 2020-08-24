@@ -1,0 +1,25 @@
+name: functional
+version: 0.1.0
+description: >-
+  Things I'm used to from functional programming, but Dart-like.
+repository: https://gitlab.com/arrow/functional
+publish_to: none
+
+environment:
+  sdk: '^2.6.0'
+  # flutter: '>=1.9.0 <1.13.0'
+
+dependencies:
+  meta: ^1.1.8
+  reified_lenses:
+    path:
+      ../reified_lenses
+
+dev_dependencies:
+  pedantic: ^1.9.0
+  effective_dart: ^1.2.1
+  test:
+  reified_lenses_builder:
+    path:
+      ../reified_lenses_builder
+  build_runner:
