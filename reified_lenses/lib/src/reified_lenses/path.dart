@@ -2,7 +2,15 @@ class Path<E> {
   final Path<E> _prev;
   final E _elem;
 
-  const Path([this._elem, this._prev]);
+  const Path(this._elem, this._prev)
+      : assert(_elem != null),
+        assert(_prev != null);
+  const Path.singleton(this._elem)
+      : assert(_elem != null),
+        _prev = const Path.empty();
+  const Path.empty()
+      : _prev = null,
+        _elem = null;
 
   Path<E> operator +(Path<E> other) {
     if (other.isSingleton) return Path(other._elem, this);
@@ -11,11 +19,11 @@ class Path<E> {
   }
 
   bool get isEmpty => _elem == null;
-  bool get isSingleton => _prev == null;
+  bool get isSingleton => _prev.isEmpty;
 
   Path<E> _reverse() {
     if (this.isEmpty || this.isSingleton) return this;
-    var inverted = Path(this._elem);
+    var inverted = Path.singleton(this._elem);
     var rest = this._prev;
     while (!rest.isEmpty) {
       inverted = Path(rest._elem, inverted);

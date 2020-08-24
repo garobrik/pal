@@ -1,7 +1,7 @@
 library reified_lenses;
 
-export 'src/zoom.dart';
-export 'src/reified_lenses.dart'
+export 'src/reified_lenses/zoom.dart';
+export 'src/reified_lenses/reified_lenses.dart'
     show
         GetResult,
         MutResult,
@@ -17,4 +17,22 @@ export 'src/reified_lenses.dart'
         ThenLensExtension,
         GetterExtension,
         MutaterExtension;
-export 'src/state_management.dart' show State, Cursor, GetCursor, MutCursor, GetCursorInterfaceExtension;
+export 'src/reified_lenses/state_management.dart'
+    show
+        ListenableState,
+        Cursor,
+        GetCursor,
+        MutCursor,
+        GetCursorInterfaceExtension,
+        MutCursorInterfaceExtension;
+export 'src/reified_lenses/builder_annotations.dart'
+    show
+        reified_lens,
+        getter,
+        lens,
+        mutater,
+        copy_with,
+        ReifiedLens,
+        Optic,
+        OpticKind,
+        CopyWith;

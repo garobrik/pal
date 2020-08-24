@@ -38,9 +38,9 @@ typedef TransformF<T> = T Function(T);
 
 typedef ReifiedTransformF<T> = MutResult<T> Function(T);
 
-GetResult<T> _identityGetter<T>(T t) => GetResult(t, Path());
+GetResult<T> _identityGetter<T>(T t) => GetResult(t, Path.empty());
 MutResult<T> _identityMutater<T>(T t, T Function(T) f) =>
-    MutResult.path(f(t), Path());
+    MutResult.path(f(t), Path.empty());
 
 //////////////////////////////////////////////////////////
 abstract class ThenLensInterface<C extends ThenLens, S1>
@@ -93,7 +93,7 @@ extension ThenMutExtension<C2, S1> on Zoom<ThenMut<C2>, S1> {
 
 //////////////////////////////////////////////////////////
 mixin GetterInterface<C extends Getter<T>, T, S>
-implements ThenGetInterface<C, Getter<T>, S>, ThenLensInterface<C, S> {
+    implements ThenGetInterface<C, Getter<T>, S>, ThenLensInterface<C, S> {
   @protected
   GetResult<S> getResult(T t);
 
@@ -114,7 +114,7 @@ abstract class Getter<T> implements ThenGet<Getter<T>>, ThenLens {
   static Zoom<Getter<T>, T> identity<T>() => _identity as _GetterImpl<T, T>;
   static Zoom<Getter<T>, S> field<T, S>(
           String fieldName, GetterF<T, S> getter) =>
-      Getter.mk((t) => GetResult(getter(t), Path(fieldName)));
+      Getter.mk((t) => GetResult(getter(t), Path.singleton(fieldName)));
 }
 
 @immutable
@@ -141,7 +141,7 @@ extension GetterExtension<T, S> on Zoom<Getter<T>, S> {
 
 //////////////////////////////////////////////////////////
 abstract class MutaterInterface<C extends Mutater<T>, T, S>
-implements ThenMutInterface<C, Mutater<T>, S>, ThenLensInterface<C, S> {
+    implements ThenMutInterface<C, Mutater<T>, S>, ThenLensInterface<C, S> {
   @protected
   MutResult<T> mutResult(T t, S f(S s));
 
@@ -178,8 +178,8 @@ abstract class Mutater<T> implements ThenMut<Mutater<T>>, ThenLens {
           String fieldName, MutaterF<T, S> mutater) =>
       _MutaterImpl((t, f) => MutResult(
             mutater(t, f),
-            Path(fieldName),
-            Set.of([Path(fieldName)]),
+            Path.singleton(fieldName),
+            Set.of([Path.singleton(fieldName)]),
           ));
 }
 
@@ -252,9 +252,8 @@ abstract class Lens<T> implements Getter<T>, Mutater<T> {
           ReifiedGetterF<T, S> getF, ReifiedMutaterF<T, S> mutF) =>
       _LensImpl(getF, mutF);
 
-  static const _identity =
-      _LensImpl<dynamic, dynamic>(_identityGetter, _identityMutater);
-  static Zoom<Lens<T>, T> identity<T>() => _identity as _LensImpl<T, T>;
+  static Zoom<Lens<T>, T> identity<T>() =>
+      _LensImpl<T, T>(_identityGetter, _identityMutater);
 
   static Zoom<Lens<T>, S> field<T, S>(String fieldName, S Function(T t) getter,
           T Function(T t, S Function(S s) s) mutater) =>
