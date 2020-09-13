@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:example/model/table.dart' hide Table, Column;
+import 'package:example/model/table.dart' as Model;
+import 'package:flutter/material.dart' hide Table;
+import 'package:functional/functional.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-
-part 'main.g.dart';
+import 'package:reorderables/reorderables.dart';
 
 void main() {
   runApp(MyApp());
@@ -19,49 +21,64 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: Provider(
-        child: MyHomePage(title: 'Flutter Demo Home Page'),
-        create: (_) => ListenableState(CounterHolder()),
+        child: Center(
+            child: Consumer(
+          builder: (_, v, __) => Center(child: TableWidget(v.table)),
+        )),
+        create: (_) => ListenableState(Model.Table.from(columns: [
+          StringColumn.from(values: ['test', 'row'])
+        ])),
       ),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({Key key, this.title}) : super(key: key);
-
-  final String title;
+class TableWidget extends StatelessWidget {
+  final Zoom<Cursor, Model.Table> table;
+  TableWidget(this.table);
 
   @override
   Widget build(BuildContext context) {
-    final cursor = Provider.of<ListenableState<CounterHolder>>(context).cursor;
-
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
+    return Column(children: [
+      buildHeader(),
+      table.length.build((length) => ReorderableSliverList(
+            onReorder: (a, b) {
+              table.columns.forEach((column) {
+                column.values[a].set(column.values[b].get(() {}));
+                column.values[b].set(column.values[a].get(() {}));
+              });
+            },
+            delegate: ReorderableSliverChildBuilderDelegate(
+              (_, i) => buildRow(i),
+              childCount: length,
             ),
-            cursor.counter.build((counter) => Text(
-                  '$counter',
-                  style: Theme.of(context).textTheme.headline4,
-                )),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => cursor.counter.mut((counter) => counter + 1),
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ),
-    );
+          )),
+    ]);
   }
-}
 
-@reified_lens
-class CounterHolder {
-  final int counter;
+  Widget buildHeader() {
+    return table.columns.length.build((length) => ReorderableSliverList(
+          onReorder: (a, b) {
+            table.columns[a].set(table.columns[b].get(() {}));
+            table.columns[b].set(table.columns[a].get(() {}));
+          },
+          delegate: ReorderableSliverChildBuilderDelegate(
+            (_, i) => Text('header'),
+            childCount: length,
+          ),
+        ));
+  }
 
-  CounterHolder({this.counter = 0});
+  Widget buildRow(int index) {
+    return table.columns.length.build((length) => ReorderableSliverList(
+        onReorder: (a, b) {
+          table.columns[a].set(table.columns[b].get(() {}));
+          table.columns[b].set(table.columns[a].get(() {}));
+        },
+        delegate: ReorderableSliverChildBuilderDelegate(
+          (_, i) => Text(table.columns[i].values[index].get((){})),
+          childCount: length,
+        ),
+    ));
+  }
 }
