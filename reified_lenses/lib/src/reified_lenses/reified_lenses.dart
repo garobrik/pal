@@ -112,9 +112,8 @@ abstract class Getter<T> implements ThenGet<Getter<T>>, ThenLens {
       _GetterImpl(getF);
   static const _identity = _GetterImpl<dynamic, dynamic>(_identityGetter);
   static Zoom<Getter<T>, T> identity<T>() => _identity as _GetterImpl<T, T>;
-  static Zoom<Getter<T>, S> field<T, S>(
-          String fieldName, GetterF<T, S> getter) =>
-      Getter.mk((t) => GetResult(getter(t), Path.singleton(fieldName)));
+  static Zoom<Getter<T>, S> field<T, S>(Object field, GetterF<T, S> getter) =>
+      Getter.mk((t) => GetResult(getter(t), Path.singleton(field)));
 }
 
 @immutable
@@ -175,11 +174,11 @@ abstract class Mutater<T> implements ThenMut<Mutater<T>>, ThenLens {
   static Zoom<Mutater<T>, T> identity<T>() => _identity as _MutaterImpl<T, T>;
 
   static Zoom<Mutater<T>, S> field<T, S>(
-          String fieldName, MutaterF<T, S> mutater) =>
+          Object field, MutaterF<T, S> mutater) =>
       _MutaterImpl((t, f) => MutResult(
             mutater(t, f),
-            Path.singleton(fieldName),
-            Set.of([Path.singleton(fieldName)]),
+            Path.singleton(field),
+            Set.of([Path.singleton(field)]),
           ));
 }
 
@@ -255,11 +254,11 @@ abstract class Lens<T> implements Getter<T>, Mutater<T> {
   static Zoom<Lens<T>, T> identity<T>() =>
       _LensImpl<T, T>(_identityGetter, _identityMutater);
 
-  static Zoom<Lens<T>, S> field<T, S>(String fieldName, S Function(T t) getter,
+  static Zoom<Lens<T>, S> field<T, S>(Object field, S Function(T t) getter,
           T Function(T t, S Function(S s) s) mutater) =>
       _LensImpl(
-        Getter.field(fieldName, getter).getResult,
-        Mutater.field(fieldName, mutater).mutResult,
+        Getter.field(field, getter).getResult,
+        Mutater.field(field, mutater).mutResult,
       );
 }
 
