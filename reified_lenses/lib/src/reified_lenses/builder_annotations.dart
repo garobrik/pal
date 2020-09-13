@@ -25,9 +25,14 @@ class ReifiedLens {
 
 const reified_lens = ReifiedLens();
 
-class CopyWith {
-  final String methodName;
-  const CopyWith({this.methodName = 'copyWith'});
+class SkipLens {
+  const SkipLens();
 }
 
-const copy_with = CopyWith();
+const skip_lens = SkipLens();
+
+class CopyConstructor {
+  const CopyConstructor();
+}
+
+const copy_constructor = CopyConstructor();
