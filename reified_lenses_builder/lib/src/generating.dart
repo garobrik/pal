@@ -19,7 +19,8 @@ extension MethodGenerating on Method {
   String declaration([String expression]) {
     String suffix = expression != null ? ' => $expression;' : '{}';
     String returnType = this.returnType.map((t) => t.toString()).or('void');
-    String name = '${this.name}${this.typeParams.asDeclaration}';
+    String operator = this.isOperator ? 'operator ' : '';
+    String name = '$operator${this.name}${this.typeParams.asDeclaration}';
     return '$returnType $name(${this.params.asDeclaration}) $suffix';
   }
 }

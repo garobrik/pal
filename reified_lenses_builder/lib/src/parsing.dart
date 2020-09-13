@@ -11,12 +11,15 @@ import 'package:source_gen/source_gen.dart';
 abstract class ElementAnalogue<T extends Element> {
   final Optional<T> element;
   final String name;
+  final bool isPrivate;
 
-  const ElementAnalogue(this.name) : element = const Optional.empty();
+  const ElementAnalogue({this.name, this.isPrivate = false})
+      : element = const Optional.empty();
 
   ElementAnalogue.fromElement(T element)
       : element = Optional(element),
-        name = element.name ?? '';
+        name = element.name ?? '',
+        isPrivate = element.isPrivate;
 
   bool hasAnnotation(Core.Type t) =>
       element.hasValue && element.value.hasAnnotation(t);
@@ -31,6 +34,7 @@ class Class extends ElementAnalogue<ClassElement> implements Type {
   Iterable<Field> fields;
   Iterable<Method> methods;
   Iterable<AccessorPair> accessors;
+  final bool isAbstract;
 
   Class(
     String name, {
@@ -39,11 +43,14 @@ class Class extends ElementAnalogue<ClassElement> implements Type {
     this.fields = const [],
     this.methods = const [],
     this.accessors = const [],
-  }) : super(name);
+    this.isAbstract = false,
+    bool isPrivate = false,
+  }) : super(name: name, isPrivate: isPrivate);
 
   Class.fromElement(ClassElement element)
       : typeParams =
             element.typeParameters.map((tp) => TypeParam.fromElement(tp)),
+        isAbstract = element.isAbstract,
         super.fromElement(element) {
     constructors =
         element.constructors.map((c) => Constructor.fromElement(c, this));
@@ -81,19 +88,27 @@ class Class extends ElementAnalogue<ClassElement> implements Type {
   }
 
   String toString() => '$name' + (args.isEmpty ? '' : '<${args.join(", ")}>');
+
+  Optional<Constructor> get defaultCtor => Optional.nullable(
+      constructors.firstWhere((c) => c.isDefault, orElse: () => null));
 }
 
 class Constructor extends ElementAnalogue<ConstructorElement> {
   final Class parent;
   final Iterable<Param> params;
 
-  const Constructor({String name = '', this.params = const [], this.parent})
-      : super(name);
+  const Constructor({
+    String name = '',
+    this.params = const [],
+    this.parent,
+    bool isPrivate = false,
+  }) : super(name: name, isPrivate: isPrivate);
 
   Constructor.fromElement(ConstructorElement element, this.parent)
       : params = element.parameters.map((p) => Param.fromElement(p)),
         super.fromElement(element);
 
+  bool get isDefault => name.isEmpty;
   String get call => '${parent.name}' + (name.isEmpty ? '' : '.${name}');
 }
 
@@ -109,7 +124,8 @@ class Param extends ElementAnalogue<ParameterElement> {
     this.isNamed = false,
     this.isRequired = true,
     this.isInit = false,
-  }) : super(name);
+    bool isPrivate = false,
+  }) : super(name: name, isPrivate: isPrivate);
 
   Param.fromElement(ParameterElement element)
       : type = Type.fromDartType(element.type),
@@ -138,7 +154,8 @@ class Field extends ElementAnalogue<FieldElement> {
     this.isStatic = false,
     this.isFinal = false,
     this.isConst = false,
-  }) : super(name);
+    bool isPrivate = false,
+  }) : super(name: name, isPrivate: isPrivate);
 
   Field.fromElement(FieldElement element)
       : type = Type.fromDartType(element.type),
@@ -152,21 +169,47 @@ class Method extends ElementAnalogue<MethodElement> {
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
   final Optional<Type> returnType;
+  final bool isOperator;
 
-  const Method(
+  Method(
     String name, {
     this.typeParams = const [],
     this.params = const [],
     this.returnType = const Optional.empty(),
-  }) : super(name);
+    bool isPrivate = false,
+  })  : isOperator = overridable_operators.contains(name),
+        super(name: name, isPrivate: isPrivate);
 
   Method.fromElement(MethodElement element)
       : params = element.parameters.map((p) => Param.fromElement(p)),
         typeParams =
             element.typeParameters.map((tp) => TypeParam.fromElement(tp)),
         returnType = element.optionalReturnType,
+        isOperator = element.isOperator,
         super.fromElement(element);
 }
+
+const overridable_operators = {
+  "<",
+  "+",
+  "|",
+  "[]",
+  ">",
+  "/",
+  "^",
+  "[]=",
+  "<=",
+  "~/",
+  "&",
+  "~",
+  ">=",
+  "*",
+  "<<",
+  "==",
+  "–",
+  "%",
+  ">>",
+};
 
 class AccessorPair {
   final String name;
@@ -179,15 +222,20 @@ class AccessorPair {
 
   AccessorPair.fromElements(
       {PropertyAccessorElement getter, PropertyAccessorElement setter})
-      : name = getter?.name ?? setter.name,
+      : assert(getter != null || setter != null),
+        name = getter?.name ?? setter.name,
         getter = Optional.nullable(getter).map((g) => Getter.fromElement(g)),
         setter = Optional.nullable(setter).map((s) => Setter.fromElement(s));
+
+  bool get isPrivate =>
+      getter.map((g) => g.isPrivate).orLazy(() => setter.value.isPrivate);
 }
 
 class Getter extends ElementAnalogue<PropertyAccessorElement> {
   final Type returnType;
 
-  const Getter(String name, this.returnType) : super(name);
+  const Getter(String name, this.returnType, {bool isPrivate = false})
+      : super(name: name, isPrivate: isPrivate);
 
   Getter.fromElement(PropertyAccessorElement element)
       : returnType = Type.fromDartType(element.returnType),
@@ -195,23 +243,24 @@ class Getter extends ElementAnalogue<PropertyAccessorElement> {
 }
 
 class Setter extends ElementAnalogue<PropertyAccessorElement> {
-  final Optional<Type> returnType;
+  final Type type;
 
-  const Setter(String name, this.returnType) : super(name);
+  const Setter(String name, this.type, {bool isPrivate = false})
+      : super(name: name, isPrivate: isPrivate);
 
   Setter.fromElement(PropertyAccessorElement element)
-      : returnType = element.optionalReturnType,
+      : type = Type.fromDartType(element.type.parameters.first.type),
         super.fromElement(element);
 }
 
 class TypeParam extends ElementAnalogue<TypeParameterElement> implements Type {
   final Optional<Type> extendz;
 
-  TypeParam(String name, {Type extendz})
+  TypeParam(String name, {Type extendz, bool isPrivate = false})
       : extendz = Optional.nullable(extendz),
-        super(name);
+        super(name: name, isPrivate: isPrivate);
 
-  const TypeParam.constant(String name, {this.extendz}) : super(name);
+  const TypeParam.constant(String name, {this.extendz}) : super(name: name);
 
   TypeParam.fromElement(TypeParameterElement element)
       : extendz =
@@ -242,6 +291,29 @@ class Type {
   static const dynamic = Type('dynamic');
 
   String toString() => '$name' + (args.isEmpty ? '' : '<${args.join(", ")}>');
+
+  static bool equals(Type a, Type b) {
+    if (a.name != b.name || a.args.length != b.args.length) return false;
+    final aIter = a.args.iterator;
+    final bIter = b.args.iterator;
+    while (aIter.moveNext() && bIter.moveNext()) {
+      if (aIter.current != bIter.current) return false;
+    }
+    return true;
+  }
+}
+
+extension Subst on Type {
+  Type subst(Iterable<Type> from, Iterable<Type> to) {
+    final iter1 = from.iterator;
+    final iter2 = to.iterator;
+    while (iter1.moveNext() && iter2.moveNext()) {
+      if (Type.equals(this, iter1.current)) {
+        return iter2.current;
+      }
+    }
+    return Type(name, this.args.map((t) => t.subst(from, to)));
+  }
 }
 
 extension ElementAnnotationExtension on Element {
@@ -252,8 +324,6 @@ extension ElementAnnotationExtension on Element {
 }
 
 extension on ExecutableElement {
-  Optional<Type> get optionalReturnType => Optional.ifTrue(
-        this.hasImplicitReturnType,
-        Type.fromDartType(this.returnType),
-      );
+  Optional<Type> get optionalReturnType =>
+      Optional.nullable(this.returnType).map((t) => Type.fromDartType(t));
 }
