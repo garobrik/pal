@@ -25,14 +25,4 @@ export 'src/reified_lenses/state_management.dart'
         MutCursor,
         GetCursorInterfaceExtension,
         MutCursorInterfaceExtension;
-export 'src/reified_lenses/builder_annotations.dart'
-    show
-        reified_lens,
-        getter,
-        lens,
-        mutater,
-        copy_with,
-        ReifiedLens,
-        Optic,
-        OpticKind,
-        CopyWith;
+export 'annotations.dart';
