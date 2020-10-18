@@ -3,10 +3,12 @@ import 'dart:core' as Core;
 import 'dart:core';
 
 import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart';
+import 'package:analyzer/dart/element/type.dart' as AnalyzerType;
 import 'optional.dart';
 import 'package:meta/meta.dart' as Meta;
 import 'package:source_gen/source_gen.dart';
+
+import 'operators.dart';
 
 abstract class ElementAnalogue<T extends Element> {
   final Optional<T> element;
@@ -188,28 +190,6 @@ class Method extends ElementAnalogue<MethodElement> {
         isOperator = element.isOperator,
         super.fromElement(element);
 }
-
-const overridable_operators = {
-  "<",
-  "+",
-  "|",
-  "[]",
-  ">",
-  "/",
-  "^",
-  "[]=",
-  "<=",
-  "~/",
-  "&",
-  "~",
-  ">=",
-  "*",
-  "<<",
-  "==",
-  "–",
-  "%",
-  ">>",
-};
 
 class AccessorPair {
   final String name;
