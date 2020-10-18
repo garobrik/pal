@@ -30,7 +30,7 @@ abstract class ElementAnalogue<T extends Element> {
       element.flatMap((e) => e.getAnnotation(t));
 }
 
-class Class extends ElementAnalogue<ClassElement> implements Type {
+class Class extends ElementAnalogue<ClassElement> with ConcreteType {
   final Iterable<TypeParam> typeParams;
   Iterable<Constructor> constructors;
   Iterable<Field> fields;
@@ -89,8 +89,6 @@ class Class extends ElementAnalogue<ClassElement> implements Type {
     return TypeParam(paramName);
   }
 
-  String toString() => '$name' + (args.isEmpty ? '' : '<${args.join(", ")}>');
-
   Optional<Constructor> get defaultCtor => Optional.nullable(
       constructors.firstWhere((c) => c.isDefault, orElse: () => null));
 }
@@ -111,7 +109,7 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
         super.fromElement(element);
 
   bool get isDefault => name.isEmpty;
-  String get call => '${parent.name}' + (name.isEmpty ? '' : '.${name}');
+  String get call => '${parent.name}' + (name.isEmpty ? '' : '.$name');
 }
 
 class Param extends ElementAnalogue<ParameterElement> {
@@ -139,7 +137,7 @@ class Param extends ElementAnalogue<ParameterElement> {
 
   String toString() {
     final requiredMeta = (isRequired && isNamed) ? '@required ' : '';
-    final param = isInit ? 'this.$name' : '$type $name';
+    final param = isInit ? '$name' : '$type $name';
     return '$requiredMeta$param';
   }
 }
@@ -233,7 +231,8 @@ class Setter extends ElementAnalogue<PropertyAccessorElement> {
         super.fromElement(element);
 }
 
-class TypeParam extends ElementAnalogue<TypeParameterElement> implements Type {
+class TypeParam extends ElementAnalogue<TypeParameterElement>
+    with ConcreteType {
   final Optional<Type> extendz;
 
   TypeParam(String name, {Type extendz, bool isPrivate = false})
@@ -252,35 +251,147 @@ class TypeParam extends ElementAnalogue<TypeParameterElement> implements Type {
 
   TypeParam withBound(Type type) => TypeParam(name, extendz: type);
   Iterable<Type> get args => const [];
-
-  String toString() => name;
 }
 
-class Type {
+abstract class Type {
+  bool equals(Type b);
+  String renderType();
+
+  const factory Type(String name, [Iterable<Type> args]) = ConcreteType;
+  factory Type.fromDartType(AnalyzerType.DartType t) =>
+      t is AnalyzerType.FunctionType
+          ? FunctionType.fromDartType(t)
+          : ConcreteType.fromDartType(t);
+  factory Type.from(Core.Type type) = ConcreteType.from;
+
+  static const Type dynamic = ConcreteType('dynamic');
+}
+
+class FunctionType implements Type {
+  final Optional<Type> returnType;
+  final Iterable<Type> requiredArgs;
+  final Iterable<Type> optionalArgs;
+  final Map<String, Type> namedArgs;
+
+  const FunctionType({
+    this.returnType = const Optional.empty(),
+    this.requiredArgs = const [],
+    this.optionalArgs = const [],
+    this.namedArgs = const {},
+  });
+
+  FunctionType.fromDartType(AnalyzerType.FunctionType type)
+      : returnType = Optional.ifLazy(
+          type.returnType is! AnalyzerType.VoidType,
+          () => Type.fromDartType(type.returnType),
+        ),
+        requiredArgs =
+            type.normalParameterTypes.map((t) => Type.fromDartType(t)),
+        optionalArgs =
+            type.optionalParameterTypes.map((t) => Type.fromDartType(t)),
+        namedArgs = type.namedParameterTypes
+            .map((name, type) => MapEntry(name, Type.fromDartType(type)));
+
+  @override
+  bool equals(Type b) {
+    if (b is FunctionType) {
+      if (b.returnType.isNotEmpty != returnType.isNotEmpty) return false;
+      if (returnType.isNotEmpty) {
+        if (!returnType.value.equals(b.returnType.value)) return false;
+      }
+
+      if (requiredArgs.length != b.requiredArgs.length) {
+        return false;
+      } else {
+        final iter1 = requiredArgs.iterator;
+        final iter2 = b.requiredArgs.iterator;
+        while (iter1.moveNext() && iter2.moveNext()) {
+          if (!iter1.current.equals(iter2.current)) return false;
+        }
+      }
+
+      if (optionalArgs.length != b.optionalArgs.length) {
+        return false;
+      } else {
+        final iter1 = optionalArgs.iterator;
+        final iter2 = b.optionalArgs.iterator;
+        while (iter1.moveNext() && iter2.moveNext()) {
+          if (!iter1.current.equals(iter2.current)) return false;
+        }
+      }
+
+      if (namedArgs.length != b.namedArgs.length) {
+        return false;
+      } else {
+        for (final entry in namedArgs.entries) {
+          if (!b.namedArgs.containsKey(entry.key) ||
+              !entry.value.equals(b.namedArgs[entry.key])) return false;
+        }
+      }
+
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  String renderType() {
+    final ret = returnType.map((r) => r.renderType()).or('void');
+    final params = requiredArgs.map((a) => a.renderType()).join(', ');
+    return '$ret Function($params)';
+  }
+
+  @override
+  String toString() => renderType();
+}
+
+abstract class ConcreteType implements Type {
+  String get name;
+  Iterable<Type> get args;
+
+  const factory ConcreteType(String name, [Iterable<Type> args]) =
+      _ConcreteTypeImpl;
+  factory ConcreteType.fromDartType(AnalyzerType.DartType type) =
+      _ConcreteTypeImpl.fromDartType;
+  factory ConcreteType.from(Core.Type type, [Iterable<Type> args]) =
+      _ConcreteTypeImpl.from;
+
+  bool equals(Type b) {
+    if (b is ConcreteType) {
+      if (this.name != b.name || this.args.length != b.args.length)
+        return false;
+      final thisIter = this.args.iterator;
+      final bIter = b.args.iterator;
+      while (thisIter.moveNext() && bIter.moveNext()) {
+        if (!thisIter.current.equals(bIter.current)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  String renderType() {
+    final renderedArgs = args.map((a) => a.renderType()).join(', ');
+    return name + (renderedArgs.isNotEmpty ? '<$renderedArgs>' : '');
+  }
+
+  @override
+  String toString() => renderType();
+}
+
+class _ConcreteTypeImpl with ConcreteType {
   final String name;
   final Iterable<Type> args;
 
-  const Type(this.name, [this.args = const []]);
-  Type.fromDartType(DartType type)
+  const _ConcreteTypeImpl(this.name, [this.args = const []]);
+  _ConcreteTypeImpl.fromDartType(AnalyzerType.DartType type)
       : name = type.element.name,
-        args = (type is ParameterizedType)
+        args = (type is AnalyzerType.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(a))
             : [];
-  Type.from(Core.Type type, [this.args = const []]) : name = type.toString();
-
-  static const dynamic = Type('dynamic');
-
-  String toString() => '$name' + (args.isEmpty ? '' : '<${args.join(", ")}>');
-
-  static bool equals(Type a, Type b) {
-    if (a.name != b.name || a.args.length != b.args.length) return false;
-    final aIter = a.args.iterator;
-    final bIter = b.args.iterator;
-    while (aIter.moveNext() && bIter.moveNext()) {
-      if (aIter.current != bIter.current) return false;
-    }
-    return true;
-  }
+  _ConcreteTypeImpl.from(Core.Type type, [this.args = const []])
+      : name = type.toString();
 }
 
 extension Subst on Type {
@@ -288,11 +399,24 @@ extension Subst on Type {
     final iter1 = from.iterator;
     final iter2 = to.iterator;
     while (iter1.moveNext() && iter2.moveNext()) {
-      if (Type.equals(this, iter1.current)) {
+      if (this.equals(iter1.current)) {
         return iter2.current;
       }
     }
-    return Type(name, this.args.map((t) => t.subst(from, to)));
+    final Type thisType = this;
+    if (thisType is ConcreteType) {
+      return ConcreteType(
+          thisType.name, thisType.args.map((t) => t.subst(from, to)));
+    } else if (thisType is FunctionType) {
+      return FunctionType(
+        returnType: thisType.returnType.map((t) => t.subst(from, to)),
+        requiredArgs: thisType.requiredArgs.map((t) => t.subst(from, to)),
+        optionalArgs: thisType.optionalArgs.map((t) => t.subst(from, to)),
+        namedArgs:
+            thisType.namedArgs.map((k, v) => MapEntry(k, v.subst(from, to))),
+      );
+    }
+    throw 'impossible';
   }
 }
 
