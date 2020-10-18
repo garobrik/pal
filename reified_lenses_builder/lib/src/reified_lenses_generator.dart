@@ -88,7 +88,10 @@ class GeneratorContext {
     return clazz.accessors.expand((a) {
       if (a.isPrivate ||
           a.getter.isEmpty ||
-          a.getter.value.hasAnnotation(SkipLens)) return Optional.empty();
+          a.getter.value.hasAnnotation(SkipLens) ||
+          a.name == 'hashCode') {
+        return Optional.empty();
+      }
       final mutater = Optional.nullable(clazz.methods
           .firstWhere((m) => m.name == 'mut_${a.name}', orElse: () => null));
       final kind = mutater.isEmpty ? OpticKind.Getter : OpticKind.Lens;
@@ -103,28 +106,44 @@ class GeneratorContext {
 
   Iterable<Optic> generateMethodOptics() {
     return clazz.methods.expand((m) {
-      if (m.hasAnnotation(SkipLens)) return Optional.empty();
-      // special case
-      if (m.name == "[]") {
-        final mutater = Optional.nullable(clazz.methods
-            .firstWhere((m) => m.name == 'mut_array_op', orElse: () => null));
-        final kind = mutater.isEmpty ? OpticKind.Getter : OpticKind.Lens;
-        final argName = m.params.first.name;
-        return Optional(Optic(
-          name: m.name,
-          kind: kind,
-          zoomedType: m.returnType.value,
-          optic: Optional(call('${kind.opticName}.field', [
-            argName,
-            '(_t) => _t[$argName]',
-            if (mutater.isNotEmpty)
-              '(_t, _s) => _t.${mutater.value.name}($argName, _s(_t[$argName]))'
-          ])),
-          params: m.params,
-          typeParams: m.typeParams,
-        ));
-      }
-      return Optional.empty();
+      if (m.hasAnnotation(SkipLens) ||
+          m.name == '==' ||
+          m.name == 'toString' ||
+          m.name.startsWith('mut_')) return Optional.empty();
+
+      final mutaterName = m.name == '[]' ? 'mut_array_op' : 'mut_${m.name}';
+      final mutater = Optional.nullable(clazz.methods
+          .firstWhere((m) => m.name == mutaterName, orElse: () => null));
+      final kind = mutater.isEmpty ? OpticKind.Getter : OpticKind.Lens;
+      final argName = m.params.first.name;
+      return Optional(Optic(
+        name: m.name,
+        kind: kind,
+        zoomedType: m.returnType.value,
+        optic: Optional(call('${kind.opticName}.field', [
+          argName,
+          lambda(
+            ['_t'],
+            [
+              m.invoke('_t', [argName])
+            ],
+          ),
+          if (mutater.isNotEmpty)
+            lambda(
+              ['_t', '_s'],
+              [
+                mutater.value.invoke('_t', [
+                  argName,
+                  call('_s', [
+                    m.invoke('_t', [argName])
+                  ])
+                ])
+              ],
+            ),
+        ])),
+        params: m.params,
+        typeParams: m.typeParams,
+      ));
     });
   }
 }
@@ -151,10 +170,11 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     generateCopyWithExtension(ctx, output);
     final optics = ctx.generateOptics();
     OpticKind.values.forEach((kind) {
+      final opticsOfKind = optics.where((o) => o.kind == kind);
+      if (opticsOfKind.isEmpty) return;
       output.writeln(extensionDecl(ctx, kind));
-      optics
-          .where((o) => o.kind == kind)
-          .forEach((o) => o.generate(ctx, output));
+      output.writeln();
+      opticsOfKind.forEach((o) => o.generate(ctx, output));
       output.writeln('}');
     });
 
@@ -171,18 +191,15 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     final params = ctx.clazz.typeParams.asDeclaration;
     final on = ctx.clazz;
     output.writeln('extension $name$params on $on {');
-    generateCopyWithMethod(copyCtor, output);
+    output.writeln();
+    generateCopyWithMethod(copyCtor, ctx.copyWith.value, output);
     output.writeln('}');
   }
 
-  void generateCopyWithMethod(Constructor constructor, StringBuffer output) {
+  void generateCopyWithMethod(
+      Constructor constructor, Method method, StringBuffer output) {
     final params = constructor.params
         .map((p) => Param(p.type, p.name, isNamed: true, isRequired: false));
-    final method = Method(
-      'copyWith',
-      returnType: Optional(constructor.parent),
-      params: params,
-    );
     output.writeln(method.declaration(call(
       constructor.call,
       params.map((p) => '${p.name}: ${p.name} ?? this.${p.name}'),
@@ -204,7 +221,7 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     );
     final on = Type('Zoom', [zoomFrom, ctx.clazz]);
 
-    return 'extension $name${params.asDeclaration} on ${on} {';
+    return 'extension $name${params.asDeclaration} on ${on.renderType()} {';
   }
 }
 
@@ -230,12 +247,17 @@ class Optic {
   });
 
   void generate(GeneratorContext ctx, StringBuffer output) {
-    final generatedOpticName = '_\$${name}';
+    final String generatedOpticName = '_\$${name}';
+    String generatedOptic = generatedOpticName;
     if (optic.isEmpty) {
-      final staticType = kind.opticType(ctx.clazz, zoomedType).subst(
+      final parameterizedType = kind.opticType(ctx.clazz, zoomedType);
+      final substTypeParams = (Type t) => t.subst(
             ctx.clazz.typeParams,
             List.filled(ctx.clazz.typeParams.length, Type.dynamic),
           );
+      final staticType = substTypeParams(parameterizedType);
+      if (!parameterizedType.equals(staticType))
+        generatedOptic = '$generatedOpticName as $parameterizedType';
       final staticField = Field(generatedOpticName,
           type: staticType, isStatic: true, isFinal: true);
       output.writeln(staticField.declaration(call(
@@ -247,10 +269,12 @@ class Optic {
           if ([OpticKind.Lens, OpticKind.Mutater].contains(kind))
             mutBody.or('(t, f) => t.copyWith(${name}: f(t.${name}))'),
         ],
+        typeParams: [ctx.clazz, zoomedType].map(substTypeParams),
       )));
+      output.writeln();
     }
 
-    final thenArg = optic.or(generatedOpticName);
+    final thenArg = optic.or(generatedOptic);
     final opticReturnType = zoom(ctx.newTypeParam, zoomedType);
 
     if (params.isEmpty) {
@@ -266,6 +290,7 @@ class Optic {
 
       output.writeln(method.declaration(call(kind.thenMethod, [thenArg])));
     }
+    output.writeln();
   }
 }
 
