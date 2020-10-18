@@ -1,3 +1,4 @@
+import 'operators.dart';
 import 'parsing.dart';
 
 extension FieldGenerating on Field {
@@ -23,10 +24,59 @@ extension MethodGenerating on Method {
     String name = '$operator${this.name}${this.typeParams.asDeclaration}';
     return '$returnType $name(${this.params.asDeclaration}) $suffix';
   }
+
+  String invoke(
+    String target, [
+    Iterable<String> positional,
+    Map<String, String> named = const {},
+  ]) {
+    final int requiredPositional =
+        params.where((p) => p.isRequired && !p.isNamed).length;
+    if (positional.length < requiredPositional) {
+      throw ArgumentError(
+          'Called method $name with ${positional.length} args.' +
+              '$requiredPositional are required.');
+    }
+
+    if (overridable_operators.contains(name)) {
+      if (name == '[]') {
+        return '$target[${positional.first}]';
+      } else if (name == '[]=') {
+        return '$target[${positional.first}] = ${positional.skip(1).first}';
+      } else if (name == '~') {
+        return '~$target';
+      } else if (binary_operators.contains(name)) {
+        return '$target $name ${positional.first}';
+      }
+    }
+    return call('$target.$name', positional, named: named);
+  }
 }
 
-String call(String callee, [Iterable<String> args = const []]) {
-  return '$callee(${args.join(', ')})';
+String call(
+  String callee,
+  Iterable<String> positional, {
+  Map<String, String> named = const {},
+  Iterable<Type> typeParams = const [],
+}) {
+  final joinedTypeParams = typeParams.map((t) => t.renderType()).join(", ");
+  final renderedTypeParams =
+      joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
+  return '$callee$renderedTypeParams(${parameterize(positional, named)})';
+}
+
+String parameterize(
+    [Iterable<String> positional = const [],
+    Map<String, String> named = const {}]) {
+  return positional
+      .followedBy(named.entries.map((e) => '${e.key}: ${e.value}'))
+      .join(', ');
+}
+
+String lambda(Iterable<String> params, Iterable<String> body) {
+  final intro = '(${params.join(", ")})';
+  if (body.length == 1) return '$intro => ${body.first}';
+  return '$intro { ${body.map((s) => s + "; ")}}';
 }
 
 extension TypeParamsGenerating on Iterable<TypeParam> {
