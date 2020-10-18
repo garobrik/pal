@@ -4,7 +4,7 @@ part 'test.g.dart';
 
 @reified_lens
 class Data<A> {
-  static Zoom<Lens<Data<A>>, Data<A>> lens<A>() => Lens.identity();
+  static Lens<Data<A>, Data<A>> lens<A>() => Lens.identity();
 
   final A a;
   final Data<A> b;

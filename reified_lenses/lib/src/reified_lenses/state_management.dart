@@ -1,5 +1,4 @@
 import 'package:meta/meta.dart';
-import 'zoom.dart';
 import 'reified_lenses.dart';
 import 'path.dart';
 
@@ -9,21 +8,19 @@ class ListenableState<T> {
 
   ListenableState(this._state);
 
-  Zoom<Cursor, T> get cursor => _CursorImpl(this, Lens.identity());
+  Cursor<T> get cursor => _CursorImpl(this, Lens.identity());
 
   T get bareState => _state;
 
-  S get<S>(Zoom<Getter<T>, S> getter) {
-    return getter.get(_state);
-  }
+  S get<S>(Getter<T, S> getter) => getter.getResult(_state).value;
 
-  S getAndListen<S>(Zoom<Getter<T>, S> getter, void Function() callback) {
+  S getAndListen<S>(Getter<T, S> getter, void Function() callback) {
     final result = getter.getResult(_state);
     _listenables.add(result.path, callback);
     return result.value;
   }
 
-  void mutAndNotify<S>(Zoom<Mutater<T>, S> mutater, S Function(S s) mutation) {
+  void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
     transformAndNotify((state) => mutater.mutResult(state, mutation));
   }
 
@@ -40,36 +37,77 @@ class ListenableState<T> {
   Type get type => T;
 }
 
-abstract class CursorInterface<C extends Cursor, S>
-    with GetCursorInterface<C, S>, MutCursorInterface<C, S> {
-  Zoom<Lens<dynamic>, S> get lens;
+abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
+  @override
+  Cursor<S2> then<S2>(Lens<S, S2> lens);
 
   @override
-  Zoom<Getter<dynamic>, S> get getter => lens;
+  GetCursor<S2> thenGet<S2>(Getter<S, S2> lens);
 
   @override
-  Zoom<Mutater<dynamic>, S> get mutater => lens;
+  MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
 }
 
-class Cursor implements GetCursor, MutCursor {}
-
-class _CursorImpl<S> extends CursorInterface<Cursor, S> {
-  final ListenableState<dynamic> state;
-  final Zoom<Lens<dynamic>, S> lens;
+@immutable
+class _CursorImpl<T, S> extends Cursor<S> {
+  final ListenableState<T> state;
+  final Lens<T, S> lens;
   _CursorImpl(this.state, this.lens);
 
   @override
-  Zoom<Cursor, S2> then<S2>(Zoom<Lens<S>, S2> lens) {
+  Cursor<S2> then<S2>(Lens<S, S2> lens) {
     return _CursorImpl(this.state, this.lens.then(lens));
   }
+
+  @override
+  S get([void Function() callback]) => GetCursor.mk(state, lens).get(callback);
+
+  @override
+  void listen(void Function() callback) =>
+      GetCursor.mk(state, lens).get(callback);
+
+  @override
+  void mut(S Function(S p1) f) => MutCursor.mk(state, lens).mut(f);
+
+  @override
+  void set(S s) => MutCursor.mk(state, lens).set(s);
+
+  @override
+  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) =>
+      GetCursor.mk(state, lens.thenGet(getter));
+
+  @override
+  MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) =>
+      MutCursor.mk(state, lens.thenMut(mutater));
 }
 
-abstract class GetCursorInterface<C extends GetCursor, S>
-    implements ThenGetInterface<C, GetCursor, S>, ThenLensInterface<C, S> {
-  @protected
-  ListenableState<dynamic> get state;
-  @protected
-  Zoom<Getter<dynamic>, S> get getter;
+@immutable
+abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
+  static GetCursor<S> mk<T, S>(ListenableState<T> state, Getter<T, S> getter) =>
+      _GetCursorImpl(state, getter);
+
+  @override
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
+
+  @override
+  GetCursor<S1> then<S1>(Lens<S, S1> getter);
+
+  void listen(void Function() callback);
+
+  S get([void Function() callback]);
+}
+
+@immutable
+class _GetCursorImpl<T, S> extends GetCursor<S> {
+  final ListenableState<T> state;
+  final Getter<T, S> getter;
+
+  _GetCursorImpl(this.state, this.getter);
+
+  @override
+  GetCursor<S2> then<S2>(Lens<S, S2> lens) {
+    return _GetCursorImpl(state, getter.then(lens));
+  }
 
   void listen(void Function() callback) {
     state.getAndListen(getter, callback);
@@ -82,39 +120,36 @@ abstract class GetCursorInterface<C extends GetCursor, S>
   }
 
   @override
-  Zoom<GetCursor, S2> thenGet<S2>(Zoom<Getter<S>, S2> getter) {
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
     return _GetCursorImpl(state, this.getter.thenGet(getter));
   }
 }
 
-class _GetCursorImpl<S> with GetCursorInterface<GetCursor, S> {
-  final ListenableState<dynamic> state;
-  final Zoom<Getter<dynamic>, S> getter;
-
-  _GetCursorImpl(this.state, this.getter);
+@immutable
+abstract class MutCursor<S> implements ThenMut<S>, ThenLens<S> {
+  static MutCursor<S> mk<T, S>(
+    ListenableState<T> state,
+    Mutater<T, S> mutater,
+  ) =>
+      _MutCursorImpl(state, mutater);
 
   @override
-  Zoom<GetCursor, S2> then<S2>(Zoom<Lens<S>, S2> lens) {
-    return _GetCursorImpl(state, getter.then(lens));
-  }
+  MutCursor<S2> then<S2>(Lens<S, S2> lens);
+
+  @override
+  MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
+
+  void mut(S Function(S) f);
+
+  void set(S s);
 }
 
-class GetCursor implements ThenGet<GetCursor>, ThenLens {}
+@immutable
+class _MutCursorImpl<T, S> extends MutCursor<S> {
+  final ListenableState<T> state;
+  final Mutater<T, S> mutater;
 
-extension GetCursorInterfaceExtension<S> on Zoom<GetCursor, S> {
-  GetCursorInterface<GetCursor, S> get _this =>
-      this as GetCursorInterface<GetCursor, S>;
-
-  S get(void Function() callback) => _this.get(callback);
-  void listen(void Function() callback) => _this.get(callback);
-}
-
-abstract class MutCursorInterface<C extends MutCursor, S>
-    implements ThenMutInterface<C, MutCursor, S>, ThenLensInterface<C, S> {
-  @protected
-  ListenableState<dynamic> get state;
-  @protected
-  Zoom<Mutater<dynamic>, S> get mutater;
+  _MutCursorImpl(this.state, this.mutater);
 
   void mut(S Function(S) f) {
     state.mutAndNotify(mutater, f);
@@ -125,30 +160,12 @@ abstract class MutCursorInterface<C extends MutCursor, S>
   }
 
   @override
-  Zoom<MutCursor, S2> thenMut<S2>(Zoom<Mutater<S>, S2> mutater) {
+  MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) {
     return _MutCursorImpl(state, this.mutater.thenMut(mutater));
   }
-}
-
-extension MutCursorInterfaceExtension<S> on Zoom<MutCursor, S> {
-  MutCursorInterface<MutCursor, S> get _this =>
-      this as MutCursorInterface<MutCursor, S>;
-
-  void mut(S Function(S) f) => _this.mut(f);
-
-  void set(S s) => _this.set(s);
-}
-
-class MutCursor implements ThenMut<MutCursor>, ThenLens {}
-
-class _MutCursorImpl<S> extends MutCursorInterface<MutCursor, S> {
-  final ListenableState<dynamic> state;
-  final Zoom<Mutater<dynamic>, S> mutater;
-
-  _MutCursorImpl(this.state, this.mutater);
 
   @override
-  Zoom<MutCursor, S2> then<S2>(Zoom<Lens<S>, S2> lens) {
+  MutCursor<S2> then<S2>(Lens<S, S2> lens) {
     return _MutCursorImpl(state, mutater.then(lens));
   }
 }

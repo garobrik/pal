@@ -3,8 +3,9 @@ import 'package:build/build.dart';
 import 'optional.dart';
 import 'package:meta/meta.dart';
 import 'package:source_gen/source_gen.dart';
-import 'package:reified_lenses/reified_lenses.dart' as ReifiedLenses;
 import 'package:reified_lenses/annotations.dart';
+import 'dart:core' as Core;
+import 'dart:core';
 
 import 'parsing.dart';
 import 'generating.dart';
@@ -15,8 +16,7 @@ class GeneratorContext {
   Optional<Constructor> copyCtor;
   Optional<Method> copyWith;
 
-  GeneratorContext(this.clazz)
-      : newTypeParam = clazz.newTypeParam('ReifiedLens') {
+  GeneratorContext(this.clazz) : newTypeParam = clazz.newTypeParams(1).first {
     copyWith = Optional.nullable(clazz.methods
         .firstWhere((m) => m.name == 'copyWith', orElse: () => null));
     if (copyWith.isNotEmpty) {
@@ -169,13 +169,15 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
 
     generateCopyWithExtension(ctx, output);
     final optics = ctx.generateOptics();
-    OpticKind.values.forEach((kind) {
-      final opticsOfKind = optics.where((o) => o.kind == kind);
-      if (opticsOfKind.isEmpty) return;
-      output.writeln(extensionDecl(ctx, kind));
-      output.writeln();
-      opticsOfKind.forEach((o) => o.generate(ctx, output));
-      output.writeln('}');
+    composers.forEach((composer) {
+      OpticKind.values.forEach((kind) {
+        final opticsOfKind = optics.where((o) => o.kind == kind);
+        if (opticsOfKind.isEmpty) return;
+        output.writeln(composer.extensionDecl(ctx.clazz, kind));
+        output.writeln();
+        opticsOfKind.forEach((o) => o.generate(ctx, composer, output));
+        output.writeln('}');
+      });
     });
 
     return output.toString();
@@ -205,25 +207,45 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
       params.map((p) => '${p.name}: ${p.name} ?? this.${p.name}'),
     )));
   }
+}
 
-  String extensionDecl(GeneratorContext ctx, OpticKind kind) {
-    final name = '${ctx.clazz.name}${kind.opticName}Extension';
-    final TypeParam generatedParam = kind.allCases(
-      lens: ctx.newTypeParam.withBound(Type.from(ReifiedLenses.ThenLens)),
-      getter: ctx.newTypeParam,
-      mutater: ctx.newTypeParam,
-    );
-    final params = [generatedParam].followedBy(ctx.clazz.typeParams);
-    final Type zoomFrom = kind.allCases(
-      lens: ctx.newTypeParam,
-      getter: Type('ThenGet', [ctx.newTypeParam]),
-      mutater: Type('ThenMut', [ctx.newTypeParam]),
-    );
-    final on = Type('Zoom', [zoomFrom, ctx.clazz]);
+class Composer {
+  final String Function(OpticKind) types;
+  final int numParams;
 
-    return 'extension $name${params.asDeclaration} on ${on.renderType()} {';
+  Composer({this.types, this.numParams});
+
+  Type zoom(Class clazz, Type t, OpticKind k) =>
+      Type(types(k), [...clazz.newTypeParams(numParams), t]);
+
+  String extensionDecl(Class clazz, OpticKind kind) {
+    final name = '${clazz.name}${types(kind)}Extension';
+    final params = [...clazz.newTypeParams(numParams), ...clazz.typeParams];
+    final on =
+        Type(types(kind), [...clazz.newTypeParams(numParams), clazz]);
+
+    return 'extension $name${params.asDeclaration} on ${on} {';
   }
 }
+
+final composers = [
+  Composer(
+    types: (k) => k.allCases(
+      lens: 'Cursor',
+      getter: 'GetCursor',
+      mutater: 'MutCursor',
+    ),
+    numParams: 0,
+  ),
+  Composer(
+    types: (k) => k.allCases(
+      getter: 'Getter',
+      mutater: 'Mutater',
+      lens: 'Lens',
+    ),
+    numParams: 1,
+  )
+];
 
 class Optic {
   final OpticKind kind;
@@ -246,7 +268,7 @@ class Optic {
     this.params = const [],
   });
 
-  void generate(GeneratorContext ctx, StringBuffer output) {
+  void generate(GeneratorContext ctx, Composer composer, StringBuffer output) {
     final String generatedOpticName = '_\$${name}';
     String generatedOptic = generatedOpticName;
     if (optic.isEmpty) {
@@ -275,7 +297,7 @@ class Optic {
     }
 
     final thenArg = optic.or(generatedOptic);
-    final opticReturnType = zoom(ctx.newTypeParam, zoomedType);
+    final opticReturnType = composer.zoom(ctx.clazz, zoomedType, kind);
 
     if (params.isEmpty) {
       final getter = Getter(name, opticReturnType);
@@ -330,8 +352,5 @@ extension on OpticKind {
   String get opticName =>
       this.allCases(lens: 'Lens', getter: 'Getter', mutater: 'Mutater');
 
-  Type opticType(Type source, Type target) =>
-      zoom(Type(opticName, [source]), target);
+  Type opticType(Type source, Type target) => Type(opticName, [source, target]);
 }
-
-Type zoom(Type source, Type target) => Type('Zoom', [source, target]);

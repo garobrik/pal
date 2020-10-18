@@ -79,14 +79,16 @@ class Class extends ElementAnalogue<ClassElement> with ConcreteType {
   @override
   Iterable<Type> get args => typeParams;
 
-  TypeParam newTypeParam(String prefix) {
+  List<TypeParam> newTypeParams(int count) {
     int suffix = 0;
-    String paramName = '\$$prefix';
-    while (this.typeParams.any((param) => param.name == paramName)) {
+    var result = List<TypeParam>();
+    while (result.length < count) {
+      if (!this.typeParams.any((param) => param.name == 'T$suffix')) {
+        result.add(TypeParam('T$suffix'));
+      }
       suffix++;
-      paramName = '\$$prefix$suffix';
     }
-    return TypeParam(paramName);
+    return result;
   }
 
   Optional<Constructor> get defaultCtor => Optional.nullable(
@@ -262,7 +264,6 @@ abstract class Type {
       t is AnalyzerType.FunctionType
           ? FunctionType.fromDartType(t)
           : ConcreteType.fromDartType(t);
-  factory Type.from(Core.Type type) = ConcreteType.from;
 
   static const Type dynamic = ConcreteType('dynamic');
 }
@@ -353,8 +354,6 @@ abstract class ConcreteType implements Type {
       _ConcreteTypeImpl;
   factory ConcreteType.fromDartType(AnalyzerType.DartType type) =
       _ConcreteTypeImpl.fromDartType;
-  factory ConcreteType.from(Core.Type type, [Iterable<Type> args]) =
-      _ConcreteTypeImpl.from;
 
   bool equals(Type b) {
     if (b is ConcreteType) {
@@ -390,8 +389,6 @@ class _ConcreteTypeImpl with ConcreteType {
         args = (type is AnalyzerType.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(a))
             : [];
-  _ConcreteTypeImpl.from(Core.Type type, [this.args = const []])
-      : name = type.toString();
 }
 
 extension Subst on Type {
