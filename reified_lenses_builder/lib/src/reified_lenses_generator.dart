@@ -44,7 +44,7 @@ class GeneratorContext {
 
     if (copyCtor.isNotEmpty) {
       final params = copyCtor.value.params
-          .map((p) => Param(p.type, p.name, isRequired: false));
+          .map((p) => Param(p.type, p.name, isRequired: false, isNamed: true));
       copyWith = Optional(Method(
         'copyWith',
         returnType: Optional(copyCtor.value.parent),
