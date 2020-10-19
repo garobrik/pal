@@ -12,16 +12,14 @@ class Optional<Value> extends Iterable<Value> {
 
   const Optional.empty() : _value = null;
 
-  Optional(Value value)
+  const Optional(Value value)
       : assert(value != null, 'Initialized Optional with null value.'),
         _value = value;
 
   const Optional.nullable(this._value);
 
-  factory Optional.ifTrue(bool test, Value value) =>
-      test ? Optional(value) : Optional.empty();
-  factory Optional.ifLazy(bool test, Value Function() value) =>
-      test ? Optional(value()) : Optional.empty();
+  Optional.ifTrue(bool test, Value value): _value = test ? value : null;
+  Optional.ifLazy(bool test, Value Function() value): _value = test ? value() : null;
 
   Value get value {
     assert(_value != null, 'Attempted to access value of empty Optional.');
@@ -45,10 +43,12 @@ class Optional<Value> extends Iterable<Value> {
 
   @override
   bool operator ==(Object other) => other is Optional && _value == other._value;
+
   @override
   int get hashCode => isEmpty ? 0 : _value.hashCode;
 
   @override
+  @skip_lens
   Iterator<Value> get iterator => _Iterator(this);
 }
 
