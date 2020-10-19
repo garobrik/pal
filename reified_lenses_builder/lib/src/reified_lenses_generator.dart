@@ -171,11 +171,16 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     final optics = ctx.generateOptics();
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
-        final opticsOfKind = optics.where((o) => o.kind == kind);
+        final opticsOfKind = optics.where(
+          (o) =>
+              o.kind == kind ||
+              (kind == OpticKind.Getter && o.kind != OpticKind.Mutater) ||
+              (kind == OpticKind.Mutater && o.kind != OpticKind.Getter),
+        );
         if (opticsOfKind.isEmpty) return;
         output.writeln(composer.extensionDecl(ctx.clazz, kind));
         output.writeln();
-        opticsOfKind.forEach((o) => o.generate(ctx, composer, output));
+        opticsOfKind.forEach((o) => o.generate(ctx, composer, kind, output));
         output.writeln('}');
       });
     });
@@ -221,8 +226,7 @@ class Composer {
   String extensionDecl(Class clazz, OpticKind kind) {
     final name = '${clazz.name}${types(kind)}Extension';
     final params = [...clazz.newTypeParams(numParams), ...clazz.typeParams];
-    final on =
-        Type(types(kind), [...clazz.newTypeParams(numParams), clazz]);
+    final on = Type(types(kind), [...clazz.newTypeParams(numParams), clazz]);
 
     return 'extension $name${params.asDeclaration} on ${on} {';
   }
@@ -268,49 +272,33 @@ class Optic {
     this.params = const [],
   });
 
-  void generate(GeneratorContext ctx, Composer composer, StringBuffer output) {
-    final String generatedOpticName = '_\$${name}';
-    String generatedOptic = generatedOpticName;
-    if (optic.isEmpty) {
-      final parameterizedType = kind.opticType(ctx.clazz, zoomedType);
-      final substTypeParams = (Type t) => t.subst(
-            ctx.clazz.typeParams,
-            List.filled(ctx.clazz.typeParams.length, Type.dynamic),
-          );
-      final staticType = substTypeParams(parameterizedType);
-      if (!parameterizedType.equals(staticType))
-        generatedOptic = '$generatedOpticName as $parameterizedType';
-      final staticField = Field(generatedOpticName,
-          type: staticType, isStatic: true, isFinal: true);
-      output.writeln(staticField.declaration(call(
-        '${kind.opticName}.field',
+  void generate(GeneratorContext ctx, Composer composer, OpticKind parentKind, StringBuffer output) {
+    final thenArg = optic.or(
+      call(
+        '${parentKind.opticName}.field',
         [
           "'${name}'",
-          if ([OpticKind.Lens, OpticKind.Getter].contains(kind))
+          if ([OpticKind.Lens, OpticKind.Getter].contains(parentKind))
             getBody.or('(t) => t.${name}'),
-          if ([OpticKind.Lens, OpticKind.Mutater].contains(kind))
+          if ([OpticKind.Lens, OpticKind.Mutater].contains(parentKind))
             mutBody.or('(t, f) => t.copyWith(${name}: f(t.${name}))'),
         ],
-        typeParams: [ctx.clazz, zoomedType].map(substTypeParams),
-      )));
-      output.writeln();
-    }
-
-    final thenArg = optic.or(generatedOptic);
-    final opticReturnType = composer.zoom(ctx.clazz, zoomedType, kind);
+      ),
+    );
+    final returnType = composer.zoom(ctx.clazz, zoomedType, parentKind);
 
     if (params.isEmpty) {
-      final getter = Getter(name, opticReturnType);
-      output.writeln(getter.declaration(call(kind.thenMethod, [thenArg])));
+      final getter = Getter(name, returnType);
+      output.writeln(getter.declaration(call(parentKind.thenMethod, [thenArg])));
     } else {
       final method = Method(
         name,
         typeParams: typeParams,
         params: params,
-        returnType: Optional(opticReturnType),
+        returnType: Optional(returnType),
       );
 
-      output.writeln(method.declaration(call(kind.thenMethod, [thenArg])));
+      output.writeln(method.declaration(call(parentKind.thenMethod, [thenArg])));
     }
     output.writeln();
   }
