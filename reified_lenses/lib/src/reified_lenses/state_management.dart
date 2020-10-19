@@ -14,10 +14,12 @@ class ListenableState<T> {
 
   S get<S>(Getter<T, S> getter) => getter.getResult(_state).value;
 
-  S getAndListen<S>(Getter<T, S> getter, void Function() callback) {
+  WithDisposal<S> getAndListen<S>(
+      Getter<T, S> getter, void Function() callback) {
     final result = getter.getResult(_state);
     _listenables.add(result.path, callback);
-    return result.value;
+    return WithDisposal(
+        () => _listenables.remove(result.path, callback), result.value);
   }
 
   void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
@@ -35,6 +37,14 @@ class ListenableState<T> {
   }
 
   Type get type => T;
+}
+
+@immutable
+class WithDisposal<T> {
+  final void Function() dispose;
+  final T value;
+
+  const WithDisposal(this.dispose, this.value);
 }
 
 abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
@@ -60,11 +70,15 @@ class _CursorImpl<T, S> extends Cursor<S> {
   }
 
   @override
-  S get([void Function() callback]) => GetCursor.mk(state, lens).get(callback);
+  WithDisposal<S> getAndListen(void Function() callback) =>
+      GetCursor.mk(state, lens).getAndListen(callback);
 
   @override
-  void listen(void Function() callback) =>
-      GetCursor.mk(state, lens).get(callback);
+  S get() => GetCursor.mk(state, lens).get();
+
+  @override
+  void Function() listen(void Function() callback) =>
+      GetCursor.mk(state, lens).listen(callback);
 
   @override
   void mut(S Function(S p1) f) => MutCursor.mk(state, lens).mut(f);
@@ -92,9 +106,11 @@ abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
   @override
   GetCursor<S1> then<S1>(Lens<S, S1> getter);
 
-  void listen(void Function() callback);
+  void Function() listen(void Function() callback);
 
-  S get([void Function() callback]);
+  S get();
+
+  WithDisposal<S> getAndListen(void Function() callback);
 }
 
 @immutable
@@ -109,15 +125,16 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
     return _GetCursorImpl(state, getter.then(lens));
   }
 
-  void listen(void Function() callback) {
-    state.getAndListen(getter, callback);
-  }
+  @override
+  WithDisposal<S> getAndListen(void Function() callback) =>
+      state.getAndListen(getter, callback);
 
-  S get([void Function() callback]) {
-    return callback == null
-        ? state.get(getter)
-        : state.getAndListen(getter, callback);
-  }
+  @override
+  void Function() listen(void Function() callback) =>
+      state.getAndListen(getter, callback).dispose;
+
+  @override
+  S get() => state.get(getter);
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {

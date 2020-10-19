@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         create: (_) => ListenableState(Model.Table.from(columns: [
-              StringColumn.from(values: List.generate(50, (i) => "Row $i"))
+          StringColumn.from(values: List.generate(50, (i) => "Row $i"))
         ])),
       ),
     );
@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
 }
 
 class TableWidget extends StatelessWidget {
-  final Zoom<Cursor, Model.Table> table;
+  final Cursor<Model.Table> table;
   TableWidget(this.table);
 
   @override
@@ -48,18 +48,21 @@ class TableWidget extends StatelessWidget {
           shrinkWrap: true,
           slivers: [
             SliverList(delegate: SliverChildListDelegate([buildHeader()])),
-            table.length.build((length) => ReorderableSliverList(
-                  onReorder: (a, b) {
-                    table.columns.forEach((column) {
-                      column.values[a].set(column.values[b].get(() {}));
-                      column.values[b].set(column.values[a].get(() {}));
-                    });
-                  },
-                  delegate: ReorderableSliverChildBuilderDelegate(
-                    (_, i) => buildRow(i),
-                    childCount: length,
-                  ),
-                )),
+            table.length.build(
+              (_, length) => ReorderableSliverList(
+                onReorder: (a, b) {
+                  table.columns.forEach((column) {
+                    final bVal = column.values[b].get();
+                    column.values[b].set(column.values[a].get());
+                    column.values[a].set(bVal);
+                  });
+                },
+                delegate: ReorderableSliverChildBuilderDelegate(
+                  (_, i) => buildRow(i),
+                  childCount: length,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -67,25 +70,25 @@ class TableWidget extends StatelessWidget {
   }
 
   Widget buildHeader() {
-    return table.columns.length.build((length) => Row(
-      // onReorder: (a, b) {
-      //   table.columns[a].set(table.columns[b].get(() {}));
-      //   table.columns[b].set(table.columns[a].get(() {}));
-      // },
-      children: List.generate(
-        length,
-        (columnIndex) => Text('header', key: ValueKey(columnIndex)),
-      ),
-    ));
+    return table.columns.length.build((_, length) => Row(
+          // onReorder: (a, b) {
+          //   table.columns[a].set(table.columns[b].get(() {}));
+          //   table.columns[b].set(table.columns[a].get(() {}));
+          // },
+          children: List.generate(
+            length,
+            (columnIndex) => Text('header', key: ValueKey(columnIndex)),
+          ),
+        ));
   }
 
   Widget buildRow(int rowIndex) {
     return table.columns.length.build(
-      (length) => Row(
+      (_, length) => Row(
         children: List.generate(
           length,
           (columnIndex) => table.columns[columnIndex].values[rowIndex].build(
-            (s) => Text(s),
+            (_, s) => Text(s),
           ),
         ),
       ),
