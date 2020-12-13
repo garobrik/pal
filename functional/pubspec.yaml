@@ -6,20 +6,18 @@ repository: https://gitlab.com/arrow/functional
 publish_to: none
 
 environment:
-  sdk: '^2.6.0'
-  # flutter: '>=1.9.0 <1.13.0'
+  sdk: ">=2.12.0-0 <3.0.0"
 
 dependencies:
-  meta: ^1.1.8
+  meta: ^1.3.0-nullsafety.6
   reified_lenses:
     path:
       ../reified_lenses
 
 dev_dependencies:
-  pedantic: ^1.9.0
-  effective_dart: ^1.2.1
+  pedantic: ^1.10.0-nullsafety.3
   test:
   reified_lenses_builder:
     path:
       ../reified_lenses_builder
-  build_runner:
+  build_runner: ^1.10.7

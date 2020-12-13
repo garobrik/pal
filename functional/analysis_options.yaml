@@ -1,11 +1,13 @@
-include: 
-  - package:pedantic/analysis_options.yml
-  - package:effective_dart/analysis_options.yml
+include: package:pedantic/analysis_options.yaml
 
 analyzer:
   enable-experiment:
     - variance
-    - non-nullable
   strong-mode:
     implicit-casts: false
     implicit-dynamic: false
+
+linter:
+  rules:
+    omit_local_variable_types: false
+    unnecessary_this: false

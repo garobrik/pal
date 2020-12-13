@@ -1,57 +1,62 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
-import 'optional.dart';
-import 'package:meta/meta.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:reified_lenses/annotations.dart';
-import 'dart:core' as Core;
+import 'dart:core' as core;
 import 'dart:core';
 
 import 'parsing.dart';
 import 'generating.dart';
 
+// TODO: how does this work with qualified type names?
+
 class GeneratorContext {
   final Class clazz;
   final TypeParam newTypeParam;
-  Optional<Constructor> copyCtor;
-  Optional<Method> copyWith;
+  late final Constructor? copyCtor;
+  late final Method? copyWith;
 
   GeneratorContext(this.clazz) : newTypeParam = clazz.newTypeParams(1).first {
-    copyWith = Optional.nullable(clazz.methods
-        .firstWhere((m) => m.name == 'copyWith', orElse: () => null));
-    if (copyWith.isNotEmpty) {
-      copyCtor = Optional.empty();
+    // ignore: unnecessary_cast, doesn't type check otherwise
+    final existingCopyWith = (clazz.methods as Iterable<Method?>)
+        .firstWhere((m) => m!.name == 'copyWith', orElse: () => null);
+    if (existingCopyWith != null) {
+      copyWith = existingCopyWith;
+      copyCtor = null;
       return;
     }
 
     final annotated =
         clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
-    final named = Optional.nullable(clazz.constructors
-        .firstWhere((c) => c.name == 'copyConstructor', orElse: () => null));
+    // ignore: unnecessary_cast, doesn't type check otherwise
+    final named = (clazz.constructors as Iterable<Constructor?>)
+        .firstWhere((c) => c!.name == 'copyConstructor', orElse: () => null);
     if (annotated.isNotEmpty) {
-      if (annotated.length > 1)
+      if (annotated.length > 1) {
         throw StateError('Only one copy constructor allowed.');
-      copyCtor = Optional(annotated.first);
-    } else if (named.isNotEmpty) {
+      }
+      copyCtor = annotated.first;
+    } else if (named != null) {
       copyCtor = named;
+    } else if (clazz.defaultCtor == null) {
+      copyCtor = null;
+    } else if (!clazz.isAbstract &&
+        clazz.defaultCtor!.params.every((p) => p.isNamed)) {
+      copyCtor = clazz.defaultCtor;
     } else {
-      copyCtor = clazz.defaultCtor.flatMap((c) => Optional.ifTrue(
-          c.params.isNotEmpty &&
-              !clazz.isAbstract &&
-              c.params.every((p) => p.isNamed),
-          c));
+      copyCtor = null;
     }
 
-    if (copyCtor.isNotEmpty) {
-      final params = copyCtor.value.params
-          .map((p) => Param(p.type, p.name, isRequired: false, isNamed: true));
-      copyWith = Optional(Method(
+    if (copyCtor != null) {
+      final params = copyCtor!.params.map((p) =>
+          Param(p.type.asNullable, p.name, isRequired: false, isNamed: true));
+      copyWith = Method(
         'copyWith',
-        returnType: Optional(copyCtor.value.parent),
+        returnType: copyCtor!.parent,
         params: params,
-      ));
+      );
     } else {
-      copyWith = Optional.empty();
+      copyWith = null;
     }
   }
 
@@ -65,85 +70,95 @@ class GeneratorContext {
 
   Iterable<Optic> generateFieldOptics() {
     return clazz.fields.expand((f) {
-      if (f.isPrivate || f.isStatic || f.hasAnnotation(SkipLens))
-        return Optional.empty();
+      if (f.isPrivate || f.isStatic || f.hasAnnotation(SkipLens)) return [];
       OpticKind kind;
-      if (copyCtor
-          .map((c) => c.params.any((p) => p.name == f.name))
-          .or(false)) {
+      if (copyCtor != null && copyCtor!.params.any((p) => p.name == f.name)) {
         kind = OpticKind.Lens;
       } else {
         kind = OpticKind.Getter;
       }
 
-      return Optional(Optic(
-        name: f.name,
-        zoomedType: f.type,
-        kind: kind,
-      ));
+      return [
+        Optic(
+          name: f.name,
+          zoomedType: f.type,
+          kind: kind,
+        )
+      ];
     });
   }
 
   Iterable<Optic> generateAccessorOptics() {
     return clazz.accessors.expand((a) {
       if (a.isPrivate ||
-          a.getter.isEmpty ||
-          a.getter.value.hasAnnotation(SkipLens) ||
+          a.getter == null ||
+          a.getter!.hasAnnotation(SkipLens) ||
           a.name == 'hashCode') {
-        return Optional.empty();
+        return [];
       }
-      final mutater = Optional.nullable(clazz.methods
-          .firstWhere((m) => m.name == 'mut_${a.name}', orElse: () => null));
-      final kind = mutater.isEmpty ? OpticKind.Getter : OpticKind.Lens;
-      return Optional(Optic(
-        name: a.name,
-        kind: kind,
-        zoomedType: a.getter.value.returnType,
-        mutBody: mutater.map((m) => '(t, s) => t.${m.name}(s(t.${a.name}))'),
-      ));
+      // ignore: unnecessary_cast, doesn't type check otherwise
+      final mutater = (clazz.methods as Iterable<Method?>)
+          .firstWhere((m) => m!.name == 'mut_${a.name}', orElse: () => null);
+      final kind = mutater == null ? OpticKind.Getter : OpticKind.Lens;
+      return [
+        Optic(
+          name: a.name,
+          kind: kind,
+          zoomedType: a.getter!.returnType,
+          mutBody: mutater == null
+              ? null
+              : '(t, s) => t.${mutater.name}(s(t.${a.name}))',
+        )
+      ];
     });
   }
 
+  // TODO: handle multi-arg methods & method names
   Iterable<Optic> generateMethodOptics() {
     return clazz.methods.expand((m) {
       if (m.hasAnnotation(SkipLens) ||
           m.name == '==' ||
           m.name == 'toString' ||
-          m.name.startsWith('mut_')) return Optional.empty();
+          m.name.startsWith('mut_') ||
+          m.isStatic ||
+          m.returnType == null) return [];
 
       final mutaterName = m.name == '[]' ? 'mut_array_op' : 'mut_${m.name}';
-      final mutater = Optional.nullable(clazz.methods
-          .firstWhere((m) => m.name == mutaterName, orElse: () => null));
-      final kind = mutater.isEmpty ? OpticKind.Getter : OpticKind.Lens;
+      // ignore: unnecessary_cast, doesn't type check otherwise
+      final mutater = (clazz.methods as Iterable<Method?>)
+          .firstWhere((m) => m!.name == mutaterName, orElse: () => null);
+      final kind = mutater == null ? OpticKind.Getter : OpticKind.Lens;
       final argName = m.params.first.name;
-      return Optional(Optic(
-        name: m.name,
-        kind: kind,
-        zoomedType: m.returnType.value,
-        optic: Optional(call('${kind.opticName}.field', [
-          argName,
-          lambda(
-            ['_t'],
-            [
-              m.invoke('_t', [argName])
-            ],
-          ),
-          if (mutater.isNotEmpty)
+      return [
+        Optic(
+          name: m.name,
+          kind: kind,
+          zoomedType: m.returnType!,
+          optic: call('${kind.opticName}.field', [
+            argName,
             lambda(
-              ['_t', '_s'],
+              ['_t'],
               [
-                mutater.value.invoke('_t', [
-                  argName,
-                  call('_s', [
-                    m.invoke('_t', [argName])
-                  ])
-                ])
+                m.invoke('_t', [argName])
               ],
             ),
-        ])),
-        params: m.params,
-        typeParams: m.typeParams,
-      ));
+            if (mutater != null)
+              lambda(
+                ['_t', '_s'],
+                [
+                  mutater.invoke('_t', [
+                    argName,
+                    call('_s', [
+                      m.invoke('_t', [argName])
+                    ])
+                  ])
+                ],
+              ),
+          ]),
+          params: m.params,
+          typeParams: m.typeParams,
+        )
+      ];
     });
   }
 }
@@ -154,14 +169,14 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
   @override
   String generateForAnnotatedElement(
       Element element, ConstantReader annotation, BuildStep buildStep) {
-    if (element is! ClassElement)
+    if (element is! ClassElement) {
       throw InvalidGenerationSourceError(
         '@reified_lens can only be applied on classes, was applied to ${element.name}.',
         element: element,
       );
+    }
 
-    return generateForContext(
-        GeneratorContext(Class.fromElement(element as ClassElement)));
+    return generateForContext(GeneratorContext(Class.fromElement(element)));
   }
 
   String generateForContext(GeneratorContext ctx) {
@@ -189,8 +204,8 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
   }
 
   void generateCopyWithExtension(GeneratorContext ctx, StringBuffer output) {
-    if (ctx.copyCtor.isEmpty) return;
-    final copyCtor = ctx.copyCtor.value;
+    if (ctx.copyCtor == null) return;
+    final copyCtor = ctx.copyCtor!;
 
     if (copyCtor.params.any((p) => !p.isNamed)) return;
 
@@ -199,7 +214,7 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     final on = ctx.clazz;
     output.writeln('extension $name$params on $on {');
     output.writeln();
-    generateCopyWithMethod(copyCtor, ctx.copyWith.value, output);
+    generateCopyWithMethod(copyCtor, ctx.copyWith!, output);
     output.writeln('}');
   }
 
@@ -218,15 +233,16 @@ class Composer {
   final String Function(OpticKind) types;
   final int numParams;
 
-  Composer({this.types, this.numParams});
+  Composer({required this.types, required this.numParams});
 
   Type zoom(Class clazz, Type t, OpticKind k) =>
-      Type(types(k), [...clazz.newTypeParams(numParams), t]);
+      Type(types(k), args: [...clazz.newTypeParams(numParams), t]);
 
   String extensionDecl(Class clazz, OpticKind kind) {
     final name = '${clazz.name}${types(kind)}Extension';
     final params = [...clazz.newTypeParams(numParams), ...clazz.typeParams];
-    final on = Type(types(kind), [...clazz.newTypeParams(numParams), clazz]);
+    final on =
+        Type(types(kind), args: [...clazz.newTypeParams(numParams), clazz]);
 
     return 'extension $name${params.asDeclaration} on ${on} {';
   }
@@ -256,72 +272,64 @@ class Optic {
   final Type zoomedType;
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
-  final Optional<String> optic;
-  final Optional<String> mutBody;
-  final Optional<String> getBody;
+  final String? optic;
+  final String? mutBody;
+  final String? getBody;
   final String name;
 
   const Optic({
-    @required this.kind,
-    @required this.name,
-    @required this.zoomedType,
-    this.optic = const Optional.empty(),
-    this.mutBody = const Optional.empty(),
-    this.getBody = const Optional.empty(),
+    required this.kind,
+    required this.name,
+    required this.zoomedType,
+    this.optic,
+    this.mutBody,
+    this.getBody,
     this.typeParams = const [],
     this.params = const [],
   });
 
-  void generate(GeneratorContext ctx, Composer composer, OpticKind parentKind, StringBuffer output) {
-    final thenArg = optic.or(
-      call(
-        '${parentKind.opticName}.field',
-        [
-          "'${name}'",
-          if ([OpticKind.Lens, OpticKind.Getter].contains(parentKind))
-            getBody.or('(t) => t.${name}'),
-          if ([OpticKind.Lens, OpticKind.Mutater].contains(parentKind))
-            mutBody.or('(t, f) => t.copyWith(${name}: f(t.${name}))'),
-        ],
-      ),
-    );
+  void generate(GeneratorContext ctx, Composer composer, OpticKind parentKind,
+      StringBuffer output) {
+    final thenArg = optic != null
+        ? optic!
+        : call(
+            '${parentKind.opticName}.field',
+            [
+              "'${name}'",
+              if ([OpticKind.Lens, OpticKind.Getter].contains(parentKind))
+                getBody != null ? getBody! : '(t) => t.${name}',
+              if ([OpticKind.Lens, OpticKind.Mutater].contains(parentKind))
+                mutBody != null
+                    ? mutBody!
+                    : '(t, f) => t.copyWith(${name}: f(t.${name}))',
+            ],
+          );
     final returnType = composer.zoom(ctx.clazz, zoomedType, parentKind);
 
     if (params.isEmpty) {
       final getter = Getter(name, returnType);
-      output.writeln(getter.declaration(call(parentKind.thenMethod, [thenArg])));
+      output
+          .writeln(getter.declaration(call(parentKind.thenMethod, [thenArg])));
     } else {
       final method = Method(
         name,
         typeParams: typeParams,
         params: params,
-        returnType: Optional(returnType),
+        returnType: returnType,
       );
 
-      output.writeln(method.declaration(call(parentKind.thenMethod, [thenArg])));
+      output
+          .writeln(method.declaration(call(parentKind.thenMethod, [thenArg])));
     }
     output.writeln();
   }
 }
 
-extension on Class {
-  bool get allFields =>
-      this.getAnnotation(ReifiedLens).value.read('allFields').boolValue;
-}
-
-extension on ElementAnalogue {
-  Optional<OpticKind> get opticKind {
-    return this
-        .getAnnotation(Optic)
-        .map((kind) => OpticKind.values[kind.read('kind').intValue]);
-  }
-}
-
 extension on OpticKind {
   A allCases<A>({
-    @required A lens,
-    @required A getter,
-    @required A mutater,
+    required A lens,
+    required A getter,
+    required A mutater,
   }) {
     switch (this) {
       case OpticKind.Lens:
@@ -331,7 +339,6 @@ extension on OpticKind {
       case OpticKind.Mutater:
         return mutater;
     }
-    throw "unreachable";
   }
 
   String get thenMethod =>
@@ -339,6 +346,4 @@ extension on OpticKind {
 
   String get opticName =>
       this.allCases(lens: 'Lens', getter: 'Getter', mutater: 'Mutater');
-
-  Type opticType(Type source, Type target) => Type(opticName, [source, target]);
 }

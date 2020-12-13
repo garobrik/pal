@@ -2,7 +2,7 @@ import 'operators.dart';
 import 'parsing.dart';
 
 extension FieldGenerating on Field {
-  String declaration([String expression]) {
+  String declaration([String? expression]) {
     String staticPrefix = isStatic ? 'static ' : '';
     String suffix = expression != null ? ' = $expression;' : ';';
     return '$staticPrefix $type $name $suffix';
@@ -10,32 +10,34 @@ extension FieldGenerating on Field {
 }
 
 extension GetterGenerating on Getter {
-  String declaration([String expression]) {
+  String declaration([String? expression]) {
     String suffix = expression != null ? ' => $expression;' : ';';
     return '$returnType get $name $suffix';
   }
 }
 
 extension MethodGenerating on Method {
-  String declaration([String expression]) {
+  String declaration([String? expression]) {
     String suffix = expression != null ? ' => $expression;' : '{}';
-    String returnType = this.returnType.map((t) => t.toString()).or('void');
-    String operator = this.isOperator ? 'operator ' : '';
-    String name = '$operator${this.name}${this.typeParams.asDeclaration}';
-    return '$returnType $name(${this.params.asDeclaration}) $suffix';
+    String returnType =
+        this.returnType == null ? 'void' : this.returnType.toString();
+    String operator = isOperator ? 'operator ' : '';
+    String name = '$operator${this.name}${typeParams.asDeclaration}';
+    return '$returnType $name(${params.asDeclaration}) $suffix';
   }
 
   String invoke(
     String target, [
-    Iterable<String> positional,
+    Iterable<String> positional = const [],
     Map<String, String> named = const {},
   ]) {
     final int requiredPositional =
         params.where((p) => p.isRequired && !p.isNamed).length;
     if (positional.length < requiredPositional) {
       throw ArgumentError(
-          'Called method $name with ${positional.length} args.' +
-              '$requiredPositional are required.');
+        'Called method $name with ${positional.length} args.'
+        '$requiredPositional are required.',
+      );
     }
 
     if (overridable_operators.contains(name)) {
@@ -59,7 +61,7 @@ String call(
   Map<String, String> named = const {},
   Iterable<Type> typeParams = const [],
 }) {
-  final joinedTypeParams = typeParams.map((t) => t.renderType()).join(", ");
+  final joinedTypeParams = typeParams.map((t) => t.renderType()).join(', ');
   final renderedTypeParams =
       joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
   return '$callee$renderedTypeParams(${parameterize(positional, named)})';
@@ -100,9 +102,14 @@ extension ParamsGenerating on Iterable<Param> {
     final output = StringBuffer();
 
     output.write(unnamedRequired.join(', '));
-    if (unnamedOptional.isNotEmpty)
+    if (unnamedOptional.isNotEmpty) {
       output.write('[${unnamedOptional.join(", ")}]');
-    if (named.isNotEmpty) output.write('{${named.join(", ")}}');
+    }
+    if (named.isNotEmpty) {
+      final renderedNamed =
+          named.map((n) => n.isRequired ? 'required $n' : '$n');
+      output.write('{${renderedNamed.join(", ")}}');
+    }
 
     return output.toString();
   }

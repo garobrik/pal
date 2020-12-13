@@ -1,7 +1,5 @@
 library annotation;
 
-import 'package:meta/meta.dart';
-
 enum OpticKind {
   Lens,
   Getter,
@@ -11,7 +9,7 @@ enum OpticKind {
 class Optic {
   // index into [OpticKind]
   final int kind;
-  const Optic._({@required this.kind});
+  const Optic._({required this.kind});
 }
 
 const lens = Optic._(kind: 0);

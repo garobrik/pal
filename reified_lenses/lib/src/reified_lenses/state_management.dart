@@ -4,7 +4,7 @@ import 'path.dart';
 
 class ListenableState<T> {
   T _state;
-  PathMap<Object, void Function()> _listenables = PathMap.empty();
+  final PathMap<Object, void Function()> _listenables = PathMap.empty();
 
   ListenableState(this._state);
 
@@ -66,7 +66,7 @@ class _CursorImpl<T, S> extends Cursor<S> {
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _CursorImpl(this.state, this.lens.then(lens));
+    return _CursorImpl(state, this.lens.then(lens));
   }
 
   @override
@@ -168,10 +168,12 @@ class _MutCursorImpl<T, S> extends MutCursor<S> {
 
   _MutCursorImpl(this.state, this.mutater);
 
+  @override
   void mut(S Function(S) f) {
     state.mutAndNotify(mutater, f);
   }
 
+  @override
   void set(S s) {
     state.setAndNotify(mutater.setter, s);
   }

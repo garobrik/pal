@@ -1,41 +1,40 @@
 import 'dart:collection';
-import 'dart:core' as Core;
+import 'dart:core' as core;
 import 'dart:core';
 
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart' as AnalyzerType;
-import 'optional.dart';
-import 'package:meta/meta.dart' as Meta;
+import 'package:analyzer/dart/element/nullability_suffix.dart';
+import 'package:analyzer/dart/element/type.dart' as analyzer_type;
+import 'package:meta/meta.dart' as meta;
 import 'package:source_gen/source_gen.dart';
 
 import 'operators.dart';
 
 abstract class ElementAnalogue<T extends Element> {
-  final Optional<T> element;
+  final T? element;
   final String name;
   final bool isPrivate;
 
-  const ElementAnalogue({this.name, this.isPrivate = false})
-      : element = const Optional.empty();
+  const ElementAnalogue({required this.name, this.isPrivate = false})
+      : element = null;
 
   ElementAnalogue.fromElement(T element)
-      : element = Optional(element),
+      : element = element,
         name = element.name ?? '',
         isPrivate = element.isPrivate;
 
-  bool hasAnnotation(Core.Type t) =>
-      element.hasValue && element.value.hasAnnotation(t);
+  bool hasAnnotation(core.Type t) => element?.hasAnnotation(t) ?? false;
 
-  Optional<ConstantReader> getAnnotation(Core.Type t) =>
-      element.flatMap((e) => e.getAnnotation(t));
+  ConstantReader? getAnnotation(core.Type t) => element?.getAnnotation(t);
 }
 
 class Class extends ElementAnalogue<ClassElement> with ConcreteType {
   final Iterable<TypeParam> typeParams;
-  Iterable<Constructor> constructors;
-  Iterable<Field> fields;
-  Iterable<Method> methods;
-  Iterable<AccessorPair> accessors;
+  late final Iterable<Constructor> constructors;
+  late final Iterable<Field> fields;
+  late final Iterable<Method> methods;
+  late final Iterable<AccessorPair> accessors;
   final bool isAbstract;
 
   Class(
@@ -81,7 +80,7 @@ class Class extends ElementAnalogue<ClassElement> with ConcreteType {
 
   List<TypeParam> newTypeParams(int count) {
     int suffix = 0;
-    var result = List<TypeParam>();
+    var result = <TypeParam>[];
     while (result.length < count) {
       if (!this.typeParams.any((param) => param.name == 'T$suffix')) {
         result.add(TypeParam('T$suffix'));
@@ -91,8 +90,12 @@ class Class extends ElementAnalogue<ClassElement> with ConcreteType {
     return result;
   }
 
-  Optional<Constructor> get defaultCtor => Optional.nullable(
-      constructors.firstWhere((c) => c.isDefault, orElse: () => null));
+  // ignore: unnecessary_cast, doesn't type check otherwise
+  Constructor? get defaultCtor => (constructors as Iterable<Constructor?>)
+      .firstWhere((c) => c!.isDefault, orElse: () => null);
+
+  @override
+  bool get isNullable => false;
 }
 
 class Constructor extends ElementAnalogue<ConstructorElement> {
@@ -102,7 +105,7 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
   const Constructor({
     String name = '',
     this.params = const [],
-    this.parent,
+    required this.parent,
     bool isPrivate = false,
   }) : super(name: name, isPrivate: isPrivate);
 
@@ -116,7 +119,7 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
 
 class Param extends ElementAnalogue<ParameterElement> {
   final Type type;
-  final bool isInit;
+  final bool isInitializingFormal;
   final bool isNamed;
   final bool isRequired;
 
@@ -125,7 +128,7 @@ class Param extends ElementAnalogue<ParameterElement> {
     String name, {
     this.isNamed = false,
     this.isRequired = true,
-    this.isInit = false,
+    this.isInitializingFormal = false,
     bool isPrivate = false,
   }) : super(name: name, isPrivate: isPrivate);
 
@@ -133,13 +136,14 @@ class Param extends ElementAnalogue<ParameterElement> {
       : type = Type.fromDartType(element.type),
         isNamed = element.isNamed,
         isRequired =
-            !element.isOptional || element.hasAnnotation(Meta.Required),
-        isInit = element.isInitializingFormal,
+            !element.isOptional || element.hasAnnotation(meta.Required),
+        isInitializingFormal = element.isInitializingFormal,
         super.fromElement(element);
 
+  @override
   String toString() {
     final requiredMeta = (isRequired && isNamed) ? '@required ' : '';
-    final param = isInit ? '$name' : '$type $name';
+    final param = isInitializingFormal ? '$name' : '$type $name';
     return '$requiredMeta$param';
   }
 }
@@ -170,14 +174,16 @@ class Field extends ElementAnalogue<FieldElement> {
 class Method extends ElementAnalogue<MethodElement> {
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
-  final Optional<Type> returnType;
+  final Type? returnType;
   final bool isOperator;
+  final bool isStatic;
 
   Method(
     String name, {
     this.typeParams = const [],
     this.params = const [],
-    this.returnType = const Optional.empty(),
+    this.returnType,
+    this.isStatic = false,
     bool isPrivate = false,
   })  : isOperator = overridable_operators.contains(name),
         super(name: name, isPrivate: isPrivate);
@@ -187,28 +193,27 @@ class Method extends ElementAnalogue<MethodElement> {
         typeParams =
             element.typeParameters.map((tp) => TypeParam.fromElement(tp)),
         returnType = element.optionalReturnType,
+        isStatic = element.isStatic,
         isOperator = element.isOperator,
         super.fromElement(element);
 }
 
 class AccessorPair {
   final String name;
-  final Optional<Getter> getter;
-  final Optional<Setter> setter;
+  final Getter? getter;
+  final Setter? setter;
 
-  const AccessorPair(this.name,
-      {this.getter = const Optional.empty(),
-      this.setter = const Optional.empty()});
+  const AccessorPair(this.name, {this.getter, this.setter})
+      : assert(getter != null || setter != null);
 
   AccessorPair.fromElements(
-      {PropertyAccessorElement getter, PropertyAccessorElement setter})
+      {PropertyAccessorElement? getter, PropertyAccessorElement? setter})
       : assert(getter != null || setter != null),
-        name = getter?.name ?? setter.name,
-        getter = Optional.nullable(getter).map((g) => Getter.fromElement(g)),
-        setter = Optional.nullable(setter).map((s) => Setter.fromElement(s));
+        name = getter?.name ?? setter!.name,
+        getter = getter == null ? null : Getter.fromElement(getter),
+        setter = setter == null ? null : Setter.fromElement(setter);
 
-  bool get isPrivate =>
-      getter.map((g) => g.isPrivate).orLazy(() => setter.value.isPrivate);
+  bool get isPrivate => getter?.isPrivate ?? setter!.isPrivate;
 }
 
 class Getter extends ElementAnalogue<PropertyAccessorElement> {
@@ -235,70 +240,101 @@ class Setter extends ElementAnalogue<PropertyAccessorElement> {
 
 class TypeParam extends ElementAnalogue<TypeParameterElement>
     with ConcreteType {
-  final Optional<Type> extendz;
+  final Type? extendz;
 
-  TypeParam(String name, {Type extendz, bool isPrivate = false})
-      : extendz = Optional.nullable(extendz),
-        super(name: name, isPrivate: isPrivate);
+  TypeParam(String name, {this.extendz, bool isPrivate = false})
+      : super(name: name, isPrivate: isPrivate);
 
   const TypeParam.constant(String name, {this.extendz}) : super(name: name);
 
   TypeParam.fromElement(TypeParameterElement element)
       : extendz =
-            Optional.nullable(element.bound).map((t) => Type.fromDartType(t)),
+            element.bound == null ? null : Type.fromDartType(element.bound),
         super.fromElement(element);
 
-  String get nameWithBound =>
-      extendz.map((type) => '$name extends $type').or(name);
+  String get nameWithBound => extendz == null ? name : '$name extends $extendz';
 
   TypeParam withBound(Type type) => TypeParam(name, extendz: type);
+
+  @override
   Iterable<Type> get args => const [];
+
+  @override
+  bool get isNullable => false;
 }
 
 abstract class Type {
   bool equals(Type b);
   String renderType();
+  bool get isNullable;
 
-  const factory Type(String name, [Iterable<Type> args]) = ConcreteType;
-  factory Type.fromDartType(AnalyzerType.DartType t) =>
-      t is AnalyzerType.FunctionType
+  const factory Type(String name, {Iterable<Type> args, bool isNullable}) =
+      ConcreteType;
+  factory Type.fromDartType(analyzer_type.DartType t) =>
+      t is analyzer_type.FunctionType
           ? FunctionType.fromDartType(t)
           : ConcreteType.fromDartType(t);
 
   static const Type dynamic = ConcreteType('dynamic');
 }
 
+class _NullableWrapper implements Type {
+  final Type _wrapped;
+
+  _NullableWrapper(this._wrapped) : assert(!_wrapped.isNullable);
+
+  @override
+  bool equals(Type b) {
+    if (!b.isNullable) return false;
+    return b.equals(_wrapped);
+  }
+
+  @override
+  bool get isNullable => true;
+
+  @override
+  String renderType() {
+    return '${_wrapped.renderType()}?';
+  }
+
+  @override
+  String toString() => renderType();
+}
+
 class FunctionType implements Type {
-  final Optional<Type> returnType;
+  final Type? returnType;
   final Iterable<Type> requiredArgs;
   final Iterable<Type> optionalArgs;
   final Map<String, Type> namedArgs;
+  @override
+  final bool isNullable;
 
   const FunctionType({
-    this.returnType = const Optional.empty(),
+    this.returnType,
     this.requiredArgs = const [],
     this.optionalArgs = const [],
     this.namedArgs = const {},
+    this.isNullable = false,
   });
 
-  FunctionType.fromDartType(AnalyzerType.FunctionType type)
-      : returnType = Optional.ifLazy(
-          type.returnType is! AnalyzerType.VoidType,
-          () => Type.fromDartType(type.returnType),
-        ),
+  FunctionType.fromDartType(analyzer_type.FunctionType type)
+      : returnType = type.returnType is! analyzer_type.VoidType
+            ? Type.fromDartType(type.returnType)
+            : null,
         requiredArgs =
             type.normalParameterTypes.map((t) => Type.fromDartType(t)),
         optionalArgs =
             type.optionalParameterTypes.map((t) => Type.fromDartType(t)),
         namedArgs = type.namedParameterTypes
-            .map((name, type) => MapEntry(name, Type.fromDartType(type)));
+            .map((name, type) => MapEntry(name, Type.fromDartType(type))),
+        isNullable = type.nullabilitySuffix != NullabilitySuffix.none;
 
   @override
   bool equals(Type b) {
     if (b is FunctionType) {
-      if (b.returnType.isNotEmpty != returnType.isNotEmpty) return false;
-      if (returnType.isNotEmpty) {
-        if (!returnType.value.equals(b.returnType.value)) return false;
+      if ((b.returnType == null) != (returnType == null)) return false;
+      if (returnType != null) {
+        if (!returnType!.equals(b.returnType!)) return false;
       }
 
       if (requiredArgs.length != b.requiredArgs.length) {
@@ -326,7 +362,7 @@ class FunctionType implements Type {
       } else {
         for (final entry in namedArgs.entries) {
           if (!b.namedArgs.containsKey(entry.key) ||
-              !entry.value.equals(b.namedArgs[entry.key])) return false;
+              !entry.value.equals(b.namedArgs[entry.key]!)) return false;
         }
       }
 
@@ -337,9 +373,9 @@ class FunctionType implements Type {
 
   @override
   String renderType() {
-    final ret = returnType.map((r) => r.renderType()).or('void');
+    final ret = returnType == null ? 'void' : returnType!.renderType();
     final params = requiredArgs.map((a) => a.renderType()).join(', ');
-    return '$ret Function($params)';
+    return '$ret Function($params)?';
   }
 
   @override
@@ -350,15 +386,17 @@ abstract class ConcreteType implements Type {
   String get name;
   Iterable<Type> get args;
 
-  const factory ConcreteType(String name, [Iterable<Type> args]) =
-      _ConcreteTypeImpl;
-  factory ConcreteType.fromDartType(AnalyzerType.DartType type) =
+  const factory ConcreteType(String name,
+      {Iterable<Type> args, bool isNullable}) = _ConcreteTypeImpl;
+  factory ConcreteType.fromDartType(analyzer_type.DartType type) =
       _ConcreteTypeImpl.fromDartType;
 
+  @override
   bool equals(Type b) {
     if (b is ConcreteType) {
-      if (this.name != b.name || this.args.length != b.args.length)
+      if (this.name != b.name || this.args.length != b.args.length) {
         return false;
+      }
       final thisIter = this.args.iterator;
       final bIter = b.args.iterator;
       while (thisIter.moveNext() && bIter.moveNext()) {
@@ -372,7 +410,9 @@ abstract class ConcreteType implements Type {
   @override
   String renderType() {
     final renderedArgs = args.map((a) => a.renderType()).join(', ');
-    return name + (renderedArgs.isNotEmpty ? '<$renderedArgs>' : '');
+    return name +
+        (renderedArgs.isNotEmpty ? '<$renderedArgs>' : '') +
+        (isNullable ? '?' : '');
   }
 
   @override
@@ -380,15 +420,31 @@ abstract class ConcreteType implements Type {
 }
 
 class _ConcreteTypeImpl with ConcreteType {
+  @override
   final String name;
+  @override
   final Iterable<Type> args;
+  @override
+  final bool isNullable;
 
-  const _ConcreteTypeImpl(this.name, [this.args = const []]);
-  _ConcreteTypeImpl.fromDartType(AnalyzerType.DartType type)
+  const _ConcreteTypeImpl(this.name,
+      {this.args = const [], this.isNullable = false});
+  _ConcreteTypeImpl.fromDartType(analyzer_type.DartType type)
       : name = type.element.name,
-        args = (type is AnalyzerType.ParameterizedType)
+        args = (type is analyzer_type.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(a))
-            : [];
+            : [],
+        isNullable = type.nullabilitySuffix != NullabilitySuffix.none;
+}
+
+extension AsNullable on Type {
+  Type get asNullable {
+    if (isNullable) {
+      return this;
+    } else {
+      return _NullableWrapper(this);
+    }
+  }
 }
 
 extension Subst on Type {
@@ -402,11 +458,11 @@ extension Subst on Type {
     }
     final Type thisType = this;
     if (thisType is ConcreteType) {
-      return ConcreteType(
-          thisType.name, thisType.args.map((t) => t.subst(from, to)));
+      return ConcreteType(thisType.name,
+          args: thisType.args.map((t) => t.subst(from, to)));
     } else if (thisType is FunctionType) {
       return FunctionType(
-        returnType: thisType.returnType.map((t) => t.subst(from, to)),
+        returnType: thisType.returnType?.subst(from, to),
         requiredArgs: thisType.requiredArgs.map((t) => t.subst(from, to)),
         optionalArgs: thisType.optionalArgs.map((t) => t.subst(from, to)),
         namedArgs:
@@ -418,13 +474,14 @@ extension Subst on Type {
 }
 
 extension ElementAnnotationExtension on Element {
-  bool hasAnnotation(Core.Type t) => getAnnotation(t).hasValue;
-  Optional<ConstantReader> getAnnotation(Core.Type t) =>
-      Optional.nullable(TypeChecker.fromRuntime(t).firstAnnotationOfExact(this))
-          .map(($) => ConstantReader($));
+  bool hasAnnotation(core.Type t) => getAnnotation(t) != null;
+  ConstantReader? getAnnotation(core.Type t) {
+    final DartObject? typeChecker =
+        TypeChecker.fromRuntime(t).firstAnnotationOfExact(this);
+    return typeChecker == null ? null : ConstantReader(typeChecker);
+  }
 }
 
 extension on ExecutableElement {
-  Optional<Type> get optionalReturnType =>
-      Optional.nullable(this.returnType).map((t) => Type.fromDartType(t));
+  Type? get optionalReturnType => Type.fromDartType(this.returnType);
 }

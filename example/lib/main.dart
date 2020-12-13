@@ -1,9 +1,10 @@
+// @dart=2.9
 import 'package:example/model/table.dart' hide Table, Column;
-import 'package:example/model/table.dart' as Model;
+import 'package:example/model/table.dart' as model;
 import 'package:flutter/material.dart' hide Table;
+import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:functional/functional.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 
 void main() {
@@ -18,12 +19,13 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       home: Provider(
         child: Scaffold(
-          body: Consumer<ListenableState<Model.Table>>(
+          body: Consumer<ListenableState<model.Table>>(
             builder: (_, v, __) => Center(child: TableWidget(v.cursor)),
           ),
         ),
-        create: (_) => ListenableState(Model.Table.from(columns: [
-          StringColumn.from(values: List.generate(50, (i) => "Row $i"))
+        create: (_) => ListenableState(model.Table.from(columns: [
+          for (int column = 0; column < 5; column++)
+            StringColumn.from(values: List.generate(5, (i) => 'Row $i'))
         ])),
       ),
     );
@@ -31,17 +33,22 @@ class MyApp extends StatelessWidget {
 }
 
 class TableWidget extends StatelessWidget {
-  final Cursor<Model.Table> table;
+  final Cursor<model.Table> table;
   TableWidget(this.table);
 
   @override
   Widget build(BuildContext context) {
     ScrollController _scrollController =
         PrimaryScrollController.of(context) ?? ScrollController();
+
+    int width = 0;
+    for (int column = 0; column < table.columns.length.get(); column++) {
+      width += table.columns[column].width.get();
+    }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: 500),
+        constraints: BoxConstraints(maxWidth: width.toDouble()),
         child: CustomScrollView(
           controller: _scrollController,
           scrollDirection: Axis.vertical,
@@ -52,7 +59,7 @@ class TableWidget extends StatelessWidget {
               (_, length) => ReorderableSliverList(
                 onReorder: (a, b) {
                   table.columns.forEach((column) {
-                    final bVal = column.values[b].get();
+                    final dynamic bVal = column.values[b].get();
                     column.values[b].set(column.values[a].get());
                     column.values[a].set(bVal);
                   });
@@ -70,16 +77,25 @@ class TableWidget extends StatelessWidget {
   }
 
   Widget buildHeader() {
-    return table.columns.length.build((_, length) => Row(
-          // onReorder: (a, b) {
-          //   table.columns[a].set(table.columns[b].get(() {}));
-          //   table.columns[b].set(table.columns[a].get(() {}));
-          // },
-          children: List.generate(
-            length,
-            (columnIndex) => Text('header', key: ValueKey(columnIndex)),
+    return table.columns.length.build((_, length) => ReorderableRow(
+        onReorder: (a, b) {
+          final aVal = table.columns[a].get();
+          table.columns[a].set(table.columns[b].get());
+          table.columns[b].set(aVal);
+        },
+        children: List.generate(
+          length,
+          (columnIndex) => table.columns[columnIndex].width.build(
+            (_, width) => ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: width.toDouble(),
+                maxWidth: width.toDouble(),
+              ),
+              child: Text('header'),
+            ),
+            key: UniqueKey(),
           ),
-        ));
+        )));
   }
 
   Widget buildRow(int rowIndex) {
@@ -87,9 +103,20 @@ class TableWidget extends StatelessWidget {
       (_, length) => Row(
         children: List.generate(
           length,
-          (columnIndex) => table.columns[columnIndex].values[rowIndex].build(
-            (_, s) => Text(s),
-          ),
+          (columnIndex) {
+            final column = table.columns[columnIndex];
+            return column.width.build(
+              (_, width) => ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: width.toDouble(),
+                  maxWidth: width.toDouble(),
+                ),
+                child: column.values[rowIndex].build(
+                  (_, dynamic s) => Text(s.toString()),
+                ),
+              ),
+            );
+          },
         ),
       ),
       key: ValueKey(rowIndex),

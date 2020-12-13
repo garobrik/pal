@@ -19,6 +19,18 @@ class Vec<Value> extends Iterable<Value> {
     return newVec;
   }
 
+  static ReifiedTransformF<Vec<Value>> insert<Value>(int i, Value v) {
+    return (vec) {
+      final copied = List.of(vec._values);
+      copied.insert(i, v);
+      return MutResult(
+        Vec.of(copied),
+        Path.singleton(i),
+      );
+    };
+  }
+
+  @override
   int get length => _values.length;
 
   @override

@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 extension GetCursorFlutterExtension<S> on GetCursor<S> {
-  Widget build(Widget Function(BuildContext, S) builder, {Key key}) {
+  Widget build(Widget Function(BuildContext, S) builder, {Key? key}) {
     return _RebuildableWidget(builder: builder, cursor: this, key: key);
   }
 }
@@ -11,7 +11,7 @@ class _RebuildableWidget<S> extends StatefulWidget {
   final Widget Function(BuildContext, S) builder;
   final GetCursor<S> cursor;
 
-  const _RebuildableWidget({this.builder, this.cursor, Key key})
+  const _RebuildableWidget({required this.builder, required this.cursor, Key? key})
       : super(key: key);
 
   @override
@@ -19,11 +19,13 @@ class _RebuildableWidget<S> extends StatefulWidget {
 }
 
 class _RebuildableState<S> extends State<_RebuildableWidget<S>> {
-  void Function() disposeFn;
+  void Function()? disposeFn;
 
   @override
   Widget build(BuildContext context) {
-    if (disposeFn != null) disposeFn();
+    if (disposeFn != null) {
+      disposeFn!();
+    }
     final withDisposal = widget.cursor.getAndListen(() => setState(() {}));
     disposeFn = withDisposal.dispose;
     return widget.builder(context, withDisposal.value);
@@ -32,6 +34,8 @@ class _RebuildableState<S> extends State<_RebuildableWidget<S>> {
   @override
   void dispose() {
     super.dispose();
-    disposeFn();
+    if (disposeFn != null) {
+      disposeFn!();
+    }
   }
 }
