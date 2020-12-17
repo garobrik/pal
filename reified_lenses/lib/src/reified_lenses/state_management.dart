@@ -19,7 +19,9 @@ class ListenableState<T> {
     final result = getter.getResult(_state);
     _listenables.add(result.path, callback);
     return WithDisposal(
-        () => _listenables.remove(result.path, callback), result.value);
+      () => _listenables.remove(result.path, callback),
+      result.value,
+    );
   }
 
   void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
@@ -27,7 +29,7 @@ class ListenableState<T> {
   }
 
   void setAndNotify<S>(ReifiedSetterF<T, S> setter, S newValue) {
-    transformAndNotify((state) => setter(state, newValue)); //
+    transformAndNotify((state) => setter(state, newValue));
   }
 
   void transformAndNotify(ReifiedTransformF<T> transform) {
