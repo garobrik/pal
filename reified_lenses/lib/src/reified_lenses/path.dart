@@ -74,7 +74,7 @@ class PathMap<K, V> {
     }
   }
 
-  Iterable<V> children([Path<K> key = const Path.empty()]) => _childrenInternal(key);
+  Iterable<V> children([Path<K> key = const Path.empty()]) => _childrenInternal(key._reverse());
 
   Iterable<V> _childrenInternal([Path<K> key = const Path.empty()]) {
     if (!key.isEmpty) {
