@@ -54,10 +54,17 @@ abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
   @override
-  GetCursor<S2> thenGet<S2>(Getter<S, S2> lens);
+  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter);
 
   @override
-  MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
+  MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater);
+
+  @override
+  void Function() listen(void Function() callback) =>
+      getAndListen(callback).dispose;
+
+  @override
+  void set(S s) => mut((_) => s);
 }
 
 @immutable
@@ -76,11 +83,7 @@ class _CursorImpl<T, S> extends Cursor<S> {
       GetCursor.mk(state, lens).getAndListen(callback);
 
   @override
-  S get() => GetCursor.mk(state, lens).get();
-
-  @override
-  void Function() listen(void Function() callback) =>
-      GetCursor.mk(state, lens).listen(callback);
+  S get get => GetCursor.mk(state, lens).get;
 
   @override
   void mut(S Function(S p1) f) => MutCursor.mk(state, lens).mut(f);
@@ -106,11 +109,12 @@ abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
   @override
-  GetCursor<S1> then<S1>(Lens<S, S1> getter);
+  GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
 
-  void Function() listen(void Function() callback);
+  S get get;
 
-  S get();
+  void Function() listen(void Function() callback) =>
+      getAndListen(callback).dispose;
 
   WithDisposal<S> getAndListen(void Function() callback);
 }
@@ -123,20 +127,11 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
   _GetCursorImpl(this.state, this.getter);
 
   @override
-  GetCursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _GetCursorImpl(state, getter.then(lens));
-  }
-
-  @override
   WithDisposal<S> getAndListen(void Function() callback) =>
       state.getAndListen(getter, callback);
 
   @override
-  void Function() listen(void Function() callback) =>
-      state.getAndListen(getter, callback).dispose;
-
-  @override
-  S get() => state.get(getter);
+  S get get => state.get(getter);
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
@@ -153,14 +148,14 @@ abstract class MutCursor<S> implements ThenMut<S>, ThenLens<S> {
       _MutCursorImpl(state, mutater);
 
   @override
-  MutCursor<S2> then<S2>(Lens<S, S2> lens);
+  MutCursor<S2> then<S2>(Lens<S, S2> lens) => thenMut(lens);
 
   @override
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
 
   void mut(S Function(S) f);
 
-  void set(S s);
+  void set(S s) => mut((_) => s);
 }
 
 @immutable
@@ -176,17 +171,7 @@ class _MutCursorImpl<T, S> extends MutCursor<S> {
   }
 
   @override
-  void set(S s) {
-    state.setAndNotify(mutater.setter, s);
-  }
-
-  @override
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) {
     return _MutCursorImpl(state, this.mutater.thenMut(mutater));
-  }
-
-  @override
-  MutCursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _MutCursorImpl(state, mutater.then(lens));
   }
 }
