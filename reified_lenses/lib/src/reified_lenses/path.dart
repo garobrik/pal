@@ -74,14 +74,13 @@ class PathMap<K, V> {
     }
   }
 
-  Iterable<V> children([Path<K> key = const Path.empty()]) =>
-      _childrenInternal(key._reverse());
+  Iterable<V> children([Path<K> key = const Path.empty()]) sync* {
+    yield* _childrenInternal(key._reverse());
+  }
 
   Iterable<V> _childrenInternal([Path<K> key = const Path.empty()]) sync* {
     if (!key.isEmpty) {
-      for (final result in _children[key.first]?._childrenInternal(key.rest) ?? <V>[]) {
-        yield result;
-      }
+      yield* _children[key.first]?._childrenInternal(key.rest) ?? <V>[];
       return;
     }
 
@@ -89,17 +88,13 @@ class PathMap<K, V> {
       yield result;
     }
     for (final child in _children.values) {
-      for (final result in child._childrenInternal()) {
-        yield result;
-      }
+      yield* child._childrenInternal();
     }
   }
 
   Iterable<V> eachChildren(Iterable<Path<K>> paths) sync* {
     for (final path in paths) {
-      for (final result in children(path)) {
-        yield result;
-      }
+      yield* children(path);
     }
   }
 
