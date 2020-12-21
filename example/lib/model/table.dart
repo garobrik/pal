@@ -38,9 +38,17 @@ class StringColumn extends Column<String> {
   @override
   final String title;
 
-  const StringColumn({this.values = const Vec.empty(), this.width = DEFAULT_COLUMN_WIDTH, required this.title});
-  StringColumn.from({Iterable<String> values = const [], this.width = DEFAULT_COLUMN_WIDTH, required this.title})
-      : values = Vec.from(values);
+  const StringColumn({
+    this.values = const Vec.empty(),
+    this.width = DEFAULT_COLUMN_WIDTH,
+    required this.title,
+  });
+
+  StringColumn.from({
+    Iterable<String> values = const [],
+    this.width = DEFAULT_COLUMN_WIDTH,
+    required this.title,
+  }) : values = Vec.from(values);
 
   @override
   Column<String> mut_values(Vec<String> values) => copyWith(values: values);
@@ -48,5 +56,5 @@ class StringColumn extends Column<String> {
   Column<String> mut_width(double width) => copyWith(width: width);
 
   @override
-  Column<String> mut_title(String width) => copyWith(title: title);
+  Column<String> mut_title(String title) => copyWith(title: title);
 }
