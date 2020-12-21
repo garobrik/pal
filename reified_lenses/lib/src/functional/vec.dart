@@ -40,7 +40,7 @@ class Vec<Value> extends Iterable<Value> {
 
 extension VecForEach<T> on Cursor<Vec<T>> {
   void forEach(void Function(Cursor<T> b) f) {
-    final length = this.length.get();
+    final length = this.length.get;
     for (int i = 0; i < length; i++) {
       f(this[i]);
     }
@@ -49,7 +49,7 @@ extension VecForEach<T> on Cursor<Vec<T>> {
 
 extension VecGetForEach<T> on GetCursor<Vec<T>> {
   void forEach(void Function(GetCursor<T> b) f) {
-    final length = this.length.get();
+    final length = this.length.get;
     for (int i = 0; i < length; i++) {
       f(this[i]);
     }

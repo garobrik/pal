@@ -1,5 +1,4 @@
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:functional/functional.dart';
 
 part 'table.g.dart';
 

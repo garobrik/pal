@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:reified_lenses/reified_lenses.dart';
 import 'reified_lenses.dart';
 import 'path.dart';
 
@@ -8,20 +9,22 @@ class ListenableState<T> {
 
   ListenableState(this._state);
 
-  Cursor<T> get cursor => _CursorImpl(this, Lens.identity());
+  Cursor<T> get cursor => _CursorImpl(this, Lens.identity(), {});
 
   T get bareState => _state;
 
-  S get<S>(Getter<T, S> getter) => getter.getResult(_state).value;
-
-  WithDisposal<S> getAndListen<S>(
-      Getter<T, S> getter, void Function() callback) {
+  Pair<Iterable<void Function()>, GetResult<S>> getResultAndListen<S>(
+      Getter<T, S> getter, Iterable<void Function()> callbacks) {
     final result = getter.getResult(_state);
-    _listenables.add(result.path, callback);
-    return WithDisposal(
-      () => _listenables.remove(result.path, callback),
-      result.value,
-    );
+    final disposals = callbacks.map((callback) {
+      // print('adding listener at: ${result.path}');
+      _listenables.add(result.path, callback);
+      return () {
+        // print('removing listener at: ${result.path}');
+        _listenables.remove(result.path, callback);
+      };
+    });
+    return Pair(disposals, result);
   }
 
   void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
@@ -34,6 +37,9 @@ class ListenableState<T> {
 
   void transformAndNotify(ReifiedTransformF<T> transform) {
     final result = transform(_state);
+    for (final path in result.mutated) {
+      print('modified state at $path');
+    }
     _state = result.value;
     _listenables.eachChildren(result.mutated).forEach((f) => f());
   }
@@ -60,10 +66,6 @@ abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater);
 
   @override
-  void Function() listen(void Function() callback) =>
-      getAndListen(callback).dispose;
-
-  @override
   void set(S s) => mut((_) => s);
 }
 
@@ -71,19 +73,14 @@ abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
 class _CursorImpl<T, S> extends Cursor<S> {
   final ListenableState<T> state;
   final Lens<T, S> lens;
-  _CursorImpl(this.state, this.lens);
+  final Map<Type, GetCallback> getCallbacks;
+
+  _CursorImpl(this.state, this.lens, this.getCallbacks);
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _CursorImpl(state, this.lens.then(lens));
+    return _CursorImpl(state, this.lens.then(lens), getCallbacks);
   }
-
-  @override
-  WithDisposal<S> getAndListen(void Function() callback) =>
-      GetCursor.mk(state, lens).getAndListen(callback);
-
-  @override
-  S get get => GetCursor.mk(state, lens).get;
 
   @override
   void mut(S Function(S p1) f) => MutCursor.mk(state, lens).mut(f);
@@ -93,17 +90,38 @@ class _CursorImpl<T, S> extends Cursor<S> {
 
   @override
   GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) =>
-      GetCursor.mk(state, lens.thenGet(getter));
+      GetCursor.mk(state, lens.thenGet(getter), callbacks: getCallbacks);
 
   @override
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) =>
       MutCursor.mk(state, lens.thenMut(mutater));
+
+  @override
+  Cursor<S> withGetCallback<F extends GetCallback>(F callback) {
+    final newCallbacks = <Type, GetCallback>{};
+    newCallbacks.addAll(getCallbacks);
+    newCallbacks[F] = callback;
+    return _CursorImpl(state, lens, newCallbacks);
+  }
+
+  @override
+  S get get => GetCursor.mk(state, lens, callbacks: getCallbacks).get;
+}
+
+@immutable
+abstract class GetCallback {
+  void onChanged();
+  void onGet<S>(WithDisposal<GetResult<S>> result);
 }
 
 @immutable
 abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
-  static GetCursor<S> mk<T, S>(ListenableState<T> state, Getter<T, S> getter) =>
-      _GetCursorImpl(state, getter);
+  static GetCursor<S> mk<T, S>(
+    ListenableState<T> state,
+    Getter<T, S> getter, {
+    Map<Type, GetCallback> callbacks = const {},
+  }) =>
+      _GetCursorImpl(state, getter, callbacks);
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
@@ -113,29 +131,70 @@ abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
 
   S get get;
 
-  void Function() listen(void Function() callback) =>
-      getAndListen(callback).dispose;
+  GetCursor<S> withGetCallback<F extends GetCallback>(F callback);
+}
 
-  WithDisposal<S> getAndListen(void Function() callback);
+extension GetCursorListenExtension<S> on GetCursor<S> {
+  WithDisposal<S> getAndListen(void Function() callback) {
+    void Function()? dispose;
+    final s = this
+        .withGetCallback(
+          _GetCursorListenExtensionCallback(
+            callback,
+            <S>(WithDisposal<GetResult<S>> result) => dispose = result.dispose,
+          ),
+        )
+        .get;
+    return WithDisposal(dispose!, s);
+  }
+}
+
+class _GetCursorListenExtensionCallback extends GetCallback {
+  final void Function() onChangedCallback;
+  final void Function<S>(WithDisposal<GetResult<S>> result) onGetCallback;
+
+  _GetCursorListenExtensionCallback(this.onChangedCallback, this.onGetCallback);
+
+  @override
+  void onChanged() => onChangedCallback();
+
+  @override
+  void onGet<S>(WithDisposal<GetResult<S>> result) => onGetCallback(result);
 }
 
 @immutable
 class _GetCursorImpl<T, S> extends GetCursor<S> {
   final ListenableState<T> state;
   final Getter<T, S> getter;
+  final Map<Type, GetCallback> getCallbacks;
 
-  _GetCursorImpl(this.state, this.getter);
-
-  @override
-  WithDisposal<S> getAndListen(void Function() callback) =>
-      state.getAndListen(getter, callback);
+  _GetCursorImpl(this.state, this.getter, this.getCallbacks);
 
   @override
-  S get get => state.get(getter);
+  S get get {
+    final disposalsAndResult = state.getResultAndListen(
+        getter, getCallbacks.values.map((c) => c.onChanged));
+    for (final disposalAndCallback
+        in zip(disposalsAndResult.first, getCallbacks.values)) {
+      disposalAndCallback.second.onGet(WithDisposal(
+        disposalAndCallback.first,
+        disposalsAndResult.second,
+      ));
+    }
+    return disposalsAndResult.second.value;
+  }
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
-    return _GetCursorImpl(state, this.getter.thenGet(getter));
+    return _GetCursorImpl(state, this.getter.thenGet(getter), getCallbacks);
+  }
+
+  @override
+  GetCursor<S> withGetCallback<F extends GetCallback>(F callback) {
+    final newCallbacks = <Type, GetCallback>{};
+    newCallbacks.addAll(getCallbacks);
+    newCallbacks[F] = callback;
+    return _GetCursorImpl(state, getter, newCallbacks);
   }
 }
 

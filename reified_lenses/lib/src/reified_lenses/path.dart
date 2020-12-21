@@ -41,9 +41,18 @@ class Path<E> {
     assert(!isEmpty);
     return _prev!;
   }
+
+  @override
+  String toString() {
+    return isEmpty
+        ? ''
+        : isSingleton
+            ? '$_elem'
+            : '${_prev}.${_elem}';
+  }
 }
 
-class PathMap<K, V> {
+class PathMap<K, V> extends Iterable<V> {
   final Set<V> _values = Set.identity();
   final Map<K, PathMap<K, V>> _children = {};
 
@@ -109,4 +118,7 @@ class PathMap<K, V> {
     _values.clear();
     _children.clear();
   }
+
+  @override
+  Iterator<V> get iterator => children().iterator;
 }
