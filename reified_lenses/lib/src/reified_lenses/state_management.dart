@@ -17,10 +17,8 @@ class ListenableState<T> {
       Getter<T, S> getter, Iterable<void Function()> callbacks) {
     final result = getter.getResult(_state);
     final disposals = callbacks.map((callback) {
-      // print('adding listener at: ${result.path}');
       _listenables.add(result.path, callback);
       return () {
-        // print('removing listener at: ${result.path}');
         _listenables.remove(result.path, callback);
       };
     });
@@ -37,9 +35,6 @@ class ListenableState<T> {
 
   void transformAndNotify(ReifiedTransformF<T> transform) {
     final result = transform(_state);
-    for (final path in result.mutated) {
-      print('modified state at $path');
-    }
     _state = result.value;
     _listenables.eachChildren(result.mutated).forEach((f) => f());
   }
