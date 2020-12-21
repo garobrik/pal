@@ -126,8 +126,8 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
       return MutResult(
         t0Result.value,
         t0Result.path + tResult!.path,
-        t0Result.mutated.union(
-            Set.of(tResult!.mutated.map((path) => t0Result.path + path))),
+        // TODO: figure out this logic
+        Set.of(tResult!.mutated.map((path) => t0Result.path + path)),
       );
     });
   }
