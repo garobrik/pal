@@ -106,9 +106,7 @@ extension ParamsGenerating on Iterable<Param> {
       output.write('[${unnamedOptional.join(", ")}]');
     }
     if (named.isNotEmpty) {
-      final renderedNamed =
-          named.map((n) => n.isRequired ? 'required $n' : '$n');
-      output.write('{${renderedNamed.join(", ")}}');
+      output.write('{${named.join(", ")}}');
     }
 
     return output.toString();

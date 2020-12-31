@@ -142,7 +142,7 @@ class Param extends ElementAnalogue<ParameterElement> {
 
   @override
   String toString() {
-    final requiredMeta = (isRequired && isNamed) ? '@required ' : '';
+    final requiredMeta = (isRequired && isNamed) ? 'required ' : '';
     final param = isInitializingFormal ? '$name' : '$type $name';
     return '$requiredMeta$param';
   }
