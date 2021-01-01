@@ -62,6 +62,9 @@ abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
 
   @override
   void set(S s) => mut((_) => s);
+
+  @override
+  Cursor<S1> cast<S1>() => then(Lens.mkCast<S, S1>());
 }
 
 @immutable
@@ -127,6 +130,8 @@ abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
   S get get;
 
   GetCursor<S> withGetCallback<F extends GetCallback>(F callback);
+
+  GetCursor<S1> cast<S1>() => thenGet(Getter.mkCast<S, S1>());
 }
 
 extension GetCursorListenExtension<S> on GetCursor<S> {
@@ -210,6 +215,8 @@ abstract class MutCursor<S> implements ThenMut<S>, ThenLens<S> {
   void mut(S Function(S) f);
 
   void set(S s) => mut((_) => s);
+
+  MutCursor<S1> cast<S1>() => thenMut(Mutater.mkCast<S, S1>());
 }
 
 @immutable
