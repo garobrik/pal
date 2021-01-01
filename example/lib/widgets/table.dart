@@ -64,6 +64,7 @@ class TableWidget extends HookWidget {
           border: Border(bottom: BorderSide()),
         ),
         child: ReorderableRow(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           scrollController: scrollController,
           onReorder: (a, b) {
             final aVal = table.columns[a].get;
@@ -86,7 +87,6 @@ class TableWidget extends HookWidget {
                     ),
                   ),
                   alignment: Alignment.centerLeft,
-                  height: double.infinity,
                   padding: EdgeInsets.all(2),
                   child: TappableTextFormField(column.title),
                 ),
@@ -101,28 +101,32 @@ class TableWidget extends HookWidget {
 
   Widget buildRow(int rowIndex) {
     return table.columns.length.build(
-      (_, length) => Row(
-        children: List.generate(
-          length,
-          (columnIndex) {
-            final column = table.columns[columnIndex];
-            return column.width.build(
-              (context, width) => Container(
-                constraints: BoxConstraints(
-                  minWidth: width,
-                  maxWidth: width,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: rowIndex == 0 ? BorderSide.none : BorderSide(),
-                    left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+      (_, length) => Container(
+        constraints: BoxConstraints(maxHeight: 40),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: List.generate(
+            length,
+            (columnIndex) {
+              final column = table.columns[columnIndex];
+              return column.width.build(
+                (context, width) => Container(
+                  constraints: BoxConstraints(
+                    minWidth: width,
+                    maxWidth: width,
                   ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: rowIndex == 0 ? BorderSide.none : BorderSide(),
+                      left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+                    ),
+                  ),
+                  padding: const EdgeInsets.all(2),
+                  child: TappableTextFormField(column.cases(string: (column) => column.values[rowIndex])),
                 ),
-                padding: const EdgeInsets.all(2),
-                child: TappableTextFormField(column.cases(string: (column) => column.values[rowIndex])),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
