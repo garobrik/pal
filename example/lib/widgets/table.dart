@@ -36,8 +36,8 @@ class TableWidget extends HookWidget {
                 (_, length) => ReorderableSliverList(
                   onReorder: (a, b) {
                     table.columns.forEach((column) {
-                      final dynamic bVal = column.values[b].get();
-                      column.values[b].set(column.values[a].get());
+                      final bVal = column.values[b].get;
+                      column.values[b].set(column.values[a].get);
                       column.values[a].set(bVal);
                     });
                   },
@@ -88,8 +88,7 @@ class TableWidget extends HookWidget {
                   alignment: Alignment.centerLeft,
                   height: double.infinity,
                   padding: EdgeInsets.all(2),
-                  child: column.title
-                      .bind((_, title) => TappableTextFormField(title)),
+                  child: TappableTextFormField(column.title),
                 ),
                 key: UniqueKey(),
               );
@@ -120,9 +119,7 @@ class TableWidget extends HookWidget {
                   ),
                 ),
                 padding: const EdgeInsets.all(2),
-                child: column.values[rowIndex].build(
-                  (_, dynamic s) => Text(s.toString()),
-                ),
+                child: TappableTextFormField(column.cases(string: (column) => column.values[rowIndex])),
               ),
             );
           },

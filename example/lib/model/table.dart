@@ -6,11 +6,11 @@ const DEFAULT_COLUMN_WIDTH = 100.0;
 
 @reified_lens
 class Table {
-  final Vec<Column> columns;
+  final Vec<Column<Object>> columns;
 
   const Table({this.columns = const Vec.empty()});
   const Table.empty() : columns = const Vec.empty();
-  Table.from({Iterable<Column> columns = const []})
+  Table.from({Iterable<Column<Object>> columns = const []})
       : columns = Vec.from(columns);
 
   int get length => columns.isEmpty ? 0 : columns.first.length;
@@ -26,7 +26,31 @@ abstract class Column<Value> {
   String get title;
   Column<Value> mut_title(String title);
 
+  @skip_lens
+  T cases<T>({required T Function(StringColumn) string});
+
   const Column();
+}
+
+extension ColumnCursorCasesExtension<Value> on Cursor<Column<Value>> {
+  T cases<T>({required T Function(Cursor<StringColumn>) string}) {
+    Type thisCase = this
+        .thenGet<Type>(
+          Getter.field(
+            'case',
+            (column) => column.cases(string: (_) => StringColumn),
+          ),
+        )
+        .get;
+
+    switch (thisCase) {
+      case StringColumn:
+        return string(this.cast<StringColumn>());
+      default:
+        // TODO: make proper unreachable exception
+        throw Exception();
+    }
+  }
 }
 
 @reified_lens
@@ -57,4 +81,8 @@ class StringColumn extends Column<String> {
 
   @override
   Column<String> mut_title(String title) => copyWith(title: title);
+
+  @override
+  @skip_lens
+  T cases<T>({required T Function(StringColumn p1) string}) => string(this);
 }
