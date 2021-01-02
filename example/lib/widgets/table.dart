@@ -3,6 +3,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class TableWidget extends HookWidget {
   final Cursor<model.Table> table;
@@ -16,38 +17,47 @@ class TableWidget extends HookWidget {
     double width = 0;
     for (int column = 0; column < table.columns.length.get; column++) {
       width += table.columns[column].width.get;
+      if (column != 0) {
+        width += 1;
+      }
     }
     return Scrollbar(
+      isAlwaysShown: true,
+      controller: horizontalScrollController,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         controller: horizontalScrollController,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: width),
-          child: CustomScrollView(
+          child: Scrollbar(
+            isAlwaysShown: true,
             controller: scrollController,
-            scrollDirection: Axis.vertical,
-            // shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
-            slivers: [
-              SliverPersistentHeader(
-                delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
-                pinned: true,
-              ),
-              table.length.build(
-                (_, length) => ReorderableSliverList(
-                  onReorder: (a, b) {
-                    table.columns.forEach((column) {
-                      final bVal = column.values[b].get;
-                      column.values[b].set(column.values[a].get);
-                      column.values[a].set(bVal);
-                    });
-                  },
-                  delegate: ReorderableSliverChildBuilderDelegate(
-                    (_, i) => buildRow(i),
-                    childCount: length,
+            child: CustomScrollView(
+              controller: scrollController,
+              scrollDirection: Axis.vertical,
+              // shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
+              slivers: [
+                SliverPersistentHeader(
+                  delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
+                  pinned: true,
+                ),
+                table.length.build(
+                  (_, length) => ReorderableSliverList(
+                    onReorder: (a, b) {
+                      table.columns.forEach((column) {
+                        final bVal = column.values[b].get;
+                        column.values[b].set(column.values[a].get);
+                        column.values[a].set(bVal);
+                      });
+                    },
+                    delegate: ReorderableSliverChildBuilderDelegate(
+                      (_, i) => buildRow(i),
+                      childCount: length,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -77,9 +87,8 @@ class TableWidget extends HookWidget {
               final column = table.columns[columnIndex];
               return column.width.build(
                 (context, width) => Container(
-                  constraints: BoxConstraints(
-                    minWidth: width,
-                    maxWidth: width,
+                  constraints: BoxConstraints.tightFor(
+                    width: width,
                   ),
                   decoration: BoxDecoration(
                     border: Border(
@@ -87,8 +96,7 @@ class TableWidget extends HookWidget {
                     ),
                   ),
                   alignment: Alignment.centerLeft,
-                  padding: EdgeInsets.all(2),
-                  child: TappableTextFormField(column.title),
+                  child: TableTextField(column.title),
                 ),
                 key: UniqueKey(),
               );
@@ -102,9 +110,9 @@ class TableWidget extends HookWidget {
   Widget buildRow(int rowIndex) {
     return table.columns.length.build(
       (_, length) => Container(
-        constraints: BoxConstraints(maxHeight: 40),
+        constraints: BoxConstraints(maxHeight: 100),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(
             length,
             (columnIndex) {
@@ -117,12 +125,14 @@ class TableWidget extends HookWidget {
                   ),
                   decoration: BoxDecoration(
                     border: Border(
-                      top: rowIndex == 0 ? BorderSide.none : BorderSide(),
-                      left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+                      top: rowIndex == 0 ? BorderSide.none : const BorderSide(),
+                      left: columnIndex == 0 ? BorderSide.none : const BorderSide(),
                     ),
                   ),
                   padding: const EdgeInsets.all(2),
-                  child: TappableTextFormField(column.cases(string: (column) => column.values[rowIndex])),
+                  child: TableTextField(
+                    column.cases(string: (column) => column.values[rowIndex]),
+                  ),
                 ),
               );
             },
@@ -133,30 +143,55 @@ class TableWidget extends HookWidget {
   }
 }
 
-class TappableTextFormField extends HookWidget {
+class TableTextField extends HookWidget {
   final Cursor<String> text;
+  final FocusNode? focusNode;
+  final TextInputType? keyboardType;
 
-  TappableTextFormField(this.text);
+  TableTextField(this.text, {this.focusNode, this.keyboardType});
 
   @override
   Widget build(BuildContext context) {
-    final editing = useState(false);
     final boundText = useBoundCusor<String, Cursor<String>>(text);
+    final textController = useTextEditingController(text: boundText.get);
+    final focusNode = this.focusNode ??
+        useFocusNode(onKey: (focusNode, keyEvent) {
+          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+            focusNode.unfocus();
+            return true;
+          }
+          return false;
+        });
+    useListenable(focusNode);
 
-    if (editing.value) {
-      return TextFormField(
-        initialValue: boundText.get,
-        onFieldSubmitted: (newText) {
-          editing.value = false;
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: [
+          if (focusNode.hasFocus)
+            const BoxShadow(
+              spreadRadius: 5,
+              blurRadius: 5,
+              color: Colors.grey,
+            ),
+        ],
+      ),
+      child: TextField(
+        maxLines: null,
+        focusNode: focusNode,
+        controller: textController,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.all(4),
+          isDense: true,
+        ),
+        style: Theme.of(context).textTheme.bodyText2,
+        textAlignVertical: TextAlignVertical.top,
+        onSubmitted: (newText) {
           boundText.set(newText);
         },
-      );
-    } else {
-      return GestureDetector(
-        onTap: () => editing.value = true,
-        child: Text(boundText.get),
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -168,7 +203,10 @@ class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return AnimatedContainer(
       height: double.infinity,
       width: double.infinity,
