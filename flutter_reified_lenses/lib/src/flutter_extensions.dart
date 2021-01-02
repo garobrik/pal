@@ -68,9 +68,13 @@ class _CursorBindState<S, T extends GetCursor<S>>
     }
     disposals.clear();
 
-    return widget.builder(
-      context,
-      widget.cursor.withGetCallback(_CursorBindGetCallback(disposals, ()=>setState((){}))) as T,
+    return HookBuilder(
+      builder: (context) => widget.builder(
+        context,
+        widget.cursor.withGetCallback(
+          _CursorBindGetCallback(disposals, () => setState(() {})),
+        ) as T,
+      ),
     );
   }
 
@@ -83,7 +87,8 @@ class _CursorBindState<S, T extends GetCursor<S>>
   }
 }
 
-T useBoundCusor<S, T extends GetCursor<S>>(T cursor) => use(_CursorBindHook<S, T>(cursor));
+T useBoundCusor<S, T extends GetCursor<S>>(T cursor) =>
+    use(_CursorBindHook<S, T>(cursor));
 
 class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
   final T cursor;
@@ -105,7 +110,9 @@ class _CursorBindHookState<S, T extends GetCursor<S>>
     }
     disposals.clear();
 
-    return hook.cursor.withGetCallback(_CursorBindGetCallback(disposals, () => setState((){}))) as T;
+    return hook.cursor.withGetCallback(
+      _CursorBindGetCallback(disposals, () => setState(() {})),
+    ) as T;
   }
 
   @override
