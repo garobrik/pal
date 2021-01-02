@@ -38,7 +38,8 @@ class TableWidget extends HookWidget {
               // shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
               slivers: [
                 SliverPersistentHeader(
-                  delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
+                  delegate:
+                      PersistentHeaderDelegate(buildHeader(), height: 30.0),
                   pinned: true,
                 ),
                 table.length.build(
@@ -109,8 +110,7 @@ class TableWidget extends HookWidget {
 
   Widget buildRow(int rowIndex) {
     return table.columns.length.build(
-      (_, length) => Container(
-        constraints: BoxConstraints(maxHeight: 100),
+      (_, length) => IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(
@@ -126,12 +126,20 @@ class TableWidget extends HookWidget {
                   decoration: BoxDecoration(
                     border: Border(
                       top: rowIndex == 0 ? BorderSide.none : const BorderSide(),
-                      left: columnIndex == 0 ? BorderSide.none : const BorderSide(),
+                      left: columnIndex == 0
+                          ? BorderSide.none
+                          : const BorderSide(),
                     ),
                   ),
                   padding: const EdgeInsets.all(2),
-                  child: TableTextField(
-                    column.cases(string: (column) => column.values[rowIndex]),
+                  child: Column(
+                    children: [
+                      TableTextField(
+                        column.cases(
+                          string: (column) => column.values[rowIndex],
+                        ),
+                      )
+                    ],
                   ),
                 ),
               );
