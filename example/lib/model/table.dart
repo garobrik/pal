@@ -8,10 +8,14 @@ const DEFAULT_COLUMN_WIDTH = 100.0;
 class Table {
   final Vec<Column<Object>> columns;
 
-  const Table({this.columns = const Vec.empty()});
   const Table.empty() : columns = const Vec.empty();
+  Table({this.columns = const Vec.empty()})
+      : assert(columns.every((column) => column.length == columns[0].length));
   Table.from({Iterable<Column<Object>> columns = const []})
-      : columns = Vec.from(columns);
+      : columns = Vec.from(columns),
+        assert(
+          columns.every((column) => column.length == columns.first.length),
+        );
 
   int get length => columns.isEmpty ? 0 : columns.first.length;
 }
