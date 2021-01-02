@@ -27,6 +27,7 @@ dependencies:
     path:
       ../flutter_reified_lenses
   flutter_hooks: ^0.15.0
+  path_provider: ^1.6.24
 
 
   # The following adds the Cupertino Icons font to your application.
