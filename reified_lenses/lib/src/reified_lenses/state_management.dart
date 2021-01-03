@@ -26,7 +26,7 @@ class ListenableState<T> {
   }
 
   void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
-    transformAndNotify((state) => mutater.mutResult(state, mutation));
+    transformAndNotify(mutater.transform(mutation));
   }
 
   void setAndNotify<S>(ReifiedSetterF<T, S> setter, S newValue) {
@@ -104,6 +104,9 @@ class _CursorImpl<T, S> extends Cursor<S> {
 
   @override
   S get get => GetCursor.mk(state, lens, callbacks: getCallbacks).get;
+
+  @override
+  void mutResult(ReifiedTransformF<S> f) => MutCursor.mk(state, lens).mutResult(f);
 }
 
 @immutable
@@ -213,7 +216,7 @@ abstract class MutCursor<S> implements ThenMut<S>, ThenLens<S> {
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
 
   void mut(S Function(S) f);
-
+  void mutResult(ReifiedTransformF<S> f);
   void set(S s) => mut((_) => s);
 
   MutCursor<S1> cast<S1>() => thenMut(Mutater.mkCast<S, S1>());
@@ -234,5 +237,10 @@ class _MutCursorImpl<T, S> extends MutCursor<S> {
   @override
   MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) {
     return _MutCursorImpl(state, this.mutater.thenMut(mutater));
+  }
+
+  @override
+  void mutResult(ReifiedTransformF<S> f) {
+    state.transformAndNotify(mutater.reifiedTransform(f));
   }
 }

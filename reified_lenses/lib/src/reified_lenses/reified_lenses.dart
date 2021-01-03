@@ -154,6 +154,21 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
   ReifiedSetterF<T, S> get setter => (t, s) => setResult(t, s);
 
   ReifiedTransformF<T> transform(S Function(S) f) => (t) => mutResult(t, f);
+  ReifiedTransformF<T> reifiedTransform(ReifiedTransformF<S> f) {
+    return (t) {
+      MutResult<S>? sResult;
+      final tResult = mutResult(t, (s) {
+        sResult = f(s);
+        return sResult!.value;
+      });
+      return MutResult(
+        tResult.value,
+        tResult.path + sResult!.path,
+        // TODO: figure out this logic
+        Set.of(sResult!.mutated.map((path) => tResult.path + path)),
+      );
+    };
+  }
 
   Mutater<T, S2> cast<S2>() => thenMut(Mutater.mkCast<S, S2>());
 }
