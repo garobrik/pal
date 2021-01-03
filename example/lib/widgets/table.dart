@@ -13,6 +13,7 @@ class TableWidget extends HookWidget {
   Widget build(BuildContext context) {
     final horizontalScrollController = useScrollController();
     final scrollController = useScrollController();
+    final table = useBoundCursor(this.table);
 
     double width = 0;
     for (int column = 0; column < table.columns.length.get; column++) {
@@ -160,7 +161,7 @@ class TableTextField extends HookWidget {
 
   @override
   Widget build(BuildContext context) {
-    final boundText = useBoundCusor<String, Cursor<String>>(text);
+    final boundText = useBoundCursor(text);
     final textController = useTextEditingController(text: boundText.get);
     final focusNode = this.focusNode ??
         useFocusNode(onKey: (focusNode, keyEvent) {

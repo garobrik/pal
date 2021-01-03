@@ -87,8 +87,11 @@ class _CursorBindState<S, T extends GetCursor<S>>
   }
 }
 
-T useBoundCusor<S, T extends GetCursor<S>>(T cursor) =>
-    use(_CursorBindHook<S, T>(cursor));
+Cursor<S> useBoundCursor<S>(Cursor<S> cursor) =>
+    use(_CursorBindHook<S, Cursor<S>>(cursor));
+
+GetCursor<S> useBoundGetCursor<S>(GetCursor<S> cursor) =>
+    use(_CursorBindHook<S, GetCursor<S>>(cursor));
 
 class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
   final T cursor;
