@@ -57,7 +57,7 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   }
 }
 
-Iterable<int> range({required int start, int end = 0, int step = 0}) =>
+Iterable<int> range({required int start, int end = 0, int step = 1}) =>
     Iterable.generate((start - end) ~/ step, (i) => end + step * i);
 
 extension VecForEach<T> on Cursor<Vec<T>> {
