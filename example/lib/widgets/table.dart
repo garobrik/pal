@@ -22,6 +22,8 @@ class TableWidget extends HookWidget {
         width += 1;
       }
     }
+    width += 100;
+
     return Scrollbar(
       isAlwaysShown: true,
       controller: horizontalScrollController,
@@ -83,14 +85,12 @@ class TableWidget extends HookWidget {
             table.columns[a].set(table.columns[b].get);
             table.columns[b].set(aVal);
           },
-          children: List.generate(
-            length,
-            (columnIndex) {
-              final column = table.columns[columnIndex];
-              return column.width.build(
-                (context, width) => Container(
+          children: [
+            for (final columnIndex in Iterable<int>.generate(length))
+              table.columns[columnIndex].bind(
+                (context, column) => Container(
                   constraints: BoxConstraints.tightFor(
-                    width: width,
+                    width: column.width.get,
                   ),
                   decoration: BoxDecoration(
                     border: Border(
@@ -101,9 +101,15 @@ class TableWidget extends HookWidget {
                   child: TableTextField(column.title),
                 ),
                 key: UniqueKey(),
-              );
-            },
-          ),
+              ),
+            IconButton(
+              key: UniqueKey(),
+              icon: Icon(Icons.add),
+              onPressed: () => table.columns.add(
+                model.StringColumn.empty(length: table.length.get),
+              ),
+            ),
+          ],
         ),
       ),
     );

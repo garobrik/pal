@@ -66,6 +66,10 @@ class StringColumn extends Column<String> {
   @override
   final String title;
 
+  StringColumn.empty(
+      {int length = 0, this.title = '', this.width = DEFAULT_COLUMN_WIDTH})
+      : values = Vec.from(Iterable.generate(length, (_) => ''));
+
   const StringColumn({
     this.values = const Vec.empty(),
     this.width = DEFAULT_COLUMN_WIDTH,
