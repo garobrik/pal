@@ -19,16 +19,19 @@ class Vec<Value> extends Iterable<Value> {
     return newVec;
   }
 
-  static ReifiedTransformF<Vec<Value>> insert<Value>(int i, Value v) {
-    return (vec) {
-      final copied = List.of(vec._values);
-      copied.insert(i, v);
-      return MutResult(
-        Vec.of(copied),
-        Path.singleton(i),
-      );
-    };
+  Vec<Value> insert(int i, Value v) {
+    final copied = List.of(_values);
+    copied.insert(i, v);
+    return Vec.of(copied);
   }
+
+  Set<Path<Object>> insert_mutations(int i, Value v) => Set.of(
+        range(start: i, end: length + 1)
+            .map<Path<Object>>((i) => Path.singleton(i))
+            .followedBy([Path.singleton('length')]),
+      );
+
+  Vec<Value> add(Value v) => insert(length, v);
 
   @override
   int get length => _values.length;
@@ -37,6 +40,25 @@ class Vec<Value> extends Iterable<Value> {
   @skip_lens
   Iterator<Value> get iterator => _values.iterator;
 }
+
+extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
+  void insert(int i, Value v) {
+    mutResult(
+      (vec) => MutResult(
+        vec.insert(i, v),
+        Path.empty(),
+        vec.insert_mutations(i, v),
+      ),
+    );
+  }
+
+  void add(Value v) {
+    insert(length.get, v);
+  }
+}
+
+Iterable<int> range({required int start, int end = 0, int step = 0}) =>
+    Iterable.generate((start - end) ~/ step, (i) => end + step * i);
 
 extension VecForEach<T> on Cursor<Vec<T>> {
   void forEach(void Function(Cursor<T> b) f) {
