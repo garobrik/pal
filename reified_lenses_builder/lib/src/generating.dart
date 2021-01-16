@@ -35,7 +35,7 @@ extension MethodGenerating on Method {
         params.where((p) => p.isRequired && !p.isNamed).length;
     if (positional.length < requiredPositional) {
       throw ArgumentError(
-        'Called method $name with ${positional.length} args.'
+        'Called method $name with ${positional.length} args. '
         '$requiredPositional are required.',
       );
     }
