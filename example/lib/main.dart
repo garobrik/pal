@@ -26,9 +26,9 @@ class MyApp extends StatelessWidget {
           ),
         ),
         create: (_) => ListenableState(model.Table.from(columns: [
-          for (int column = 0; column < 10; column++)
+          for (int column = 0; column < 3; column++)
             model.StringColumn.from(
-              values: List.generate(40, (row) => 'Row $row, Column $column'),
+              values: List.generate(3, (row) => 'Row $row, Column $column'),
               title: 'Column $column',
             )
         ])),
