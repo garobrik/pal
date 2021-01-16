@@ -1,10 +1,9 @@
 import 'package:meta/meta.dart';
-import 'path.dart';
 
 @immutable
 class GetResult<A> {
   final A value;
-  final Path<Object> path;
+  final Iterable<Object> path;
 
   const GetResult(this.value, this.path);
 }
@@ -12,10 +11,10 @@ class GetResult<A> {
 @immutable
 class MutResult<A> {
   final A value;
-  final Path<Object> path;
-  final Set<Path<Object>> mutated;
+  final Iterable<Object> path;
+  final Set<Iterable<Object>> mutated;
 
-  MutResult(this.value, this.path, [Set<Path<Object>>? mutated])
+  MutResult(this.value, this.path, [Set<Iterable<Object>>? mutated])
       : mutated = mutated ?? Set.identity();
 
   MutResult.path(this.value, this.path) : mutated = {path};
@@ -37,9 +36,9 @@ typedef TransformF<T> = T Function(T);
 
 typedef ReifiedTransformF<T> = MutResult<T> Function(T);
 
-GetResult<T> _identityGetter<T>(T t) => GetResult(t, Path.empty());
+GetResult<T> _identityGetter<T>(T t) => GetResult(t, Iterable.empty());
 MutResult<T> _identityMutater<T>(T t, T Function(T) f) =>
-    MutResult.path(f(t), Path.empty());
+    MutResult.path(f(t), Iterable.empty());
 
 abstract class ThenLens<S1> {
   @protected
@@ -60,11 +59,11 @@ mixin ThenMut<S1> implements ThenLens<S1> {
 //////////////////////////////////////////////////////////
 mixin Getter<T, S> implements ThenGet<S>, ThenLens<S> {
   static Getter<T, S> mkCast<T, S>() =>
-      _GetterImpl((T t) => GetResult(t as S, Path.empty()));
+      _GetterImpl((T t) => GetResult(t as S, Iterable.empty()));
   static Getter<T, S> mk<T, S>(ReifiedGetterF<T, S> getF) => _GetterImpl(getF);
   static Getter<T, T> identity<T>() => _GetterImpl(_identityGetter);
   static Getter<T, S> field<T, S>(Object field, GetterF<T, S> getter) =>
-      Getter.mk((t) => GetResult(getter(t), Path.singleton(field)));
+      Getter.mk((t) => GetResult(getter(t), [field]));
 
   GetResult<S> getResult(T t);
 
@@ -87,7 +86,7 @@ mixin Getter<T, S> implements ThenGet<S>, ThenLens<S> {
 
 extension GetterNullability<T, S> on Getter<T, S?> {
   Getter<T, S> get nonnull => thenGet(Getter.mk(
-        (s) => GetResult(s!, Path.empty()),
+        (s) => GetResult(s!, Iterable.empty()),
       ));
 }
 
@@ -107,7 +106,7 @@ class _GetterImpl<T, S> with Getter<T, S> {
 //////////////////////////////////////////////////////////
 abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
   static Mutater<T, S> mkCast<T, S>() => _MutaterImpl(
-      (T t, S Function(S) f) => MutResult(f(t as S) as T, Path.empty()));
+      (T t, S Function(S) f) => MutResult(f(t as S) as T, Iterable.empty()));
 
   static Mutater<T, S> mk<T, S>(ReifiedMutaterF<T, S> mutater) =>
       _MutaterImpl(mutater);
@@ -117,8 +116,10 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
   static Mutater<T, S> field<T, S>(Object field, MutaterF<T, S> mutater) =>
       _MutaterImpl((t, f) => MutResult(
             mutater(t, f),
-            Path.singleton(field),
-            {Path.singleton(field)},
+            [field],
+            {
+              [field]
+            },
           ));
 
   MutResult<T> mutResult(T t, S Function(S s) f);
@@ -175,7 +176,7 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
 
 extension MutaterNullability<T, S> on Mutater<T, S?> {
   Mutater<T, S> get nonnull => thenMut(Mutater.mk(
-        (s, f) => MutResult(f(s!), Path.empty(), {}),
+        (s, f) => MutResult(f(s!), Iterable.empty(), {}),
       ));
 }
 
@@ -232,8 +233,8 @@ abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
 
 extension LensNullability<T, S> on Lens<T, S?> {
   Lens<T, S> get nonnull => then(Lens.mk(
-        (s) => GetResult(s!, Path.empty()),
-        (s, f) => MutResult(f(s!), Path.empty(), {}),
+        (s) => GetResult(s!, Iterable.empty()),
+        (s, f) => MutResult(f(s!), Iterable.empty(), {}),
       ));
 }
 
@@ -289,7 +290,7 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
 
   @override
   MutResult<T> mutResult(T t, S1 Function(S1 s) f) {
-    Set<Path<Object>> sMutateds = Set.identity();
+    Set<Iterable<Object>> sMutateds = Set.identity();
     final tResult = _prefix.mutResult(t, (o) {
       final resultO = _from(_to(o).map((s) {
         final sResult = _suffix.mutResult(s.value, f);
@@ -310,4 +311,8 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
   Traversal<O, T0, S, S1> mutAfter<T0>(Mutater<T0, T> arg) {
     return Traversal._(_to, _from, _prefix.mutAfter(arg), _suffix);
   }
+}
+
+extension _IterableAppend<V> on Iterable<V> {
+  Iterable<V> operator +(Iterable<V> other) => this.followedBy(other);
 }

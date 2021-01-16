@@ -19,19 +19,21 @@ class Vec<Value> extends Iterable<Value> {
     return newVec;
   }
 
+  @skip_lens
   Vec<Value> insert(int i, Value v) {
     final copied = List.of(_values);
     copied.insert(i, v);
     return Vec.of(copied);
   }
 
-  Set<Path<Object>> insert_mutations(int i, Value v) => Set.of(
+  @skip_lens
+  Set<Iterable<Object>> insert_mutations(int i, Value v) => Set.of(
         range(start: i, end: length + 1)
-            .map<Path<Object>>((i) => Path.singleton(i))
-            .followedBy([Path.singleton('length')]),
+            .map<Iterable<Object>>((i) => [i])
+            .followedBy([
+          ['length']
+        ]),
       );
-
-  Vec<Value> add(Value v) => insert(length, v);
 
   @override
   int get length => _values.length;
@@ -46,7 +48,7 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
     mutResult(
       (vec) => MutResult(
         vec.insert(i, v),
-        Path.empty(),
+        const [],
         vec.insert_mutations(i, v),
       ),
     );

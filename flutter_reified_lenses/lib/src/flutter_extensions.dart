@@ -60,7 +60,7 @@ class CursorBinder<S, T extends GetCursor<S>> extends StatefulWidget {
 
 class _CursorBindState<S, T extends GetCursor<S>>
     extends State<CursorBinder<S, T>> {
-  final PathMap<Object, void Function()> disposals = PathMap.empty();
+  final TrieMap<Object, void Function()> disposals = TrieMap.empty();
   @override
   Widget build(BuildContext context) {
     for (final disposeFn in disposals) {
@@ -104,7 +104,7 @@ class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
 
 class _CursorBindHookState<S, T extends GetCursor<S>>
     extends HookState<T, _CursorBindHook<S, T>> {
-  final PathMap<Object, void Function()> disposals = PathMap.empty();
+  final TrieMap<Object, void Function()> disposals = TrieMap.empty();
 
   @override
   T build(BuildContext context) {
@@ -128,7 +128,7 @@ class _CursorBindHookState<S, T extends GetCursor<S>>
 }
 
 class _CursorBindGetCallback extends GetCallback {
-  final PathMap<Object, void Function()> disposals;
+  final TrieMap<Object, void Function()> disposals;
   final void Function() onChangedCallback;
 
   _CursorBindGetCallback(this.disposals, this.onChangedCallback);

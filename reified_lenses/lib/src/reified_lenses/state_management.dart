@@ -1,11 +1,11 @@
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 import 'reified_lenses.dart';
-import 'path.dart';
+import 'trie_map.dart';
 
 class ListenableState<T> {
   T _state;
-  final PathMap<Object, void Function()> _listenables = PathMap.empty();
+  final TrieMap<Object, void Function()> _listenables = TrieMap.empty();
 
   ListenableState(this._state);
 
@@ -106,7 +106,8 @@ class _CursorImpl<T, S> extends Cursor<S> {
   S get get => GetCursor.mk(state, lens, callbacks: getCallbacks).get;
 
   @override
-  void mutResult(ReifiedTransformF<S> f) => MutCursor.mk(state, lens).mutResult(f);
+  void mutResult(ReifiedTransformF<S> f) =>
+      MutCursor.mk(state, lens).mutResult(f);
 }
 
 @immutable
