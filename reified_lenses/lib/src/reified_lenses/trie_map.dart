@@ -12,7 +12,7 @@ class TrieMap<K, V> extends Iterable<V> {
 
   TrieMap<K, V> add(Iterable<K> key, V value) {
     if (key.isEmpty) {
-      return TrieMap(_values.union({value}), _children);
+      return TrieMap(<V>{value}.union(_values), _children);
     } else {
       final newChildren = <K, TrieMap<K, V>>{};
       newChildren.addAll(_children);
