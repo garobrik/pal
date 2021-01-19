@@ -9,6 +9,13 @@ class TrieMap<K, V> extends Iterable<V> {
       : _values = const {},
         _children = const {};
   const TrieMap(this._values, this._children);
+  factory TrieMap.from(Map<Iterable<K>, V> map) {
+    var result = TrieMap<K, V>.empty();
+    for (var entry in map.entries) {
+      result = result.add(entry.key, entry.value);
+    }
+    return result;
+  }
 
   TrieMap<K, V> add(Iterable<K> key, V value) {
     if (key.isEmpty) {
@@ -88,6 +95,25 @@ class TrieMap<K, V> extends Iterable<V> {
       yield* childEntry.value.entries().map(
             (entry) =>
                 MapEntry([childEntry.key].followedBy(entry.key), entry.value),
+          );
+    }
+  }
+
+  Iterable<Iterable<K>> keys([Iterable<K> key = const Iterable.empty()]) sync* {
+    if (key.isNotEmpty) {
+      final keys = _children[key.first]?.keys(key.skip(1)) ?? [];
+      yield* keys.map(
+        (childKey) => [key.first].followedBy(childKey),
+      );
+      return;
+    }
+
+    if (_values.isNotEmpty) {
+      yield Iterable.empty();
+    }
+    for (final entry in _children.entries) {
+      yield* entry.value.keys().map(
+            (childKey) => [entry.key].followedBy(childKey),
           );
     }
   }

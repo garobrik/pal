@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:reified_lenses/reified_lenses.dart';
 
 @immutable
 class GetResult<A> {
@@ -12,12 +13,21 @@ class GetResult<A> {
 class MutResult<A> {
   final A value;
   final Iterable<Object> path;
-  final Set<Iterable<Object>> mutated;
+  final TrieMap<Object, bool> mutated;
 
-  MutResult(this.value, this.path, [Set<Iterable<Object>>? mutated])
-      : mutated = mutated ?? Set.identity();
+  const MutResult(this.value, this.path, [TrieMap<Object, bool>? mutated])
+      : mutated = mutated ?? const TrieMap.empty();
 
-  MutResult.path(this.value, this.path) : mutated = {path};
+  const MutResult.unchanged(this.value)
+      : path = const Iterable.empty(),
+        mutated = const TrieMap.empty();
+
+  const MutResult.allChanged(this.value)
+      : path = const Iterable.empty(),
+        mutated = const TrieMap({true}, {});
+
+  MutResult.path(this.value, this.path)
+      : mutated = TrieMap<Object, bool>.empty().add(path, true);
 }
 
 typedef GetterF<T, S> = S Function(T);
@@ -114,12 +124,9 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
   static Mutater<T, T> identity<T>() => _MutaterImpl(_identityMutater);
 
   static Mutater<T, S> field<T, S>(Object field, MutaterF<T, S> mutater) =>
-      _MutaterImpl((t, f) => MutResult(
+      _MutaterImpl((t, f) => MutResult.path(
             mutater(t, f),
             [field],
-            {
-              [field]
-            },
           ));
 
   MutResult<T> mutResult(T t, S Function(S s) f);
@@ -135,7 +142,7 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
         t0Result.value,
         t0Result.path + tResult!.path,
         // TODO: figure out this logic
-        Set.of(tResult!.mutated.map((path) => t0Result.path + path)),
+        tResult!.mutated.prepend(t0Result.path),
       );
     });
   }
@@ -166,7 +173,7 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
         tResult.value,
         tResult.path + sResult!.path,
         // TODO: figure out this logic
-        Set.of(sResult!.mutated.map((path) => tResult.path + path)),
+        sResult!.mutated.prepend(tResult.path),
       );
     };
   }
@@ -175,9 +182,8 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
 }
 
 extension MutaterNullability<T, S> on Mutater<T, S?> {
-  Mutater<T, S> get nonnull => thenMut(Mutater.mk(
-        (s, f) => MutResult(f(s!), Iterable.empty(), {}),
-      ));
+  Mutater<T, S> get nonnull => thenMut(Mutater.mk((s, f) =>
+      MutResult(f(s!), const Iterable.empty(), const TrieMap.empty())));
 }
 
 @immutable
@@ -233,8 +239,9 @@ abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
 
 extension LensNullability<T, S> on Lens<T, S?> {
   Lens<T, S> get nonnull => then(Lens.mk(
-        (s) => GetResult(s!, Iterable.empty()),
-        (s, f) => MutResult(f(s!), Iterable.empty(), {}),
+        (s) => GetResult(s!, const Iterable.empty()),
+        (s, f) =>
+            MutResult(f(s!), const Iterable.empty(), const TrieMap.empty()),
       ));
 }
 
@@ -290,11 +297,11 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
 
   @override
   MutResult<T> mutResult(T t, S1 Function(S1 s) f) {
-    Set<Iterable<Object>> sMutateds = Set.identity();
+    var sMutateds = TrieMap<Object, bool>.empty();
     final tResult = _prefix.mutResult(t, (o) {
       final resultO = _from(_to(o).map((s) {
         final sResult = _suffix.mutResult(s.value, f);
-        sMutateds.addAll(sResult.mutated.map((path) => s.path + path));
+        sMutateds = sResult.mutated.prepend(s.path);
         return sResult.value;
       }));
       return resultO;
@@ -302,8 +309,7 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
     return MutResult(
       tResult.value,
       tResult.path,
-      tResult.mutated
-          .union(Set.of(sMutateds.map((path) => tResult.path + path))),
+      tResult.mutated.merge(sMutateds.prepend(tResult.path)),
     );
   }
 
