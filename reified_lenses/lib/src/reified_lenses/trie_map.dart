@@ -1,28 +1,54 @@
+import 'package:meta/meta.dart';
+
+@immutable
 class TrieMap<K, V> extends Iterable<V> {
-  final Set<V> _values = Set.identity();
-  final Map<K, TrieMap<K, V>> _children = {};
+  final Set<V> _values;
+  final Map<K, TrieMap<K, V>> _children;
 
-  TrieMap.empty();
+  const TrieMap.empty()
+      : _values = const {},
+        _children = const {};
+  const TrieMap(this._values, this._children);
 
-  void add(Iterable<K> key, V value) {
+  TrieMap<K, V> add(Iterable<K> key, V value) {
     if (key.isEmpty) {
-      _values.add(value);
+      return TrieMap(_values.union({value}), _children);
     } else {
-      _children
-          .putIfAbsent(key.first, () => TrieMap.empty())
-          .add(key.skip(1), value);
+      final newChildren = <K, TrieMap<K, V>>{};
+      newChildren.addAll(_children);
+      newChildren[key.first] =
+          (newChildren[key.first] ?? TrieMap.empty()).add(key.skip(1), value);
+      return TrieMap(_values, newChildren);
     }
   }
 
-  void remove(Iterable<K> key, V value) {
+  TrieMap<K, V> remove(Iterable<K> key, V value) {
     if (key.isEmpty) {
-      _values.remove(value);
+      return TrieMap(_values.difference({value}), _children);
     } else {
-      _children[key.first]?.remove(key.skip(1), value);
-      if (_children[key.first]?._children.isEmpty ?? false) {
-        _children.remove(key.skip(1));
+      final newChildren = <K, TrieMap<K, V>>{};
+      newChildren.addAll(_children);
+      newChildren[key.first] = (newChildren[key.first] ?? TrieMap.empty())
+          .remove(key.skip(1), value);
+      if (newChildren[key.first]?.isEmpty ?? true) {
+        newChildren.remove(key.first);
       }
+      return TrieMap(_values, newChildren);
     }
+  }
+
+  TrieMap<K, V> merge(TrieMap<K, V> other) {
+    var result = this;
+    for (final entry in other.entries()) {
+      result = result.add(entry.key, entry.value);
+    }
+    return result;
+  }
+
+  TrieMap<K, V> prepend(Iterable<K> key) {
+    if (key.isEmpty) return this;
+    return TrieMap(<V>{}, <K, TrieMap<K, V>>{key.last: this})
+        .prepend(key.take(key.length - 1));
   }
 
   Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
@@ -39,20 +65,36 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  Iterable<V> eachChildren(Iterable<Iterable<K>> paths) sync* {
-    for (final path in paths) {
-      yield* children(path);
+  Iterable<V> eachChildren(Iterable<Iterable<K>> keys) sync* {
+    for (final key in keys) {
+      yield* children(key);
+    }
+  }
+
+  Iterable<MapEntry<Iterable<K>, V>> entries(
+      [Iterable<K> key = const Iterable.empty()]) sync* {
+    if (key.isNotEmpty) {
+      final entries = _children[key.first]?.entries(key.skip(1)) ?? [];
+      yield* entries.map(
+        (entry) => MapEntry([key.first].followedBy(entry.key), entry.value),
+      );
+      return;
+    }
+
+    for (final result in _values) {
+      yield MapEntry(Iterable.empty(), result);
+    }
+    for (final childEntry in _children.entries) {
+      yield* childEntry.value.entries().map(
+            (entry) =>
+                MapEntry([childEntry.key].followedBy(entry.key), entry.value),
+          );
     }
   }
 
   Iterable<V> operator [](Iterable<K> key) {
     if (key.isEmpty) return _values;
     return _children[key.first]?[key.skip(1)] ?? const [];
-  }
-
-  void clear() {
-    _values.clear();
-    _children.clear();
   }
 
   @override

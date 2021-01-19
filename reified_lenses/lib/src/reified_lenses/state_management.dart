@@ -5,7 +5,7 @@ import 'trie_map.dart';
 
 class ListenableState<T> {
   T _state;
-  final TrieMap<Object, void Function()> _listenables = TrieMap.empty();
+  TrieMap<Object, void Function()> _listenables = TrieMap.empty();
 
   ListenableState(this._state);
 
@@ -17,9 +17,9 @@ class ListenableState<T> {
       Getter<T, S> getter, Iterable<void Function()> callbacks) {
     final result = getter.getResult(_state);
     final disposals = callbacks.map((callback) {
-      _listenables.add(result.path, callback);
+      _listenables = _listenables.add(result.path, callback);
       return () {
-        _listenables.remove(result.path, callback);
+        _listenables = _listenables.remove(result.path, callback);
       };
     });
     return Pair(disposals, result);
@@ -38,8 +38,6 @@ class ListenableState<T> {
     _state = result.value;
     _listenables.eachChildren(result.mutated).forEach((f) => f());
   }
-
-  Type get type => T;
 }
 
 @immutable
