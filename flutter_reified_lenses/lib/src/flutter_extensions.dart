@@ -59,21 +59,19 @@ class CursorBinder<S, T extends GetCursor<S>> extends StatefulWidget {
 }
 
 class _CursorBindState<S, T extends GetCursor<S>>
-    extends State<CursorBinder<S, T>> {
-  final TrieMap<Object, void Function()> disposals = TrieMap.empty();
+    extends State<CursorBinder<S, T>> with CursorCallback {
+  TrieMap<Object, void Function()> disposals = const TrieMap.empty();
   @override
   Widget build(BuildContext context) {
-    for (final disposeFn in disposals) {
-      disposeFn();
+    for (final dispose in disposals) {
+      dispose();
     }
-    disposals.clear();
+    disposals = const TrieMap.empty();
 
     return HookBuilder(
       builder: (context) => widget.builder(
         context,
-        widget.cursor.withGetCallback(
-          _CursorBindGetCallback(disposals, () => setState(() {})),
-        ) as T,
+        widget.cursor.withCallback(this) as T,
       ),
     );
   }
@@ -84,6 +82,14 @@ class _CursorBindState<S, T extends GetCursor<S>>
     for (final dispose in disposals) {
       dispose();
     }
+  }
+
+  @override
+  void onChanged() => setState(() {});
+
+  @override
+  void onGet<V>(WithDisposal<GetResult<V>> result) {
+    disposals = disposals.add(result.value.path, result.dispose);
   }
 }
 
@@ -103,19 +109,17 @@ class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
 }
 
 class _CursorBindHookState<S, T extends GetCursor<S>>
-    extends HookState<T, _CursorBindHook<S, T>> {
-  final TrieMap<Object, void Function()> disposals = TrieMap.empty();
+    extends HookState<T, _CursorBindHook<S, T>> with CursorCallback {
+  TrieMap<Object, void Function()> disposals = TrieMap.empty();
 
   @override
   T build(BuildContext context) {
-    for (final disposeFn in disposals) {
-      disposeFn();
+    for (final dispose in disposals) {
+      dispose();
     }
-    disposals.clear();
+    disposals = TrieMap.empty();
 
-    return hook.cursor.withGetCallback(
-      _CursorBindGetCallback(disposals, () => setState(() {})),
-    ) as T;
+    return hook.cursor.withCallback(this) as T;
   }
 
   @override
@@ -125,19 +129,12 @@ class _CursorBindHookState<S, T extends GetCursor<S>>
       dispose();
     }
   }
-}
-
-class _CursorBindGetCallback extends GetCallback {
-  final TrieMap<Object, void Function()> disposals;
-  final void Function() onChangedCallback;
-
-  _CursorBindGetCallback(this.disposals, this.onChangedCallback);
 
   @override
-  void onChanged() => onChangedCallback();
+  void onChanged() => setState(() {});
 
   @override
-  void onGet<S>(WithDisposal<GetResult<S>> result) {
-    disposals.add(result.value.path, result.dispose);
+  void onGet<V>(WithDisposal<GetResult<V>> result) {
+    disposals = disposals.add(result.value.path, result.dispose);
   }
 }
