@@ -121,8 +121,19 @@ class _CursorImpl<T, S> extends Cursor<S> {
 }
 
 class _LoggingCursorCallback extends CursorCallback {
-  final TrieMap<Object, bool> mutated = TrieMap.empty();
-  final TrieMap<Object, bool> gotten = TrieMap.empty();
+  TrieMap<Object, bool> mutated = TrieMap.empty();
+  TrieMap<Object, bool> gotten = TrieMap.empty();
+
+  @override
+  void onGet<S>(WithDisposal<GetResult<S>> result) {
+    result.dispose();
+    gotten = gotten.add(result.value.path, true);
+  }
+
+  @override
+  void onMut<S>(MutResult<S> result) {
+    mutated = mutated.merge(result.mutated);
+  }
 }
 
 abstract class CursorCallback {
