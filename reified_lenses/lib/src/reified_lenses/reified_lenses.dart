@@ -13,21 +13,21 @@ class GetResult<A> {
 class MutResult<A> {
   final A value;
   final Iterable<Object> path;
-  final TrieMap<Object, bool> mutated;
+  final TrieSet<Object> mutated;
 
-  const MutResult(this.value, this.path, [TrieMap<Object, bool>? mutated])
-      : mutated = mutated ?? const TrieMap.empty();
+  const MutResult(this.value, this.path, [TrieSet<Object>? mutated])
+      : mutated = mutated ?? const TrieSet.empty();
 
   const MutResult.unchanged(this.value)
       : path = const Iterable.empty(),
-        mutated = const TrieMap.empty();
+        mutated = const TrieSet.empty();
 
-  const MutResult.allChanged(this.value)
+  MutResult.allChanged(this.value)
       : path = const Iterable.empty(),
-        mutated = const TrieMap({true}, {});
+        mutated = TrieSet.from({[]});
 
   MutResult.path(this.value, this.path)
-      : mutated = TrieMap<Object, bool>.empty().add(path, true);
+      : mutated = TrieSet<Object>.empty().add(path);
 }
 
 typedef GetterF<T, S> = S Function(T);
@@ -183,7 +183,7 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
 
 extension MutaterNullability<T, S> on Mutater<T, S?> {
   Mutater<T, S> get nonnull => thenMut(Mutater.mk((s, f) =>
-      MutResult(f(s!), const Iterable.empty(), const TrieMap.empty())));
+      MutResult.unchanged(f(s!))));
 }
 
 @immutable
@@ -241,7 +241,7 @@ extension LensNullability<T, S> on Lens<T, S?> {
   Lens<T, S> get nonnull => then(Lens.mk(
         (s) => GetResult(s!, const Iterable.empty()),
         (s, f) =>
-            MutResult(f(s!), const Iterable.empty(), const TrieMap.empty()),
+            MutResult.unchanged(f(s!)),
       ));
 }
 
@@ -297,7 +297,7 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
 
   @override
   MutResult<T> mutResult(T t, S1 Function(S1 s) f) {
-    var sMutateds = TrieMap<Object, bool>.empty();
+    var sMutateds = TrieSet<Object>.empty();
     final tResult = _prefix.mutResult(t, (o) {
       final resultO = _from(_to(o).map((s) {
         final sResult = _suffix.mutResult(s.value, f);
@@ -309,7 +309,7 @@ class Traversal<O, T, S, S1> with Mutater<T, S1> {
     return MutResult(
       tResult.value,
       tResult.path,
-      tResult.mutated.merge(sMutateds.prepend(tResult.path)),
+      tResult.mutated.union(sMutateds.prepend(tResult.path)),
     );
   }
 

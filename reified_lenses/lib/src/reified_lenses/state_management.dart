@@ -5,7 +5,7 @@ import 'trie_map.dart';
 
 class ListenableState<T> {
   T _state;
-  TrieMap<Object, void Function()> _listenables = TrieMap.empty();
+  TrieMapSet<Object, void Function()> _listenables = TrieMapSet.empty();
 
   ListenableState(this._state);
 
@@ -36,7 +36,7 @@ class ListenableState<T> {
   void transformAndNotify(ReifiedTransformF<T> transform) {
     final result = transform(_state);
     _state = result.value;
-    _listenables.eachChildren(result.mutated.keys()).forEach((f) => f());
+    _listenables.eachChildren(result.mutated.values()).forEach((f) => f());
   }
 }
 
@@ -121,18 +121,18 @@ class _CursorImpl<T, S> extends Cursor<S> {
 }
 
 class _LoggingCursorCallback extends CursorCallback {
-  TrieMap<Object, bool> mutated = TrieMap.empty();
-  TrieMap<Object, bool> gotten = TrieMap.empty();
+  TrieSet<Object> mutated = const TrieSet.empty();
+  TrieSet<Object> gotten = const TrieSet.empty();
 
   @override
   void onGet<S>(WithDisposal<GetResult<S>> result) {
     result.dispose();
-    gotten = gotten.add(result.value.path, true);
+    gotten = gotten.add(result.value.path);
   }
 
   @override
   void onMut<S>(MutResult<S> result) {
-    mutated = mutated.merge(result.mutated);
+    mutated = mutated.union(result.mutated);
   }
 }
 
