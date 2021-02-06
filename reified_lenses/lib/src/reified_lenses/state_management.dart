@@ -13,16 +13,29 @@ class ListenableState<T> {
 
   T get bareState => _state;
 
-  Pair<Iterable<void Function()>, GetResult<S>> getResultAndListen<S>(
-      Getter<T, S> getter, Iterable<void Function()> callbacks) {
-    final result = getter.getResult(_state);
-    final disposals = callbacks.map((callback) {
-      _listenables = _listenables.add(result.path, callback);
-      return () {
-        _listenables = _listenables.remove(result.path, callback);
-      };
+  void listen(TrieSet<Object> paths, Iterable<CursorCallback> callbacks) {
+    paths.forEach((path) {
+      callbacks.forEach((callback) {
+        _listenables = _listenables.add(path, callback.onChanged);
+        callback.onGet(
+          WithDisposal(
+            () {
+              _listenables = _listenables.remove(path, callback.onChanged);
+            },
+            path,
+          ),
+        );
+      });
     });
-    return Pair(disposals, result);
+  }
+
+  GetResult<S> getResultAndListen<S>(
+    Getter<T, S> getter,
+    Iterable<CursorCallback> callbacks,
+  ) {
+    final result = getter.getResult(_state);
+    listen(TrieSet.from({result.path}), callbacks);
+    return result;
   }
 
   void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
@@ -115,7 +128,10 @@ class _CursorImpl<T, S> extends Cursor<S> {
     final actionLogger = _LoggingCursorCallback();
     final loggedCursor = bareCursor.withCallback(actionLogger);
     final result = f(loggedCursor);
-
+    state.listen(actionLogger.gotten, getCallbacks.values);
+    mutResult(
+      (_) => MutResult(loggedCursor.get, const [], actionLogger.mutated),
+    );
     return result;
   }
 }
@@ -125,9 +141,9 @@ class _LoggingCursorCallback extends CursorCallback {
   TrieSet<Object> gotten = const TrieSet.empty();
 
   @override
-  void onGet<S>(WithDisposal<GetResult<S>> result) {
+  void onGet(WithDisposal<Iterable<Object>> result) {
     result.dispose();
-    gotten = gotten.add(result.value.path);
+    gotten = gotten.add(result.value);
   }
 
   @override
@@ -138,7 +154,7 @@ class _LoggingCursorCallback extends CursorCallback {
 
 abstract class CursorCallback {
   void onChanged() {}
-  void onGet<S>(WithDisposal<GetResult<S>> result) => result.dispose();
+  void onGet(WithDisposal<Iterable<Object>> result) => result.dispose();
   void onMut<S>(MutResult<S> result) {}
 }
 
@@ -171,7 +187,7 @@ extension GetCursorListenExtension<S> on GetCursor<S> {
         .withCallback(
           _GetCursorListenExtensionCallback(
             callback,
-            <S>(WithDisposal<GetResult<S>> result) => dispose = result.dispose,
+            (result) => dispose = result.dispose,
           ),
         )
         .get;
@@ -181,7 +197,7 @@ extension GetCursorListenExtension<S> on GetCursor<S> {
 
 class _GetCursorListenExtensionCallback extends CursorCallback {
   final void Function() onChangedCallback;
-  final void Function<S>(WithDisposal<GetResult<S>> result) onGetCallback;
+  final void Function(WithDisposal<Iterable<Object>> result) onGetCallback;
 
   _GetCursorListenExtensionCallback(this.onChangedCallback, this.onGetCallback);
 
@@ -189,7 +205,7 @@ class _GetCursorListenExtensionCallback extends CursorCallback {
   void onChanged() => onChangedCallback();
 
   @override
-  void onGet<S>(WithDisposal<GetResult<S>> result) => onGetCallback(result);
+  void onGet(WithDisposal<Iterable<Object>> result) => onGetCallback(result);
 }
 
 @immutable
@@ -201,18 +217,7 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
   _GetCursorImpl(this.state, this.getter, this.getCallbacks);
 
   @override
-  S get get {
-    final disposalsAndResult = state.getResultAndListen(
-        getter, getCallbacks.values.map((c) => c.onChanged));
-    for (final disposalAndCallback
-        in zip(disposalsAndResult.first, getCallbacks.values)) {
-      disposalAndCallback.second.onGet(WithDisposal(
-        disposalAndCallback.first,
-        disposalsAndResult.second,
-      ));
-    }
-    return disposalsAndResult.second.value;
-  }
+  S get get => state.getResultAndListen(getter, getCallbacks.values).value;
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
