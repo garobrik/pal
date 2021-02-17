@@ -15,19 +15,18 @@ class MutResult<A> {
   final Iterable<Object> path;
   final TrieSet<Object> mutated;
 
-  const MutResult(this.value, this.path, [TrieSet<Object>? mutated])
-      : mutated = mutated ?? const TrieSet.empty();
+  MutResult(this.value, this.path, [TrieSet<Object>? mutated])
+      : mutated = mutated ?? TrieSet.empty();
 
-  const MutResult.unchanged(this.value)
+  MutResult.unchanged(this.value)
       : path = const Iterable.empty(),
-        mutated = const TrieSet.empty();
+        mutated = TrieSet.empty();
 
   MutResult.allChanged(this.value)
       : path = const Iterable.empty(),
         mutated = TrieSet.from({[]});
 
-  MutResult.path(this.value, this.path)
-      : mutated = TrieSet<Object>.empty().add(path);
+  MutResult.path(this.value, this.path) : mutated = TrieSet.from({path});
 }
 
 typedef GetterF<T, S> = S Function(T);
@@ -182,8 +181,8 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
 }
 
 extension MutaterNullability<T, S> on Mutater<T, S?> {
-  Mutater<T, S> get nonnull => thenMut(Mutater.mk((s, f) =>
-      MutResult.unchanged(f(s!))));
+  Mutater<T, S> get nonnull =>
+      thenMut(Mutater.mk((s, f) => MutResult.unchanged(f(s!))));
 }
 
 @immutable
@@ -240,8 +239,7 @@ abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
 extension LensNullability<T, S> on Lens<T, S?> {
   Lens<T, S> get nonnull => then(Lens.mk(
         (s) => GetResult(s!, const Iterable.empty()),
-        (s, f) =>
-            MutResult.unchanged(f(s!)),
+        (s, f) => MutResult.unchanged(f(s!)),
       ));
 }
 

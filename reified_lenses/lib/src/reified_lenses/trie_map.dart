@@ -33,7 +33,9 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  TrieMap<K, V> set(Iterable<K> key, V value) => update(key, (_) => value);
+  TrieMap<K, V> set(Iterable<K> key, V value) {
+    return update(key, (_) => value);
+  }
 
   TrieMap<K, V> remove(Iterable<K> key) => update(key, (_) => null);
 
@@ -127,7 +129,7 @@ class TrieMap<K, V> extends Iterable<V> {
 class TrieMapSet<K, V> extends Iterable<V> {
   final TrieMap<K, Set<V>> _wrapped;
 
-  const TrieMapSet.empty() : _wrapped = const TrieMap.empty();
+  TrieMapSet.empty() : _wrapped = TrieMap.empty();
   TrieMapSet(Set<V> values, Map<K, TrieMap<K, Set<V>>> children)
       : _wrapped = TrieMap<K, Set<V>>(values, children);
   const TrieMapSet._fromTrieMap(this._wrapped);
@@ -210,7 +212,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
 class TrieSet<K> extends Iterable<Iterable<K>> {
   final TrieMap<K, bool> _wrapped;
 
-  const TrieSet.empty() : _wrapped = const TrieMap.empty();
+  TrieSet.empty() : _wrapped = TrieMap.empty();
   const TrieSet._fromTrieMap(this._wrapped);
 
   factory TrieSet.from(Set<Iterable<K>> set) {
@@ -222,7 +224,8 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
   }
 
   TrieSet<K> add(Iterable<K> key) {
-    return TrieSet._fromTrieMap(_wrapped.set(key, true));
+    final newWrapped = _wrapped.set(key, true);
+    return TrieSet._fromTrieMap(newWrapped);
   }
 
   TrieSet<K> remove(Iterable<K> key) {
@@ -237,7 +240,8 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
     return TrieSet._fromTrieMap(_wrapped.prepend(key));
   }
 
-  Iterable<Iterable<K>> values([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<Iterable<K>> values(
+      [Iterable<K> key = const Iterable.empty()]) sync* {
     yield* _wrapped.keys(key);
   }
 

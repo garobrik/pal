@@ -62,6 +62,8 @@ class WithDisposal<T> {
 }
 
 abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
+  static Cursor<S> from<S>(S state) => ListenableState(state).cursor;
+
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
@@ -137,8 +139,8 @@ class _CursorImpl<T, S> extends Cursor<S> {
 }
 
 class _LoggingCursorCallback extends CursorCallback {
-  TrieSet<Object> mutated = const TrieSet.empty();
-  TrieSet<Object> gotten = const TrieSet.empty();
+  TrieSet<Object> mutated = TrieSet.empty();
+  TrieSet<Object> gotten = TrieSet.empty();
 
   @override
   void onGet(WithDisposal<Iterable<Object>> result) {
