@@ -27,14 +27,10 @@ class Vec<Value> extends Iterable<Value> {
   }
 
   @skip_lens
-  TrieMap<Object, bool> insert_mutations(int i, Value v) => TrieMap.from(
-        {
-          for (var obj in range(start: i, end: length + 1)
-              .cast<Object>()
-              .followedBy(['length']))
-            [obj]: true
-        },
-      );
+  TrieSet<Object> insert_mutations(int i, Value v) => TrieSet.from({
+        for (final idx in range(start: i, end: length + 1)) [idx],
+        ['length']
+      });
 
   @override
   int get length => _values.length;
