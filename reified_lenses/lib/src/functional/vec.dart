@@ -20,29 +20,29 @@ class Vec<Value> extends Iterable<Value> {
   }
 
   @skip_lens
-  Vec<Value> insert(int i, Value v) {
+  Vec<Value> insert(int index, Value v) {
     assert(0 <= index && index <= length);
     final copied = List.of(_values);
-    copied.insert(i, v);
+    copied.insert(index, v);
     return Vec.of(copied);
   }
 
   @skip_lens
-  TrieSet<Object> insert_mutations(int i, Value v) => TrieSet.from({
-        for (final idx in range(start: i, end: length)) [idx],
+  TrieSet<Object> _insert_mutations(int index, Value v) => TrieSet.from({
+        for (final j in range(start: index, end: length)) [j],
         ['length']
       });
 
   @skip_lens
-  Vec<Value> remove(int i) {
+  Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
     final copied = List.of(_values);
-    copied.removeAt(i);
+    copied.removeAt(index);
     return Vec.of(copied);
   }
 
-  TrieSet<Object> remove_mutations(int i) => TrieSet.from({
-        for (final idx in range(start: i, end: length - 1)) [idx],
+  TrieSet<Object> _remove_mutations(int index) => TrieSet.from({
+        for (final j in range(start: index, end: length - 1)) [j],
         ['length']
       });
 
@@ -60,7 +60,7 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
       (vec) => MutResult(
         vec.insert(i, v),
         const [],
-        vec.insert_mutations(i, v),
+        vec._insert_mutations(i, v),
       ),
     );
   }
@@ -70,7 +70,7 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
       (vec) => MutResult(
         vec.remove(i),
         const [],
-        vec.remove_mutations(i),
+        vec._remove_mutations(i),
       ),
     );
   }
