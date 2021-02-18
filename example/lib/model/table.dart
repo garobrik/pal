@@ -25,12 +25,15 @@ extension TableComputations on GetCursor<Table> {
 
 extension TableMutations on Cursor<Table> {
   void addRow([int? index]) {
-    assert(index == null || index <= length.get);
     columns.atomically((columns) {
       columns.forEach((column) {
         column.values.insert(index ?? length.get, column.defaultValue.get);
       });
     });
+  }
+
+  void removeColumn(int index) {
+    columns.remove(index);
   }
 }
 
