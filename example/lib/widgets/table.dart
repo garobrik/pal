@@ -98,17 +98,46 @@ class TableWidget extends HookWidget {
             for (final columnIndex
                 in Iterable<int>.generate(table.columns.length.get))
               table.columns[columnIndex].bind(
-                (context, column) => Container(
-                  constraints: BoxConstraints.tightFor(
-                    width: column.width.get,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+                (context, column) => GestureDetector(
+                  onTap: () {
+                    showDialog<Null>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        content: column.bind(
+                          (context, column) => Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TableTextField(
+                                column.title,
+                                onSubmitted: (_) {
+                                  Navigator.pop(dialogContext);
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.remove),
+                                onPressed: () {
+                                  table.removeColumn(columnIndex);
+                                  Navigator.pop(dialogContext);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    constraints: BoxConstraints.tightFor(
+                      width: column.width.get,
                     ),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+                      ),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: Text(column.title.get),
                   ),
-                  alignment: Alignment.centerLeft,
-                  child: TableTextField(column.title),
                 ),
                 key: UniqueKey(),
               ),
@@ -173,21 +202,16 @@ class TableTextField extends HookWidget {
   final Cursor<String> text;
   final FocusNode? focusNode;
   final TextInputType? keyboardType;
+  final void Function(String)? onSubmitted;
 
-  TableTextField(this.text, {this.focusNode, this.keyboardType});
+  TableTextField(this.text,
+      {this.focusNode, this.keyboardType, this.onSubmitted});
 
   @override
   Widget build(BuildContext context) {
     final boundText = useBoundCursor(text);
     final textController = useTextEditingController(text: boundText.get);
-    final focusNode = this.focusNode ??
-        useFocusNode(onKey: (focusNode, keyEvent) {
-          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-            focusNode.unfocus();
-            return true;
-          }
-          return false;
-        });
+    final focusNode = this.focusNode ?? useFocusNode();
     useListenable(focusNode);
 
     return Container(
@@ -214,10 +238,10 @@ class TableTextField extends HookWidget {
               focusNode: focusNode,
               onKey: (keyEvent) {
                 if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-                  Form.of(context)!.save();
+                  focusNode.unfocus();
                 } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
                   if (!keyEvent.isShiftPressed) {
-                    Form.of(context)!.save();
+                    focusNode.unfocus();
                   }
                 }
               },
@@ -234,6 +258,7 @@ class TableTextField extends HookWidget {
                 textAlignVertical: TextAlignVertical.top,
                 onSaved: (newText) {
                   boundText.set(newText!);
+                  if (onSubmitted != null) onSubmitted!(newText);
                 },
               ),
             ),
