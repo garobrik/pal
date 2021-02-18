@@ -21,6 +21,7 @@ class Vec<Value> extends Iterable<Value> {
 
   @skip_lens
   Vec<Value> insert(int i, Value v) {
+    assert(0 <= index && index <= length);
     final copied = List.of(_values);
     copied.insert(i, v);
     return Vec.of(copied);
@@ -28,7 +29,20 @@ class Vec<Value> extends Iterable<Value> {
 
   @skip_lens
   TrieSet<Object> insert_mutations(int i, Value v) => TrieSet.from({
-        for (final idx in range(start: i, end: length + 1)) [idx],
+        for (final idx in range(start: i, end: length)) [idx],
+        ['length']
+      });
+
+  @skip_lens
+  Vec<Value> remove(int i) {
+    assert(0 <= index && index < length);
+    final copied = List.of(_values);
+    copied.removeAt(i);
+    return Vec.of(copied);
+  }
+
+  TrieSet<Object> remove_mutations(int i) => TrieSet.from({
+        for (final idx in range(start: i, end: length - 1)) [idx],
         ['length']
       });
 
@@ -47,6 +61,16 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
         vec.insert(i, v),
         const [],
         vec.insert_mutations(i, v),
+      ),
+    );
+  }
+
+  void remove(int i) {
+    mutResult(
+      (vec) => MutResult(
+        vec.remove(i),
+        const [],
+        vec.remove_mutations(i),
       ),
     );
   }
