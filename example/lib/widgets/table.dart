@@ -134,11 +134,11 @@ class TableWidget extends HookWidget {
             table.columns.length.get,
             (columnIndex) {
               final column = table.columns[columnIndex];
-              return column.width.build(
-                (context, width) => Container(
+              return column.bind(
+                (context, column) => Container(
                   constraints: BoxConstraints(
-                    minWidth: width,
-                    maxWidth: width,
+                    minWidth: column.width.get,
+                    maxWidth: column.width.get,
                   ),
                   decoration: BoxDecoration(
                     border: Border(
