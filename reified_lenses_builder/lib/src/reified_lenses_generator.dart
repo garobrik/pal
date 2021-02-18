@@ -70,7 +70,7 @@ class GeneratorContext {
 
   Iterable<Optic> generateFieldOptics() {
     return clazz.fields.expand((f) {
-      if (f.isPrivate || f.isStatic || f.hasAnnotation(SkipLens)) return [];
+      if (f.isStatic || f.hasAnnotation(SkipLens)) return [];
       OpticKind kind;
       if (copyCtor != null && copyCtor!.params.any((p) => p.name == f.name)) {
         kind = OpticKind.Lens;
@@ -90,8 +90,7 @@ class GeneratorContext {
 
   Iterable<Optic> generateAccessorOptics() {
     return clazz.accessors.expand((a) {
-      if (a.isPrivate ||
-          a.getter == null ||
+      if (a.getter == null ||
           a.getter!.hasAnnotation(SkipLens) ||
           a.name == 'hashCode') {
         return [];
