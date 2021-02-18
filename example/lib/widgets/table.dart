@@ -115,6 +115,20 @@ class TableWidget extends HookWidget {
                                   Navigator.pop(dialogContext);
                                 },
                               ),
+                              DropdownButton<Type>(
+                                items: [
+                                  DropdownMenuItem(
+                                    child: Text('Text'),
+                                    value: model.StringColumn,
+                                  ),
+                                  DropdownMenuItem(
+                                    child: Text('Checkbox'),
+                                    value: model.BooleanColumn,
+                                  ),
+                                ],
+                                onChanged: (type) => table.setColumnType(columnIndex, type!),
+                                value: column.type.get,
+                              ),
                               IconButton(
                                 icon: Icon(Icons.remove),
                                 onPressed: () {
@@ -183,11 +197,12 @@ class TableWidget extends HookWidget {
                     padding: const EdgeInsets.all(2),
                     child: Column(
                       children: [
-                        TableTextField(
-                          column.cases(
-                            string: (column) => column.values[rowIndex],
-                          ),
-                        )
+                        column.cases(
+                          string: (column) =>
+                              TableTextField(column.values[rowIndex]),
+                          boolean: (column) =>
+                              TableCheckbox(column.values[rowIndex]),
+                        ),
                       ],
                     ),
                   ),
@@ -197,6 +212,20 @@ class TableWidget extends HookWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class TableCheckbox extends HookWidget {
+  final Cursor<bool> checked;
+
+  TableCheckbox(this.checked);
+
+  @override
+  Widget build(BuildContext context) {
+    return Checkbox(
+      value: checked.get,
+      onChanged: (newChecked) => checked.set(newChecked!),
     );
   }
 }

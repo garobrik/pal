@@ -35,6 +35,19 @@ extension TableMutations on Cursor<Table> {
   void removeColumn(int index) {
     columns.remove(index);
   }
+
+  void setColumnType(int index, Type columnType) {
+    final column = (columnType == StringColumn
+        ? StringColumn.from(
+            values: List.generate(length.get, (_) => ' '),
+            title: columns[index].title.get,
+            width: columns[index].width.get)
+        : BooleanColumn.from(
+            values: List.generate(length.get, (_) => false),
+            title: columns[index].title.get,
+            width: columns[index].width.get)) as Column<Object>;
+    columns[index].set(column);
+  }
 }
 
 @reified_lens
@@ -49,7 +62,10 @@ abstract class Column<Value> extends Iterable<Value> {
   Value get defaultValue;
 
   @skip_lens
-  T cases<T>({required T Function(StringColumn) string});
+  T cases<T>({
+    required T Function(StringColumn) string,
+    required T Function(BooleanColumn) boolean,
+  });
 
   @override
   @skip_lens
@@ -63,24 +79,74 @@ extension ColumnLengthExtension<Value> on GetCursor<Column<Value>> {
 }
 
 extension ColumnCursorCasesExtension<Value> on Cursor<Column<Value>> {
-  T cases<T>({required T Function(Cursor<StringColumn>) string}) {
-    Type thisCase = this
-        .thenGet<Type>(
-          Getter.field(
-            'case',
-            (column) => column.cases(string: (_) => StringColumn),
-          ),
-        )
-        .get;
-
-    switch (thisCase) {
+  T cases<T>(
+      {required T Function(Cursor<StringColumn>) string,
+      required T Function(Cursor<BooleanColumn>) boolean}) {
+    switch (type.get) {
       case StringColumn:
         return string(this.cast<StringColumn>());
+      case BooleanColumn:
+        return boolean(this.cast<BooleanColumn>());
       default:
         // TODO: make proper unreachable exception
         throw Exception();
     }
   }
+
+  GetCursor<Type> get type => thenGet<Type>(
+          Getter.field(
+            'case',
+            (column) => column.cases(
+                string: (_) => StringColumn, boolean: (_) => BooleanColumn),
+          ),
+        );
+}
+
+@reified_lens
+class BooleanColumn extends Column<bool> {
+  @override
+  final Vec<bool> values;
+  @override
+  final double width;
+  @override
+  final String title;
+
+  BooleanColumn.empty({
+    int length = 0,
+    this.title = '',
+    this.width = DEFAULT_COLUMN_WIDTH,
+  }) : values = Vec.from(Iterable.generate(length, (_) => false));
+
+  const BooleanColumn({
+    this.values = const Vec.empty(),
+    this.width = DEFAULT_COLUMN_WIDTH,
+    required this.title,
+  });
+
+  BooleanColumn.from({
+    Iterable<bool> values = const [],
+    this.width = DEFAULT_COLUMN_WIDTH,
+    required this.title,
+  }) : values = Vec.from(values);
+
+  @override
+  @skip_lens
+  T cases<T>({
+    required T Function(StringColumn p1) string,
+    required T Function(BooleanColumn p1) boolean,
+  }) {
+    return boolean(this);
+  }
+
+  @override
+  Column<bool> mut_title(String title) => copyWith(title: title);
+  @override
+  Column<bool> mut_values(Vec<bool> values) => copyWith(values: values);
+  @override
+  Column<bool> mut_width(double width) => copyWith(width: width);
+
+  @override
+  bool get defaultValue => false;
 }
 
 @reified_lens
@@ -118,7 +184,10 @@ class StringColumn extends Column<String> {
 
   @override
   @skip_lens
-  T cases<T>({required T Function(StringColumn p1) string}) => string(this);
+  T cases<T>(
+          {required T Function(StringColumn) string,
+          required T Function(BooleanColumn) boolean}) =>
+      string(this);
 
   @override
   String get defaultValue => '';
