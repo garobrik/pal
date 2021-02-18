@@ -45,21 +45,30 @@ class TableWidget extends HookWidget {
                       PersistentHeaderDelegate(buildHeader(), height: 30.0),
                   pinned: true,
                 ),
-                table.length.build(
-                  (_, length) => ReorderableSliverList(
-                    onReorder: (a, b) {
-                      table.columns.forEach((column) {
-                        final bVal = column.values[b].get;
-                        column.values[b].set(column.values[a].get);
-                        column.values[a].set(bVal);
-                      });
-                    },
-                    delegate: ReorderableSliverChildBuilderDelegate(
-                      (_, i) => buildRow(i),
-                      childCount: length,
-                    ),
+                ReorderableSliverList(
+                  onReorder: (a, b) {
+                    table.columns.forEach((column) {
+                      final bVal = column.values[b].get;
+                      column.values[b].set(column.values[a].get);
+                      column.values[a].set(bVal);
+                    });
+                  },
+                  delegate: ReorderableSliverChildBuilderDelegate(
+                    (_, i) => buildRow(i),
+                    childCount: table.length.get,
                   ),
                 ),
+                SliverList(
+                  delegate: SliverChildListDelegate([
+                    Container(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: Icon(Icons.add),
+                        onPressed: () => table.addRow(),
+                      ),
+                    ),
+                  ]),
+                )
               ],
             ),
           ),
@@ -71,8 +80,8 @@ class TableWidget extends HookWidget {
   Widget buildHeader() {
     final scrollController = useScrollController();
 
-    return table.columns.length.build(
-      (context, length) => Container(
+    return table.bind(
+      (context, table) => Container(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
           border: Border(bottom: BorderSide()),
@@ -86,7 +95,7 @@ class TableWidget extends HookWidget {
             table.columns[b].set(aVal);
           },
           children: [
-            for (final columnIndex in Iterable<int>.generate(length))
+            for (final columnIndex in Iterable<int>.generate(table.length.get))
               table.columns[columnIndex].bind(
                 (context, column) => Container(
                   constraints: BoxConstraints.tightFor(
@@ -116,12 +125,12 @@ class TableWidget extends HookWidget {
   }
 
   Widget buildRow(int rowIndex) {
-    return table.columns.length.build(
-      (_, length) => IntrinsicHeight(
+    return table.bind(
+      (_, table) => IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(
-            length,
+            table.columns.length.get,
             (columnIndex) {
               final column = table.columns[columnIndex];
               return column.width.build(
@@ -149,6 +158,7 @@ class TableWidget extends HookWidget {
                     ],
                   ),
                 ),
+                key: UniqueKey(),
               );
             },
           ),

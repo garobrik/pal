@@ -16,24 +16,47 @@ class Table {
         assert(
           columns.every((column) => column.length == columns.first.length),
         );
+}
 
-  int get length => columns.isEmpty ? 0 : columns.first.length;
+extension TableComputations on GetCursor<Table> {
+  GetCursor<int> get length =>
+      columns.length.get == 0 ? Cursor.from(0) : columns[0].length;
+}
+
+extension TableMutations on Cursor<Table> {
+  void addRow([int? index]) {
+    assert(index == null || index <= length.get);
+    columns.atomically((columns) {
+      columns.forEach((column) {
+        column.values.insert(index ?? length.get, column.defaultValue.get);
+      });
+    });
+  }
 }
 
 @reified_lens
-abstract class Column<Value> {
+abstract class Column<Value> extends Iterable<Value> {
   Vec<Value> get values;
   Column<Value> mut_values(Vec<Value> values);
-  int get length => values.length;
   double get width;
   Column<Value> mut_width(double width);
   String get title;
   Column<Value> mut_title(String title);
 
+  Value get defaultValue;
+
   @skip_lens
   T cases<T>({required T Function(StringColumn) string});
 
+  @override
+  @skip_lens
+  Iterator<Value> get iterator => values.iterator;
+
   const Column();
+}
+
+extension ColumnLengthExtension<Value> on GetCursor<Column<Value>> {
+  GetCursor<int> get length => values.length;
 }
 
 extension ColumnCursorCasesExtension<Value> on Cursor<Column<Value>> {
@@ -93,4 +116,7 @@ class StringColumn extends Column<String> {
   @override
   @skip_lens
   T cases<T>({required T Function(StringColumn p1) string}) => string(this);
+
+  @override
+  String get defaultValue => '';
 }
