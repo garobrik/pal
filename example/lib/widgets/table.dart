@@ -202,20 +202,43 @@ class TableTextField extends HookWidget {
             ),
         ],
       ),
-      child: TextField(
-        maxLines: null,
-        focusNode: focusNode,
-        controller: textController,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.all(4),
-          isDense: true,
+      child: Form(
+        child: Builder(
+          builder: (context) => Focus(
+            onFocusChange: (hasFocus) {
+              if (!hasFocus) {
+                Form.of(context)!.save();
+              }
+            },
+            child: RawKeyboardListener(
+              focusNode: focusNode,
+              onKey: (keyEvent) {
+                if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+                  Form.of(context)!.save();
+                } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+                  if (!keyEvent.isShiftPressed) {
+                    Form.of(context)!.save();
+                  }
+                }
+              },
+              child: TextFormField(
+                maxLines: null,
+                controller: textController,
+                keyboardType: keyboardType,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.all(4),
+                  isDense: true,
+                ),
+                style: Theme.of(context).textTheme.bodyText2,
+                textAlignVertical: TextAlignVertical.top,
+                onSaved: (newText) {
+                  boundText.set(newText!);
+                },
+              ),
+            ),
+          ),
         ),
-        style: Theme.of(context).textTheme.bodyText2,
-        textAlignVertical: TextAlignVertical.top,
-        onSubmitted: (newText) {
-          boundText.set(newText);
-        },
       ),
     );
   }
