@@ -61,6 +61,9 @@ class TableWidget extends HookWidget {
                 SliverList(
                   delegate: SliverChildListDelegate([
                     Container(
+                      decoration: const BoxDecoration(
+                        border: Border(bottom: BorderSide()),
+                      ),
                       alignment: Alignment.centerLeft,
                       child: IconButton(
                         icon: Icon(Icons.add),
@@ -95,8 +98,7 @@ class TableWidget extends HookWidget {
             table.columns[b].set(aVal);
           },
           children: [
-            for (final columnIndex
-                in Iterable<int>.generate(table.columns.length.get))
+            for (final columnIndex in range(end: table.columns.length.get))
               table.columns[columnIndex].bind(
                 (context, column) => GestureDetector(
                   onTap: () {
@@ -132,20 +134,24 @@ class TableWidget extends HookWidget {
                     ),
                     decoration: BoxDecoration(
                       border: Border(
-                        left: columnIndex == 0 ? BorderSide.none : BorderSide(),
+                        right: const BorderSide(),
                       ),
                     ),
+                    padding: const EdgeInsets.all(2),
                     alignment: Alignment.centerLeft,
                     child: Text(column.title.get),
                   ),
                 ),
                 key: UniqueKey(),
               ),
-            IconButton(
+            Container(
               key: UniqueKey(),
-              icon: Icon(Icons.add),
-              onPressed: () => table.columns.add(
-                model.StringColumn.empty(length: table.length.get),
+              alignment: Alignment.centerLeft,
+              child: IconButton(
+                icon: Icon(Icons.add),
+                onPressed: () => table.columns.add(
+                  model.StringColumn.empty(length: table.length.get),
+                ),
               ),
             ),
           ],
@@ -157,40 +163,37 @@ class TableWidget extends HookWidget {
   Widget buildRow(int rowIndex) {
     return table.bind(
       (_, table) => IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(
-            table.columns.length.get,
-            (columnIndex) {
-              final column = table.columns[columnIndex];
-              return column.bind(
-                (context, column) => Container(
-                  constraints: BoxConstraints(
-                    minWidth: column.width.get,
-                    maxWidth: column.width.get,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: rowIndex == 0 ? BorderSide.none : const BorderSide(),
-                      left: columnIndex == 0
-                          ? BorderSide.none
-                          : const BorderSide(),
+        child: Container(
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final columnIndex in range(end: table.columns.length.get))
+                table.columns[columnIndex].bind(
+                  (context, column) => Container(
+                    constraints: BoxConstraints(
+                      minWidth: column.width.get,
+                      maxWidth: column.width.get,
+                    ),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        right: BorderSide(),
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: Column(
+                      children: [
+                        TableTextField(
+                          column.cases(
+                            string: (column) => column.values[rowIndex],
+                          ),
+                        )
+                      ],
                     ),
                   ),
-                  padding: const EdgeInsets.all(2),
-                  child: Column(
-                    children: [
-                      TableTextField(
-                        column.cases(
-                          string: (column) => column.values[rowIndex],
-                        ),
-                      )
-                    ],
-                  ),
+                  key: UniqueKey(),
                 ),
-                key: UniqueKey(),
-              );
-            },
+            ],
           ),
         ),
       ),
