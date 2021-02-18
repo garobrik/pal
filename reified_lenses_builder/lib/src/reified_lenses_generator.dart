@@ -186,10 +186,7 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
         final opticsOfKind = optics.where(
-          (o) =>
-              o.kind == kind ||
-              (kind == OpticKind.Getter && o.kind != OpticKind.Mutater) ||
-              (kind == OpticKind.Mutater && o.kind != OpticKind.Getter),
+          (o) => o.kind == kind || kind == OpticKind.Getter,
         );
         if (opticsOfKind.isEmpty) return;
         output.writeln(composer.extensionDecl(ctx.clazz, kind));
@@ -252,14 +249,12 @@ final composers = [
     types: (k) => k.allCases(
       lens: 'Cursor',
       getter: 'GetCursor',
-      mutater: 'MutCursor',
     ),
     numParams: 0,
   ),
   Composer(
     types: (k) => k.allCases(
       getter: 'Getter',
-      mutater: 'Mutater',
       lens: 'Lens',
     ),
     numParams: 1,
@@ -295,9 +290,8 @@ class Optic {
             '${parentKind.opticName}.field',
             [
               "'${name}'",
-              if ([OpticKind.Lens, OpticKind.Getter].contains(parentKind))
-                getBody != null ? getBody! : '(t) => t.${name}',
-              if ([OpticKind.Lens, OpticKind.Mutater].contains(parentKind))
+              getBody != null ? getBody! : '(t) => t.${name}',
+              if (parentKind == OpticKind.Lens)
                 mutBody != null
                     ? mutBody!
                     : '(t, f) => t.copyWith(${name}: f(t.${name}))',
@@ -328,21 +322,16 @@ extension on OpticKind {
   A allCases<A>({
     required A lens,
     required A getter,
-    required A mutater,
   }) {
     switch (this) {
       case OpticKind.Lens:
         return lens;
       case OpticKind.Getter:
         return getter;
-      case OpticKind.Mutater:
-        return mutater;
     }
   }
 
-  String get thenMethod =>
-      this.allCases(lens: 'then', getter: 'thenGet', mutater: 'thenMut');
+  String get thenMethod => this.allCases(lens: 'then', getter: 'thenGet');
 
-  String get opticName =>
-      this.allCases(lens: 'Lens', getter: 'Getter', mutater: 'Mutater');
+  String get opticName => this.allCases(lens: 'Lens', getter: 'Getter');
 }

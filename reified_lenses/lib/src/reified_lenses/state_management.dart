@@ -46,10 +46,11 @@ class ListenableState<T> {
     transformAndNotify((state) => setter(state, newValue));
   }
 
-  void transformAndNotify(ReifiedTransformF<T> transform) {
+  MutResult<T> transformAndNotify(ReifiedTransformF<T> transform) {
     final result = transform(_state);
     _state = result.value;
     _listenables.eachChildren(result.mutated.values()).forEach((f) => f());
+    return result;
   }
 }
 
@@ -61,16 +62,14 @@ class WithDisposal<T> {
   const WithDisposal(this.dispose, this.value);
 }
 
-abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
+abstract class Cursor<S> implements GetCursor<S> {
   static Cursor<S> from<S>(S state) => ListenableState(state).cursor;
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
-  @override
   void mut(S Function(S) f) => mutResult((s) => MutResult.allChanged(f(s)));
-
-  @override
+  void mutResult(ReifiedTransformF<S> f);
   void set(S s) => mut((_) => s);
 
   @override
@@ -86,53 +85,51 @@ abstract class Cursor<S> implements GetCursor<S>, MutCursor<S> {
 class _CursorImpl<T, S> extends Cursor<S> {
   final ListenableState<T> state;
   final Lens<T, S> lens;
-  final Map<Type, CursorCallback> getCallbacks;
+  final Map<Type, CursorCallback> callbacks;
 
-  _CursorImpl(this.state, this.lens, this.getCallbacks);
+  _CursorImpl(this.state, this.lens, this.callbacks);
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _CursorImpl(state, this.lens.then(lens), getCallbacks);
+    return _CursorImpl(state, this.lens.then(lens), callbacks);
   }
 
   @override
-  void mut(S Function(S p1) f) => MutCursor.mk(state, lens).mut(f);
-
-  @override
-  void set(S s) => MutCursor.mk(state, lens).set(s);
-
-  @override
   GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) =>
-      GetCursor.mk(state, lens.thenGet(getter), callbacks: getCallbacks);
-
-  @override
-  MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) =>
-      MutCursor.mk(state, lens.thenMut(mutater));
+      GetCursor.mk(state, lens.thenGet(getter), callbacks: callbacks);
 
   @override
   Cursor<S> withCallback<F extends CursorCallback>(F callback) {
     final newCallbacks = <Type, CursorCallback>{};
-    newCallbacks.addAll(getCallbacks);
+    newCallbacks.addAll(callbacks);
     newCallbacks[callback.runtimeType] = callback;
     return _CursorImpl(state, lens, newCallbacks);
   }
 
   @override
-  S get get => GetCursor.mk(state, lens, callbacks: getCallbacks).get;
+  S get get => GetCursor.mk(state, lens, callbacks: callbacks).get;
 
   @override
-  void mutResult(ReifiedTransformF<S> f) =>
-      MutCursor.mk(state, lens).mutResult(f);
+  void mutResult(ReifiedTransformF<S> f) {
+    final result = state.transformAndNotify(lens.reifiedTransform(f));
+    callbacks.values.forEach((callback) => callback.onMut(result));
+  }
 
   @override
   V atomically<V>(V Function(Cursor<S> p1) f) {
-    final bareCursor = ListenableState(lens.get(state.bareState)).cursor;
+    final stateResult = lens.getResult(state.bareState);
+    final bareCursor = ListenableState(stateResult.value).cursor;
     final actionLogger = _LoggingCursorCallback();
     final loggedCursor = bareCursor.withCallback(actionLogger);
     final result = f(loggedCursor);
-    state.listen(actionLogger.gotten, getCallbacks.values);
+    state.listen(actionLogger.gotten, callbacks.values);
+
     mutResult(
-      (_) => MutResult(loggedCursor.get, const [], actionLogger.mutated),
+      (_) => MutResult(
+        loggedCursor.get,
+        const [],
+        actionLogger.mutated,
+      ),
     );
     return result;
   }
@@ -232,49 +229,5 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
     newCallbacks.addAll(getCallbacks);
     newCallbacks[callback.runtimeType] = callback;
     return _GetCursorImpl(state, getter, newCallbacks);
-  }
-}
-
-@immutable
-abstract class MutCursor<S> implements ThenMut<S>, ThenLens<S> {
-  static MutCursor<S> mk<T, S>(
-    ListenableState<T> state,
-    Mutater<T, S> mutater,
-  ) =>
-      _MutCursorImpl(state, mutater);
-
-  @override
-  MutCursor<S2> then<S2>(Lens<S, S2> lens) => thenMut(lens);
-
-  @override
-  MutCursor<S2> thenMut<S2>(Mutater<S, S2> lens);
-
-  void mut(S Function(S) f) => mutResult((s) => MutResult.allChanged(f(s)));
-  void mutResult(ReifiedTransformF<S> f);
-  void set(S s) => mut((_) => s);
-
-  MutCursor<S1> cast<S1>() => thenMut(Mutater.mkCast<S, S1>());
-}
-
-@immutable
-class _MutCursorImpl<T, S> extends MutCursor<S> {
-  final ListenableState<T> state;
-  final Mutater<T, S> mutater;
-
-  _MutCursorImpl(this.state, this.mutater);
-
-  @override
-  void mut(S Function(S) f) {
-    state.mutAndNotify(mutater, f);
-  }
-
-  @override
-  MutCursor<S2> thenMut<S2>(Mutater<S, S2> mutater) {
-    return _MutCursorImpl(state, this.mutater.thenMut(mutater));
-  }
-
-  @override
-  void mutResult(ReifiedTransformF<S> f) {
-    state.transformAndNotify(mutater.reifiedTransform(f));
   }
 }

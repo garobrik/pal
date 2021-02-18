@@ -3,7 +3,6 @@ library annotation;
 enum OpticKind {
   Lens,
   Getter,
-  Mutater,
 }
 
 class Optic {
@@ -14,7 +13,6 @@ class Optic {
 
 const lens = Optic._(kind: 0);
 const getter = Optic._(kind: 1);
-const mutater = Optic._(kind: 2);
 
 class ReifiedLens {
   final bool allFields;
