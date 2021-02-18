@@ -95,7 +95,8 @@ class TableWidget extends HookWidget {
             table.columns[b].set(aVal);
           },
           children: [
-            for (final columnIndex in Iterable<int>.generate(table.length.get))
+            for (final columnIndex
+                in Iterable<int>.generate(table.columns.length.get))
               table.columns[columnIndex].bind(
                 (context, column) => Container(
                   constraints: BoxConstraints.tightFor(
