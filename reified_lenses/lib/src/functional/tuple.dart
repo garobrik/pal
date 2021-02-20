@@ -12,30 +12,12 @@ class Pair<A, B> {
   Pair(this.first, this.second);
 }
 
-Iterable<Pair<A, B>> zip<A, B>(Iterable<A> aIterable, Iterable<B> bIterable) {
-  return _ZipIterable(aIterable, bIterable);
-}
-
-class _ZipIterable<A, B> extends Iterable<Pair<A, B>> {
-  final Iterable<A> aIterable;
-  final Iterable<B> bIterable;
-
-  _ZipIterable(this.aIterable, this.bIterable);
-
-  @override
-  Iterator<Pair<A, B>> get iterator =>
-      _ZipIterator(aIterable.iterator, bIterable.iterator);
-}
-
-class _ZipIterator<A, B> extends Iterator<Pair<A, B>> {
-  final Iterator<A> aIterator;
-  final Iterator<B> bIterator;
-
-  _ZipIterator(this.aIterator, this.bIterator);
-
-  @override
-  Pair<A, B> get current => Pair(aIterator.current, bIterator.current);
-
-  @override
-  bool moveNext() => aIterator.moveNext() && bIterator.moveNext();
+Iterable<Pair<A, B>> zip<A, B>(
+  Iterable<A> aIterable,
+  Iterable<B> bIterable,
+) sync* {
+  final aIterator = aIterable.iterator;
+  final bIterator = bIterable.iterator;
+  while (aIterator.moveNext() && bIterator.moveNext())
+    yield Pair(aIterator.current, bIterator.current);
 }
