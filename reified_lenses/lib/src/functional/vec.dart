@@ -52,6 +52,15 @@ class Vec<Value> extends Iterable<Value> {
   @override
   @skip_lens
   Iterator<Value> get iterator => _values.iterator;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! Vec<Value>) return false;
+    return iterableEqual(other);
+  }
+
+  @override
+  int get hashCode => hash(this);
 }
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
