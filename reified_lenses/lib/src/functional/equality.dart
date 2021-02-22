@@ -2,6 +2,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 
 extension IterableEquality<V> on Iterable<V> {
   bool iterableEqual(Iterable<V> other) =>
+      length == other.length &&
       zip(this, other).any((pair) => pair.first == pair.second);
 }
 
