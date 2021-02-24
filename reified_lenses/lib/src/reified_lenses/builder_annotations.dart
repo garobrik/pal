@@ -6,26 +6,26 @@ enum OpticKind {
 }
 
 class Optic {
-  // index into [OpticKind]
-  final int kind;
+  final OpticKind kind;
   const Optic._({required this.kind});
 }
 
-const lens = Optic._(kind: 0);
-const getter = Optic._(kind: 1);
+const lens = Optic._(kind: OpticKind.Lens);
+const getter = Optic._(kind: OpticKind.Getter);
 
 class ReifiedLens {
   final bool allFields;
-  const ReifiedLens({this.allFields = true});
+  final Iterable<Type> cases;
+  const ReifiedLens({this.allFields = true, this.cases = const []});
 }
 
-const reified_lens = ReifiedLens();
+const reify = ReifiedLens();
 
-class SkipLens {
-  const SkipLens();
+class Skip {
+  const Skip();
 }
 
-const skip_lens = SkipLens();
+const skip = Skip();
 
 class CopyConstructor {
   const CopyConstructor();

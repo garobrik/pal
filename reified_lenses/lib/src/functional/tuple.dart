@@ -4,7 +4,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'tuple.g.dart';
 
 @immutable
-@reified_lens
+@reify
 class Pair<A, B> {
   final A first;
   final B second;

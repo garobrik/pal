@@ -16,8 +16,32 @@ extension GetterGenerating on Getter {
   }
 }
 
+extension ExtensionGenerating on Extension {
+  void declaration(
+      StringBuffer output, void Function(StringBuffer) declarations) {
+    output.writeln('extension $name${params.asDeclaration} on $extendedType {');
+    output.writeln();
+    declarations(output);
+    output.writeln('}');
+  }
+}
+
+extension ConstructorGenerating on Constructor {
+  String invoke(
+    Iterable<String> positional, {
+    Map<String, String> named = const {},
+    Iterable<Type> typeParams = const [],
+  }) =>
+      call(
+        '${parent.name}.${name}',
+        positional,
+        named: named,
+        typeArgs: typeParams,
+      );
+}
+
 extension MethodGenerating on Method {
-  String declaration([String? expression]) {
+  String declare([String? expression]) {
     String suffix = expression != null ? ' => $expression;' : '{}';
     String returnType =
         this.returnType == null ? 'void' : this.returnType.toString();
@@ -53,26 +77,53 @@ extension MethodGenerating on Method {
     }
     return call('$target.$name', positional, named: named);
   }
+
+  String invokeFromParams(String target,
+    {String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const []}) {
+    if (overridable_operators.contains(name)) {
+      if (name == '[]') {
+        final arg = genArg(params.positional.first);
+        assert(arg != null);
+        return '$target[$arg]';
+      } else if (name == '[]=') {
+        final arg1 = genArg(params.positional.first);
+        final arg2 = genArg(params.positional.skip(1).first);
+        assert(arg1 != null && arg2 != null);
+        return '$target[$arg1] = $arg2';
+      } else if (name == '~') {
+        return '~$target';
+      } else if (binary_operators.contains(name)) {
+        final arg = genArg(params.positional.first);
+        assert(arg != null);
+        return '$target $name ($arg)';
+      }
+    }
+    return callString('$target.$name', params.asArgs(genArg), typeArgs: typeArgs);
+  }
 }
 
 String call(
   String callee,
   Iterable<String> positional, {
   Map<String, String> named = const {},
-  Iterable<Type> typeParams = const [],
+  Iterable<Type> typeArgs = const [],
 }) {
-  final joinedTypeParams = typeParams.map((t) => t.renderType()).join(', ');
-  final renderedTypeParams =
-      joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
-  return '$callee$renderedTypeParams(${parameterize(positional, named)})';
-}
-
-String parameterize(
-    [Iterable<String> positional = const [],
-    Map<String, String> named = const {}]) {
-  return positional
+  final argString = positional
       .followedBy(named.entries.map((e) => '${e.key}: ${e.value}'))
       .join(', ');
+  return callString(
+    callee,
+    argString,
+    typeArgs: typeArgs,
+  );
+}
+
+String callString(String callee, String args,
+    {Iterable<Type> typeArgs = const []}) {
+  final joinedTypeParams = typeArgs.map((t) => t.renderType()).join(', ');
+  final renderedTypeParams =
+      joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
+  return '$callee$renderedTypeParams($args)';
 }
 
 String lambda(Iterable<String> params, Iterable<String> body) {
@@ -95,20 +146,50 @@ extension TypeParamsGenerating on Iterable<TypeParam> {
 
 extension ParamsGenerating on Iterable<Param> {
   String get asDeclaration {
-    final unnamedRequired = this.where((p) => !p.isNamed && p.isRequired);
-    final unnamedOptional = this.where((p) => !p.isNamed && !p.isRequired);
-    final named = this.where((p) => p.isNamed);
-
     final output = StringBuffer();
 
-    output.write(unnamedRequired.join(', '));
-    if (unnamedOptional.isNotEmpty) {
-      output.write('[${unnamedOptional.join(", ")}]');
-    }
-    if (named.isNotEmpty) {
+    output.write(positional.required.join(', '));
+    if (positional.optional.isNotEmpty) {
+      if (positional.required.isNotEmpty) {
+        output.write(', ');
+      }
+      output.write('[${positional.optional.join(", ")}]');
+    } else if (named.isNotEmpty) {
+      if (positional.required.isNotEmpty) {
+        output.write(', ');
+      }
       output.write('{${named.join(", ")}}');
     }
+
+    if (output.length > 60) output.write(',');
+
+    return output.toString();
+  }
+
+  String asArgs([final String? Function(Param) genArg = _paramName]) {
+    final output = StringBuffer();
+
+    final genPositional = positional.expand((p) {
+      final result = genArg(p);
+      assert(!(result == null && p.isRequired));
+      return [if (result != null) result];
+    });
+    final genNamed = named.expand((p) {
+      final result = genArg(p);
+      assert(!(result == null && p.isRequired));
+      return [if (result != null) '${p.name}: $result'];
+    });
+    output.write(genPositional.join(', '));
+    if (named.isNotEmpty) {
+      if (positional.isNotEmpty) {
+        output.write(', ');
+      }
+      output.write(genNamed.join(', '));
+    }
+    if (output.length > 60) output.write(',');
 
     return output.toString();
   }
 }
+
+String _paramName(Param p) => p.name;

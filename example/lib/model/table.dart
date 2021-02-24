@@ -4,7 +4,7 @@ part 'table.g.dart';
 
 const DEFAULT_COLUMN_WIDTH = 100.0;
 
-@reified_lens
+@reify
 class Table {
   final Vec<Column<Object>> columns;
 
@@ -41,34 +41,38 @@ extension TableMutations on Cursor<Table> {
         ? StringColumn.from(
             values: List.generate(length.get, (_) => ' '),
             title: columns[index].title.get,
-            width: columns[index].width.get)
+            width: columns[index].width.get,
+          )
         : BooleanColumn.from(
             values: List.generate(length.get, (_) => false),
             title: columns[index].title.get,
-            width: columns[index].width.get)) as Column<Object>;
+            width: columns[index].width.get,
+          )) as Column<Object>;
     columns[index].set(column);
   }
 }
 
-@reified_lens
+@reify
 abstract class Column<Value> extends Iterable<Value> {
+  @reify
   Vec<Value> get values;
   Column<Value> mut_values(Vec<Value> values);
+  @reify
   double get width;
   Column<Value> mut_width(double width);
+  @reify
   String get title;
   Column<Value> mut_title(String title);
 
+  @reify
   Value get defaultValue;
 
-  @skip_lens
   T cases<T>({
     required T Function(StringColumn) string,
     required T Function(BooleanColumn) boolean,
   });
 
   @override
-  @skip_lens
   Iterator<Value> get iterator => values.iterator;
 
   const Column();
@@ -94,15 +98,15 @@ extension ColumnCursorCasesExtension<Value> on Cursor<Column<Value>> {
   }
 
   GetCursor<Type> get type => thenGet<Type>(
-          Getter.field(
-            'case',
-            (column) => column.cases(
-                string: (_) => StringColumn, boolean: (_) => BooleanColumn),
-          ),
-        );
+        Getter.field(
+          'case',
+          (column) => column.cases(
+              string: (_) => StringColumn, boolean: (_) => BooleanColumn),
+        ),
+      );
 }
 
-@reified_lens
+@reify
 class BooleanColumn extends Column<bool> {
   @override
   final Vec<bool> values;
@@ -130,7 +134,6 @@ class BooleanColumn extends Column<bool> {
   }) : values = Vec.from(values);
 
   @override
-  @skip_lens
   T cases<T>({
     required T Function(StringColumn p1) string,
     required T Function(BooleanColumn p1) boolean,
@@ -149,7 +152,7 @@ class BooleanColumn extends Column<bool> {
   bool get defaultValue => false;
 }
 
-@reified_lens
+@reify
 class StringColumn extends Column<String> {
   @override
   final Vec<String> values;
@@ -183,7 +186,6 @@ class StringColumn extends Column<String> {
   Column<String> mut_title(String title) => copyWith(title: title);
 
   @override
-  @skip_lens
   T cases<T>(
           {required T Function(StringColumn) string,
           required T Function(BooleanColumn) boolean}) =>

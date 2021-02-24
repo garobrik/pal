@@ -11,79 +11,110 @@ import 'package:source_gen/source_gen.dart';
 
 import 'operators.dart';
 
+@meta.immutable
 abstract class ElementAnalogue<T extends Element> {
   final T? element;
   final String name;
-  final bool isPrivate;
 
-  const ElementAnalogue({required this.name, this.isPrivate = false})
-      : element = null;
+  const ElementAnalogue({required this.name}) : element = null;
 
   ElementAnalogue.fromElement(T element)
       : element = element,
-        name = element.name ?? '',
-        isPrivate = element.isPrivate;
+        name = element.name ?? '';
 
   bool hasAnnotation(core.Type t) => element?.hasAnnotation(t) ?? false;
 
   ConstantReader? getAnnotation(core.Type t) => element?.getAnnotation(t);
+
+  bool get isPrivate => name.startsWith('_');
 }
 
-class Class extends ElementAnalogue<ClassElement> with ConcreteType {
-  final Iterable<TypeParam> typeParams;
-  late final Iterable<Constructor> constructors;
+@meta.immutable
+abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
+  final Iterable<TypeParam> params;
   late final Iterable<Field> fields;
   late final Iterable<Method> methods;
   late final Iterable<AccessorPair> accessors;
-  final bool isAbstract;
 
-  Class(
-    String name, {
-    this.typeParams = const [],
-    this.constructors = const [],
-    this.fields = const [],
-    this.methods = const [],
-    this.accessors = const [],
-    this.isAbstract = false,
-    bool isPrivate = false,
-  }) : super(name: name, isPrivate: isPrivate);
+  DefinitionHolder({
+    required String name,
+    required this.params,
+    required this.fields,
+    required this.methods,
+    required this.accessors,
+  }) : super(name: name);
 
-  Class.fromElement(ClassElement element)
-      : typeParams =
-            element.typeParameters.map((tp) => TypeParam.fromElement(tp)),
-        isAbstract = element.isAbstract,
+  DefinitionHolder.fromElement(
+    E element,
+    List<TypeParameterElement> params,
+    List<FieldElement> fields,
+    List<MethodElement> methods,
+    List<PropertyAccessorElement> accessors,
+  )   : params = params.map((tp) => TypeParam.fromElement(tp)),
         super.fromElement(element) {
-    constructors =
-        element.constructors.map((c) => Constructor.fromElement(c, this));
+    this.fields =
+        fields.where((f) => !f.isSynthetic).map((f) => Field.fromElement(f));
 
-    fields = element.fields
-        .where((f) => !f.isSynthetic)
-        .map((f) => Field.fromElement(f));
+    this.methods = methods.map((m) => Method.fromElement(m));
 
-    methods = element.methods.map((m) => Method.fromElement(m));
-
-    final duplicatedAccessors =
-        element.accessors.where((a) => !a.isSynthetic).map((a) {
+    final duplicatedAccessors = accessors.where((a) => !a.isSynthetic).map((a) {
       return a.isGetter
           ? AccessorPair.fromElements(getter: a, setter: a.correspondingSetter)
           : AccessorPair.fromElements(getter: a.correspondingGetter, setter: a);
     });
 
-    accessors = SplayTreeSet.of(
+    this.accessors = SplayTreeSet.of(
       duplicatedAccessors,
       (a1, a2) => a1.name.compareTo(a2.name),
     );
   }
+}
+
+@meta.immutable
+class Class extends DefinitionHolder<ClassElement> with ConcreteType {
+  late final Iterable<Constructor> constructors;
+  final bool isAbstract;
+
+  Class(
+    String name, {
+    Iterable<TypeParam> params = const [],
+    this.constructors = const [],
+    Iterable<Field> fields = const [],
+    Iterable<Method> methods = const [],
+    Iterable<AccessorPair> accessors = const [],
+    this.isAbstract = false,
+    bool isPrivate = false,
+  }) : super(
+          name: name,
+          params: params,
+          fields: fields,
+          methods: methods,
+          accessors: accessors,
+        );
+
+  Class.fromElement(ClassElement element)
+      : isAbstract = element.isAbstract,
+        super.fromElement(
+          element,
+          element.typeParameters,
+          element.fields,
+          element.methods,
+          element.accessors,
+        ) {
+    constructors =
+        element.constructors.map((c) => Constructor.fromElement(c, this));
+  }
 
   @override
-  Iterable<Type> get args => typeParams;
+  Iterable<Type> get args => params;
 
   List<TypeParam> newTypeParams(int count) {
     int suffix = 0;
     var result = <TypeParam>[];
     while (result.length < count) {
-      if (!this.typeParams.any((param) => param.name == 'T$suffix')) {
-        result.add(TypeParam('T$suffix'));
+      final candidateName = 'T$suffix';
+      if (this.params.every((param) => param.name != candidateName)) {
+        result.add(TypeParam(candidateName));
       }
       suffix++;
     }
@@ -98,6 +129,7 @@ class Class extends ElementAnalogue<ClassElement> with ConcreteType {
   bool get isNullable => false;
 }
 
+@meta.immutable
 class Constructor extends ElementAnalogue<ConstructorElement> {
   final Class parent;
   final Iterable<Param> params;
@@ -107,7 +139,7 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
     this.params = const [],
     required this.parent,
     bool isPrivate = false,
-  }) : super(name: name, isPrivate: isPrivate);
+  }) : super(name: name);
 
   Constructor.fromElement(ConstructorElement element, this.parent)
       : params = element.parameters.map((p) => Param.fromElement(p)),
@@ -117,6 +149,37 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
   String get call => '${parent.name}' + (name.isEmpty ? '' : '.$name');
 }
 
+@meta.immutable
+class Extension extends DefinitionHolder<ExtensionElement> {
+  final Type extendedType;
+
+  Extension(
+    String name,
+    this.extendedType, {
+    Iterable<TypeParam> params = const [],
+    Iterable<Field> fields = const [],
+    Iterable<Method> methods = const [],
+    Iterable<AccessorPair> accessors = const [],
+  }) : super(
+          name: name,
+          params: params,
+          fields: fields,
+          methods: methods,
+          accessors: accessors,
+        );
+
+  Extension.fromElement(ExtensionElement element)
+      : extendedType = Type.fromDartType(element.extendedType),
+        super.fromElement(
+          element,
+          element.typeParameters,
+          element.fields,
+          element.methods,
+          element.accessors,
+        );
+}
+
+@meta.immutable
 class Param extends ElementAnalogue<ParameterElement> {
   final Type type;
   final bool isInitializingFormal;
@@ -130,7 +193,7 @@ class Param extends ElementAnalogue<ParameterElement> {
     this.isRequired = true,
     this.isInitializingFormal = false,
     bool isPrivate = false,
-  }) : super(name: name, isPrivate: isPrivate);
+  }) : super(name: name);
 
   Param.fromElement(ParameterElement element)
       : type = Type.fromDartType(element.type),
@@ -146,8 +209,30 @@ class Param extends ElementAnalogue<ParameterElement> {
     final param = isInitializingFormal ? '$name' : '$type $name';
     return '$requiredMeta$param';
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is Param &&
+      [name, isInitializingFormal, isNamed, isRequired].iterableEqual([
+        other.name,
+        other.isInitializingFormal,
+        other.isNamed,
+        other.isRequired
+    ]) && type.typeEquals(other.type);
+
+  @override
+  int get hashCode =>
+      hash(<dynamic>[name, isInitializingFormal, isNamed, isRequired]);
 }
 
+extension ParamsExtension on Iterable<Param> {
+  Iterable<Param> get positional => where((p) => !p.isNamed);
+  Iterable<Param> get named => where((p) => p.isNamed);
+  Iterable<Param> get required => where((p) => p.isRequired);
+  Iterable<Param> get optional => where((p) => !p.isRequired);
+}
+
+@meta.immutable
 class Field extends ElementAnalogue<FieldElement> {
   final Type type;
   final bool isStatic;
@@ -161,7 +246,7 @@ class Field extends ElementAnalogue<FieldElement> {
     this.isFinal = false,
     this.isConst = false,
     bool isPrivate = false,
-  }) : super(name: name, isPrivate: isPrivate);
+  }) : super(name: name);
 
   Field.fromElement(FieldElement element)
       : type = Type.fromDartType(element.type),
@@ -171,6 +256,7 @@ class Field extends ElementAnalogue<FieldElement> {
         super.fromElement(element);
 }
 
+@meta.immutable
 class Method extends ElementAnalogue<MethodElement> {
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
@@ -184,9 +270,8 @@ class Method extends ElementAnalogue<MethodElement> {
     this.params = const [],
     this.returnType,
     this.isStatic = false,
-    bool isPrivate = false,
   })  : isOperator = overridable_operators.contains(name),
-        super(name: name, isPrivate: isPrivate);
+        super(name: name);
 
   Method.fromElement(MethodElement element)
       : params = element.parameters.map((p) => Param.fromElement(p)),
@@ -198,6 +283,7 @@ class Method extends ElementAnalogue<MethodElement> {
         super.fromElement(element);
 }
 
+@meta.immutable
 class AccessorPair {
   final String name;
   final Getter? getter;
@@ -216,40 +302,42 @@ class AccessorPair {
   bool get isPrivate => getter?.isPrivate ?? setter!.isPrivate;
 }
 
+@meta.immutable
 class Getter extends ElementAnalogue<PropertyAccessorElement> {
   final Type returnType;
 
   const Getter(String name, this.returnType, {bool isPrivate = false})
-      : super(name: name, isPrivate: isPrivate);
+      : super(name: name);
 
   Getter.fromElement(PropertyAccessorElement element)
       : returnType = Type.fromDartType(element.returnType),
         super.fromElement(element);
 }
 
+@meta.immutable
 class Setter extends ElementAnalogue<PropertyAccessorElement> {
   final Type type;
 
-  const Setter(String name, this.type, {bool isPrivate = false})
-      : super(name: name, isPrivate: isPrivate);
+  const Setter(String name, this.type)
+      : super(name: name);
 
   Setter.fromElement(PropertyAccessorElement element)
       : type = Type.fromDartType(element.type.parameters.first.type),
-        super.fromElement(element);
+      super.fromElement(element);
 }
 
+@meta.immutable
 class TypeParam extends ElementAnalogue<TypeParameterElement>
     with ConcreteType {
   final Type? extendz;
 
-  TypeParam(String name, {this.extendz, bool isPrivate = false})
-      : super(name: name, isPrivate: isPrivate);
+  TypeParam(String name, {this.extendz}) : super(name: name);
 
   const TypeParam.constant(String name, {this.extendz}) : super(name: name);
 
   TypeParam.fromElement(TypeParameterElement element)
       : extendz =
-            element.bound == null ? null : Type.fromDartType(element.bound),
+            element.bound == null ? null : Type.fromDartType(element.bound!),
         super.fromElement(element);
 
   String get nameWithBound => extendz == null ? name : '$name extends $extendz';
@@ -261,10 +349,18 @@ class TypeParam extends ElementAnalogue<TypeParameterElement>
 
   @override
   bool get isNullable => false;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TypeParam &&
+      name == other.name &&
+      ((extendz == null) == (other.extendz == null)) &&
+      (extendz?.typeEquals(other.extendz!) ?? true);
 }
 
+@meta.immutable
 abstract class Type {
-  bool equals(Type b);
+  bool typeEquals(Type b);
   String renderType();
   bool get isNullable;
 
@@ -278,15 +374,17 @@ abstract class Type {
   static const Type dynamic = ConcreteType('dynamic');
 }
 
+@meta.immutable
 class _NullableWrapper implements Type {
   final Type _wrapped;
 
   _NullableWrapper(this._wrapped) : assert(!_wrapped.isNullable);
 
   @override
-  bool equals(Type b) {
+  bool typeEquals(Type b) {
     if (!b.isNullable) return false;
-    return b.equals(_wrapped);
+    if (b is _NullableWrapper) return _wrapped.typeEquals(b._wrapped);
+    return _wrapped.typeEquals(b);
   }
 
   @override
@@ -301,6 +399,7 @@ class _NullableWrapper implements Type {
   String toString() => renderType();
 }
 
+@meta.immutable
 class FunctionType implements Type {
   final Type? returnType;
   final Iterable<Type> requiredArgs;
@@ -330,12 +429,14 @@ class FunctionType implements Type {
         isNullable = type.nullabilitySuffix != NullabilitySuffix.none;
 
   @override
-  bool equals(Type b) {
+  bool typeEquals(Type b) {
     if (b is FunctionType) {
       if ((b.returnType == null) != (returnType == null)) return false;
       if (returnType != null) {
-        if (!returnType!.equals(b.returnType!)) return false;
+        if (!returnType!.typeEquals(b.returnType!)) return false;
       }
+
+      if (b.isNullable != isNullable) return false;
 
       if (requiredArgs.length != b.requiredArgs.length) {
         return false;
@@ -343,7 +444,7 @@ class FunctionType implements Type {
         final iter1 = requiredArgs.iterator;
         final iter2 = b.requiredArgs.iterator;
         while (iter1.moveNext() && iter2.moveNext()) {
-          if (!iter1.current.equals(iter2.current)) return false;
+          if (!iter1.current.typeEquals(iter2.current)) return false;
         }
       }
 
@@ -353,7 +454,7 @@ class FunctionType implements Type {
         final iter1 = optionalArgs.iterator;
         final iter2 = b.optionalArgs.iterator;
         while (iter1.moveNext() && iter2.moveNext()) {
-          if (!iter1.current.equals(iter2.current)) return false;
+          if (!iter1.current.typeEquals(iter2.current)) return false;
         }
       }
 
@@ -362,7 +463,7 @@ class FunctionType implements Type {
       } else {
         for (final entry in namedArgs.entries) {
           if (!b.namedArgs.containsKey(entry.key) ||
-              !entry.value.equals(b.namedArgs[entry.key]!)) return false;
+              !entry.value.typeEquals(b.namedArgs[entry.key]!)) return false;
         }
       }
 
@@ -382,6 +483,7 @@ class FunctionType implements Type {
   String toString() => renderType();
 }
 
+@meta.immutable
 abstract class ConcreteType implements Type {
   String get name;
   Iterable<Type> get args;
@@ -392,15 +494,17 @@ abstract class ConcreteType implements Type {
       _ConcreteTypeImpl.fromDartType;
 
   @override
-  bool equals(Type b) {
+  bool typeEquals(Type b) {
     if (b is ConcreteType) {
       if (this.name != b.name || this.args.length != b.args.length) {
         return false;
       }
+      if (isNullable != b.isNullable) return false;
+
       final thisIter = this.args.iterator;
       final bIter = b.args.iterator;
       while (thisIter.moveNext() && bIter.moveNext()) {
-        if (!thisIter.current.equals(bIter.current)) return false;
+        if (!thisIter.current.typeEquals(bIter.current)) return false;
       }
       return true;
     }
@@ -419,6 +523,7 @@ abstract class ConcreteType implements Type {
   String toString() => renderType();
 }
 
+@meta.immutable
 class _ConcreteTypeImpl with ConcreteType {
   @override
   final String name;
@@ -430,7 +535,7 @@ class _ConcreteTypeImpl with ConcreteType {
   const _ConcreteTypeImpl(this.name,
       {this.args = const [], this.isNullable = false});
   _ConcreteTypeImpl.fromDartType(analyzer_type.DartType type)
-      : name = type.element.name,
+      : name = type.element!.name!,
         args = (type is analyzer_type.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(a))
             : [],
@@ -449,11 +554,11 @@ extension AsNullable on Type {
 
 extension Subst on Type {
   Type subst(Iterable<Type> from, Iterable<Type> to) {
-    final iter1 = from.iterator;
-    final iter2 = to.iterator;
-    while (iter1.moveNext() && iter2.moveNext()) {
-      if (this.equals(iter1.current)) {
-        return iter2.current;
+    final iterFrom = from.iterator;
+    final iterTo = to.iterator;
+    while (iterFrom.moveNext() && iterTo.moveNext()) {
+      if (this.typeEquals(iterFrom.current)) {
+        return iterTo.current;
       }
     }
     final Type thisType = this;
@@ -484,4 +589,33 @@ extension ElementAnnotationExtension on Element {
 
 extension on ExecutableElement {
   Type? get optionalReturnType => Type.fromDartType(this.returnType);
+}
+
+extension IterableEquality<V> on Iterable<V> {
+  bool iterableEqual(Iterable<V> other) =>
+      length == other.length &&
+      zip(this, other).any((pair) => pair.first == pair.second);
+}
+
+int hash(Iterable iterable) {
+  int result = 1;
+  for (final value in iterable) result = 31 * result + value.hashCode;
+  return result;
+}
+
+class Pair<A, B> {
+  final A first;
+  final B second;
+
+  Pair(this.first, this.second);
+}
+
+Iterable<Pair<A, B>> zip<A, B>(
+  Iterable<A> aIterable,
+  Iterable<B> bIterable,
+) sync* {
+  final aIterator = aIterable.iterator;
+  final bIterator = bIterable.iterator;
+  while (aIterator.moveNext() && bIterator.moveNext())
+    yield Pair(aIterator.current, bIterator.current);
 }

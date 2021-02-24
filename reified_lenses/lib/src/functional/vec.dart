@@ -4,22 +4,27 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'vec.g.dart';
 
 @immutable
-@reified_lens
+@reify
 class Vec<Value> extends Iterable<Value> {
+  @skip
   final List<Value> _values;
 
   Vec.from(Iterable<Value> values) : _values = List.of(values, growable: false);
   const Vec.of(List<Value> values) : _values = values;
   const Vec.empty() : _values = const [];
 
+  @override
+  @reify
+  int get length => _values.length;
+
+  @reify
   Value operator [](int i) => _values[i];
-  Vec<Value> mut_array_op(int i, Value v) {
+  Vec<Value> mut_array_op(int i, Value Function(Value) update) {
     final newVec = Vec.from(this);
-    newVec._values[i] = v;
+    newVec._values[i] = update(newVec._values[i]);
     return newVec;
   }
 
-  @skip_lens
   Vec<Value> insert(int index, Value v) {
     assert(0 <= index && index <= length);
     final copied = List.of(_values);
@@ -27,13 +32,11 @@ class Vec<Value> extends Iterable<Value> {
     return Vec.of(copied);
   }
 
-  @skip_lens
   TrieSet<Object> _insert_mutations(int index, Value v) => TrieSet.from({
         for (final j in range(start: index, end: length)) [j],
         ['length']
       });
 
-  @skip_lens
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
     final copied = List.of(_values);
@@ -47,10 +50,6 @@ class Vec<Value> extends Iterable<Value> {
       });
 
   @override
-  int get length => _values.length;
-
-  @override
-  @skip_lens
   Iterator<Value> get iterator => _values.iterator;
 
   @override

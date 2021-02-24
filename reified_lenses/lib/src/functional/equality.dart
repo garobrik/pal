@@ -11,3 +11,15 @@ int hash(Iterable iterable) {
   for (final value in iterable) result = 31 * result + value.hashCode;
   return result;
 }
+
+bool mapEquals(Map a, Map b) {
+  if (a.length != b.length) {
+    return false;
+  } else {
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key) || entry.value != b[entry.key]!)
+        return false;
+    }
+  }
+  return true;
+}
