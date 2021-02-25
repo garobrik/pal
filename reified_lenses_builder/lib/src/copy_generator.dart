@@ -15,12 +15,12 @@ Iterable<Param>? maybeGenerateCopyWithExtension(
     if (ctor == null) return null;
     extension.declaration(
       output,
-      (output) => params = generateConcreteCopyWithFunction(output, ctor),
+      (output) => params = _generateConcreteCopyWithFunction(output, ctor),
     );
   } else {
     extension.declaration(
       output,
-      (output) => params = generateCaseParentCopyWithFunction(output, clazz),
+      (output) => params = _generateCaseParentCopyWithFunction(output, clazz),
     );
   }
 
@@ -29,7 +29,7 @@ Iterable<Param>? maybeGenerateCopyWithExtension(
 }
 
 // the undefined trick used here is copied from https://github.com/rrousselGit/freezed
-Iterable<Param> generateConcreteCopyWithFunction(
+Iterable<Param> _generateConcreteCopyWithFunction(
   StringBuffer output,
   Constructor constructor,
 ) {
@@ -62,7 +62,7 @@ Iterable<Param> generateConcreteCopyWithFunction(
   return params;
 }
 
-Iterable<Param> generateCaseParentCopyWithFunction(
+Iterable<Param> _generateCaseParentCopyWithFunction(
     StringBuffer output, Class clazz) {
   final cases = clazz
       .getAnnotation(ReifiedLens)!
