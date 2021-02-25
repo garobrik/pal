@@ -18,3 +18,7 @@ class Data<A> {
 Data<int> d = Data<int>();
 int? a = Data.lens<int>().b.nonnull.b.nonnull.a.get(d);
 
+void main() {
+  final data = Data(a: 0).copyWith(d: 'hi');
+  print('${data.a} ${data.d}');
+}

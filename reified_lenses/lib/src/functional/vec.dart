@@ -10,7 +10,7 @@ class Vec<Value> extends Iterable<Value> {
   final List<Value> _values;
 
   Vec.from(Iterable<Value> values) : _values = List.of(values, growable: false);
-  const Vec.of(List<Value> values) : _values = values;
+  const Vec(this._values);
   const Vec.empty() : _values = const [];
 
   @override
@@ -29,7 +29,7 @@ class Vec<Value> extends Iterable<Value> {
     assert(0 <= index && index <= length);
     final copied = List.of(_values);
     copied.insert(index, v);
-    return Vec.of(copied);
+    return Vec(copied);
   }
 
   TrieSet<Object> _insert_mutations(int index, Value v) => TrieSet.from({
@@ -41,7 +41,7 @@ class Vec<Value> extends Iterable<Value> {
     assert(0 <= index && index < length);
     final copied = List.of(_values);
     copied.removeAt(index);
-    return Vec.of(copied);
+    return Vec(copied);
   }
 
   TrieSet<Object> _remove_mutations(int index) => TrieSet.from({

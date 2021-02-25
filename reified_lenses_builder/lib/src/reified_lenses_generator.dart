@@ -5,6 +5,7 @@ import 'package:reified_lenses/annotations.dart';
 import 'dart:core' as core;
 import 'dart:core';
 
+import 'copy_generator.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
@@ -30,58 +31,16 @@ class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
 
 class GeneratorContext {
   final Class clazz;
-  late final Constructor? copyCtor;
-  late final Method? copyWith;
 
-  GeneratorContext(this.clazz) {
-    // ignore: unnecessary_cast, doesn't type check otherwise
-    final existingCopyWith = (clazz.methods as Iterable<Method?>)
-        .firstWhere((m) => m!.name == 'copyWith', orElse: () => null);
-    if (existingCopyWith != null) {
-      copyWith = existingCopyWith;
-      copyCtor = null;
-      return;
-    }
-
-    final annotated =
-        clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
-    // ignore: unnecessary_cast, doesn't type check otherwise
-    final named = (clazz.constructors as Iterable<Constructor?>)
-        .firstWhere((c) => c!.name == 'copyConstructor', orElse: () => null);
-    if (annotated.isNotEmpty) {
-      if (annotated.length > 1) {
-        throw StateError('Only one copy constructor allowed.');
-      }
-      copyCtor = annotated.first;
-    } else if (named != null) {
-      copyCtor = named;
-    } else if (clazz.defaultCtor == null) {
-      copyCtor = null;
-    } else if (!clazz.isAbstract &&
-        clazz.defaultCtor!.params.every((p) => p.isNamed)) {
-      copyCtor = clazz.defaultCtor;
-    } else {
-      copyCtor = null;
-    }
-
-    if (copyCtor != null) {
-      final params = copyCtor!.params.map(
-        (p) =>
-            Param(p.type.asNullable, p.name, isRequired: false, isNamed: true),
-      );
-      copyWith = Method(
-        'copyWith',
-        returnType: copyCtor!.parent,
-        params: params,
-      );
-    } else {
-      copyWith = null;
-    }
-  }
+  GeneratorContext(this.clazz);
 
   void generate(StringBuffer output) {
-    generateCopyWithExtension(output);
-    final optics = generateOptics();
+    final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
+    final optics = [
+      ...generateFieldOptics(copyWithParams),
+      ...generateAccessorOptics(),
+      ...generateMethodOptics(),
+    ];
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
         final opticsOfKind = optics.where(
@@ -99,19 +58,11 @@ class GeneratorContext {
     });
   }
 
-  Iterable<Optic> generateOptics() {
-    return [
-      ...generateFieldOptics(),
-      ...generateAccessorOptics(),
-      ...generateMethodOptics(),
-    ];
-  }
-
-  Iterable<Optic> generateFieldOptics() {
+  Iterable<Optic> generateFieldOptics(Iterable<Param>? copyWithParams) {
     return clazz.fields.expand((f) {
       if (f.isStatic || f.hasAnnotation(Skip)) return [];
       late final OpticKind kind;
-      if (copyWith != null && copyWith!.params.any((p) => p.name == f.name)) {
+      if (copyWithParams != null && copyWithParams.any((p) => p.name == f.name)) {
         kind = OpticKind.Lens;
       } else {
         kind = OpticKind.Getter;
@@ -204,7 +155,7 @@ class GeneratorContext {
           kind: kind,
           zoomedType: m.returnType!,
           fieldArg:
-              "Vec<dynamic>.of(<dynamic>['${m.name}', ${m.params.asArgs()}])", // TODO: doesn't work for named params
+              "Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])", // TODO: doesn't work for named params
           getBody:
               '(_t) => ${m.invokeFromParams("_t", typeArgs: m.typeParams)}',
           mutBody: mutater == null
@@ -215,35 +166,6 @@ class GeneratorContext {
         )
       ];
     });
-  }
-
-  void generateCopyWithExtension(StringBuffer output) {
-    if (copyCtor == null) return;
-
-    if (copyCtor!.params.any((p) => !p.isNamed)) return;
-
-    Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params)
-        .declaration(
-      output,
-      (output) => generateCopyWithMethod(copyCtor!, copyWith!, output),
-    );
-  }
-
-  void generateCopyWithMethod(
-    Constructor constructor,
-    Method method,
-    StringBuffer output,
-  ) {
-    final params = constructor.params
-        .map((p) => Param(p.type, p.name, isNamed: true, isRequired: false));
-    output.writeln(
-      method.declare(
-        call(
-          constructor.call,
-          params.map((p) => '${p.name}: ${p.name} ?? this.${p.name}'),
-        ),
-      ),
-    );
   }
 }
 
@@ -325,7 +247,7 @@ class Optic {
     if (params.isEmpty) {
       final getter = Getter(name, returnType);
       output.writeln(
-        getter.declaration(call(parentKind.thenMethod, [thenArg])),
+        getter.declare(body: call(parentKind.thenMethod, [thenArg])),
       );
     } else {
       final method = Method(

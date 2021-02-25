@@ -185,6 +185,7 @@ class Param extends ElementAnalogue<ParameterElement> {
   final bool isInitializingFormal;
   final bool isNamed;
   final bool isRequired;
+  final String? defaultValue;
 
   const Param(
     this.type,
@@ -192,7 +193,7 @@ class Param extends ElementAnalogue<ParameterElement> {
     this.isNamed = false,
     this.isRequired = true,
     this.isInitializingFormal = false,
-    bool isPrivate = false,
+    this.defaultValue,
   }) : super(name: name);
 
   Param.fromElement(ParameterElement element)
@@ -201,13 +202,15 @@ class Param extends ElementAnalogue<ParameterElement> {
         isRequired =
             !element.isOptional || element.hasAnnotation(meta.Required),
         isInitializingFormal = element.isInitializingFormal,
+        defaultValue = element.defaultValueCode,
         super.fromElement(element);
 
   @override
   String toString() {
     final requiredMeta = (isRequired && isNamed) ? 'required ' : '';
     final param = isInitializingFormal ? '$name' : '$type $name';
-    return '$requiredMeta$param';
+    final defaultPart = defaultValue == null ? '' : ' = $defaultValue';
+    return '$requiredMeta$param$defaultPart';
   }
 
   @override
@@ -218,7 +221,8 @@ class Param extends ElementAnalogue<ParameterElement> {
         other.isInitializingFormal,
         other.isNamed,
         other.isRequired
-    ]) && type.typeEquals(other.type);
+      ]) &&
+      type.typeEquals(other.type);
 
   @override
   int get hashCode =>
@@ -238,6 +242,8 @@ class Field extends ElementAnalogue<FieldElement> {
   final bool isStatic;
   final bool isFinal;
   final bool isConst;
+  final bool isLate;
+  final bool isInitialized;
 
   const Field(
     String name, {
@@ -245,6 +251,8 @@ class Field extends ElementAnalogue<FieldElement> {
     this.isStatic = false,
     this.isFinal = false,
     this.isConst = false,
+    this.isLate = false,
+    this.isInitialized = false,
     bool isPrivate = false,
   }) : super(name: name);
 
@@ -253,6 +261,8 @@ class Field extends ElementAnalogue<FieldElement> {
         isStatic = element.isStatic,
         isFinal = element.isFinal,
         isConst = element.isConst,
+        isLate = element.isLate,
+        isInitialized = element.hasInitializer,
         super.fromElement(element);
 }
 
@@ -318,12 +328,11 @@ class Getter extends ElementAnalogue<PropertyAccessorElement> {
 class Setter extends ElementAnalogue<PropertyAccessorElement> {
   final Type type;
 
-  const Setter(String name, this.type)
-      : super(name: name);
+  const Setter(String name, this.type) : super(name: name);
 
   Setter.fromElement(PropertyAccessorElement element)
       : type = Type.fromDartType(element.type.parameters.first.type),
-      super.fromElement(element);
+        super.fromElement(element);
 }
 
 @meta.immutable
@@ -371,7 +380,8 @@ abstract class Type {
           ? FunctionType.fromDartType(t)
           : ConcreteType.fromDartType(t);
 
-  static const Type dynamic = ConcreteType('dynamic');
+  static const Type dynamic = Type('dynamic');
+  static const Type object = Type('Object');
 }
 
 @meta.immutable
@@ -415,6 +425,14 @@ class FunctionType implements Type {
     this.namedArgs = const {},
     this.isNullable = false,
   });
+
+  FunctionType.fromParams({
+    this.returnType,
+    Iterable<Param> params = const [],
+    this.isNullable = false,
+  })  : requiredArgs = params.required.positional.map((p) => p.type),
+        optionalArgs = params.optional.positional.map((p) => p.type),
+        namedArgs = {for (final p in params.named) p.name: p.type};
 
   FunctionType.fromDartType(analyzer_type.FunctionType type)
       : returnType = type.returnType is! analyzer_type.VoidType
@@ -474,9 +492,38 @@ class FunctionType implements Type {
 
   @override
   String renderType() {
-    final ret = returnType == null ? 'void' : returnType!.renderType();
-    final params = requiredArgs.map((a) => a.renderType()).join(', ');
-    return '$ret Function($params)?';
+    final output = StringBuffer();
+    output.write(returnType == null ? 'void' : returnType!.renderType());
+    output.write(' Function(');
+
+    output.write(requiredArgs.map((a) => a.renderType()).join(', '));
+    if (optionalArgs.isNotEmpty) {
+      if (requiredArgs.isNotEmpty) {
+        output.write(', ');
+      }
+      output.write('[${optionalArgs.map((a) => a.renderType()).join(", ")}');
+      if (output.length > 60) output.write(',');
+      output.write(']');
+    } else if (namedArgs.isNotEmpty) {
+      if (requiredArgs.isNotEmpty) {
+        output.write(', ');
+      }
+      output.write(
+        '{${namedArgs.entries.map((e) => "${e.value.renderType()} ${e.key}").join(", ")}',
+      );
+      if (output.length > 60) output.write(',');
+      output.write('}');
+    } else {
+      if (output.length > 60) output.write(',');
+    }
+
+    output.write(')');
+
+    if (this.isNullable) {
+      output.write('?');
+    }
+
+    return output.toString();
   }
 
   @override
@@ -599,7 +646,9 @@ extension IterableEquality<V> on Iterable<V> {
 
 int hash(Iterable iterable) {
   int result = 1;
-  for (final value in iterable) result = 31 * result + value.hashCode;
+  for (final value in iterable) {
+    result = 31 * result + value.hashCode;
+  }
   return result;
 }
 
@@ -616,6 +665,7 @@ Iterable<Pair<A, B>> zip<A, B>(
 ) sync* {
   final aIterator = aIterable.iterator;
   final bIterator = bIterable.iterator;
-  while (aIterator.moveNext() && bIterator.moveNext())
+  while (aIterator.moveNext() && bIterator.moveNext()) {
     yield Pair(aIterator.current, bIterator.current);
+  }
 }

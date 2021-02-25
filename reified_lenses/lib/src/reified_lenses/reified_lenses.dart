@@ -68,7 +68,7 @@ mixin ThenMut<S1> implements ThenLens<S1> {
 //////////////////////////////////////////////////////////
 mixin Getter<T, S> implements ThenGet<S>, ThenLens<S> {
   static Getter<T, S> mkCast<T, S>() =>
-      _GetterImpl((T t) => GetResult(t as S, Iterable.empty()));
+      _GetterImpl((T t) => GetResult(t as S, const []));
   static Getter<T, S> mk<T, S>(ReifiedGetterF<T, S> getF) => _GetterImpl(getF);
   static Getter<T, T> identity<T>() => _GetterImpl(_identityGetter);
   static Getter<T, S> field<T, S>(Object field, GetterF<T, S> getter) =>

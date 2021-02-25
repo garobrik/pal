@@ -10,8 +10,12 @@ extension FieldGenerating on Field {
 }
 
 extension GetterGenerating on Getter {
-  String declaration([String? expression]) {
-    String suffix = expression != null ? ' => $expression;' : ';';
+  String declare({String? body, bool expression = true}) {
+    String suffix = body == null
+        ? ';'
+        : expression
+            ? ' => $body;'
+            : ' { $body }';
     return '$returnType get $name $suffix';
   }
 }
@@ -79,7 +83,8 @@ extension MethodGenerating on Method {
   }
 
   String invokeFromParams(String target,
-    {String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const []}) {
+      {String? Function(Param) genArg = _paramName,
+      Iterable<Type> typeArgs = const []}) {
     if (overridable_operators.contains(name)) {
       if (name == '[]') {
         final arg = genArg(params.positional.first);
@@ -98,7 +103,8 @@ extension MethodGenerating on Method {
         return '$target $name ($arg)';
       }
     }
-    return callString('$target.$name', params.asArgs(genArg), typeArgs: typeArgs);
+    return callString('$target.$name', params.asArgs(genArg),
+        typeArgs: typeArgs);
   }
 }
 
@@ -153,15 +159,20 @@ extension ParamsGenerating on Iterable<Param> {
       if (positional.required.isNotEmpty) {
         output.write(', ');
       }
-      output.write('[${positional.optional.join(", ")}]');
+      output.write('[${positional.optional.join(", ")}');
+      if (output.length > 60) output.write(',');
+      output.write(']');
     } else if (named.isNotEmpty) {
       if (positional.required.isNotEmpty) {
         output.write(', ');
       }
-      output.write('{${named.join(", ")}}');
+      output.write('{${named.join(", ")}');
+      if (output.length > 60) output.write(',');
+      output.write('}');
+    } else {
+      if (output.length > 60) output.write(',');
     }
 
-    if (output.length > 60) output.write(',');
 
     return output.toString();
   }
@@ -193,3 +204,24 @@ extension ParamsGenerating on Iterable<Param> {
 }
 
 String _paramName(Param p) => p.name;
+
+String ifElse(Map<String, String> conditionsBodies, {String? elseBody}) {
+  final output = StringBuffer();
+  var first = true;
+  for (final entry in conditionsBodies.entries) {
+    if (!first) {
+      output.write(' else');
+    }
+    output.writeln(' if (${entry.key}) {');
+    output.writeln(entry.value);
+    output.write('}');
+    first = false;
+  }
+  if (elseBody != null) {
+    output.writeln(' else {');
+    output.writeln(elseBody);
+    output.write('}');
+  }
+  output.writeln();
+  return output.toString();
+}
