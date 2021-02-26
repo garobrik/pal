@@ -21,8 +21,7 @@ extension GetterGenerating on Getter {
 }
 
 extension ExtensionGenerating on Extension {
-  void declaration(
-      StringBuffer output, void Function(StringBuffer) declarations) {
+  void declare(StringBuffer output, void Function(StringBuffer) declarations) {
     output.writeln('extension $name${params.asDeclaration} on $extendedType {');
     output.writeln();
     declarations(output);
@@ -45,10 +44,13 @@ extension ConstructorGenerating on Constructor {
 }
 
 extension MethodGenerating on Method {
-  String declare([String? expression]) {
-    String suffix = expression != null ? ' => $expression;' : '{}';
-    String returnType =
-        this.returnType == null ? 'void' : this.returnType.toString();
+  String declare({String? body, bool expression = true}) {
+    String suffix = body == null
+        ? '{}'
+        : expression
+            ? ' => $body;'
+            : '{ $body }';
+    String returnType = this.returnType == null ? 'void' : this.returnType.toString();
     String operator = isOperator ? 'operator ' : '';
     String name = '$operator${this.name}${typeParams.asDeclaration}';
     return '$returnType $name(${params.asDeclaration}) $suffix';
@@ -59,8 +61,7 @@ extension MethodGenerating on Method {
     Iterable<String> positional = const [],
     Map<String, String> named = const {},
   ]) {
-    final int requiredPositional =
-        params.where((p) => p.isRequired && !p.isNamed).length;
+    final int requiredPositional = params.where((p) => p.isRequired && !p.isNamed).length;
     if (positional.length < requiredPositional) {
       throw ArgumentError(
         'Called method $name with ${positional.length} args. '
@@ -83,8 +84,7 @@ extension MethodGenerating on Method {
   }
 
   String invokeFromParams(String target,
-      {String? Function(Param) genArg = _paramName,
-      Iterable<Type> typeArgs = const []}) {
+      {String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const []}) {
     if (overridable_operators.contains(name)) {
       if (name == '[]') {
         final arg = genArg(params.positional.first);
@@ -103,8 +103,7 @@ extension MethodGenerating on Method {
         return '$target $name ($arg)';
       }
     }
-    return callString('$target.$name', params.asArgs(genArg),
-        typeArgs: typeArgs);
+    return callString('$target.$name', params.asArgs(genArg), typeArgs: typeArgs);
   }
 }
 
@@ -114,9 +113,8 @@ String call(
   Map<String, String> named = const {},
   Iterable<Type> typeArgs = const [],
 }) {
-  final argString = positional
-      .followedBy(named.entries.map((e) => '${e.key}: ${e.value}'))
-      .join(', ');
+  final argString =
+      positional.followedBy(named.entries.map((e) => '${e.key}: ${e.value}')).join(', ');
   return callString(
     callee,
     argString,
@@ -124,11 +122,9 @@ String call(
   );
 }
 
-String callString(String callee, String args,
-    {Iterable<Type> typeArgs = const []}) {
+String callString(String callee, String args, {Iterable<Type> typeArgs = const []}) {
   final joinedTypeParams = typeArgs.map((t) => t.renderType()).join(', ');
-  final renderedTypeParams =
-      joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
+  final renderedTypeParams = joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
   return '$callee$renderedTypeParams($args)';
 }
 
@@ -172,7 +168,6 @@ extension ParamsGenerating on Iterable<Param> {
     } else {
       if (output.length > 60) output.write(',');
     }
-
 
     return output.toString();
   }
@@ -223,5 +218,20 @@ String ifElse(Map<String, String> conditionsBodies, {String? elseBody}) {
     output.write('}');
   }
   output.writeln();
+  return output.toString();
+}
+
+String switchCase(String switched, Map<String, String> casesBodies, {String? defaultBody}) {
+  final output = StringBuffer();
+  output.writeln('switch ($switched) {');
+  for (final entry in casesBodies.entries) {
+    output.writeln('case ${entry.key}:');
+    output.writeln(entry.value);
+  }
+  if (defaultBody != null) {
+    output.writeln('default:');
+    output.writeln(defaultBody);
+  }
+  output.writeln('}');
   return output.toString();
 }

@@ -3,28 +3,25 @@ import 'package:reified_lenses/annotations.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
-Iterable<Param>? maybeGenerateCopyWithExtension(
-    StringBuffer output, Class clazz) {
+Iterable<Param>? maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
-  final extension =
-      Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params);
+  final extension = Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params);
 
   late final Iterable<Param> params;
   if (cases.isEmpty) {
     final ctor = _findCopyConstructor(clazz);
     if (ctor == null) return null;
-    extension.declaration(
+    extension.declare(
       output,
       (output) => params = _generateConcreteCopyWithFunction(output, ctor),
     );
   } else {
-    extension.declaration(
+    extension.declare(
       output,
       (output) => params = _generateCaseParentCopyWithFunction(output, clazz),
     );
   }
 
-  Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params);
   return params;
 }
 
@@ -33,8 +30,8 @@ Iterable<Param> _generateConcreteCopyWithFunction(
   StringBuffer output,
   Constructor constructor,
 ) {
-  final params = constructor.params.map((p) =>
-      Param(p.type.asNullable, p.name, isNamed: true, isRequired: false));
+  final params = constructor.params
+      .map((p) => Param(p.type.asNullable, p.name, isNamed: true, isRequired: false));
   final paramsAsObject = constructor.params.map(
     (p) => Param(
       Type.object.asNullable,
@@ -44,8 +41,7 @@ Iterable<Param> _generateConcreteCopyWithFunction(
       defaultValue: 'undefined',
     ),
   );
-  Type functionType =
-      FunctionType.fromParams(returnType: constructor.parent, params: params);
+  Type functionType = FunctionType.fromParams(returnType: constructor.parent, params: params);
   final getter = Getter('copyWith', functionType);
   final constructorArgs = constructor.params.map(
     (p) {
@@ -55,15 +51,13 @@ Iterable<Param> _generateConcreteCopyWithFunction(
   );
   output.writeln(
     getter.declare(
-      body:
-          '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
+      body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
     ),
   );
   return params;
 }
 
-Iterable<Param> _generateCaseParentCopyWithFunction(
-    StringBuffer output, Class clazz) {
+Iterable<Param> _generateCaseParentCopyWithFunction(StringBuffer output, Class clazz) {
   final cases = clazz
       .getAnnotation(ReifiedLens)!
       .read('cases')
@@ -101,11 +95,9 @@ Iterable<Param> _generateCaseParentCopyWithFunction(
 }
 
 Constructor? _findCopyConstructor(Class clazz) {
-  final annotated =
-      clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
+  final annotated = clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
 
-  final implicits =
-      clazz.constructors.where((ctor) => _canCopyConstruct(clazz, ctor));
+  final implicits = clazz.constructors.where((ctor) => _canCopyConstruct(clazz, ctor));
 
   if (annotated.isNotEmpty) {
     assert(
@@ -126,10 +118,13 @@ Constructor? _findCopyConstructor(Class clazz) {
 
 bool _canCopyConstruct(Class clazz, Constructor constructor) {
   return constructor.params.every(
-        (p) => clazz.fields.any((f) => f.name == p.name && f.type.typeEquals(p.type) && !f.hasAnnotation(Skip)),
+        (p) => clazz.fields.any(
+          (f) => f.name == p.name && f.type.typeEquals(p.type) && !f.hasAnnotation(Skip),
+        ),
       ) &&
       clazz.fields.where((f) => !f.hasAnnotation(Skip)).every(
-        (f) =>
-            constructor.params.any((p) => p.name == f.name && f.type.typeEquals(p.type)),
-      );
+            (f) => constructor.params.any(
+              (p) => p.name == f.name && f.type.typeEquals(p.type),
+            ),
+          );
 }

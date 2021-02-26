@@ -41,8 +41,7 @@ class TableWidget extends HookWidget {
               // shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
               slivers: [
                 SliverPersistentHeader(
-                  delegate:
-                      PersistentHeaderDelegate(buildHeader(), height: 30.0),
+                  delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
                   pinned: true,
                 ),
                 ReorderableSliverList(
@@ -198,10 +197,8 @@ class TableWidget extends HookWidget {
                     child: Column(
                       children: [
                         column.cases(
-                          string: (column) =>
-                              TableTextField(column.values[rowIndex]),
-                          boolean: (column) =>
-                              TableCheckbox(column.values[rowIndex]),
+                          string: (column) => TableTextField(column.values[rowIndex]),
+                          boolean: (column) => TableCheckbox(column.values[rowIndex]),
                         ),
                       ],
                     ),
@@ -236,8 +233,7 @@ class TableTextField extends HookWidget {
   final TextInputType? keyboardType;
   final void Function(String)? onSubmitted;
 
-  TableTextField(this.text,
-      {this.focusNode, this.keyboardType, this.onSubmitted});
+  TableTextField(this.text, {this.focusNode, this.keyboardType, this.onSubmitted});
 
   @override
   Widget build(BuildContext context) {
@@ -339,6 +335,5 @@ class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => height;
 
   @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
-      false;
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
 }

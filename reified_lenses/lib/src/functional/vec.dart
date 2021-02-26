@@ -27,26 +27,22 @@ class Vec<Value> extends Iterable<Value> {
 
   Vec<Value> insert(int index, Value v) {
     assert(0 <= index && index <= length);
-    final copied = List.of(_values);
-    copied.insert(index, v);
-    return Vec(copied);
+    return Vec.from(_values.take(index).followedBy([v]).followedBy(_values.skip(index)));
   }
 
   TrieSet<Object> _insert_mutations(int index, Value v) => TrieSet.from({
         for (final j in range(start: index, end: length)) [j],
-        ['length']
+        const ['length']
       });
 
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
-    final copied = List.of(_values);
-    copied.removeAt(index);
-    return Vec(copied);
+    return Vec.from(_values.take(index).followedBy(_values.skip(index + 1)));
   }
 
   TrieSet<Object> _remove_mutations(int index) => TrieSet.from({
         for (final j in range(start: index, end: length - 1)) [j],
-        ['length']
+        const ['length']
       });
 
   @override
@@ -88,8 +84,11 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   }
 }
 
-Iterable<int> range({int start = 0, required int end, int step = 1}) =>
-    Iterable.generate((end - start) ~/ step, (i) => start + step * i);
+Iterable<int> range({int start = 0, required int end, int step = 1}) sync* {
+  for (var i = start; i < end; i += step) {
+    yield i;
+  }
+}
 
 extension VecForEach<T> on Cursor<Vec<T>> {
   void forEach(void Function(Cursor<T> b) f) {

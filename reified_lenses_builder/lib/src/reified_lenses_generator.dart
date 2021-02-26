@@ -48,7 +48,7 @@ class GeneratorContext {
         );
         if (opticsOfKind.isEmpty) return;
 
-        composer.extension(clazz, kind).declaration(
+        composer.extension(clazz, kind).declare(
               output,
               (output) => opticsOfKind.forEach(
                 (o) => o.generate(this, composer, kind, output),
@@ -80,9 +80,7 @@ class GeneratorContext {
 
   Iterable<Optic> generateAccessorOptics() {
     return clazz.accessors.expand((a) {
-      if (a.getter == null ||
-          !a.getter!.hasAnnotation(ReifiedLens) ||
-          a.name == 'hashCode') {
+      if (a.getter == null || !a.getter!.hasAnnotation(ReifiedLens) || a.name == 'hashCode') {
         return [];
       }
       final getter = a.getter!;
@@ -111,9 +109,7 @@ class GeneratorContext {
           name: getter.name,
           kind: kind,
           zoomedType: getter.returnType,
-          mutBody: mutater == null
-              ? null
-              : '(t, s) => t.${mutater.name}(s(t.${a.name}))',
+          mutBody: mutater == null ? null : '(t, s) => t.${mutater.name}(s(t.${a.name}))',
         )
       ];
     });
@@ -136,8 +132,7 @@ class GeneratorContext {
 
       late final Param? updateParam;
       if (mutater != null) {
-        final updateParamCandidates =
-            mutater.params.where((p) => p.name == 'update');
+        final updateParamCandidates = mutater.params.where((p) => p.name == 'update');
         assert(updateParamCandidates.isNotEmpty);
         assert(
           mutater.params.where((p) => p != updateParam).iterableEqual(m.params),
@@ -156,8 +151,7 @@ class GeneratorContext {
           zoomedType: m.returnType!,
           fieldArg:
               "Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])", // TODO: doesn't work for named params
-          getBody:
-              '(_t) => ${m.invokeFromParams("_t", typeArgs: m.typeParams)}',
+          getBody: '(_t) => ${m.invokeFromParams("_t", typeArgs: m.typeParams)}',
           mutBody: mutater == null
               ? null
               : '(_t, _s) => ${mutater.invokeFromParams("_t", genArg: (p) => p == updateParam ? "_s" : p.name, typeArgs: m.typeParams)}',
@@ -230,8 +224,8 @@ class Optic {
     this.params = const [],
   });
 
-  void generate(GeneratorContext ctx, OpticComposer composer,
-      OpticKind parentKind, StringBuffer output) {
+  void generate(
+      GeneratorContext ctx, OpticComposer composer, OpticKind parentKind, StringBuffer output) {
     late final thenArg = opticImpl ??
         call(
           parentKind.fieldCtor,
@@ -257,7 +251,7 @@ class Optic {
         returnType: returnType,
       );
 
-      output.writeln(method.declare(call(parentKind.thenMethod, [thenArg])));
+      output.writeln(method.declare(body: call(parentKind.thenMethod, [thenArg])));
     }
     output.writeln();
   }

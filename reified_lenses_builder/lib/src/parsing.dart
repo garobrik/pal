@@ -382,6 +382,7 @@ abstract class Type {
 
   static const Type dynamic = Type('dynamic');
   static const Type object = Type('Object');
+  static const Type type = Type('Type');
 }
 
 @meta.immutable
@@ -444,7 +445,7 @@ class FunctionType implements Type {
             type.optionalParameterTypes.map((t) => Type.fromDartType(t)),
         namedArgs = type.namedParameterTypes
             .map((name, type) => MapEntry(name, Type.fromDartType(type))),
-        isNullable = type.nullabilitySuffix != NullabilitySuffix.none;
+        isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
 
   @override
   bool typeEquals(Type b) {
@@ -586,7 +587,7 @@ class _ConcreteTypeImpl with ConcreteType {
         args = (type is analyzer_type.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(a))
             : [],
-        isNullable = type.nullabilitySuffix != NullabilitySuffix.none;
+        isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
 }
 
 extension AsNullable on Type {

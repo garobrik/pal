@@ -19,8 +19,7 @@ class Table {
 }
 
 extension TableComputations on GetCursor<Table> {
-  GetCursor<int> get length =>
-      columns.length.get == 0 ? Cursor.from(0) : columns[0].length;
+  GetCursor<int> get length => columns.length.get == 0 ? Cursor.from(0) : columns[0].length;
 }
 
 extension TableMutations on Cursor<Table> {
@@ -106,10 +105,7 @@ class StringColumn extends Column<String> {
     int length = 0,
     String title = '',
     double width = DEFAULT_COLUMN_WIDTH,
-  }) : super(
-            values: Vec(List.generate(length, (_) => '')),
-            width: width,
-            title: title);
+  }) : super(values: Vec(List.generate(length, (_) => '')), width: width, title: title);
 
   const StringColumn({
     Vec<String> values = const Vec.empty(),
