@@ -54,18 +54,16 @@ void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases
     params: params,
   );
 
-  output.writeln(
-    casesMethod.declare(
-      expression: false,
-      body: switchCase(
-        'type.get',
-        {
-          for (final caseParam in zip(cases, params))
-            '${caseParam.first}':
-                'return ${caseParam.second.name}(this.cast<${caseParam.first}>());'
-        },
-        defaultBody: 'throw Error();',
-      ),
+  casesMethod.declare(
+    output,
+    expression: false,
+    body: switchCase(
+      'type.get',
+      {
+        for (final caseParam in zip(cases, params))
+          '${caseParam.first}': 'return ${caseParam.second.name}(this.cast<${caseParam.first}>());'
+      },
+      defaultBody: 'throw Error();',
     ),
   );
 }

@@ -1,0 +1,43 @@
+import 'parsing.dart';
+import 'generating.dart';
+
+void generateMutations(StringBuffer output, Class clazz) {
+  final potentialMutations = clazz.methods.where((m) => m.returnType?.typeEquals(clazz) ?? false);
+  final mutationMutateds = potentialMutations.expand<Pair<Method, Method>>((mutation) {
+    final potentialPairs = clazz.methods.where((m) => m.name == '_${mutation.name}_mutated');
+    if (potentialPairs.isEmpty) return [];
+    final potentialPair = potentialPairs.first;
+    assert(potentialPair.params.iterableEqual(mutation.params));
+    assert(potentialPair.returnType!.typeEquals(Type('TrieSet', args: [Type.object])));
+    return [Pair(mutation, potentialPair)];
+  });
+  if (mutationMutateds.isEmpty) return;
+
+  final extension = Extension(
+    '${clazz.name}Mutations',
+    Type('Cursor', args: [clazz]),
+    params: clazz.params,
+  );
+
+  extension.declare(output, (output) {
+    for (final mutationMutated in mutationMutateds) {
+      final mutation = mutationMutated.first;
+      final mutated = mutationMutated.second;
+      final method = Method(
+        mutation.name,
+        params: mutation.params,
+        typeParams: mutation.typeParams,
+      );
+
+      method.declare(output, expression: false, body: '''
+        mutResult(
+          (_obj) => MutResult(
+            ${mutation.invokeFromParams("_obj")},
+            const [],
+            ${mutated.invokeFromParams("_obj")},
+          ),
+        );
+      ''');
+    }
+  });
+}

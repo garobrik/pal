@@ -30,7 +30,7 @@ class Vec<Value> extends Iterable<Value> {
     return Vec.from(_values.take(index).followedBy([v]).followedBy(_values.skip(index)));
   }
 
-  TrieSet<Object> _insert_mutations(int index, Value v) => TrieSet.from({
+  TrieSet<Object> _insert_mutated(int index, Value v) => TrieSet.from({
         for (final j in range(start: index, end: length)) [j],
         const ['length']
       });
@@ -40,7 +40,7 @@ class Vec<Value> extends Iterable<Value> {
     return Vec.from(_values.take(index).followedBy(_values.skip(index + 1)));
   }
 
-  TrieSet<Object> _remove_mutations(int index) => TrieSet.from({
+  TrieSet<Object> _remove_mutated(int index) => TrieSet.from({
         for (final j in range(start: index, end: length - 1)) [j],
         const ['length']
       });
@@ -59,26 +59,6 @@ class Vec<Value> extends Iterable<Value> {
 }
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
-  void insert(int i, Value v) {
-    mutResult(
-      (vec) => MutResult(
-        vec.insert(i, v),
-        const [],
-        vec._insert_mutations(i, v),
-      ),
-    );
-  }
-
-  void remove(int i) {
-    mutResult(
-      (vec) => MutResult(
-        vec.remove(i),
-        const [],
-        vec._remove_mutations(i),
-      ),
-    );
-  }
-
   void add(Value v) {
     insert(length.get, v);
   }

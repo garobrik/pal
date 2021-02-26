@@ -1,12 +1,13 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
-import 'package:reified_lenses_builder/src/case_generator.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:reified_lenses/annotations.dart';
 import 'dart:core' as core;
 import 'dart:core';
 
 import 'copy_generator.dart';
+import 'case_generator.dart';
+import 'mutation_generator.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
@@ -36,13 +37,14 @@ class GeneratorContext {
   GeneratorContext(this.clazz);
 
   void generate(StringBuffer output) {
-    maybeGenerateCasesExtension(output, clazz);
     final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
     final optics = [
       ...generateFieldOptics(copyWithParams),
       ...generateAccessorOptics(),
       ...generateMethodOptics(),
     ];
+    generateMutations(output, clazz);
+    maybeGenerateCasesExtension(output, clazz);
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
         final opticsOfKind = optics.where(
@@ -253,7 +255,7 @@ class Optic {
         returnType: returnType,
       );
 
-      output.writeln(method.declare(body: call(parentKind.thenMethod, [thenArg])));
+      method.declare(output, body: call(parentKind.thenMethod, [thenArg]));
     }
     output.writeln();
   }

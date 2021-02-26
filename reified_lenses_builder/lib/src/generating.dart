@@ -44,16 +44,23 @@ extension ConstructorGenerating on Constructor {
 }
 
 extension MethodGenerating on Method {
-  String declare({String? body, bool expression = true}) {
-    String suffix = body == null
-        ? '{}'
-        : expression
-            ? ' => $body;'
-            : '{ $body }';
-    String returnType = this.returnType == null ? 'void' : this.returnType.toString();
-    String operator = isOperator ? 'operator ' : '';
-    String name = '$operator${this.name}${typeParams.asDeclaration}';
-    return '$returnType $name(${params.asDeclaration}) $suffix';
+  void declare(StringBuffer output, {String? body, bool expression = true}) {
+    output.write(this.returnType?.toString() ?? 'void');
+    output.write(' ');
+    if (isOperator) output.write('operator');
+    output.write(name);
+    output.write(typeParams.asDeclaration);
+    output.write('(${params.asDeclaration})');
+    if (body == null) {
+      output.write('{}');
+    } else if (expression) {
+      output.write(' => $body;');
+    } else {
+      output.writeln('{');
+      output.writeln(body);
+      output.writeln('}');
+    }
+    output.writeln();
   }
 
   String invoke(
