@@ -1,5 +1,6 @@
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
+import 'package:reified_lenses_builder/src/case_generator.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:reified_lenses/annotations.dart';
 import 'dart:core' as core;
@@ -35,6 +36,7 @@ class GeneratorContext {
   GeneratorContext(this.clazz);
 
   void generate(StringBuffer output) {
+    maybeGenerateCasesExtension(output, clazz);
     final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
     final optics = [
       ...generateFieldOptics(copyWithParams),

@@ -116,35 +116,3 @@ class StringColumn extends Column<String> {
   @override
   String get defaultValue => '';
 }
-
-extension ColumnCursorCasesExtension<Value> on Cursor<Column<Value>> {
-  T cases<T>({
-    required T Function(Cursor<StringColumn>) string,
-    required T Function(Cursor<BooleanColumn>) boolean,
-  }) {
-    switch (type.get) {
-      case StringColumn:
-        return string(this.cast<StringColumn>());
-      case BooleanColumn:
-        return boolean(this.cast<BooleanColumn>());
-      default:
-        // TODO: make proper unreachable exception
-        throw Exception();
-    }
-  }
-
-  GetCursor<Type> get type => thenGet<Type>(
-        Getter.field(
-          'type',
-          (column) {
-            if (column is StringColumn) {
-              return StringColumn;
-            } else if (column is BooleanColumn) {
-              return BooleanColumn;
-            } else {
-              throw Error();
-            }
-          },
-        ),
-      );
-}
