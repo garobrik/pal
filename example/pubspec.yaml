@@ -22,7 +22,9 @@ environment:
 
 dependencies:
   provider: ^5.0.0-nullsafety.5
-  reorderables: ^0.3.2
+  reorderables: #^0.3.2
+    path:
+      ../reorderables
   flutter_reified_lenses:
     path:
       ../flutter_reified_lenses
