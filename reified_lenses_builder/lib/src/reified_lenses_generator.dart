@@ -1,4 +1,5 @@
-import 'package:analyzer/dart/element/element.dart';
+import 'dart:async';
+
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:reified_lenses/annotations.dart';
@@ -12,21 +13,19 @@ import 'parsing.dart';
 import 'generating.dart';
 
 // TODO: how does this work with qualified type names?
-class ReifiedLensesGenerator extends GeneratorForAnnotation<ReifiedLens> {
+class ReifiedLensesGenerator extends Generator {
   const ReifiedLensesGenerator();
 
   @override
-  String generateForAnnotatedElement(
-      Element element, ConstantReader annotation, BuildStep buildStep) {
-    if (element is! ClassElement) {
-      throw InvalidGenerationSourceError(
-        '@reified_lens can only be applied on classes, was applied to ${element.name}.',
-        element: element,
-      );
+  FutureOr<String> generate(LibraryReader library, BuildStep buildStep) {
+    final output = StringBuffer();
+
+    for (final clazz in library.classes) {
+      if (clazz.hasAnnotation(ReifiedLens)) {
+        GeneratorContext(Class.fromElement(library.element, clazz)).generate(output);
+      }
     }
 
-    final output = StringBuffer();
-    GeneratorContext(Class.fromElement(element)).generate(output);
     return output.toString();
   }
 }

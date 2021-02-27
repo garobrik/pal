@@ -9,7 +9,7 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
       .getAnnotation(ReifiedLens)!
       .read('cases')
       .listValue
-      .map((c) => Type.fromDartType(c.toTypeValue()!));
+      .map((c) => Type.fromDartType(clazz.element!.library, c.toTypeValue()!));
 
   if (cases.isEmpty) return;
 
@@ -23,15 +23,16 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
 }
 
 void _generateTypeGetter(StringBuffer output, Class clazz, Iterable<Type> cases) {
+  final param = Param(clazz, '_value');
   final typeGetter = Getter('type', Type('GetCursor', args: [Type.type]));
   final ifElsePart = ifElse(
-    {for (final caze in cases) 'this is $caze': 'return $caze;'},
-    elseBody: 'throw Error();',
+    {for (final caze in cases) '${param.name} is $caze': 'return $caze;'},
+    elseBody: 'throw Exception(\'${clazz.name} type cursor getter: unknown subtype\');',
   );
   output.writeln(
     typeGetter.declare(
       body: '''
-        thenGet<Type>(Getter.field("type", (_value) { $ifElsePart }))
+        thenGet<Type>(Getter.field(\'type\', ($param) { $ifElsePart }))
   ''',
     ),
   );
@@ -41,7 +42,9 @@ void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases
   final typeParam = clazz.newTypeParams(1).first;
   final params = cases.map(
     (caze) => Param(
-      Type('Cursor', args: [caze]),
+      FunctionType(returnType: typeParam, requiredArgs: [
+        Type('Cursor', args: [caze])
+      ]),
       _caseArgName(caze),
       isNamed: true,
       isRequired: true,
@@ -63,7 +66,7 @@ void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases
         for (final caseParam in zip(cases, params))
           '${caseParam.first}': 'return ${caseParam.second.name}(this.cast<${caseParam.first}>());'
       },
-      defaultBody: 'throw Error();',
+      defaultBody: 'throw Exception(\'${clazz.name} cases cursor method: unkown subtype\');',
     ),
   );
 }

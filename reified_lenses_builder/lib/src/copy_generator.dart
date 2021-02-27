@@ -62,7 +62,7 @@ Iterable<Param> _generateCaseParentCopyWithFunction(StringBuffer output, Class c
       .getAnnotation(ReifiedLens)!
       .read('cases')
       .listValue
-      .map((caze) => Type.fromDartType(caze.toTypeValue()!));
+      .map((caze) => Type.fromDartType(clazz.element!.library, caze.toTypeValue()!));
 
   final params = clazz.fields.where((f) => !f.isInitialized).map(
         (f) => Param(
