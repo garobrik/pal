@@ -1,9 +1,10 @@
-//@dart=2.9
 import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:provider/provider.dart';
+
+part 'main.g.dart';
 
 void main() {
   runApp(MyApp());
@@ -15,24 +16,49 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      home: Provider(
-        child: Scaffold(
-          body: Consumer<ListenableState<model.Table>>(
-            builder: (_, v, __) => Container(
-              alignment: Alignment.center,
-              padding: EdgeInsets.all(5),
-              child: TableWidget(v.cursor),
+      home: CursorWidget<AppState>(
+        create: () => AppState(null, Vec()),
+        builder: (_, state) => Container(
+          alignment: Alignment.center,
+          padding: EdgeInsets.all(5),
+          child: Scaffold(
+            appBar: AppBar(title: Text('knose')),
+            body: state.selectedTable.get == null
+                ? SizedBox.shrink()
+                : TableWidget(state.tables[state.selectedTable.get!]),
+            drawer: Drawer(
+              child: ListView(
+                children: [
+                  for (final indexedTable in state.tables.indexedValues)
+                    TextButton(
+                      onPressed: () => state.selectedTable.set(indexedTable.index),
+                      child: Text(indexedTable.value.title.get),
+                    ),
+                  TextButton(
+                    onPressed: () => state.tables.add(
+                      model.Table(
+                        title: 'new table',
+                        columns: Vec([
+                          model.StringColumn(title: 'name'),
+                          model.BooleanColumn(title: 'done'),
+                        ]),
+                      ),
+                    ),
+                    child: Text('Add Table'),
+                  )
+                ],
+              ),
             ),
           ),
         ),
-        create: (_) => ListenableState(model.Table.from(columns: [
-          for (int column = 0; column < 3; column++)
-            model.StringColumn.from(
-              values: List.generate(3, (row) => 'Row $row, Column $column'),
-              title: 'Column $column',
-            )
-        ])),
       ),
     );
   }
+}
+
+@reify
+class AppState {
+  final int? selectedTable;
+  final Vec<model.Table> tables;
+  AppState(this.selectedTable, this.tables);
 }

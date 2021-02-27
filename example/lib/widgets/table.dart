@@ -97,8 +97,8 @@ class TableWidget extends HookWidget {
             table.columns[b].set(aVal);
           },
           children: [
-            for (final columnIndex in range(end: table.columns.length.get))
-              table.columns[columnIndex].bind(
+            for (final indexedColumn in table.columns.indexedValues)
+              indexedColumn.value.bind(
                 (context, column) => GestureDetector(
                   onTap: () {
                     showDialog<Null>(
@@ -125,13 +125,14 @@ class TableWidget extends HookWidget {
                                     value: model.BooleanColumn,
                                   ),
                                 ],
-                                onChanged: (type) => table.setColumnType(columnIndex, type!),
+                                onChanged: (type) =>
+                                    table.setColumnType(indexedColumn.index, type!),
                                 value: column.type.get,
                               ),
                               IconButton(
                                 icon: Icon(Icons.remove),
                                 onPressed: () {
-                                  table.removeColumn(columnIndex);
+                                  table.removeColumn(indexedColumn.index);
                                   Navigator.pop(dialogContext);
                                 },
                               ),
@@ -181,8 +182,8 @@ class TableWidget extends HookWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final columnIndex in range(end: table.columns.length.get))
-                table.columns[columnIndex].bind(
+              for (final column in table.columns.values)
+                column.bind(
                   (context, column) => Container(
                     constraints: BoxConstraints(
                       minWidth: column.width.get,
@@ -197,8 +198,8 @@ class TableWidget extends HookWidget {
                     child: Column(
                       children: [
                         column.cases(
-                          string: (column) => TableTextField(column.values[rowIndex]),
-                          boolean: (column) => TableCheckbox(column.values[rowIndex]),
+                          stringColumn: (column) => TableTextField(column.values[rowIndex]),
+                          booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
                         ),
                       ],
                     ),

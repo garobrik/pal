@@ -6,16 +6,15 @@ const DEFAULT_COLUMN_WIDTH = 100.0;
 
 @reify
 class Table {
+  final String title;
   final Vec<Column<Object>> columns;
 
-  const Table.empty() : columns = const Vec.empty();
-  Table({this.columns = const Vec.empty()})
-      : assert(columns.every((column) => column.length == columns[0].length));
-  Table.from({Iterable<Column<Object>> columns = const []})
+  Table({this.columns = const Vec(), this.title = ''})
+  : assert(columns.every((column) => column.length == columns[0].length));
+
+  Table.from({Iterable<Column<Object>> columns = const [], this.title = ''})
       : columns = Vec.from(columns),
-        assert(
-          columns.every((column) => column.length == columns.first.length),
-        );
+        assert(columns.every((col) => col.length == columns.first.length));
 }
 
 extension TableComputations on GetCursor<Table> {
@@ -80,7 +79,7 @@ extension ColumnLengthExtension<Value> on GetCursor<Column<Value>> {
 @reify
 class BooleanColumn extends Column<bool> {
   const BooleanColumn({
-    Vec<bool> values = const Vec.empty(),
+    Vec<bool> values = const Vec(),
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
   }) : super(title: title, values: values, width: width);
@@ -108,7 +107,7 @@ class StringColumn extends Column<String> {
   }) : super(values: Vec(List.generate(length, (_) => '')), width: width, title: title);
 
   const StringColumn({
-    Vec<String> values = const Vec.empty(),
+    Vec<String> values = const Vec(),
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
   }) : super(values: values, width: width, title: title);

@@ -10,8 +10,7 @@ class Vec<Value> extends Iterable<Value> {
   final List<Value> _values;
 
   Vec.from(Iterable<Value> values) : _values = List.of(values, growable: false);
-  const Vec(this._values);
-  const Vec.empty() : _values = const [];
+  const Vec([this._values = const []]);
 
   @override
   @reify
@@ -27,21 +26,21 @@ class Vec<Value> extends Iterable<Value> {
 
   Vec<Value> insert(int index, Value v) {
     assert(0 <= index && index <= length);
-    return Vec.from(_values.take(index).followedBy([v]).followedBy(_values.skip(index)));
+    return Vec.from([..._values.take(index), v, ..._values.skip(index)]);
   }
 
   TrieSet<Object> _insert_mutated(int index, Value v) => TrieSet.from({
-        for (final j in range(start: index, end: length)) [j],
+        for (final j in range(length, start: index)) [j],
         const ['length']
       });
 
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
-    return Vec.from(_values.take(index).followedBy(_values.skip(index + 1)));
+    return Vec.from([..._values.take(index), ..._values.skip(index + 1)]);
   }
 
   TrieSet<Object> _remove_mutated(int index) => TrieSet.from({
-        for (final j in range(start: index, end: length - 1)) [j],
+        for (final j in range(length - 1, start: index)) [j],
         const ['length']
       });
 
@@ -64,13 +63,34 @@ extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   }
 }
 
-Iterable<int> range({int start = 0, required int end, int step = 1}) sync* {
+Iterable<int> range(int end, {int start = 0, int step = 1}) sync* {
   for (var i = start; i < end; i += step) {
     yield i;
   }
 }
 
+class IndexedValue<T> {
+  final int index;
+  final T value;
+
+  IndexedValue(this.index, this.value);
+}
+
 extension VecForEach<T> on Cursor<Vec<T>> {
+  Iterable<Cursor<T>> get values sync* {
+    final length = this.length.get;
+    for (final index in range(length)) {
+      yield this[index];
+    }
+  }
+
+  Iterable<IndexedValue<Cursor<T>>> get indexedValues sync* {
+    final length = this.length.get;
+    for (final index in range(length)) {
+      yield IndexedValue(index, this[index]);
+    }
+  }
+
   void forEach(void Function(Cursor<T> b) f) {
     final length = this.length.get;
     for (int i = 0; i < length; i++) {
