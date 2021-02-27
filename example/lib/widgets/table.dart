@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 
 class TableWidget extends HookWidget {
   final Cursor<model.Table> table;
-  TableWidget(this.table);
+  TableWidget(this.table, {Key? key}): super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -32,46 +32,49 @@ class TableWidget extends HookWidget {
         controller: horizontalScrollController,
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: width),
-          child: Scrollbar(
-            isAlwaysShown: true,
+          child: PrimaryScrollController(
             controller: scrollController,
-            child: CustomScrollView(
+            child: Scrollbar(
+              isAlwaysShown: true,
               controller: scrollController,
-              scrollDirection: Axis.vertical,
-              // shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
-              slivers: [
-                SliverPersistentHeader(
-                  delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
-                  pinned: true,
-                ),
-                ReorderableSliverList(
-                  onReorder: (a, b) {
-                    table.columns.forEach((column) {
-                      final bVal = column.values[b].get;
-                      column.values[b].set(column.values[a].get);
-                      column.values[a].set(bVal);
-                    });
-                  },
-                  delegate: ReorderableSliverChildBuilderDelegate(
-                    (_, i) => buildRow(i),
-                    childCount: table.length.get,
+              child: CustomScrollView(
+                controller: scrollController,
+                scrollDirection: Axis.vertical,
+                shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
+                slivers: [
+                  SliverPersistentHeader(
+                    delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
+                    pinned: true,
                   ),
-                ),
-                SliverList(
-                  delegate: SliverChildListDelegate([
-                    Container(
-                      decoration: const BoxDecoration(
-                        border: Border(bottom: BorderSide()),
-                      ),
-                      alignment: Alignment.centerLeft,
-                      child: IconButton(
-                        icon: Icon(Icons.add),
-                        onPressed: () => table.addRow(),
-                      ),
+                  ReorderableSliverList(
+                    onReorder: (a, b) {
+                      table.columns.forEach((column) {
+                        final bVal = column.values[b].get;
+                        column.values[b].set(column.values[a].get);
+                        column.values[a].set(bVal);
+                      });
+                    },
+                    delegate: ReorderableSliverChildBuilderDelegate(
+                      (_, i) => buildRow(i),
+                      childCount: table.length.get,
                     ),
-                  ]),
-                )
-              ],
+                  ),
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      Container(
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide()),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: Icon(Icons.add),
+                          onPressed: () => table.addRow(),
+                        ),
+                      ),
+                    ]),
+                  )
+                ],
+              ),
             ),
           ),
         ),

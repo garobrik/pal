@@ -61,11 +61,11 @@ class GeneratorContext {
     });
   }
 
-  Iterable<Optic> generateFieldOptics(Iterable<Param>? copyWithParams) {
+  Iterable<Optic> generateFieldOptics(Iterable<Param> copyWithParams) {
     return clazz.fields.expand((f) {
       if (f.isStatic || f.hasAnnotation(Skip)) return [];
       late final OpticKind kind;
-      if (copyWithParams != null && copyWithParams.any((p) => p.name == f.name)) {
+      if (copyWithParams.any((p) => p.name == f.name)) {
         kind = OpticKind.Lens;
       } else {
         kind = OpticKind.Getter;
@@ -137,16 +137,29 @@ class GeneratorContext {
       if (mutater != null) {
         final updateParamCandidates = mutater.params.where((p) => p.name == 'update');
         assert(updateParamCandidates.isNotEmpty);
+        updateParam = updateParamCandidates.first;
         assert(
           mutater.params.where((p) => p != updateParam).iterableEqual(m.params),
         );
-        updateParam = updateParamCandidates.first;
       } else {
         updateParam = null;
       }
 
       final kind = mutater == null ? OpticKind.Getter : OpticKind.Lens;
-
+      final isFunctionalUpdate = updateParam != null && updateParam.type is FunctionType;
+      final stateArg = '_t';
+      final updateArg = '_s';
+      final getBody = m.invokeFromParams(stateArg, typeArgs: m.typeParams);
+      // TODO: this isFunctionalUpdate case can fail when a generic type has its argument cast upwards
+      final mutBody = mutater?.invokeFromParams(
+        stateArg,
+        genArg: (p) => p != updateParam
+            ? p.name
+            : isFunctionalUpdate
+                ? updateArg
+                : '$updateArg($getBody)',
+        typeArgs: m.typeParams,
+      );
       return [
         Optic(
           name: m.name,
@@ -154,10 +167,8 @@ class GeneratorContext {
           zoomedType: m.returnType!,
           fieldArg:
               "Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])", // TODO: doesn't work for named params
-          getBody: '(_t) => ${m.invokeFromParams("_t", typeArgs: m.typeParams)}',
-          mutBody: mutater == null
-              ? null
-              : '(_t, _s) => ${mutater.invokeFromParams("_t", genArg: (p) => p == updateParam ? "_s" : p.name, typeArgs: m.typeParams)}',
+          getBody: '($stateArg) => $getBody',
+          mutBody: mutBody == null ? null : '($stateArg, $updateArg) => $mutBody',
           params: m.params,
           typeParams: m.typeParams,
         )
@@ -177,11 +188,9 @@ class OpticComposer {
 
   Extension extension(Class clazz, OpticKind kind) {
     final name = '${clazz.name}${typeOf(kind)}Extension';
-    final params = [...clazz.newTypeParams(numParams), ...clazz.params];
-    final on = Type(
-      typeOf(kind),
-      args: [...clazz.newTypeParams(numParams), clazz],
-    );
+    final newParams = clazz.newTypeParams(numParams);
+    final params = [...newParams, ...clazz.params];
+    final on = Type(typeOf(kind), args: [...newParams, clazz]);
 
     return Extension(name, on, params: params);
   }
@@ -210,7 +219,6 @@ class Optic {
   final Type zoomedType;
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
-  final String? opticImpl;
   final String? mutBody;
   final String? getBody;
   final String? fieldArg;
@@ -219,7 +227,6 @@ class Optic {
     required this.kind,
     required this.name,
     required this.zoomedType,
-    this.opticImpl,
     this.mutBody,
     this.getBody,
     this.fieldArg,
@@ -228,17 +235,19 @@ class Optic {
   });
 
   void generate(
-      GeneratorContext ctx, OpticComposer composer, OpticKind parentKind, StringBuffer output) {
-    late final thenArg = opticImpl ??
-        call(
-          parentKind.fieldCtor,
-          [
-            fieldArg ?? "'${name}'",
-            getBody ?? '(t) => t.${name}',
-            if (parentKind == OpticKind.Lens)
-              mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
-          ],
-        );
+    GeneratorContext ctx,
+    OpticComposer composer,
+    OpticKind parentKind,
+    StringBuffer output,
+  ) {
+    late final thenArg = call(
+      parentKind.fieldCtor,
+      [
+        fieldArg ?? "'${name}'",
+        getBody ?? '(t) => t.${name}',
+        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
+      ],
+    );
     final returnType = composer.zoom(ctx.clazz, zoomedType, parentKind);
 
     if (params.isEmpty) {

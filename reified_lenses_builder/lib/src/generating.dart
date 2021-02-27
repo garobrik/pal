@@ -130,9 +130,18 @@ String call(
 }
 
 String callString(String callee, String args, {Iterable<Type> typeArgs = const []}) {
+  final output = StringBuffer();
   final joinedTypeParams = typeArgs.map((t) => t.renderType()).join(', ');
   final renderedTypeParams = joinedTypeParams.isEmpty ? '' : '<$joinedTypeParams>';
-  return '$callee$renderedTypeParams($args)';
+
+  output.write(callee);
+  output.write(renderedTypeParams);
+  output.write('($args');
+  if (output.length > 60) {
+    output.write(',');
+  }
+  output.write(')');
+  return output.toString();
 }
 
 String lambda(Iterable<String> params, Iterable<String> body) {

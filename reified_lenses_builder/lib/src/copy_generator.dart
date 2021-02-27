@@ -3,14 +3,14 @@ import 'package:reified_lenses/annotations.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
-Iterable<Param>? maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
+Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
   final extension = Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params);
 
   late final Iterable<Param> params;
   if (cases.isEmpty) {
     final ctor = _findCopyConstructor(clazz);
-    if (ctor == null) return null;
+    if (ctor == null) return [];
     extension.declare(
       output,
       (output) => params = _generateConcreteCopyWithFunction(output, ctor),
@@ -25,7 +25,8 @@ Iterable<Param>? maybeGenerateCopyWithExtension(StringBuffer output, Class clazz
   return params;
 }
 
-// the undefined trick used here is copied from https://github.com/rrousselGit/freezed
+// the nifty undefined trick used here for capturing the difference between explicitly passing null
+// vs omitting an argument is copied from https://github.com/rrousselGit/freezed, thanks remi!
 Iterable<Param> _generateConcreteCopyWithFunction(
   StringBuffer output,
   Constructor constructor,

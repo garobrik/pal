@@ -18,9 +18,9 @@ class Vec<Value> extends Iterable<Value> {
 
   @reify
   Value operator [](int i) => _values[i];
-  Vec<Value> mut_array_op(int i, Value Function(Value) update) {
+  Vec<Value> mut_array_op(int i, Value update) {
     final newVec = Vec.from(this);
-    newVec._values[i] = update(newVec._values[i]);
+    newVec._values[i] = update;
     return newVec;
   }
 

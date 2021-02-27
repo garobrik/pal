@@ -18,36 +18,37 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       home: CursorWidget<AppState>(
         create: () => AppState(null, Vec()),
-        builder: (_, state) => Container(
-          alignment: Alignment.center,
-          padding: EdgeInsets.all(5),
-          child: Scaffold(
-            appBar: AppBar(title: Text('knose')),
-            body: state.selectedTable.get == null
-                ? SizedBox.shrink()
-                : TableWidget(state.tables[state.selectedTable.get!]),
-            drawer: Drawer(
-              child: ListView(
-                children: [
-                  for (final indexedTable in state.tables.indexedValues)
-                    TextButton(
-                      onPressed: () => state.selectedTable.set(indexedTable.index),
-                      child: Text(indexedTable.value.title.get),
-                    ),
+        builder: (_, state) => Scaffold(
+          appBar: AppBar(title: Text('knose')),
+          body: state.selectedTable.get == null
+              ? SizedBox.shrink()
+              : Center(
+                  child: TableWidget(
+                    state.tables[state.selectedTable.get!],
+                    key: ValueKey(state.selectedTable.get),
+                  ),
+                ),
+          drawer: Drawer(
+            child: ListView(
+              children: [
+                for (final indexedTable in state.tables.indexedValues)
                   TextButton(
-                    onPressed: () => state.tables.add(
-                      model.Table(
-                        title: 'new table',
-                        columns: Vec([
-                          model.StringColumn(title: 'name'),
-                          model.BooleanColumn(title: 'done'),
-                        ]),
-                      ),
+                    onPressed: () => state.selectedTable.set(indexedTable.index),
+                    child: Text(indexedTable.value.title.get),
+                  ),
+                TextButton(
+                  onPressed: () => state.tables.add(
+                    model.Table(
+                      title: 'new table',
+                      columns: Vec([
+                        model.StringColumn(title: 'name'),
+                        model.BooleanColumn(title: 'done'),
+                      ]),
                     ),
-                    child: Text('Add Table'),
-                  )
-                ],
-              ),
+                  ),
+                  child: Text('Add Table'),
+                )
+              ],
             ),
           ),
         ),
