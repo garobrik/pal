@@ -2,6 +2,32 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
+class CursorWidget<T> extends StatefulWidget {
+  final T Function() create;
+  final Widget Function(BuildContext, Cursor<T>) builder;
+
+  const CursorWidget({Key? key, required this.create, required this.builder}) : super(key: key);
+
+  @override
+  State<StatefulWidget> createState() => _CursorWidgetState<T>();
+}
+
+class _CursorWidgetState<T> extends State<CursorWidget<T>> {
+  late final Cursor<T> cursor;
+
+  @override
+  void initState() {
+    super.initState();
+    cursor = Cursor.from(widget.create());
+  }
+
+  @override
+  Widget build(BuildContext context) => CursorBinder<T, Cursor<T>>(
+        cursor: cursor,
+        builder: (context, cursor) => widget.builder(context, cursor),
+      );
+}
+
 extension GetCursorBuildExtension<S> on GetCursor<S> {
   Widget build(Widget Function(BuildContext, S) builder, {Key? key}) {
     return CursorBuilder(builder: builder, cursor: this, key: key);
@@ -12,8 +38,7 @@ class CursorBuilder<S> extends StatefulWidget {
   final Widget Function(BuildContext, S) builder;
   final GetCursor<S> cursor;
 
-  const CursorBuilder({required this.builder, required this.cursor, Key? key})
-      : super(key: key);
+  const CursorBuilder({required this.builder, required this.cursor, Key? key}) : super(key: key);
 
   @override
   _CursorBuildState<S> createState() => _CursorBuildState();
@@ -51,15 +76,14 @@ class CursorBinder<S, T extends GetCursor<S>> extends StatefulWidget {
   final Widget Function(BuildContext, T) builder;
   final T cursor;
 
-  const CursorBinder({required this.builder, required this.cursor, Key? key})
-      : super(key: key);
+  const CursorBinder({required this.builder, required this.cursor, Key? key}) : super(key: key);
 
   @override
   _CursorBindState<S, T> createState() => _CursorBindState<S, T>();
 }
 
-class _CursorBindState<S, T extends GetCursor<S>>
-    extends State<CursorBinder<S, T>> with CursorCallback {
+class _CursorBindState<S, T extends GetCursor<S>> extends State<CursorBinder<S, T>>
+    with CursorCallback {
   TrieMapSet<Object, void Function()> disposals = TrieMapSet.empty();
   @override
   Widget build(BuildContext context) {
@@ -93,8 +117,7 @@ class _CursorBindState<S, T extends GetCursor<S>>
   }
 }
 
-Cursor<S> useBoundCursor<S>(Cursor<S> cursor) =>
-    use(_CursorBindHook<S, Cursor<S>>(cursor));
+Cursor<S> useBoundCursor<S>(Cursor<S> cursor) => use(_CursorBindHook<S, Cursor<S>>(cursor));
 
 GetCursor<S> useBoundGetCursor<S>(GetCursor<S> cursor) =>
     use(_CursorBindHook<S, GetCursor<S>>(cursor));
@@ -108,8 +131,8 @@ class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
   _CursorBindHookState<S, T> createState() => _CursorBindHookState<S, T>();
 }
 
-class _CursorBindHookState<S, T extends GetCursor<S>>
-    extends HookState<T, _CursorBindHook<S, T>> with CursorCallback {
+class _CursorBindHookState<S, T extends GetCursor<S>> extends HookState<T, _CursorBindHook<S, T>>
+    with CursorCallback {
   TrieMapSet<Object, void Function()> disposals = TrieMapSet.empty();
 
   @override
