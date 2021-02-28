@@ -2,7 +2,6 @@ import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:provider/provider.dart';
 
 part 'main.g.dart';
 
@@ -39,7 +38,7 @@ class MyApp extends StatelessWidget {
                 TextButton(
                   onPressed: () => state.tables.add(
                     model.Table(
-                      title: 'new table',
+                      title: 'table ${state.tables.length.get + 1}',
                       columns: Vec([
                         model.StringColumn(title: 'name'),
                         model.BooleanColumn(title: 'done'),

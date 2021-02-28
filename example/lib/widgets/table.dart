@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 
 class TableWidget extends HookWidget {
   final Cursor<model.Table> table;
-  TableWidget(this.table, {Key? key}): super(key: key);
+  TableWidget(this.table, {Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class TableWidget extends HookWidget {
               child: CustomScrollView(
                 controller: scrollController,
                 scrollDirection: Axis.vertical,
-                shrinkWrap: true, // want to do this, but it breaks the persistent header for some reason :/
+                shrinkWrap: true,
                 slivers: [
                   SliverPersistentHeader(
                     delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
@@ -192,11 +192,7 @@ class TableWidget extends HookWidget {
                       minWidth: column.width.get,
                       maxWidth: column.width.get,
                     ),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        right: BorderSide(),
-                      ),
-                    ),
+                    decoration: const BoxDecoration(border: Border(right: BorderSide())),
                     padding: const EdgeInsets.all(2),
                     child: Column(
                       children: [
