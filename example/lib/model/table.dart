@@ -10,7 +10,7 @@ class Table {
   final Vec<Column<Object>> columns;
 
   Table({this.columns = const Vec(), this.title = ''})
-  : assert(columns.every((column) => column.length == columns[0].length));
+      : assert(columns.every((column) => column.length == columns[0].length));
 
   Table.from({Iterable<Column<Object>> columns = const [], this.title = ''})
       : columns = Vec.from(columns),
@@ -35,25 +35,31 @@ extension TableMutations on Cursor<Table> {
   }
 
   void setColumnType(int index, Type columnType) {
-    final column = (columnType == StringColumn
-        ? StringColumn(
-            values: Vec(List.generate(length.get, (_) => ' ')),
-            title: columns[index].title.get,
-            width: columns[index].width.get,
-          )
-        : BooleanColumn(
-            values: Vec(List.generate(length.get, (_) => false)),
-            title: columns[index].title.get,
-            width: columns[index].width.get,
-          )) as Column<Object>;
+    late final Column<Object> column;
+    if (columnType == StringColumn) {
+      column = StringColumn(
+        values: Vec(List.generate(length.get, (_) => ' ')),
+        title: columns[index].title.get,
+        width: columns[index].width.get,
+      );
+    } else if (columnType == BooleanColumn) {
+      column = BooleanColumn(
+        values: Vec(List.generate(length.get, (_) => false)),
+        title: columns[index].title.get,
+        width: columns[index].width.get,
+      );
+    } else if (columnType == IntColumn) {
+      column = IntColumn(
+        values: Vec(List.generate(length.get, (_) => 0)),
+        title: columns[index].title.get,
+        width: columns[index].width.get,
+      );
+    }
     columns[index].set(column);
   }
 }
 
-@ReifiedLens(cases: [
-  StringColumn,
-  BooleanColumn,
-])
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn])
 abstract class Column<Value> extends Iterable<Value> {
   final Vec<Value> values;
   final double width;
@@ -84,27 +90,14 @@ class BooleanColumn extends Column<bool> {
     String title = '',
   }) : super(title: title, values: values, width: width);
 
-  BooleanColumn.empty({
-    int length = 0,
-    String title = '',
-    double width = DEFAULT_COLUMN_WIDTH,
-  }) : super(
-          title: title,
-          width: width,
-          values: Vec(List.generate(length, (_) => false)),
-        );
-
   @override
   bool get defaultValue => false;
 }
 
 @reify
 class StringColumn extends Column<String> {
-  StringColumn.empty({
-    int length = 0,
-    String title = '',
-    double width = DEFAULT_COLUMN_WIDTH,
-  }) : super(values: Vec(List.generate(length, (_) => '')), width: width, title: title);
+  static StringColumn empty({int length = 0}) =>
+      StringColumn(values: Vec(List.generate(length, (_) => '')));
 
   const StringColumn({
     Vec<String> values = const Vec(),
@@ -114,4 +107,16 @@ class StringColumn extends Column<String> {
 
   @override
   String get defaultValue => '';
+}
+
+@reify
+class IntColumn extends Column<int> {
+  const IntColumn({
+    Vec<int> values = const Vec(),
+    double width = DEFAULT_COLUMN_WIDTH,
+    String title = '',
+  }) : super(title: title, values: values, width: width);
+
+  @override
+  int get defaultValue => 0;
 }

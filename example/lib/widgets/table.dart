@@ -45,7 +45,7 @@ class TableWidget extends HookWidget {
                 shrinkWrap: true,
                 slivers: [
                   SliverPersistentHeader(
-                    delegate: PersistentHeaderDelegate(buildHeader(), height: 30.0),
+                    delegate: PersistentHeaderDelegate(TableHeader(table), height: 30.0),
                     pinned: true,
                   ),
                   ReorderableSliverList(
@@ -79,101 +79,6 @@ class TableWidget extends HookWidget {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget buildHeader() {
-    final scrollController = useScrollController();
-
-    return table.bind(
-      (context, table) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(bottom: BorderSide()),
-        ),
-        child: ReorderableRow(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          scrollController: scrollController,
-          onReorder: (a, b) {
-            final aVal = table.columns[a].get;
-            table.columns[a].set(table.columns[b].get);
-            table.columns[b].set(aVal);
-          },
-          children: [
-            for (final indexedColumn in table.columns.indexedValues)
-              indexedColumn.value.bind(
-                (context, column) => GestureDetector(
-                  onTap: () {
-                    showDialog<Null>(
-                      context: context,
-                      builder: (dialogContext) => AlertDialog(
-                        content: column.bind(
-                          (context, column) => Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TableTextField(
-                                column.title,
-                                onSubmitted: (_) {
-                                  Navigator.pop(dialogContext);
-                                },
-                              ),
-                              DropdownButton<Type>(
-                                items: [
-                                  DropdownMenuItem(
-                                    child: Text('Text'),
-                                    value: model.StringColumn,
-                                  ),
-                                  DropdownMenuItem(
-                                    child: Text('Checkbox'),
-                                    value: model.BooleanColumn,
-                                  ),
-                                ],
-                                onChanged: (type) =>
-                                    table.setColumnType(indexedColumn.index, type!),
-                                value: column.type.get,
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.remove),
-                                onPressed: () {
-                                  table.removeColumn(indexedColumn.index);
-                                  Navigator.pop(dialogContext);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    constraints: BoxConstraints.tightFor(
-                      width: column.width.get,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        right: const BorderSide(),
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(2),
-                    alignment: Alignment.centerLeft,
-                    child: Text(column.title.get),
-                  ),
-                ),
-                key: UniqueKey(),
-              ),
-            Container(
-              key: UniqueKey(),
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () => table.columns.add(
-                  model.StringColumn.empty(length: table.length.get),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -224,6 +129,10 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                               DropdownMenuItem(
                                 child: Text('Checkbox'),
                                 value: model.BooleanColumn,
+                              ),
+                              DropdownMenuItem(
+                                child: Text('Number'),
+                                value: model.IntColumn,
                               ),
                             ],
                             onChanged: (type) => table.setColumnType(indexedColumn.index, type!),
@@ -317,6 +226,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
               column.cases(
                 stringColumn: (column) => TableTextField(column.values[rowIndex]),
                 booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
+                intColumn: (column) => TableIntField(column.values[rowIndex]),
               ),
             ],
           ),
@@ -333,13 +243,39 @@ Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
     );
 
 @bound_widget
+Widget _tableIntField(Cursor<int> value) {
+  print('building int');
+  final asString = value.then<String>(
+    Lens.mk(
+      (value) => GetResult(value.toString(), []),
+      (value, update) {
+        print(value);
+        print(update);
+        print(update(value.toString()));
+        print(int.tryParse(update(value.toString())));
+        print('');
+        return MutResult.allChanged(int.tryParse(update(value.toString())) ?? value);
+      },
+    ),
+  );
+  return TableTextField(
+    asString,
+    keyboardType: TextInputType.number,
+  );
+}
+
+@bound_widget
 Widget _tableTextField(
   BuildContext context,
   Cursor<String> text, {
   TextInputType? keyboardType,
   void Function(String)? onSubmitted,
 }) {
+  print('building text');
   final textController = useTextEditingController(text: text.get);
+  useEffect(() {
+    return text.listen(() => textController.text = text.get);
+  }, [textController, text]);
   final keyboardFocusNode = useFocusNode(skipTraversal: true);
 
   return Form(

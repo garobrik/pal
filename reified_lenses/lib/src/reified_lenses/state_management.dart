@@ -192,6 +192,8 @@ extension GetCursorListenExtension<S> on GetCursor<S> {
         .get;
     return WithDisposal(dispose!, s);
   }
+
+  void Function() listen(void Function() callback) => getAndListen(callback).dispose;
 }
 
 class _GetCursorListenExtensionCallback extends CursorCallback {
