@@ -6,39 +6,45 @@ extension ClassGenerating on Class {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
-    output.writeln('class $name${params.asDeclaration} extends $extendedType {');
+    output.write('class $name${params.asDeclaration}');
+    if (extendedType != null) output.write(' extends $extendedType');
+    output.writeln(' {');
     output.writeln();
     for (final field in fields) {
       field.declare(output);
     }
+    output.writeln();
 
     for (final constructor in constructors) {
       constructor.declare(output);
       output.writeln();
     }
+    output.writeln();
 
     for (final accessor in accessors) {
       if (accessor.getter != null) accessor.getter!.declare(output);
       output.writeln();
     }
+    output.writeln();
 
     for (final method in methods) {
       method.declare(output);
       output.writeln();
     }
+    output.writeln();
 
     output.writeln('}');
   }
 }
 
 extension FieldGenerating on Field {
-  void declare(StringBuffer output, [String? expression]) {
+  void declare(StringBuffer output) {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
     String staticPrefix = isStatic ? 'static ' : '';
     String finalPrefix = isFinal ? 'final ' : '';
-    String suffix = expression != null ? ' = $expression;' : ';';
+    String suffix = initializer != null ? ' = $initializer;' : ';';
     output.writeln('$staticPrefix$finalPrefix$type $name $suffix');
   }
 }
@@ -58,13 +64,26 @@ extension GetterGenerating on Getter {
 }
 
 extension ExtensionGenerating on Extension {
-  void declare(StringBuffer output, void Function(StringBuffer) declarations) {
+  void declare(StringBuffer output) {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
     output.writeln('extension $name${params.asDeclaration} on $extendedType {');
     output.writeln();
-    declarations(output);
+    for (final field in fields) {
+      field.declare(output);
+    }
+
+    for (final accessor in accessors) {
+      if (accessor.getter != null) accessor.getter!.declare(output);
+      output.writeln();
+    }
+
+    for (final method in methods) {
+      method.declare(output);
+      output.writeln();
+    }
+
     output.writeln('}');
   }
 }
@@ -134,7 +153,10 @@ extension FunctionGenerating on Function {
     return call(target == '' ? '$name' : '$target.$name', positional, named: named);
   }
 
-  String invokeFromParams({String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const [],}) {
+  String invokeFromParams({
+    String? Function(Param) genArg = _paramName,
+    Iterable<Type> typeArgs = const [],
+  }) {
     return callString(name, params.asArgs(genArg), typeArgs: typeArgs);
   }
 }
@@ -144,6 +166,7 @@ extension MethodGenerating on Method {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
+    if (isStatic) output.write('static ');
     output.write(this.returnType?.toString() ?? 'void');
     output.write(' ');
     if (isOperator) output.write('operator');

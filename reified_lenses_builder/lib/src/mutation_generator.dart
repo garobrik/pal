@@ -17,13 +17,10 @@ void generateMutations(StringBuffer output, Class clazz) {
     '${clazz.name}Mutations',
     Type('Cursor', args: [clazz]),
     params: clazz.params,
-  );
-
-  extension.declare(output, (output) {
-    for (final mutationMutated in mutationMutateds) {
+    methods: mutationMutateds.map((mutationMutated) {
       final mutation = mutationMutated.first;
       final mutated = mutationMutated.second;
-      Method(
+      return Method(
         mutation.name,
         params: mutation.params,
         typeParams: mutation.typeParams,
@@ -36,7 +33,7 @@ void generateMutations(StringBuffer output, Class clazz) {
           ),
         );
       ''',
-      ).declare(output);
-    }
-  });
+      );
+    }),
+  ).declare(output);
 }

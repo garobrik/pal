@@ -45,17 +45,7 @@ class GeneratorContext {
     maybeGenerateCasesExtension(output, clazz);
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
-        final opticsOfKind = optics.where(
-          (o) => o.kind == kind || kind == OpticKind.Getter,
-        );
-        if (opticsOfKind.isEmpty) return;
-
-        composer.extension(clazz, kind).declare(
-              output,
-              (output) => opticsOfKind.forEach(
-                (o) => o.generate(this, composer, kind, output),
-              ),
-            );
+        composer.extension(clazz, kind, optics)?.declare(output);
       });
     });
   }
@@ -185,13 +175,30 @@ class OpticComposer {
   Type zoom(Class clazz, Type type, OpticKind kind) =>
       Type(typeOf(kind), args: [...clazz.newTypeParams(numParams), type]);
 
-  Extension extension(Class clazz, OpticKind kind) {
+  Extension? extension(Class clazz, OpticKind kind, Iterable<Optic> optics) {
+    final opticsOfKind = optics.where(
+      (o) => o.kind == kind || kind == OpticKind.Getter,
+    );
+    if (opticsOfKind.isEmpty) return null;
+
     final name = '${clazz.name}${typeOf(kind)}Extension';
     final newParams = clazz.newTypeParams(numParams);
     final params = [...newParams, ...clazz.params];
     final on = Type(typeOf(kind), args: [...newParams, clazz]);
 
-    return Extension(name, on, params: params);
+    return Extension(
+      name,
+      on,
+      params: params,
+      methods: opticsOfKind.expand((optic) {
+        final method = optic.generateMethod(clazz, this, kind);
+        return method == null ? [] : [method];
+      }),
+      accessors: opticsOfKind.expand((optic) {
+        final getter = optic.generateGetter(clazz, this, kind);
+        return getter == null ? [] : [AccessorPair(getter.name, getter: getter)];
+      }),
+    );
   }
 }
 
@@ -233,11 +240,10 @@ class Optic {
     this.params = const [],
   });
 
-  void generate(
-    GeneratorContext ctx,
+  Method? generateMethod(
+    Class clazz,
     OpticComposer composer,
     OpticKind parentKind,
-    StringBuffer output,
   ) {
     late final thenArg = call(
       parentKind.fieldCtor,
@@ -247,21 +253,42 @@ class Optic {
         if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
       ],
     );
-    final returnType = composer.zoom(ctx.clazz, zoomedType, parentKind);
+    final returnType = composer.zoom(clazz, zoomedType, parentKind);
 
     if (params.isEmpty) {
-      Getter(name, returnType, body: call(parentKind.thenMethod, [thenArg])).declare(output);
+      return null;
     } else {
-      Method(
+      return Method(
         name,
         typeParams: typeParams,
         params: params,
         returnType: returnType,
         body: call(parentKind.thenMethod, [thenArg]),
         isExpression: true,
-      ).declare(output);
+      );
     }
-    output.writeln();
+  }
+
+  Getter? generateGetter(
+    Class clazz,
+    OpticComposer composer,
+    OpticKind parentKind,
+  ) {
+    late final thenArg = call(
+      parentKind.fieldCtor,
+      [
+        fieldArg ?? "'${name}'",
+        getBody ?? '(t) => t.${name}',
+        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
+      ],
+    );
+    final returnType = composer.zoom(clazz, zoomedType, parentKind);
+
+    if (params.isEmpty) {
+      return Getter(name, returnType, body: call(parentKind.thenMethod, [thenArg]));
+    } else {
+      return null;
+    }
   }
 }
 

@@ -65,8 +65,8 @@ class _ResolvedTypes {
 
 void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Function function) {
   final offset = function.name.startsWith('_') ? 1 : 0;
-  final name =
-      function.name.substring(offset, offset + 1).toUpperCase() + function.name.substring(offset + 1);
+  final name = function.name.substring(offset, offset + 1).toUpperCase() +
+      function.name.substring(offset + 1);
   final buildContextParam =
       firstOfNameAndType(function.params, 'context', resolvedTypes.buildContext);
   final keyParam = firstOfNameAndType(function.params, 'key', resolvedTypes.key);
@@ -87,8 +87,11 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
     constructors: (clazz) => [
       Constructor(
         parent: clazz,
-        params: nonSpecialParams.map((p) => p.copyWith(isInitializingFormal: true)),
-        initializers: keyParam != null ? 'super(key: key)' : null,
+        params: [
+          for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
+          Param(resolvedTypes.key.asNullable, 'key', isNamed: true, isRequired: false),
+        ],
+        initializers: 'super(key: key)',
       ),
     ],
     fields: nonSpecialParams.map((p) => Field(p.name, type: p.type, isFinal: true)),

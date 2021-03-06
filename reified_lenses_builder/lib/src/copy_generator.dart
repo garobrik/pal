@@ -5,32 +5,30 @@ import 'generating.dart';
 
 Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
-  final extension = Extension('${clazz.name}CopyWithExtension', clazz, params: clazz.params);
 
-  late final Iterable<Param> params;
+  late final Pair<Getter, Iterable<Param>> copyWithMethod;
   if (cases.isEmpty) {
     final ctor = _findCopyConstructor(clazz);
+
     if (ctor == null) return [];
-    extension.declare(
-      output,
-      (output) => params = _generateConcreteCopyWithFunction(output, ctor),
-    );
+    copyWithMethod = _generateConcreteCopyWithFunction(ctor);
   } else {
-    extension.declare(
-      output,
-      (output) => params = _generateCaseParentCopyWithFunction(output, clazz),
-    );
+    copyWithMethod = _generateCaseParentCopyWithFunction(clazz);
   }
 
-  return params;
+  Extension(
+    '${clazz.name}CopyWithExtension',
+    clazz,
+    params: clazz.params,
+    accessors: [AccessorPair(copyWithMethod.first.name, getter: copyWithMethod.first)],
+  ).declare(output);
+
+  return copyWithMethod.second;
 }
 
 // the nifty undefined trick used here for capturing the difference between explicitly passing null
 // vs omitting an argument is copied from https://github.com/rrousselGit/freezed, thanks remi!
-Iterable<Param> _generateConcreteCopyWithFunction(
-  StringBuffer output,
-  Constructor constructor,
-) {
+Pair<Getter, Iterable<Param>> _generateConcreteCopyWithFunction(Constructor constructor) {
   final params = constructor.params
       .map((p) => Param(p.type.asNullable, p.name, isNamed: true, isRequired: false));
   final paramsAsObject = constructor.params.map(
@@ -50,16 +48,16 @@ Iterable<Param> _generateConcreteCopyWithFunction(
     },
   );
 
-  Getter(
+  final getter = Getter(
     'copyWith',
     functionType,
     body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
-  ).declare(output);
+  );
 
-  return params;
+  return Pair(getter, params);
 }
 
-Iterable<Param> _generateCaseParentCopyWithFunction(StringBuffer output, Class clazz) {
+Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
   final cases = clazz
       .getAnnotation(ReifiedLens)!
       .read('cases')
@@ -85,14 +83,14 @@ Iterable<Param> _generateCaseParentCopyWithFunction(StringBuffer output, Class c
       'this is $caze': 'return ((this as $caze).copyWith as ${functionType});',
   };
 
-  Getter(
+  final getter = Getter(
     'copyWith',
     functionType,
     body: ifElse(conditionsBodies, elseBody: 'throw Error();'),
     isExpression: false,
-  ).declare(output);
+  );
 
-  return params;
+  return Pair(getter, params);
 }
 
 Constructor? _findCopyConstructor(Class clazz) {

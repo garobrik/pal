@@ -332,18 +332,20 @@ class Field extends ElementAnalogue<FieldElement> {
   final bool isConst;
   final bool isLate;
   final bool isInitialized;
+  final String? initializer;
 
   const Field(
     String name, {
-    this.type = Type.dynamic,
+    required this.type,
     this.isStatic = false,
     this.isFinal = false,
     this.isConst = false,
     this.isLate = false,
-    this.isInitialized = false,
+    this.initializer,
     bool isPrivate = false,
     Iterable<String> annotations = const [],
-  }) : super(name: name, annotations: annotations);
+  })  : isInitialized = initializer != null,
+        super(name: name, annotations: annotations);
 
   Field.fromElement(LibraryElement usageContext, FieldElement element,
       {analyzer_type.DartType? type})
@@ -353,6 +355,7 @@ class Field extends ElementAnalogue<FieldElement> {
         isConst = element.isConst,
         isLate = element.isLate,
         isInitialized = element.hasInitializer,
+        initializer = null,
         super.fromElement(usageContext, element);
 
   @override
