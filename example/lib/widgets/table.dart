@@ -5,6 +5,8 @@ import '../model/table.dart' as model;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+part 'table.g.dart';
+
 class TableWidget extends HookWidget {
   final Cursor<model.Table> table;
   TableWidget(this.table, {Key? key}) : super(key: key);
@@ -55,7 +57,7 @@ class TableWidget extends HookWidget {
                       });
                     },
                     delegate: ReorderableSliverChildBuilderDelegate(
-                      (_, i) => buildRow(i),
+                      (_, i) => TableRow(table, i),
                       childCount: table.length.get,
                     ),
                   ),
@@ -176,125 +178,210 @@ class TableWidget extends HookWidget {
       ),
     );
   }
+}
 
-  Widget buildRow(int rowIndex) {
-    return table.bind(
-      (_, table) => IntrinsicHeight(
-        child: Container(
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final column in table.columns.values)
-                column.bind(
-                  (context, column) => Container(
-                    constraints: BoxConstraints(
-                      minWidth: column.width.get,
-                      maxWidth: column.width.get,
-                    ),
-                    decoration: const BoxDecoration(border: Border(right: BorderSide())),
-                    padding: const EdgeInsets.all(2),
-                    child: Column(
-                      children: [
-                        column.cases(
-                          stringColumn: (column) => TableTextField(column.values[rowIndex]),
-                          booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
-                        ),
-                      ],
+@bound_widget
+Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
+  final scrollController = useScrollController();
+
+  return Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      border: Border(bottom: BorderSide()),
+    ),
+    child: ReorderableRow(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      scrollController: scrollController,
+      onReorder: (a, b) {
+        final aVal = table.columns[a].get;
+        table.columns[a].set(table.columns[b].get);
+        table.columns[b].set(aVal);
+      },
+      children: [
+        for (final indexedColumn in table.columns.indexedValues)
+          indexedColumn.value.bind(
+            (context, column) => GestureDetector(
+              onTap: () {
+                showDialog<Null>(
+                  context: context,
+                  builder: (dialogContext) => AlertDialog(
+                    content: column.bind(
+                      (context, column) => Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          TableTextField(
+                            column.title,
+                            onSubmitted: (_) {
+                              Navigator.pop(dialogContext);
+                            },
+                          ),
+                          DropdownButton<Type>(
+                            items: [
+                              DropdownMenuItem(
+                                child: Text('Text'),
+                                value: model.StringColumn,
+                              ),
+                              DropdownMenuItem(
+                                child: Text('Checkbox'),
+                                value: model.BooleanColumn,
+                              ),
+                            ],
+                            onChanged: (type) => table.setColumnType(indexedColumn.index, type!),
+                            value: column.type.get,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.remove),
+                            onPressed: () {
+                              table.removeColumn(indexedColumn.index);
+                              Navigator.pop(dialogContext);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  key: UniqueKey(),
+                );
+              },
+              child: Container(
+                constraints: BoxConstraints.tightFor(
+                  width: column.width.get,
                 ),
+                decoration: BoxDecoration(
+                  border: Border(
+                    right: const BorderSide(),
+                  ),
+                ),
+                padding: const EdgeInsets.all(2),
+                alignment: Alignment.centerLeft,
+                child: Text(column.title.get),
+              ),
+            ),
+            key: UniqueKey(),
+          ),
+        Container(
+          key: UniqueKey(),
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () => table.columns.add(
+              model.StringColumn.empty(length: table.length.get),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+@bound_widget
+Widget _tableRow(Cursor<model.Table> table, int rowIndex) {
+  return IntrinsicHeight(
+    child: Container(
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final column in table.columns.values) TableCell(column, rowIndex),
+        ],
+      ),
+    ),
+  );
+}
+
+@bound_widget
+Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
+  return Container(
+    constraints: BoxConstraints(
+      minWidth: column.width.get,
+      maxWidth: column.width.get,
+    ),
+    decoration: const BoxDecoration(border: Border(right: BorderSide())),
+    padding: const EdgeInsets.all(2),
+    child: Focus(
+      skipTraversal: true,
+      child: Builder(
+        builder: (context) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            boxShadow: [
+              if (Focus.of(context).hasFocus)
+                const BoxShadow(
+                  spreadRadius: 5,
+                  blurRadius: 5,
+                  color: Colors.grey,
+                ),
+            ],
+          ),
+          child: Column(
+            children: [
+              column.cases(
+                stringColumn: (column) => TableTextField(column.values[rowIndex]),
+                booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
-class TableCheckbox extends HookWidget {
-  final Cursor<bool> checked;
-
-  TableCheckbox(this.checked);
-
-  @override
-  Widget build(BuildContext context) {
-    return Checkbox(
+@bound_widget
+Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
       value: checked.get,
       onChanged: (newChecked) => checked.set(newChecked!),
     );
-  }
-}
 
-class TableTextField extends HookWidget {
-  final Cursor<String> text;
-  final FocusNode? focusNode;
-  final TextInputType? keyboardType;
-  final void Function(String)? onSubmitted;
+@bound_widget
+Widget _tableTextField(
+  BuildContext context,
+  Cursor<String> text, {
+  TextInputType? keyboardType,
+  void Function(String)? onSubmitted,
+}) {
+  final textController = useTextEditingController(text: text.get);
+  final keyboardFocusNode = useFocusNode(skipTraversal: true);
 
-  TableTextField(this.text, {this.focusNode, this.keyboardType, this.onSubmitted});
-
-  @override
-  Widget build(BuildContext context) {
-    final boundText = useBoundCursor(text);
-    final textController = useTextEditingController(text: boundText.get);
-    final focusNode = this.focusNode ?? useFocusNode();
-    useListenable(focusNode);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [
-          if (focusNode.hasFocus)
-            const BoxShadow(
-              spreadRadius: 5,
-              blurRadius: 5,
-              color: Colors.grey,
-            ),
-        ],
-      ),
-      child: Form(
-        child: Builder(
-          builder: (context) => Focus(
-            onFocusChange: (hasFocus) {
-              if (!hasFocus) {
-                Form.of(context)!.save();
+  return Form(
+    child: Builder(
+      builder: (context) => Focus(
+        skipTraversal: true,
+        onFocusChange: (hasFocus) {
+          if (!hasFocus) {
+            Form.of(context)!.save();
+          }
+        },
+        child: RawKeyboardListener(
+          focusNode: keyboardFocusNode,
+          onKey: (keyEvent) {
+            if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+              keyboardFocusNode.unfocus();
+            } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+              if (!keyEvent.isShiftPressed) {
+                keyboardFocusNode.unfocus();
               }
-            },
-            child: RawKeyboardListener(
-              focusNode: focusNode,
-              onKey: (keyEvent) {
-                if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-                  focusNode.unfocus();
-                } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-                  if (!keyEvent.isShiftPressed) {
-                    focusNode.unfocus();
-                  }
-                }
-              },
-              child: TextFormField(
-                maxLines: null,
-                controller: textController,
-                keyboardType: keyboardType,
-                decoration: InputDecoration(
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.all(4),
-                  isDense: true,
-                ),
-                style: Theme.of(context).textTheme.bodyText2,
-                textAlignVertical: TextAlignVertical.top,
-                onSaved: (newText) {
-                  boundText.set(newText!);
-                  if (onSubmitted != null) onSubmitted!(newText);
-                },
-              ),
+            }
+          },
+          child: TextFormField(
+            maxLines: null,
+            controller: textController,
+            keyboardType: keyboardType,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(4),
+              isDense: true,
             ),
+            style: Theme.of(context).textTheme.bodyText2,
+            textAlignVertical: TextAlignVertical.top,
+            onSaved: (newText) {
+              text.set(newText!);
+              if (onSubmitted != null) onSubmitted(newText);
+            },
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
