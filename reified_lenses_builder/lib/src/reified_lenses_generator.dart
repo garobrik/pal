@@ -12,7 +12,6 @@ import 'mutation_generator.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
-// TODO: how does this work with qualified type names?
 class ReifiedLensesGenerator extends Generator {
   const ReifiedLensesGenerator();
 
@@ -251,19 +250,16 @@ class Optic {
     final returnType = composer.zoom(ctx.clazz, zoomedType, parentKind);
 
     if (params.isEmpty) {
-      final getter = Getter(name, returnType);
-      output.writeln(
-        getter.declare(body: call(parentKind.thenMethod, [thenArg])),
-      );
+      Getter(name, returnType, body: call(parentKind.thenMethod, [thenArg])).declare(output);
     } else {
-      final method = Method(
+      Method(
         name,
         typeParams: typeParams,
         params: params,
         returnType: returnType,
-      );
-
-      method.declare(output, body: call(parentKind.thenMethod, [thenArg]));
+        body: call(parentKind.thenMethod, [thenArg]),
+        isExpression: true,
+      ).declare(output);
     }
     output.writeln();
   }

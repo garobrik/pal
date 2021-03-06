@@ -6,6 +6,7 @@ import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart' as analyzer_type;
+import 'package:build/build.dart';
 import 'package:meta/meta.dart' as meta;
 import 'package:source_gen/source_gen.dart';
 
@@ -15,11 +16,13 @@ import 'operators.dart';
 abstract class ElementAnalogue<T extends Element> {
   final T? element;
   final String name;
+  final Iterable<String> annotations;
 
-  const ElementAnalogue({required this.name}) : element = null;
+  const ElementAnalogue({required this.name, required this.annotations}) : element = null;
 
   ElementAnalogue.fromElement(LibraryElement usageContext, T element)
       : element = element,
+        annotations = const [],
         name = qualifiedNameIn(element, usageContext) ?? '';
 
   bool hasAnnotation(core.Type t) => element?.hasAnnotation(t) ?? false;
@@ -46,6 +49,7 @@ String? qualifiedNameIn(Element element, LibraryElement usageContext) {
 @meta.immutable
 abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
   final Iterable<TypeParam> params;
+  final Type? extendedType;
   late final Iterable<Field> fields;
   late final Iterable<Method> methods;
   late final Iterable<AccessorPair> accessors;
@@ -56,7 +60,9 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
     required this.fields,
     required this.methods,
     required this.accessors,
-  }) : super(name: name);
+    required this.extendedType,
+    required Iterable<String> annotations,
+  }) : super(name: name, annotations: annotations);
 
   DefinitionHolder.fromElement(
     LibraryElement usageContext,
@@ -64,7 +70,8 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
     List<TypeParameterElement> params,
     List<FieldElement> fields,
     List<MethodElement> methods,
-    List<PropertyAccessorElement> accessors, {
+    List<PropertyAccessorElement> accessors,
+    this.extendedType, {
     analyzer_type.InterfaceType? interface,
   })  : params = params.map((tp) => TypeParam.fromElement(usageContext, tp)),
         super.fromElement(usageContext, element) {
@@ -113,26 +120,45 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
 class Class extends DefinitionHolder<ClassElement> with ConcreteType {
   late final Iterable<Constructor> constructors;
   final bool isAbstract;
+  @override
+  final analyzer_type.DartType? dartType;
 
   Class(
     String name, {
     Iterable<TypeParam> params = const [],
-    this.constructors = const [],
+    Iterable<Constructor> Function(Class) constructors = _emptyConstructors,
     Iterable<Field> fields = const [],
     Iterable<Method> methods = const [],
     Iterable<AccessorPair> accessors = const [],
+    Iterable<String> annotations = const [],
+    Type? extendedType,
     this.isAbstract = false,
     bool isPrivate = false,
-  }) : super(
+  })  : dartType = null,
+        super(
           name: name,
           params: params,
           fields: fields,
           methods: methods,
           accessors: accessors,
-        );
+          extendedType: extendedType,
+          annotations: annotations,
+        ) {
+    this.constructors = constructors(this);
+  }
+
+  static Iterable<Constructor> _emptyConstructors(Class _) => const [];
 
   Class.fromElement(LibraryElement usageContext, ClassElement element)
       : isAbstract = element.isAbstract,
+        dartType = element.instantiate(
+          typeArguments: List.from(
+            element.typeParameters.map<analyzer_type.DartType>(
+              (tp) => tp.instantiate(nullabilitySuffix: NullabilitySuffix.none),
+            ),
+          ),
+          nullabilitySuffix: NullabilitySuffix.none,
+        ),
         super.fromElement(
           usageContext,
           element,
@@ -140,6 +166,9 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
           element.fields,
           element.methods,
           element.accessors,
+          element.supertype?.asInstanceOf(element) == null
+              ? null
+              : Type.fromDartType(usageContext, element.thisType),
           interface: element.thisType,
         ) {
     constructors = element.constructors.map((c) => Constructor.fromElement(usageContext, c, this));
@@ -162,8 +191,7 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
   }
 
   // ignore: unnecessary_cast, doesn't type check otherwise
-  Constructor? get defaultCtor =>
-      (constructors as Iterable<Constructor?>).firstWhere((c) => c!.isDefault, orElse: () => null);
+  Constructor? get defaultCtor => constructors.maybeFirstWhere((c) => c.isDefault);
 
   @override
   bool get isNullable => false;
@@ -173,16 +201,25 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
 class Constructor extends ElementAnalogue<ConstructorElement> {
   final Class parent;
   final Iterable<Param> params;
+  final String? initializers;
+  final bool isConst;
+  final bool isFactory;
 
-  const Constructor({
-    String name = '',
-    this.params = const [],
-    required this.parent,
-    bool isPrivate = false,
-  }) : super(name: name);
+  const Constructor(
+      {String name = '',
+      this.params = const [],
+      required this.parent,
+      this.initializers,
+      this.isConst = false,
+      this.isFactory = false,
+      Iterable<String> annotations = const []})
+      : super(name: name, annotations: annotations);
 
   Constructor.fromElement(LibraryElement usageContext, ConstructorElement element, this.parent)
       : params = element.parameters.map((p) => Param.fromElement(usageContext, p)),
+        initializers = null,
+        isConst = element.isConst,
+        isFactory = element.isFactory,
         super.fromElement(usageContext, element);
 
   bool get isDefault => name.isEmpty;
@@ -191,32 +228,33 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
 
 @meta.immutable
 class Extension extends DefinitionHolder<ExtensionElement> {
-  final Type extendedType;
-
   Extension(
     String name,
-    this.extendedType, {
+    Type extendedType, {
     Iterable<TypeParam> params = const [],
     Iterable<Field> fields = const [],
     Iterable<Method> methods = const [],
     Iterable<AccessorPair> accessors = const [],
+    Iterable<String> annotations = const [],
   }) : super(
           name: name,
           params: params,
           fields: fields,
           methods: methods,
           accessors: accessors,
+          extendedType: extendedType,
+          annotations: annotations,
         );
 
   Extension.fromElement(LibraryElement usageContext, ExtensionElement element)
-      : extendedType = Type.fromDartType(usageContext, element.extendedType),
-        super.fromElement(
+      : super.fromElement(
           usageContext,
           element,
           element.typeParameters,
           element.fields,
           element.methods,
           element.accessors,
+          Type.fromDartType(usageContext, element.extendedType),
         );
 }
 
@@ -235,7 +273,8 @@ class Param extends ElementAnalogue<ParameterElement> {
     this.isRequired = true,
     this.isInitializingFormal = false,
     this.defaultValue,
-  }) : super(name: name);
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
 
   Param.fromElement(LibraryElement usageContext, ParameterElement element)
       : type = Type.fromDartType(usageContext, element.type),
@@ -247,10 +286,11 @@ class Param extends ElementAnalogue<ParameterElement> {
 
   @override
   String toString() {
+    final annotations = this.annotations.isEmpty ? '' : ' ${this.annotations.join(" ")}';
     final requiredMeta = (isRequired && isNamed) ? 'required ' : '';
     final param = isInitializingFormal ? 'this.$name' : '$type $name';
     final defaultPart = defaultValue == null ? '' : ' = $defaultValue';
-    return '$requiredMeta$param$defaultPart';
+    return '$annotations$requiredMeta$param$defaultPart';
   }
 
   @override
@@ -266,6 +306,15 @@ class Param extends ElementAnalogue<ParameterElement> {
 
   @override
   int get hashCode => hash(<dynamic>[name, isInitializingFormal, isNamed, isRequired]);
+
+  Param copyWith({bool? isInitializingFormal}) => Param(
+        type,
+        name,
+        isInitializingFormal: isInitializingFormal ?? this.isInitializingFormal,
+        isNamed: isNamed,
+        isRequired: isRequired,
+        defaultValue: defaultValue,
+      );
 }
 
 extension ParamsExtension on Iterable<Param> {
@@ -293,7 +342,8 @@ class Field extends ElementAnalogue<FieldElement> {
     this.isLate = false,
     this.isInitialized = false,
     bool isPrivate = false,
-  }) : super(name: name);
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
 
   Field.fromElement(LibraryElement usageContext, FieldElement element,
       {analyzer_type.DartType? type})
@@ -318,12 +368,44 @@ class Field extends ElementAnalogue<FieldElement> {
 }
 
 @meta.immutable
+class Function extends ElementAnalogue<FunctionElement> {
+  final Iterable<TypeParam> typeParams;
+  final Iterable<Param> params;
+  final Type? returnType;
+  final bool isStatic;
+  final bool isExpression;
+  final String? body;
+
+  Function(
+    String name, {
+    this.typeParams = const [],
+    this.params = const [],
+    this.returnType,
+    this.isStatic = false,
+    this.isExpression = false,
+    this.body,
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
+
+  Function.fromElement(LibraryElement usageContext, FunctionElement element)
+      : params = element.parameters.map((p) => Param.fromElement(usageContext, p)),
+        typeParams = element.typeParameters.map((tp) => TypeParam.fromElement(usageContext, tp)),
+        returnType = Type.fromDartType(usageContext, element.returnType),
+        isStatic = element.isStatic,
+        isExpression = false,
+        body = null,
+        super.fromElement(usageContext, element);
+}
+
+@meta.immutable
 class Method extends ElementAnalogue<MethodElement> {
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
   final Type? returnType;
   final bool isOperator;
   final bool isStatic;
+  final bool isExpression;
+  final String? body;
 
   Method(
     String name, {
@@ -331,8 +413,11 @@ class Method extends ElementAnalogue<MethodElement> {
     this.params = const [],
     this.returnType,
     this.isStatic = false,
+    this.isExpression = false,
+    this.body,
+    Iterable<String> annotations = const [],
   })  : isOperator = overridable_operators.contains(name),
-        super(name: name);
+        super(name: name, annotations: annotations);
 
   Method.fromElement(LibraryElement usageContext, MethodElement element)
       : params = element.parameters.map((p) => Param.fromElement(usageContext, p)),
@@ -340,6 +425,8 @@ class Method extends ElementAnalogue<MethodElement> {
         returnType = Type.fromDartType(usageContext, element.returnType),
         isStatic = element.isStatic,
         isOperator = element.isOperator,
+        isExpression = false,
+        body = null,
         super.fromElement(usageContext, element);
 }
 
@@ -365,11 +452,22 @@ class AccessorPair {
 @meta.immutable
 class Getter extends ElementAnalogue<PropertyAccessorElement> {
   final Type returnType;
+  final String? body;
+  final bool isExpression;
 
-  const Getter(String name, this.returnType, {bool isPrivate = false}) : super(name: name);
+  const Getter(
+    String name,
+    this.returnType, {
+    bool isPrivate = false,
+    this.body,
+    this.isExpression = true,
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
 
   Getter.fromElement(LibraryElement usageContext, PropertyAccessorElement element)
       : returnType = Type.fromDartType(usageContext, element.returnType),
+        body = null,
+        isExpression = true,
         super.fromElement(usageContext, element);
 }
 
@@ -377,7 +475,11 @@ class Getter extends ElementAnalogue<PropertyAccessorElement> {
 class Setter extends ElementAnalogue<PropertyAccessorElement> {
   final Type type;
 
-  const Setter(String name, this.type) : super(name: name);
+  const Setter(
+    String name,
+    this.type, {
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
 
   Setter.fromElement(LibraryElement usageContext, PropertyAccessorElement element)
       : type = Type.fromDartType(usageContext, element.type.parameters.first.type),
@@ -387,13 +489,19 @@ class Setter extends ElementAnalogue<PropertyAccessorElement> {
 @meta.immutable
 class TypeParam extends ElementAnalogue<TypeParameterElement> with ConcreteType {
   final Type? extendz;
+  @override
+  final analyzer_type.TypeParameterType? dartType;
 
-  TypeParam(String name, {this.extendz}) : super(name: name);
-
-  const TypeParam.constant(String name, {this.extendz}) : super(name: name);
+  const TypeParam(
+    String name, {
+    this.extendz,
+    Iterable<String> annotations = const [],
+  })  : dartType = null,
+        super(name: name, annotations: annotations);
 
   TypeParam.fromElement(LibraryElement usageContext, TypeParameterElement element)
       : extendz = element.bound == null ? null : Type.fromDartType(usageContext, element.bound!),
+        dartType = element.instantiate(nullabilitySuffix: NullabilitySuffix.none),
         super.fromElement(usageContext, element);
 
   String get nameWithBound => extendz == null ? name : '$name extends $extendz';
@@ -419,6 +527,7 @@ abstract class Type {
   bool typeEquals(Type b);
   String renderType();
   bool get isNullable;
+  analyzer_type.DartType? get dartType;
 
   const factory Type(String name, {Iterable<Type> args, bool isNullable}) = ConcreteType;
   factory Type.fromDartType(LibraryElement usageContext, analyzer_type.DartType t) =>
@@ -426,9 +535,36 @@ abstract class Type {
           ? FunctionType.fromDartType(usageContext, t)
           : ConcreteType.fromDartType(usageContext, t);
 
+  static Future<Type> resolveDartType(
+    LibraryElement usageContext,
+    String importURI,
+    String name,
+  ) async {
+    log.info(' importURI: $importURI');
+    final resolvedLibrary = await usageContext.session.getLibraryByUri(importURI);
+    log.info(' resolvedLibrary.name: ${resolvedLibrary.name}');
+    log.info(' resolvedLibrary: ${resolvedLibrary.source.uri}');
+    final resolvedClass = resolvedLibrary.getType(name);
+    if (resolvedClass == null) {
+      throw UnresolvableTypeException(importURI, name);
+    }
+    return Type.fromDartType(usageContext, resolvedClass.thisType);
+  }
+
   static const Type dynamic = Type('dynamic');
   static const Type object = Type('Object');
   static const Type type = Type('Type');
+}
+
+class UnresolvableTypeException implements Exception {
+  final String uri;
+  final String typeName;
+
+  const UnresolvableTypeException(this.uri, this.typeName);
+
+  @override
+  String toString() =>
+      'UnresolvableTypeException: Could not resolve type $typeName in package $uri.';
 }
 
 @meta.immutable
@@ -454,6 +590,9 @@ class _NullableWrapper implements Type {
 
   @override
   String toString() => renderType();
+
+  @override
+  analyzer_type.DartType? get dartType => null;
 }
 
 @meta.immutable
@@ -464,6 +603,8 @@ class FunctionType implements Type {
   final Map<String, Type> namedArgs;
   @override
   final bool isNullable;
+  @override
+  final analyzer_type.FunctionType? dartType;
 
   const FunctionType({
     this.returnType,
@@ -471,7 +612,7 @@ class FunctionType implements Type {
     this.optionalArgs = const [],
     this.namedArgs = const {},
     this.isNullable = false,
-  });
+  }) : dartType = null;
 
   FunctionType.fromParams({
     this.returnType,
@@ -479,7 +620,8 @@ class FunctionType implements Type {
     this.isNullable = false,
   })  : requiredArgs = params.required.positional.map((p) => p.type),
         optionalArgs = params.optional.positional.map((p) => p.type),
-        namedArgs = {for (final p in params.named) p.name: p.type};
+        namedArgs = {for (final p in params.named) p.name: p.type},
+        dartType = null;
 
   FunctionType.fromDartType(LibraryElement usageContext, analyzer_type.FunctionType type)
       : returnType = type.returnType is! analyzer_type.VoidType
@@ -489,7 +631,8 @@ class FunctionType implements Type {
         optionalArgs = type.optionalParameterTypes.map((t) => Type.fromDartType(usageContext, t)),
         namedArgs = type.namedParameterTypes
             .map((name, type) => MapEntry(name, Type.fromDartType(usageContext, type))),
-        isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
+        isNullable = type.nullabilitySuffix == NullabilitySuffix.question,
+        dartType = type;
 
   @override
   bool typeEquals(Type b) {
@@ -621,14 +764,18 @@ class _ConcreteTypeImpl with ConcreteType {
   final Iterable<Type> args;
   @override
   final bool isNullable;
+  @override
+  final analyzer_type.DartType? dartType;
 
-  const _ConcreteTypeImpl(this.name, {this.args = const [], this.isNullable = false});
+  const _ConcreteTypeImpl(this.name, {this.args = const [], this.isNullable = false})
+      : dartType = null;
   _ConcreteTypeImpl.fromDartType(LibraryElement usageContext, analyzer_type.DartType type)
       : name = qualifiedNameIn(type.element!, usageContext)!,
         args = (type is analyzer_type.ParameterizedType)
             ? type.typeArguments.map((a) => Type.fromDartType(usageContext, a))
             : [],
-        isNullable = type.nullabilitySuffix == NullabilitySuffix.question;
+        isNullable = type.nullabilitySuffix == NullabilitySuffix.question,
+        dartType = type;
 }
 
 extension AsNullable on Type {
@@ -673,6 +820,12 @@ extension ElementAnnotationExtension on Element {
   }
 }
 
+extension ElementLoggingExtension on Element {
+  String get logString {
+    return '${location?.components}:${name}';
+  }
+}
+
 extension IterableEquality<V> on Iterable<V> {
   bool iterableEqual(Iterable<V> other) =>
       length == other.length && zip(this, other).any((pair) => pair.first == pair.second);
@@ -701,5 +854,16 @@ Iterable<Pair<A, B>> zip<A, B>(
   final bIterator = bIterable.iterator;
   while (aIterator.moveNext() && bIterator.moveNext()) {
     yield Pair(aIterator.current, bIterator.current);
+  }
+}
+
+extension MaybeIterableFns<T> on Iterable<T> {
+  T? maybeFirstWhere(bool Function(T) test) {
+    for (final element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
   }
 }

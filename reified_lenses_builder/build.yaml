@@ -7,7 +7,7 @@ targets:
 builders:
   reified_lenses_builder:
     import: "package:reified_lenses_builder/builder.dart"
-    builder_factories: ["reifiedLenses"]
+    builder_factories: ["reifiedLenses", "flutterReifiedLenses"]
     build_extensions: { ".dart": [".reified_lenses.g.part"] }
     auto_apply: dependents
     build_to: cache

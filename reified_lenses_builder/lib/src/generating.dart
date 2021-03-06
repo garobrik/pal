@@ -1,27 +1,67 @@
 import 'operators.dart';
 import 'parsing.dart';
 
+extension ClassGenerating on Class {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
+    output.writeln('class $name${params.asDeclaration} extends $extendedType {');
+    output.writeln();
+    for (final field in fields) {
+      field.declare(output);
+    }
+
+    for (final constructor in constructors) {
+      constructor.declare(output);
+      output.writeln();
+    }
+
+    for (final accessor in accessors) {
+      if (accessor.getter != null) accessor.getter!.declare(output);
+      output.writeln();
+    }
+
+    for (final method in methods) {
+      method.declare(output);
+      output.writeln();
+    }
+
+    output.writeln('}');
+  }
+}
+
 extension FieldGenerating on Field {
-  String declaration([String? expression]) {
+  void declare(StringBuffer output, [String? expression]) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
     String staticPrefix = isStatic ? 'static ' : '';
+    String finalPrefix = isFinal ? 'final ' : '';
     String suffix = expression != null ? ' = $expression;' : ';';
-    return '$staticPrefix $type $name $suffix';
+    output.writeln('$staticPrefix$finalPrefix$type $name $suffix');
   }
 }
 
 extension GetterGenerating on Getter {
-  String declare({String? body, bool expression = true}) {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
     String suffix = body == null
         ? ';'
-        : expression
+        : isExpression
             ? ' => $body;'
             : ' { $body }';
-    return '$returnType get $name $suffix';
+    output.writeln('$returnType get $name $suffix');
   }
 }
 
 extension ExtensionGenerating on Extension {
   void declare(StringBuffer output, void Function(StringBuffer) declarations) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
     output.writeln('extension $name${params.asDeclaration} on $extendedType {');
     output.writeln();
     declarations(output);
@@ -30,6 +70,19 @@ extension ExtensionGenerating on Extension {
 }
 
 extension ConstructorGenerating on Constructor {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
+    if (isConst) output.write('const ');
+    if (isFactory) output.write('factory ');
+    output.write(parent.name);
+    if (name.isNotEmpty) output.write('.$name');
+    output.write('(${params.asDeclaration})');
+    if (initializers != null) output.write(': $initializers');
+    output.write(';');
+  }
+
   String invoke(
     Iterable<String> positional, {
     Map<String, String> named = const {},
@@ -43,8 +96,54 @@ extension ConstructorGenerating on Constructor {
       );
 }
 
+extension FunctionGenerating on Function {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
+    output.write(this.returnType?.toString() ?? 'void');
+    output.write(' ');
+    output.write(name);
+    output.write(typeParams.asDeclaration);
+    output.write('(${params.asDeclaration})');
+    if (body == null) {
+      output.write('{}');
+    } else if (isExpression) {
+      output.write(' => $body;');
+    } else {
+      output.writeln('{');
+      output.writeln(body);
+      output.writeln('}');
+    }
+    output.writeln();
+  }
+
+  String invoke(
+    String target, [
+    Iterable<String> positional = const [],
+    Map<String, String> named = const {},
+  ]) {
+    final int requiredPositional = params.where((p) => p.isRequired && !p.isNamed).length;
+    if (positional.length < requiredPositional) {
+      throw ArgumentError(
+        'Called function $name with ${positional.length} args. '
+        '$requiredPositional are required.',
+      );
+    }
+
+    return call(target == '' ? '$name' : '$target.$name', positional, named: named);
+  }
+
+  String invokeFromParams({String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const [],}) {
+    return callString(name, params.asArgs(genArg), typeArgs: typeArgs);
+  }
+}
+
 extension MethodGenerating on Method {
-  void declare(StringBuffer output, {String? body, bool expression = true}) {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
     output.write(this.returnType?.toString() ?? 'void');
     output.write(' ');
     if (isOperator) output.write('operator');
@@ -53,7 +152,7 @@ extension MethodGenerating on Method {
     output.write('(${params.asDeclaration})');
     if (body == null) {
       output.write('{}');
-    } else if (expression) {
+    } else if (isExpression) {
       output.write(' => $body;');
     } else {
       output.writeln('{');
@@ -76,7 +175,7 @@ extension MethodGenerating on Method {
       );
     }
 
-    if (overridable_operators.contains(name)) {
+    if (isOperator) {
       if (name == '[]') {
         return '$target[${positional.first}]';
       } else if (name == '[]=') {
@@ -87,12 +186,13 @@ extension MethodGenerating on Method {
         return '$target $name ${positional.first}';
       }
     }
-    return call('$target.$name', positional, named: named);
+
+    return call(target == '' ? '$name' : '$target.$name', positional, named: named);
   }
 
   String invokeFromParams(String target,
       {String? Function(Param) genArg = _paramName, Iterable<Type> typeArgs = const []}) {
-    if (overridable_operators.contains(name)) {
+    if (isOperator) {
       if (name == '[]') {
         final arg = genArg(params.positional.first);
         assert(arg != null);
@@ -137,7 +237,7 @@ String callString(String callee, String args, {Iterable<Type> typeArgs = const [
   output.write(callee);
   output.write(renderedTypeParams);
   output.write('($args');
-  if (output.length > 60) {
+  if (output.length > 60 && !args.endsWith(',')) {
     output.write(',');
   }
   output.write(')');
@@ -152,7 +252,10 @@ String lambda(Iterable<String> params, Iterable<String> body) {
 
 extension TypeParamsGenerating on Iterable<TypeParam> {
   String get asDeclaration {
-    String joined = this.map((tp) => tp.nameWithBound).join(', ');
+    String joined = this.map((tp) {
+      final annotations = tp.annotations.isEmpty ? '' : tp.annotations.join(' ');
+      return '$annotations${tp.nameWithBound}';
+    }).join(', ');
     return joined.isEmpty ? '' : '<$joined>';
   }
 

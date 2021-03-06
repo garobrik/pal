@@ -43,18 +43,19 @@ Iterable<Param> _generateConcreteCopyWithFunction(
     ),
   );
   Type functionType = FunctionType.fromParams(returnType: constructor.parent, params: params);
-  final getter = Getter('copyWith', functionType);
   final constructorArgs = constructor.params.map(
     (p) {
       final body = '${p.name} == undefined ? this.${p.name} : ${p.name} as ${p.type}';
       return p.isNamed ? '${p.name}: $body,' : '$body,';
     },
   );
-  output.writeln(
-    getter.declare(
-      body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
-    ),
-  );
+
+  Getter(
+    'copyWith',
+    functionType,
+    body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
+  ).declare(output);
+
   return params;
 }
 
@@ -79,19 +80,18 @@ Iterable<Param> _generateCaseParentCopyWithFunction(StringBuffer output, Class c
     params: params,
   );
 
-  final getter = Getter('copyWith', functionType);
-
   final conditionsBodies = {
     for (final caze in cases)
       'this is $caze': 'return ((this as $caze).copyWith as ${functionType});',
   };
 
-  output.writeln(
-    getter.declare(
-      expression: false,
-      body: ifElse(conditionsBodies, elseBody: 'throw Error();'),
-    ),
-  );
+  Getter(
+    'copyWith',
+    functionType,
+    body: ifElse(conditionsBodies, elseBody: 'throw Error();'),
+    isExpression: false,
+  ).declare(output);
+
   return params;
 }
 

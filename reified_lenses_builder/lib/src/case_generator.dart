@@ -1,4 +1,3 @@
-import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:reified_lenses/annotations.dart';
 
 import 'parsing.dart';
@@ -24,18 +23,17 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
 
 void _generateTypeGetter(StringBuffer output, Class clazz, Iterable<Type> cases) {
   final param = Param(clazz, '_value');
-  final typeGetter = Getter('type', Type('GetCursor', args: [Type.type]));
   final ifElsePart = ifElse(
     {for (final caze in cases) '${param.name} is $caze': 'return $caze;'},
     elseBody: 'throw Exception(\'${clazz.name} type cursor getter: unknown subtype\');',
   );
-  output.writeln(
-    typeGetter.declare(
-      body: '''
+  Getter(
+    'type',
+    Type('GetCursor', args: [Type.type]),
+    body: '''
         thenGet<Type>(Getter.field(\'type\', ($param) { $ifElsePart }))
-  ''',
-    ),
-  );
+    ''',
+  ).declare(output);
 }
 
 void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases) {
@@ -50,16 +48,11 @@ void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases
       isRequired: true,
     ),
   );
-  final casesMethod = Method(
+  Method(
     'cases',
     typeParams: [typeParam],
     returnType: typeParam,
     params: params,
-  );
-
-  casesMethod.declare(
-    output,
-    expression: false,
     body: switchCase(
       'type.get',
       {
@@ -68,7 +61,7 @@ void _generateCasesMethod(StringBuffer output, Class clazz, Iterable<Type> cases
       },
       defaultBody: 'throw Exception(\'${clazz.name} cases cursor method: unkown subtype\');',
     ),
-  );
+  ).declare(output);
 }
 
 String _caseArgName(Type caze) =>

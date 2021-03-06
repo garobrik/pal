@@ -23,13 +23,11 @@ void generateMutations(StringBuffer output, Class clazz) {
     for (final mutationMutated in mutationMutateds) {
       final mutation = mutationMutated.first;
       final mutated = mutationMutated.second;
-      final method = Method(
+      Method(
         mutation.name,
         params: mutation.params,
         typeParams: mutation.typeParams,
-      );
-
-      method.declare(output, expression: false, body: '''
+        body: '''
         mutResult(
           (_obj) => MutResult(
             ${mutation.invokeFromParams("_obj")},
@@ -37,7 +35,8 @@ void generateMutations(StringBuffer output, Class clazz) {
             ${mutated.invokeFromParams("_obj")},
           ),
         );
-      ''');
+      ''',
+      ).declare(output);
     }
   });
 }

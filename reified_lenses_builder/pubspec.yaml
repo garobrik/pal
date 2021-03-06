@@ -13,6 +13,9 @@ dependencies:
   reified_lenses:
     path:
       ../reified_lenses
+  flutter_reified_lenses:
+    path:
+      ../flutter_reified_lenses
   build: '>=0.12.6 <2.0.0'
   source_gen: '>=0.9.0 <1.0.0'
   analyzer: ^1.0.0
