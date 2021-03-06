@@ -133,6 +133,9 @@ class _CursorImpl<T, S> extends Cursor<S> {
     );
     return result;
   }
+
+  @override
+  String toString() => 'Cursor($get)';
 }
 
 class _LoggingCursorCallback extends CursorCallback {
@@ -232,4 +235,7 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
     newCallbacks[callback.runtimeType] = callback;
     return _GetCursorImpl(state, getter, newCallbacks);
   }
+
+  @override
+  String toString() => 'GetCursor($get)';
 }

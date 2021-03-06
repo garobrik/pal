@@ -20,7 +20,11 @@ class MyApp extends StatelessWidget {
         home: CursorWidget<AppState>(
           create: () => AppState(null, Vec()),
           builder: (_, state) => Scaffold(
-            appBar: AppBar(title: Text('knose')),
+            appBar: AppBar(
+              title: Text(state.selectedTable.get == null
+                  ? 'knose'
+                  : state.tables[state.selectedTable.get!].title.get),
+            ),
             body: state.selectedTable.get == null
                 ? SizedBox.shrink()
                 : Center(
@@ -30,26 +34,32 @@ class MyApp extends StatelessWidget {
                     ),
                   ),
             drawer: Drawer(
-              child: ListView(
-                children: [
-                  for (final indexedTable in state.tables.indexedValues)
-                    TextButton(
-                      onPressed: () => state.selectedTable.set(indexedTable.index),
-                      child: Text(indexedTable.value.title.get),
-                    ),
-                  TextButton(
-                    onPressed: () => state.tables.add(
-                      model.Table(
-                        title: 'table ${state.tables.length.get + 1}',
-                        columns: Vec([
-                          model.StringColumn(title: 'name'),
-                          model.BooleanColumn(title: 'done'),
-                        ]),
+              child: Builder(
+                builder: (context) => ListView(
+                  children: [
+                    for (final indexedTable in state.tables.indexedValues)
+                      TextButton(
+                        onPressed: () => state.selectedTable.set(indexedTable.index),
+                        child: Text(indexedTable.value.title.get),
                       ),
-                    ),
-                    child: Text('Add Table'),
-                  )
-                ],
+                    TextButton(
+                      onPressed: () {
+                        state.tables.add(
+                          model.Table(
+                            title: 'table ${state.tables.length.get + 1}',
+                            columns: Vec([
+                              model.StringColumn(title: 'name'),
+                              model.BooleanColumn(title: 'done'),
+                            ]),
+                          ),
+                        );
+                        state.selectedTable.set(state.tables.length.get - 1);
+                        Navigator.pop(context);
+                      },
+                      child: Text('Add Table'),
+                    )
+                  ],
+                ),
               ),
             ),
           ),

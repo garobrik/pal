@@ -95,24 +95,27 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
       color: Theme.of(context).scaffoldBackgroundColor,
       border: Border(bottom: BorderSide()),
     ),
-    child: ReorderableRow(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      scrollController: scrollController,
-      onReorder: (a, b) {
-        final aVal = table.columns[a].get;
-        table.columns[a].set(table.columns[b].get);
-        table.columns[b].set(aVal);
-      },
+    child: Row(
       children: [
-        for (final indexedColumn in table.columns.indexedValues)
-          TableHeaderCell(
-            key: ValueKey(indexedColumn.index),
-            table: table,
-            column: indexedColumn.value,
-            columnIndex: indexedColumn.index,
-          ),
+        ReorderableRow(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          scrollController: scrollController,
+          onReorder: (a, b) {
+            final aVal = table.columns[a].get;
+            table.columns[a].set(table.columns[b].get);
+            table.columns[b].set(aVal);
+          },
+          children: [
+            for (final indexedColumn in table.columns.indexedValues)
+              TableHeaderCell(
+                key: ValueKey(indexedColumn.index),
+                table: table,
+                column: indexedColumn.value,
+                columnIndex: indexedColumn.index,
+              ),
+          ],
+        ),
         Container(
-          key: UniqueKey(),
           alignment: Alignment.centerLeft,
           child: IconButton(
             icon: Icon(Icons.add),
@@ -134,7 +137,6 @@ Widget _tableHeaderCell(
   required int columnIndex,
 }) {
   final isOpen = useState(false);
-  print('$columnIndex: ${isOpen.value}');
 
   return PortalEntry(
     visible: isOpen.value,
@@ -144,40 +146,10 @@ Widget _tableHeaderCell(
       elevation: 4.0,
       borderRadius: const BorderRadius.all(Radius.circular(3.0)),
       child: IntrinsicWidth(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TableTextField(column.title),
-            DropdownButton<model.ColumnCase>(
-              items: model.ColumnCase.each(
-                stringColumn: () => DropdownMenuItem(
-                  value: model.ColumnCase.stringColumn,
-                  child: Text('Text'),
-                ),
-                booleanColumn: () => DropdownMenuItem(
-                  value: model.ColumnCase.booleanColumn,
-                  child: Text('Checkbox'),
-                ),
-                intColumn: () => DropdownMenuItem(
-                  value: model.ColumnCase.intColumn,
-                  child: Text('Number'),
-                ),
-                dateColumn: () => DropdownMenuItem(
-                  value: model.ColumnCase.dateColumn,
-                  child: Text('Date'),
-                ),
-              ),
-              onChanged: (caze) => table.setColumnType(columnIndex, caze!),
-              value: column.caze.get,
-            ),
-            IconButton(
-              icon: Icon(Icons.remove),
-              onPressed: () {
-                table.removeColumn(columnIndex);
-                isOpen.value = false;
-              },
-            ),
-          ],
+        child: ColumnConfigurationDropdown(
+          column: column,
+          table: table,
+          columnIndex: columnIndex,
         ),
       ),
     ),
@@ -197,6 +169,48 @@ Widget _tableHeaderCell(
         child: Text(column.title.get),
       ),
     ),
+  );
+}
+
+@bound_widget
+Widget _columnConfigurationDropdown({
+  required Cursor<model.Column<Object>> column,
+  required Cursor<model.Table> table,
+  required int columnIndex,
+}) {
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      TableTextField(column.title),
+      DropdownButton<model.ColumnCase>(
+        items: model.ColumnCase.each(
+          stringColumn: () => DropdownMenuItem(
+            value: model.ColumnCase.stringColumn,
+            child: Text('Text'),
+          ),
+          booleanColumn: () => DropdownMenuItem(
+            value: model.ColumnCase.booleanColumn,
+            child: Text('Checkbox'),
+          ),
+          intColumn: () => DropdownMenuItem(
+            value: model.ColumnCase.intColumn,
+            child: Text('Number'),
+          ),
+          dateColumn: () => DropdownMenuItem(
+            value: model.ColumnCase.dateColumn,
+            child: Text('Date'),
+          ),
+        ),
+        onChanged: (caze) => table.setColumnType(columnIndex, caze!),
+        value: column.caze.get,
+      ),
+      IconButton(
+        icon: Icon(Icons.remove),
+        onPressed: () {
+          table.removeColumn(columnIndex);
+        },
+      ),
+    ],
   );
 }
 
