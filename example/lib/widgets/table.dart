@@ -244,18 +244,10 @@ Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
 
 @bound_widget
 Widget _tableIntField(Cursor<int> value) {
-  print('building int');
   final asString = value.then<String>(
     Lens.mk(
       (value) => GetResult(value.toString(), []),
-      (value, update) {
-        print(value);
-        print(update);
-        print(update(value.toString()));
-        print(int.tryParse(update(value.toString())));
-        print('');
-        return MutResult.allChanged(int.tryParse(update(value.toString())) ?? value);
-      },
+      (value, update) => MutResult.allChanged(int.tryParse(update(value.toString())) ?? value),
     ),
   );
   return TableTextField(
@@ -271,7 +263,6 @@ Widget _tableTextField(
   TextInputType? keyboardType,
   void Function(String)? onSubmitted,
 }) {
-  print('building text');
   final textController = useTextEditingController(text: text.get);
   useEffect(() {
     return text.listen(() => textController.text = text.get);
