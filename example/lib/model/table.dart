@@ -1,4 +1,5 @@
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
+import 'package:meta/meta.dart';
 
 part 'table.g.dart';
 
@@ -34,32 +35,34 @@ extension TableMutations on Cursor<Table> {
     columns.remove(index);
   }
 
-  void setColumnType(int index, Type columnType) {
-    late final Column<Object> column;
-    if (columnType == StringColumn) {
-      column = StringColumn(
+  void setColumnType(int index, ColumnCase columnType) {
+    final column = columnType.cases<Column<Object>>(
+      stringColumn: () => StringColumn(
         values: Vec(List.generate(length.get, (_) => ' ')),
         title: columns[index].title.get,
         width: columns[index].width.get,
-      );
-    } else if (columnType == BooleanColumn) {
-      column = BooleanColumn(
+      ),
+      booleanColumn: () => BooleanColumn(
         values: Vec(List.generate(length.get, (_) => false)),
         title: columns[index].title.get,
         width: columns[index].width.get,
-      );
-    } else if (columnType == IntColumn) {
-      column = IntColumn(
+      ),
+      intColumn: () => IntColumn(
         values: Vec(List.generate(length.get, (_) => 0)),
         title: columns[index].title.get,
         width: columns[index].width.get,
-      );
-    }
+      ),
+      dateColumn: () => DateColumn(
+        values: Vec(List.generate(length.get, (_) => DateTime.now())),
+        title: columns[index].title.get,
+        width: columns[index].width.get,
+      ),
+    );
     columns[index].set(column);
   }
 }
 
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn])
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn])
 abstract class Column<Value> extends Iterable<Value> {
   final Vec<Value> values;
   final double width;
@@ -119,4 +122,16 @@ class IntColumn extends Column<int> {
 
   @override
   int get defaultValue => 0;
+}
+
+@reify
+class DateColumn extends Column<DateTime> {
+  const DateColumn({
+    Vec<DateTime> values = const Vec(),
+    double width = DEFAULT_COLUMN_WIDTH,
+    String title = '',
+  }) : super(title: title, values: values, width: width);
+
+  @override
+  DateTime get defaultValue => DateTime.now();
 }

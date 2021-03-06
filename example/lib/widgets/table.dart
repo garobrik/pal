@@ -1,4 +1,5 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
@@ -45,7 +46,7 @@ class TableWidget extends HookWidget {
                 shrinkWrap: true,
                 slivers: [
                   SliverPersistentHeader(
-                    delegate: PersistentHeaderDelegate(TableHeader(table), height: 30.0),
+                    delegate: PersistentHeaderDelegate(TableHeader(table)),
                     pinned: true,
                   ),
                   ReorderableSliverList(
@@ -104,68 +105,11 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
       },
       children: [
         for (final indexedColumn in table.columns.indexedValues)
-          indexedColumn.value.bind(
-            (context, column) => GestureDetector(
-              onTap: () {
-                showDialog<Null>(
-                  context: context,
-                  builder: (dialogContext) => AlertDialog(
-                    content: column.bind(
-                      (context, column) => Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          TableTextField(
-                            column.title,
-                            onSubmitted: (_) {
-                              Navigator.pop(dialogContext);
-                            },
-                          ),
-                          DropdownButton<Type>(
-                            items: [
-                              DropdownMenuItem(
-                                child: Text('Text'),
-                                value: model.StringColumn,
-                              ),
-                              DropdownMenuItem(
-                                child: Text('Checkbox'),
-                                value: model.BooleanColumn,
-                              ),
-                              DropdownMenuItem(
-                                child: Text('Number'),
-                                value: model.IntColumn,
-                              ),
-                            ],
-                            onChanged: (type) => table.setColumnType(indexedColumn.index, type!),
-                            value: column.type.get,
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.remove),
-                            onPressed: () {
-                              table.removeColumn(indexedColumn.index);
-                              Navigator.pop(dialogContext);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
-              child: Container(
-                constraints: BoxConstraints.tightFor(
-                  width: column.width.get,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(
-                    right: const BorderSide(),
-                  ),
-                ),
-                padding: const EdgeInsets.all(2),
-                alignment: Alignment.centerLeft,
-                child: Text(column.title.get),
-              ),
-            ),
-            key: UniqueKey(),
+          TableHeaderCell(
+            key: ValueKey(indexedColumn.index),
+            table: table,
+            column: indexedColumn.value,
+            columnIndex: indexedColumn.index,
           ),
         Container(
           key: UniqueKey(),
@@ -178,6 +122,80 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
           ),
         ),
       ],
+    ),
+  );
+}
+
+@bound_widget
+Widget _tableHeaderCell(
+  BuildContext context, {
+  required Cursor<model.Table> table,
+  required Cursor<model.Column<Object>> column,
+  required int columnIndex,
+}) {
+  final isOpen = useState(false);
+  print('$columnIndex: ${isOpen.value}');
+
+  return PortalEntry(
+    visible: isOpen.value,
+    childAnchor: Alignment.bottomLeft,
+    portalAnchor: Alignment.topLeft,
+    portal: Material(
+      elevation: 4.0,
+      borderRadius: const BorderRadius.all(Radius.circular(3.0)),
+      child: IntrinsicWidth(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TableTextField(column.title),
+            DropdownButton<model.ColumnCase>(
+              items: model.ColumnCase.each(
+                stringColumn: () => DropdownMenuItem(
+                  value: model.ColumnCase.stringColumn,
+                  child: Text('Text'),
+                ),
+                booleanColumn: () => DropdownMenuItem(
+                  value: model.ColumnCase.booleanColumn,
+                  child: Text('Checkbox'),
+                ),
+                intColumn: () => DropdownMenuItem(
+                  value: model.ColumnCase.intColumn,
+                  child: Text('Number'),
+                ),
+                dateColumn: () => DropdownMenuItem(
+                  value: model.ColumnCase.dateColumn,
+                  child: Text('Date'),
+                ),
+              ),
+              onChanged: (caze) => table.setColumnType(columnIndex, caze!),
+              value: column.caze.get,
+            ),
+            IconButton(
+              icon: Icon(Icons.remove),
+              onPressed: () {
+                table.removeColumn(columnIndex);
+                isOpen.value = false;
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+    child: GestureDetector(
+      onTap: () => isOpen.value = !isOpen.value,
+      child: Container(
+        constraints: BoxConstraints.tightFor(
+          width: column.width.get,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            right: const BorderSide(),
+          ),
+        ),
+        padding: const EdgeInsets.all(2),
+        alignment: Alignment.centerLeft,
+        child: Text(column.title.get),
+      ),
     ),
   );
 }
@@ -227,6 +245,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
                 stringColumn: (column) => TableTextField(column.values[rowIndex]),
                 booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
                 intColumn: (column) => TableIntField(column.values[rowIndex]),
+                dateColumn: (column) => TableDateField(column.values[rowIndex]),
               ),
             ],
           ),
@@ -253,6 +272,41 @@ Widget _tableIntField(Cursor<int> value) {
   return TableTextField(
     asString,
     keyboardType: TextInputType.number,
+  );
+}
+
+@bound_widget
+Widget _tableDateField(Cursor<DateTime> date) {
+  final keyboardFocusNode = useFocusNode(skipTraversal: true);
+
+  return Form(
+    child: Builder(
+      builder: (context) => Focus(
+        skipTraversal: true,
+        onFocusChange: (hasFocus) {
+          if (!hasFocus) {
+            Form.of(context)!.save();
+          }
+        },
+        child: RawKeyboardListener(
+          focusNode: keyboardFocusNode,
+          onKey: (keyEvent) {
+            if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+              keyboardFocusNode.unfocus();
+            } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+              keyboardFocusNode.unfocus();
+            }
+          },
+          child: InputDatePickerFormField(
+            initialDate: date.get,
+            firstDate: DateTime.utc(0),
+            lastDate: DateTime.utc(10000),
+            fieldLabelText: null,
+            onDateSaved: (newDate) => date.set(newDate),
+          ),
+        ),
+      ),
+    ),
   );
 }
 
