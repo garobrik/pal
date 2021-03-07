@@ -42,10 +42,11 @@ extension FieldGenerating on Field {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
+    String constPrefix = isConst ? 'const ' : '';
     String staticPrefix = isStatic ? 'static ' : '';
     String finalPrefix = isFinal ? 'final ' : '';
     String suffix = initializer != null ? ' = $initializer;' : ';';
-    output.writeln('$staticPrefix$finalPrefix$type $name $suffix');
+    output.writeln('$staticPrefix$constPrefix$finalPrefix$type $name $suffix');
   }
 }
 

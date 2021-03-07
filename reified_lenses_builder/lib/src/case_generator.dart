@@ -33,6 +33,7 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
     ],
     fields: [
       Field('type', type: Type.type, isFinal: true),
+      _generateValues(clazz, cases),
       for (final caze in cases)
         Field(
           _caseArgName(caze),
@@ -119,6 +120,16 @@ Method _generateTypeCases(Class clazz, Iterable<Type> cases) {
       },
       defaultBody: 'throw Exception(\'${clazz.name} cases cursor method: unkown subtype\');',
     ),
+  );
+}
+
+Field _generateValues(Class clazz, Iterable<Type> cases) {
+  return Field(
+    'values',
+    isStatic: true,
+    isConst: true,
+    type: Type('List', args: [Type('${clazz.name}Case')]),
+    initializer: '[' + cases.map((caze) => '${clazz.name}Case.${_caseArgName(caze)},').join(' ') + ']',
   );
 }
 
