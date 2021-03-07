@@ -1,5 +1,6 @@
 import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
+import 'package:example/widgets/primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_portal/flutter_portal.dart';
@@ -21,9 +22,7 @@ class MyApp extends StatelessWidget {
           create: () => AppState(null, Vec()),
           builder: (_, state) => Scaffold(
             appBar: AppBar(
-              title: Text(state.selectedTable.get == null
-                  ? 'knose'
-                  : state.tables[state.selectedTable.get!].title.get),
+              title: Text('knose'),
             ),
             body: state.selectedTable.get == null
                 ? SizedBox.shrink()

@@ -1,8 +1,8 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
+import 'primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -40,43 +40,46 @@ class TableWidget extends HookWidget {
             child: Scrollbar(
               isAlwaysShown: true,
               controller: scrollController,
-              child: CustomScrollView(
-                controller: scrollController,
-                scrollDirection: Axis.vertical,
-                shrinkWrap: true,
-                slivers: [
-                  SliverPersistentHeader(
-                    delegate: PersistentHeaderDelegate(TableHeader(table)),
-                    pinned: true,
-                  ),
-                  ReorderableSliverList(
-                    onReorder: (a, b) {
-                      table.columns.forEach((column) {
-                        final bVal = column.values[b].get;
-                        column.values[b].set(column.values[a].get);
-                        column.values[a].set(bVal);
-                      });
-                    },
-                    delegate: ReorderableSliverChildBuilderDelegate(
-                      (_, i) => TableRow(table, i),
-                      childCount: table.length.get,
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CustomScrollView(
+                  controller: scrollController,
+                  scrollDirection: Axis.vertical,
+                  shrinkWrap: true,
+                  slivers: [
+                    SliverPersistentHeader(
+                      delegate: PersistentHeaderDelegate(TableHeader(table)),
+                      pinned: true,
                     ),
-                  ),
-                  SliverList(
-                    delegate: SliverChildListDelegate([
-                      Container(
-                        decoration: const BoxDecoration(
-                          border: Border(bottom: BorderSide()),
-                        ),
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          icon: Icon(Icons.add),
-                          onPressed: () => table.addRow(),
-                        ),
+                    ReorderableSliverList(
+                      onReorder: (a, b) {
+                        table.columns.forEach((column) {
+                          final bVal = column.values[b].get;
+                          column.values[b].set(column.values[a].get);
+                          column.values[a].set(bVal);
+                        });
+                      },
+                      delegate: ReorderableSliverChildBuilderDelegate(
+                        (_, i) => TableRow(table, i),
+                        childCount: table.length.get,
                       ),
-                    ]),
-                  )
-                ],
+                    ),
+                    SliverList(
+                      delegate: SliverChildListDelegate([
+                        Container(
+                          decoration: const BoxDecoration(
+                            border: Border(bottom: BorderSide()),
+                          ),
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            icon: Icon(Icons.add),
+                            onPressed: () => table.addRow(),
+                          ),
+                        ),
+                      ]),
+                    )
+                  ],
+                ),
               ),
             ),
           ),
@@ -136,38 +139,29 @@ Widget _tableHeaderCell(
   required Cursor<model.Column<Object>> column,
   required int columnIndex,
 }) {
-  final isOpen = useState(false);
-
-  return PortalEntry(
-    visible: isOpen.value,
+  return Dropdown(
+    isOpenOnHover: false,
     childAnchor: Alignment.bottomLeft,
-    portalAnchor: Alignment.topLeft,
-    portal: Material(
-      elevation: 4.0,
-      borderRadius: const BorderRadius.all(Radius.circular(3.0)),
-      child: IntrinsicWidth(
-        child: ColumnConfigurationDropdown(
-          column: column,
-          table: table,
-          columnIndex: columnIndex,
-        ),
+    dropdownAnchor: Alignment.topLeft,
+    dropdown: IntrinsicWidth(
+      child: ColumnConfigurationDropdown(
+        column: column,
+        table: table,
+        columnIndex: columnIndex,
       ),
     ),
-    child: GestureDetector(
-      onTap: () => isOpen.value = !isOpen.value,
-      child: Container(
-        constraints: BoxConstraints.tightFor(
-          width: column.width.get,
-        ),
-        decoration: BoxDecoration(
-          border: Border(
-            right: const BorderSide(),
-          ),
-        ),
-        padding: const EdgeInsets.all(2),
-        alignment: Alignment.centerLeft,
-        child: Text(column.title.get),
+    child: Container(
+      constraints: BoxConstraints.tightFor(
+        width: column.width.get,
       ),
+      decoration: BoxDecoration(
+        border: Border(
+          right: const BorderSide(),
+        ),
+      ),
+      padding: const EdgeInsets.all(2),
+      alignment: Alignment.centerLeft,
+      child: Text(column.title.get),
     ),
   );
 }
@@ -181,28 +175,21 @@ Widget _columnConfigurationDropdown({
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      TableTextField(column.title),
-      DropdownButton<model.ColumnCase>(
-        items: model.ColumnCase.each(
-          stringColumn: () => DropdownMenuItem(
-            value: model.ColumnCase.stringColumn,
-            child: Text('Text'),
-          ),
-          booleanColumn: () => DropdownMenuItem(
-            value: model.ColumnCase.booleanColumn,
-            child: Text('Checkbox'),
-          ),
-          intColumn: () => DropdownMenuItem(
-            value: model.ColumnCase.intColumn,
-            child: Text('Number'),
-          ),
-          dateColumn: () => DropdownMenuItem(
-            value: model.ColumnCase.dateColumn,
-            child: Text('Date'),
-          ),
+      BoundTextField(column.title),
+      Dropdown(
+        childAnchor: Alignment.topRight,
+        dropdownAnchor: Alignment.topLeft,
+        dropdown: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final caze in model.ColumnCase.values)
+              GestureDetector(
+                onTap: () => table.setColumnType(columnIndex, caze),
+                child: Text(caze.type.toString()),
+              ),
+          ],
         ),
-        onChanged: (caze) => table.setColumnType(columnIndex, caze!),
-        value: column.caze.get,
+        child: Text(column.caze.get.type.toString()),
       ),
       IconButton(
         icon: Icon(Icons.remove),
@@ -253,6 +240,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
                 ),
             ],
           ),
+          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
           child: Column(
             children: [
               column.cases(
@@ -273,6 +261,11 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
 Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
       value: checked.get,
       onChanged: (newChecked) => checked.set(newChecked!),
+      visualDensity: const VisualDensity(
+        horizontal: VisualDensity.minimumDensity,
+        vertical: VisualDensity.minimumDensity,
+      ),
+      splashRadius: 0,
     );
 
 @bound_widget
@@ -283,11 +276,23 @@ Widget _tableIntField(Cursor<int> value) {
       (value, update) => MutResult.allChanged(int.tryParse(update(value.toString())) ?? value),
     ),
   );
-  return TableTextField(
+  return BoundTextField(
     asString,
     keyboardType: TextInputType.number,
+    decoration: _tableCellBoundTextDecoration,
   );
 }
+
+@bound_widget
+Widget _tableTextField(Cursor<String> text) {
+  return BoundTextField(
+    text,
+    maxLines: null,
+    decoration: _tableCellBoundTextDecoration,
+  );
+}
+
+const _tableCellBoundTextDecoration = InputDecoration(border: InputBorder.none, isDense: true);
 
 @bound_widget
 Widget _tableDateField(Cursor<DateTime> date) {
@@ -324,61 +329,6 @@ Widget _tableDateField(Cursor<DateTime> date) {
   );
 }
 
-@bound_widget
-Widget _tableTextField(
-  BuildContext context,
-  Cursor<String> text, {
-  TextInputType? keyboardType,
-  void Function(String)? onSubmitted,
-}) {
-  final textController = useTextEditingController(text: text.get);
-  useEffect(() {
-    return text.listen(() => textController.text = text.get);
-  }, [textController, text]);
-  final keyboardFocusNode = useFocusNode(skipTraversal: true);
-
-  return Form(
-    child: Builder(
-      builder: (context) => Focus(
-        skipTraversal: true,
-        onFocusChange: (hasFocus) {
-          if (!hasFocus) {
-            Form.of(context)!.save();
-          }
-        },
-        child: RawKeyboardListener(
-          focusNode: keyboardFocusNode,
-          onKey: (keyEvent) {
-            if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-              keyboardFocusNode.unfocus();
-            } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-              if (!keyEvent.isShiftPressed) {
-                keyboardFocusNode.unfocus();
-              }
-            }
-          },
-          child: TextFormField(
-            maxLines: null,
-            controller: textController,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.all(4),
-              isDense: true,
-            ),
-            style: Theme.of(context).textTheme.bodyText2,
-            textAlignVertical: TextAlignVertical.top,
-            onSaved: (newText) {
-              text.set(newText!);
-              if (onSubmitted != null) onSubmitted(newText);
-            },
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   final double height;
@@ -392,7 +342,6 @@ class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
     bool overlapsContent,
   ) {
     return AnimatedContainer(
-      height: double.infinity,
       width: double.infinity,
       decoration: BoxDecoration(
         boxShadow: [
