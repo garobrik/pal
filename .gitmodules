@@ -2,3 +2,6 @@
 	path = reorderables
 	url = https://github.com/Three-Horsemen-of-Software-Engineering/reorderables
 	branch = beta/nullsafety_migration
+[submodule "my_flutter_portal"]
+	path = my_flutter_portal
+	url = git@github.com:shrouxm/flutter_portal
