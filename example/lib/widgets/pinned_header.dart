@@ -3,14 +3,10 @@ import 'dart:math';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+// Adapted from the code for SliverPersistentHeader with pinned: true, at commit cc9b78fc5c
+
 class SliverPinnedHeader extends RenderObjectWidget {
-  const SliverPinnedHeader({
-    Key? key,
-    required this.builder,
-  }) : super(
-          key: key,
-          // delegate: delegate,
-        );
+  const SliverPinnedHeader({Key? key, required this.builder}) : super(key: key);
 
   final Widget Function(BuildContext, bool) builder;
 
@@ -19,10 +15,7 @@ class SliverPinnedHeader extends RenderObjectWidget {
 
   @override
   RenderSliverPinnedPersistentHeader createRenderObject(BuildContext context) {
-    return RenderSliverPinnedPersistentHeader(
-        // stretchConfiguration: delegate.stretchConfiguration,
-        // showOnScreenConfiguration: delegate.showOnScreenConfiguration,
-        );
+    return RenderSliverPinnedPersistentHeader();
   }
 }
 
@@ -95,33 +88,16 @@ class SliverPinnedHeaderElement extends RenderObjectElement {
   }
 }
 
-/// A sliver with a [RenderBox] child which never scrolls off the viewport in
-/// the positive scroll direction, and which first scrolls on at a full size but
-/// then shrinks as the viewport continues to scroll.
+/// A sliver with a [RenderBox] child which never scrolls off the viewport.
 ///
 /// This sliver avoids overlapping other earlier slivers where possible.
 class RenderSliverPinnedPersistentHeader extends RenderSliver
     with RenderObjectWithChildMixin<RenderBox>, RenderSliverHelpers {
   SliverPinnedHeaderElement? _element;
 
-  /// Creates a sliver that shrinks when it hits the start of the viewport, then
-  /// stays pinned there.
-  RenderSliverPinnedPersistentHeader({
-    RenderBox? child,
-    // OverScrollHeaderStretchConfiguration? stretchConfiguration,
-    // this.showOnScreenConfiguration = const PersistentHeaderShowOnScreenConfiguration(),
-  }) // : super(
-  //      stretchConfiguration: stretchConfiguration,
-  //    )
-  {
+  RenderSliverPinnedPersistentHeader({RenderBox? child}) {
     this.child = child;
   }
-
-  // /// Specifies the persistent header's behavior when `showOnScreen` is called.
-  // ///
-  // /// If set to null, the persistent header will delegate the `showOnScreen` call
-  // /// to it's parent [RenderObject].
-  // PersistentHeaderShowOnScreenConfiguration? showOnScreenConfiguration;
 
   @override
   void performLayout() {
@@ -201,32 +177,12 @@ class RenderSliverPinnedPersistentHeader extends RenderSliver
   bool _needsUpdateChild = true;
   bool _lastOverlapsContent = false;
 
-  /// Defines the parameters used to execute an [AsyncCallback] when a
-  /// stretching header over-scrolls.
-  ///
-  /// If [stretchConfiguration] is null then callback is not triggered.
-  ///
-  /// See also:
-  ///
-  ///  * [SliverAppBar], which creates a header that can stretched into an
-  ///    overscroll area and trigger a callback function.
-  OverScrollHeaderStretchConfiguration? stretchConfiguration;
-
   /// Update the child render object if necessary.
   ///
   /// Called before the first layout, any time [markNeedsLayout] is called, and
-  /// any time the scroll offset changes. The `shrinkOffset` is the difference
-  /// between the [maxExtent] and the current size. Zero means the header is
-  /// fully expanded, any greater number up to [maxExtent] means that the header
-  /// has been scrolled by that much. The `overlapsContent` argument is true if
+  /// any time the scroll offset changes. The `overlapsContent` argument is true if
   /// the sliver's leading edge is beyond its normal place in the viewport
-  /// contents, and false otherwise. It may still paint beyond its normal place
-  /// if the [minExtent] after this call is greater than the amount of space that
-  /// would normally be left.
-  ///
-  /// The render object will size itself to the larger of (a) the [maxExtent]
-  /// minus the child's intrinsic height and (b) the [maxExtent] minus the
-  /// shrink offset.
+  /// contents, and false otherwise.
   ///
   /// When this method is called by [layoutChild], the [child] can be set,
   /// mutated, or replaced. (It should not be called outside [layoutChild].)
@@ -245,10 +201,7 @@ class RenderSliverPinnedPersistentHeader extends RenderSliver
 
   /// Lays out the [child].
   ///
-  /// This is called by [performLayout]. It applies the given `scrollOffset`
-  /// (which need not match the offset given by the [constraints]) and the
-  /// `maxExtent` (which need not match the value returned by the [maxExtent]
-  /// getter).
+  /// This is called by [performLayout].
   ///
   /// The `overlapsContent` argument is passed to [updateChild].
   @protected
