@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -17,13 +15,12 @@ Widget _boundTextField(
   InputDecoration? decoration,
   TextStyle? style,
   TextAlignVertical? textAlignVertical,
-  void Function(String)? onSubmitted,
+  void Function(String)? onChanged,
 }) {
   final textController = useTextEditingController(text: text.get);
-  useEffect(() {
-    return text.listen(() => textController.text = text.get);
-  }, [textController, text]);
-  final keyboardFocusNode = useFocusNode(skipTraversal: true);
+  // useEffect(() {
+  //   return text.listen(() => textController.text = text.get);
+  // }, [textController, text]);
 
   return Form(
     child: Builder(
@@ -34,29 +31,29 @@ Widget _boundTextField(
             Form.of(context)!.save();
           }
         },
-        child: RawKeyboardListener(
-          focusNode: keyboardFocusNode,
-          onKey: (keyEvent) {
-            if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-              keyboardFocusNode.unfocus();
-            } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-              if (!keyEvent.isShiftPressed) {
-                keyboardFocusNode.unfocus();
-              }
+        onKey: (focus, keyEvent) {
+          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+            focus.unfocus();
+            return true;
+          } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+            if (!keyEvent.isShiftPressed) {
+              focus.nextFocus();
+              return true;
             }
+          }
+          return false;
+        },
+        child: TextField(
+          maxLines: maxLines,
+          controller: textController,
+          keyboardType: keyboardType,
+          decoration: decoration,
+          style: style,
+          textAlignVertical: textAlignVertical,
+          onChanged: (newText) {
+            text.set(newText);
+            if (onChanged != null) onChanged(newText);
           },
-          child: TextFormField(
-            maxLines: maxLines,
-            controller: textController,
-            keyboardType: keyboardType,
-            decoration: decoration,
-            style: style,
-            textAlignVertical: textAlignVertical,
-            onSaved: (newText) {
-              text.set(newText!);
-              if (onSubmitted != null) onSubmitted(newText);
-            },
-          ),
         ),
       ),
     ),
@@ -70,62 +67,39 @@ Widget _dropdown({
   Alignment? childAnchor,
   Alignment? dropdownAnchor,
   bool isOpenOnHover = true,
+  ButtonStyle? style,
 }) {
-  final isParentHovered = useState(false);
-  final isChildHovered = useState(false);
   final isOpen = useState(false);
   final focusNode = useFocusNode();
-  if (isOpenOnHover) {
-    useEffect(() {
-      focusNode.addListener(() {
-        if (focusNode.hasFocus) {
-          isParentHovered.value = true;
-        } else {
-          isParentHovered.value = false;
-        }
-      });
-    });
-  }
 
-  return RawKeyboardListener(
-    focusNode: focusNode,
-    onKey: (keyEvent) {
-      if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-        isOpen.value = true;
-      } else if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-        isOpen.value = false;
-      }
-    },
-    child: ConditionalParent(
-      condition: isOpenOnHover,
-      parent: (child) => MouseRegion(
-        onEnter: (_) => isParentHovered.value = true,
-        onHover: (_) => isParentHovered.value = true,
-        onExit: (_) => Timer(Duration(milliseconds: 10), () => isParentHovered.value = false),
-        child: child,
-      ),
+  return FocusTraversalGroup(
+    child: Focus(
+      skipTraversal: true,
+      onFocusChange: (hasFocus) {
+        if (!hasFocus) {
+          isOpen.value = false;
+        }
+      },
+      onKey: (focusNode, keyEvent) {
+        return false;
+      },
       child: PortalEntry(
-        visible: isOpen.value || isParentHovered.value || isChildHovered.value,
+        visible: isOpen.value,
         childAnchor: childAnchor,
         portalAnchor: dropdownAnchor,
-        portal: ConditionalParent(
-          condition: isOpenOnHover,
-          parent: (child) => MouseRegion(
-            onEnter: (_) => isChildHovered.value = true,
-            onHover: (_) => isChildHovered.value = true,
-            onExit: (_) => Timer(Duration(milliseconds: 10), () => isChildHovered.value = false),
-            child: child,
-          ),
+        portal: FocusTraversalGroup(
           child: Material(
             elevation: 4.0,
             borderRadius: const BorderRadius.all(Radius.circular(3.0)),
             child: dropdown,
           ),
         ),
-        child: GestureDetector(
-          onTap: () {
-            if (!isParentHovered.value && !isChildHovered.value) {
-              isOpen.value = !isOpen.value;
+        child: TextButton(
+          focusNode: focusNode,
+          style: style,
+          onPressed: () {
+            isOpen.value = !isOpen.value;
+            if (isOpen.value == true) {
               focusNode.requestFocus();
             }
           },

@@ -1,6 +1,5 @@
 import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
-import 'package:example/widgets/primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_portal/flutter_portal.dart';

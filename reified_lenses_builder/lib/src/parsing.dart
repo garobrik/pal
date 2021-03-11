@@ -205,15 +205,15 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
   final bool isConst;
   final bool isFactory;
 
-  const Constructor(
-      {String name = '',
-      this.params = const [],
-      required this.parent,
-      this.initializers,
-      this.isConst = false,
-      this.isFactory = false,
-      Iterable<String> annotations = const []})
-      : super(name: name, annotations: annotations);
+  const Constructor({
+    String name = '',
+    this.params = const [],
+    required this.parent,
+    this.initializers,
+    this.isConst = false,
+    this.isFactory = false,
+    Iterable<String> annotations = const [],
+  }) : super(name: name, annotations: annotations);
 
   Constructor.fromElement(LibraryElement usageContext, ConstructorElement element, this.parent)
       : params = element.parameters.map((p) => Param.fromElement(usageContext, p)),

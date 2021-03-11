@@ -3,6 +3,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
 import 'primitives.dart';
+import 'pinned_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -47,9 +48,23 @@ class TableWidget extends HookWidget {
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
                   slivers: [
-                    SliverPersistentHeader(
-                      delegate: PersistentHeaderDelegate(TableHeader(table)),
-                      pinned: true,
+                    SliverPinnedHeader(
+                      builder: (_, overlapsContent) => AnimatedContainer(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            if (overlapsContent)
+                              BoxShadow(
+                                blurRadius: 3,
+                                spreadRadius: -4,
+                                offset: Offset(0, 4.0),
+                                color: Colors.grey,
+                              )
+                          ],
+                        ),
+                        duration: Duration(milliseconds: 100),
+                        child: TableHeader(table),
+                      ),
                     ),
                     ReorderableSliverList(
                       onReorder: (a, b) {
@@ -98,36 +113,55 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
       color: Theme.of(context).scaffoldBackgroundColor,
       border: Border(bottom: BorderSide()),
     ),
-    child: Row(
-      children: [
-        ReorderableRow(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          scrollController: scrollController,
-          onReorder: (a, b) {
-            final aVal = table.columns[a].get;
-            table.columns[a].set(table.columns[b].get);
-            table.columns[b].set(aVal);
-          },
-          children: [
-            for (final indexedColumn in table.columns.indexedValues)
-              TableHeaderCell(
-                key: ValueKey(indexedColumn.index),
-                table: table,
-                column: indexedColumn.value,
-                columnIndex: indexedColumn.index,
-              ),
-          ],
-        ),
-        Container(
-          alignment: Alignment.centerLeft,
-          child: IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => table.columns.add(
-              model.StringColumn.empty(length: table.length.get),
+    child: IntrinsicHeight(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            child:
+                // TextButton(
+                //   onPressed: () {},
+                //   child: Text(table.title.get, style: Theme.of(context).textTheme.headline3),
+                // ),
+                BoundTextField(
+              table.title,
+              style: Theme.of(context).textTheme.headline3,
+              decoration: _tableCellBoundTextDecoration,
             ),
           ),
-        ),
-      ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                // scrollController: scrollController,
+                // onReorder: (a, b) {
+                //   final aVal = table.columns[a].get;
+                //   table.columns[a].set(table.columns[b].get);
+                //   table.columns[b].set(aVal);
+                // },
+                children: [
+                  for (final indexedColumn in table.columns.indexedValues)
+                    TableHeaderCell(
+                      key: ValueKey(indexedColumn.index),
+                      table: table,
+                      column: indexedColumn.value,
+                      columnIndex: indexedColumn.index,
+                    ),
+                ],
+              ),
+              Container(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: Icon(Icons.add),
+                  onPressed: () => table.columns.add(
+                    model.StringColumn.empty(length: table.length.get),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -140,6 +174,7 @@ Widget _tableHeaderCell(
   required int columnIndex,
 }) {
   return Dropdown(
+    style: ButtonStyle(alignment: Alignment.bottomLeft),
     isOpenOnHover: false,
     childAnchor: Alignment.bottomLeft,
     dropdownAnchor: Alignment.topLeft,
@@ -160,7 +195,7 @@ Widget _tableHeaderCell(
         ),
       ),
       padding: const EdgeInsets.all(2),
-      alignment: Alignment.centerLeft,
+      alignment: Alignment.bottomLeft,
       child: Text(column.title.get),
     ),
   );

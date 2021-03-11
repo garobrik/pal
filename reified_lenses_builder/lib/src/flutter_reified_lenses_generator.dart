@@ -87,6 +87,7 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
     constructors: (clazz) => [
       Constructor(
         parent: clazz,
+        isConst: true,
         params: [
           for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
           Param(resolvedTypes.key.asNullable, 'key', isNamed: true, isRequired: false),
