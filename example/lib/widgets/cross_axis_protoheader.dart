@@ -7,12 +7,20 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 part 'cross_axis_protoheader.g.dart';
 
 @bound_widget
-Widget _crossAxisProtoheader({required Widget Function(bool) header, required Widget Function(ScrollController) body}) {
+Widget _crossAxisProtoheader({
+  required Widget Function(bool) header,
+  required Widget Function(ScrollController) body,
+}) {
   final scrollController = useScrollController();
   final isScrolled = useState(false);
-  scrollController.addListener(() {
-    isScrolled.value = scrollController.offset != 0;
-  });
+  useEffect(
+    () {
+      final listener = () => isScrolled.value = scrollController.offset != 0;
+      scrollController.addListener(listener);
+      return listener;
+    },
+    [scrollController, isScrolled],
+  );
 
   return PrimaryScrollController(
     controller: scrollController,
