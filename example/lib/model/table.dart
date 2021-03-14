@@ -6,7 +6,7 @@ part 'table.g.dart';
 const DEFAULT_COLUMN_WIDTH = 100.0;
 
 @reify
-class Table {
+class Table with _TableMixin {
   final String title;
   final Vec<Column<Object>> columns;
 
@@ -86,7 +86,7 @@ extension ColumnLengthExtension<Value> on GetCursor<Column<Value>> {
 }
 
 @reify
-class BooleanColumn extends Column<bool> {
+class BooleanColumn extends Column<bool> with _BooleanColumnMixin {
   const BooleanColumn({
     Vec<bool> values = const Vec(),
     double width = DEFAULT_COLUMN_WIDTH,
@@ -98,7 +98,7 @@ class BooleanColumn extends Column<bool> {
 }
 
 @reify
-class StringColumn extends Column<String> {
+class StringColumn extends Column<String> with _StringColumnMixin {
   static StringColumn empty({int length = 0}) =>
       StringColumn(values: Vec(List.generate(length, (_) => '')));
 
@@ -113,7 +113,7 @@ class StringColumn extends Column<String> {
 }
 
 @reify
-class IntColumn extends Column<int> {
+class IntColumn extends Column<int> with _IntColumnMixin {
   const IntColumn({
     Vec<int> values = const Vec(),
     double width = DEFAULT_COLUMN_WIDTH,
@@ -125,7 +125,7 @@ class IntColumn extends Column<int> {
 }
 
 @reify
-class DateColumn extends Column<DateTime> {
+class DateColumn extends Column<DateTime> with _DateColumnMixin {
   const DateColumn({
     Vec<DateTime> values = const Vec(),
     double width = DEFAULT_COLUMN_WIDTH,
