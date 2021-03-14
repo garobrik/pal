@@ -17,46 +17,53 @@ class MyApp extends StatelessWidget {
     return Portal(
       child: MaterialApp(
         title: 'Flutter Demo',
-        home: CursorWidget<AppState>(
-          create: () => AppState(null, Vec()),
-          builder: (_, state) => Scaffold(
-            appBar: AppBar(
-              title: Text('knose'),
+        home: Theme(
+          data: Theme.of(context).copyWith(
+            scrollbarTheme: ScrollbarTheme.of(context).copyWith(
+              isAlwaysShown: true,
             ),
-            body: state.selectedTable.get == null
-                ? SizedBox.shrink()
-                : Center(
-                    child: TableWidget(
-                      state.tables[state.selectedTable.get!],
-                      key: ValueKey(state.selectedTable.get),
-                    ),
-                  ),
-            drawer: Drawer(
-              child: Builder(
-                builder: (context) => ListView(
-                  children: [
-                    for (final indexedTable in state.tables.indexedValues)
-                      TextButton(
-                        onPressed: () => state.selectedTable.set(indexedTable.index),
-                        child: Text(indexedTable.value.title.get),
+          ),
+          child: CursorWidget<AppState>(
+            create: () => AppState(null, Vec()),
+            builder: (_, state) => Scaffold(
+              appBar: AppBar(
+                title: Text('knose'),
+              ),
+              body: state.selectedTable.get == null
+                  ? SizedBox.shrink()
+                  : Center(
+                      child: TableWidget(
+                        state.tables[state.selectedTable.get!],
+                        key: ValueKey(state.selectedTable.get),
                       ),
-                    TextButton(
-                      onPressed: () {
-                        state.tables.add(
-                          model.Table(
-                            title: 'table ${state.tables.length.get + 1}',
-                            columns: Vec([
-                              model.StringColumn(title: 'name'),
-                              model.BooleanColumn(title: 'done'),
-                            ]),
-                          ),
-                        );
-                        state.selectedTable.set(state.tables.length.get - 1);
-                        Navigator.pop(context);
-                      },
-                      child: Text('Add Table'),
-                    )
-                  ],
+                    ),
+              drawer: Drawer(
+                child: Builder(
+                  builder: (context) => ListView(
+                    children: [
+                      for (final indexedTable in state.tables.indexedValues)
+                        TextButton(
+                          onPressed: () => state.selectedTable.set(indexedTable.index),
+                          child: Text(indexedTable.value.title.get),
+                        ),
+                      TextButton(
+                        onPressed: () {
+                          state.tables.add(
+                            model.Table(
+                              title: 'table ${state.tables.length.get + 1}',
+                              columns: Vec([
+                                model.StringColumn(title: 'name'),
+                                model.BooleanColumn(title: 'done'),
+                              ]),
+                            ),
+                          );
+                          state.selectedTable.set(state.tables.length.get - 1);
+                          Navigator.pop(context);
+                        },
+                        child: Text('Add Table'),
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),
