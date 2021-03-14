@@ -9,39 +9,35 @@ import 'package:flutter/services.dart';
 
 part 'table.g.dart';
 
-class TableWidget extends HookWidget {
-  final Cursor<model.Table> table;
-  TableWidget(this.table, {Key? key}) : super(key: key);
+@bound_widget
+Widget _tableWidget(Cursor<model.Table> table) {
+  final horizontalController = useScrollController();
 
-  @override
-  Widget build(BuildContext context) {
-    final horizontalScrollController = useScrollController();
-    final table = useBoundCursor(this.table);
-
-    return Scrollbar(
-      isAlwaysShown: true,
-      controller: horizontalScrollController,
+  return Padding(
+    padding: EdgeInsets.all(20),
+    child: Scrollbar(
+      controller: horizontalController,
       child: SingleChildScrollView(
+        controller: horizontalController,
         scrollDirection: Axis.horizontal,
-        controller: horizontalScrollController,
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Container(
-            decoration: BoxDecoration(),
-            clipBehavior: Clip.hardEdge,
-            child: CrossAxisProtoheader(
-              header: (_) => Container(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      blurRadius: 6,
-                      color: Colors.grey,
-                    ),
-                  ],
-                ),
-                child: TableHeader(table),
+        child: Container(
+          clipBehavior: Clip.hardEdge,
+          padding: EdgeInsets.only(bottom: 15),
+          child: CrossAxisProtoheader(
+            header: (_) => Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 6,
+                    color: Colors.grey,
+                  ),
+                ],
               ),
-              body: (scrollController) => CustomScrollView(
+              child: TableHeader(table),
+            ),
+            body: (scrollController) => Scrollbar(
+              controller: scrollController,
+              child: CustomScrollView(
                 controller: scrollController,
                 scrollDirection: Axis.vertical,
                 shrinkWrap: true,
@@ -80,8 +76,8 @@ class TableWidget extends HookWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 @bound_widget
