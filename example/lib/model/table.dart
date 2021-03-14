@@ -25,9 +25,9 @@ extension TableComputations on GetCursor<Table> {
 extension TableMutations on Cursor<Table> {
   void addRow([int? index]) {
     columns.atomically((columns) {
-      columns.forEach((column) {
+      for (final column in columns.values) {
         column.values.insert(index ?? length.get, column.defaultValue.get);
-      });
+      }
     });
   }
 

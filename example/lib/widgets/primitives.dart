@@ -15,7 +15,6 @@ Widget _boundTextField(
   InputDecoration? decoration,
   TextStyle? style,
   TextAlignVertical? textAlignVertical,
-  void Function(String)? onChanged,
 }) {
   final textController = useTextEditingController(text: text.get);
   // useEffect(() {
@@ -26,11 +25,6 @@ Widget _boundTextField(
     child: Builder(
       builder: (context) => Focus(
         skipTraversal: true,
-        onFocusChange: (hasFocus) {
-          if (!hasFocus) {
-            Form.of(context)!.save();
-          }
-        },
         onKey: (focus, keyEvent) {
           if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
             focus.unfocus();
@@ -43,17 +37,14 @@ Widget _boundTextField(
           }
           return false;
         },
-        child: TextField(
+        child: TextFormField(
           maxLines: maxLines,
           controller: textController,
           keyboardType: keyboardType,
           decoration: decoration,
           style: style,
           textAlignVertical: textAlignVertical,
-          onChanged: (newText) {
-            text.set(newText);
-            if (onChanged != null) onChanged(newText);
-          },
+          onChanged: (newText) => text.set(newText),
         ),
       ),
     ),
@@ -80,9 +71,6 @@ Widget _dropdown({
           isOpen.value = false;
         }
       },
-      onKey: (focusNode, keyEvent) {
-        return false;
-      },
       child: PortalEntry(
         visible: isOpen.value,
         childAnchor: childAnchor,
@@ -108,14 +96,4 @@ Widget _dropdown({
       ),
     ),
   );
-}
-
-@bound_widget
-Widget _conditionalParent(
-    {required bool condition, required Widget child, required Widget Function(Widget) parent}) {
-  if (condition) {
-    return parent(child);
-  } else {
-    return child;
-  }
 }

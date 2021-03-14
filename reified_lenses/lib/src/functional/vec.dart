@@ -90,20 +90,20 @@ extension VecForEach<T> on Cursor<Vec<T>> {
       yield IndexedValue(index, this[index]);
     }
   }
-
-  void forEach(void Function(Cursor<T> b) f) {
-    final length = this.length.get;
-    for (int i = 0; i < length; i++) {
-      f(this[i]);
-    }
-  }
 }
 
 extension VecGetForEach<T> on GetCursor<Vec<T>> {
-  void forEach(void Function(GetCursor<T> b) f) {
+  Iterable<GetCursor<T>> get values sync* {
     final length = this.length.get;
-    for (int i = 0; i < length; i++) {
-      f(this[i]);
+    for (final index in range(length)) {
+      yield this[index];
+    }
+  }
+
+  Iterable<IndexedValue<GetCursor<T>>> get indexedValues sync* {
+    final length = this.length.get;
+    for (final index in range(length)) {
+      yield IndexedValue(index, this[index]);
     }
   }
 }
