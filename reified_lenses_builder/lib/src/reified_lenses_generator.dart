@@ -6,6 +6,7 @@ import 'package:reified_lenses/annotations.dart';
 import 'dart:core' as core;
 import 'dart:core';
 
+import 'mixin_generator.dart';
 import 'copy_generator.dart';
 import 'case_generator.dart';
 import 'mutation_generator.dart';
@@ -43,6 +44,7 @@ class GeneratorContext {
     ];
     generateMutations(output, clazz);
     maybeGenerateCasesExtension(output, clazz);
+    generateMixin(output, clazz);
     composers.forEach((composer) {
       OpticKind.values.forEach((kind) {
         composer.extension(clazz, kind, optics)?.declare(output);
@@ -248,9 +250,9 @@ class Optic {
     late final thenArg = call(
       parentKind.fieldCtor,
       [
-        fieldArg ?? "'${name}'",
-        getBody ?? '(t) => t.${name}',
-        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
+        fieldArg ?? "'$name'",
+        getBody ?? '(t) => t.$name',
+        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith($name: f(t.$name))',
       ],
     );
     final returnType = composer.zoom(clazz, zoomedType, parentKind);
@@ -277,9 +279,9 @@ class Optic {
     late final thenArg = call(
       parentKind.fieldCtor,
       [
-        fieldArg ?? "'${name}'",
-        getBody ?? '(t) => t.${name}',
-        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith(${name}: f(t.${name}))',
+        fieldArg ?? "'$name'",
+        getBody ?? '(t) => t.$name',
+        if (parentKind == OpticKind.Lens) mutBody ?? '(t, f) => t.copyWith($name: f(t.$name))',
       ],
     );
     final returnType = composer.zoom(clazz, zoomedType, parentKind);

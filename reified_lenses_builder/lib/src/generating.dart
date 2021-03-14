@@ -6,6 +6,7 @@ extension ClassGenerating on Class {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
+    if (isAbstract) output.write('abstract ');
     output.write('class $name${params.asDeclaration}');
     if (extendedType != null) output.write(' extends $extendedType');
     output.writeln(' {');
@@ -378,3 +379,5 @@ String switchCase(String switched, Map<String, String> casesBodies, {String? def
   output.writeln('}');
   return output.toString();
 }
+
+String statements(Iterable<String> statements) => statements.map((s) => '$s;').join('\n');

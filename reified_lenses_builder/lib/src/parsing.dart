@@ -6,6 +6,7 @@ import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
 import 'package:analyzer/dart/element/type.dart' as analyzer_type;
+import 'package:analyzer/dart/element/type_provider.dart';
 import 'package:build/build.dart';
 import 'package:meta/meta.dart' as meta;
 import 'package:source_gen/source_gen.dart';
@@ -28,6 +29,13 @@ abstract class ElementAnalogue<T extends Element> {
   bool hasAnnotation(core.Type t) => element?.hasAnnotation(t) ?? false;
 
   ConstantReader? getAnnotation(core.Type t) => element?.getAnnotation(t);
+
+  Type getType(analyzer_type.DartType Function(TypeProvider) getter) =>
+      Type.fromDartType(element!.library!, getter(element!.library!.typeProvider));
+
+  Type get objectType => getType((provider) => provider.objectType);
+  Type get intType => getType((provider) => provider.intType);
+  Type get boolType => getType((provider) => provider.boolType);
 
   bool get isPrivate => name.startsWith('_');
 }
@@ -133,7 +141,6 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
     Iterable<String> annotations = const [],
     Type? extendedType,
     this.isAbstract = false,
-    bool isPrivate = false,
   })  : dartType = null,
         super(
           name: name,
@@ -825,7 +832,7 @@ extension ElementAnnotationExtension on Element {
 
 extension ElementLoggingExtension on Element {
   String get logString {
-    return '${location?.components}:${name}';
+    return '${location?.components}:$name';
   }
 }
 
