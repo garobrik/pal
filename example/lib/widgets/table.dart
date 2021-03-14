@@ -1,9 +1,9 @@
+import 'package:example/widgets/cross_axis_protoheader.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
 import 'primitives.dart';
-import 'pinned_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,17 +16,7 @@ class TableWidget extends HookWidget {
   @override
   Widget build(BuildContext context) {
     final horizontalScrollController = useScrollController();
-    final scrollController = useScrollController();
     final table = useBoundCursor(this.table);
-
-    double width = 0;
-    for (int column = 0; column < table.columns.length.get; column++) {
-      width += table.columns[column].width.get;
-      if (column != 0) {
-        width += 1;
-      }
-    }
-    width += 100;
 
     return Scrollbar(
       isAlwaysShown: true,
@@ -34,67 +24,57 @@ class TableWidget extends HookWidget {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         controller: horizontalScrollController,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: width),
-          child: PrimaryScrollController(
-            controller: scrollController,
-            child: Scrollbar(
-              isAlwaysShown: true,
-              controller: scrollController,
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CustomScrollView(
-                  controller: scrollController,
-                  scrollDirection: Axis.vertical,
-                  shrinkWrap: true,
-                  slivers: [
-                    SliverPinnedHeader(
-                      builder: (_, overlapsContent) => AnimatedContainer(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            if (overlapsContent)
-                              BoxShadow(
-                                blurRadius: 3,
-                                spreadRadius: -4,
-                                offset: Offset(0, 4.0),
-                                color: Colors.grey,
-                              )
-                          ],
-                        ),
-                        duration: Duration(milliseconds: 100),
-                        child: TableHeader(table),
-                      ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Container(
+            decoration: BoxDecoration(),
+            clipBehavior: Clip.hardEdge,
+            child: CrossAxisProtoheader(
+              header: (_) => Container(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      blurRadius: 6,
+                      color: Colors.grey,
                     ),
-                    ReorderableSliverList(
-                      onReorder: (a, b) {
-                        table.columns.forEach((column) {
-                          final bVal = column.values[b].get;
-                          column.values[b].set(column.values[a].get);
-                          column.values[a].set(bVal);
-                        });
-                      },
-                      delegate: ReorderableSliverChildBuilderDelegate(
-                        (_, i) => TableRow(table, i),
-                        childCount: table.length.get,
-                      ),
-                    ),
-                    SliverList(
-                      delegate: SliverChildListDelegate([
-                        Container(
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide()),
-                          ),
-                          alignment: Alignment.centerLeft,
-                          child: IconButton(
-                            icon: Icon(Icons.add),
-                            onPressed: () => table.addRow(),
-                          ),
-                        ),
-                      ]),
-                    )
                   ],
                 ),
+                child: TableHeader(table),
+              ),
+              body: (scrollController) => CustomScrollView(
+                controller: scrollController,
+                scrollDirection: Axis.vertical,
+                shrinkWrap: true,
+                slivers: [
+                  ReorderableSliverList(
+                    onReorder: (old, nu) {
+                      table.columns.atomically((columns) {
+                        for (final column in columns.values) {
+                          column.values.insert(nu < old ? nu : nu + 1, column.values[old].get);
+                          column.values.remove(nu < old ? old + 1 : old);
+                        }
+                      });
+                    },
+                    delegate: ReorderableSliverChildBuilderDelegate(
+                      (_, i) => TableRow(table, i),
+                      childCount: table.length.get,
+                    ),
+                  ),
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      Container(
+                        decoration: const BoxDecoration(
+                          border: Border(bottom: BorderSide()),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          icon: Icon(Icons.add),
+                          onPressed: () => table.addRow(),
+                        ),
+                      ),
+                    ]),
+                  )
+                ],
               ),
             ),
           ),
@@ -106,24 +86,17 @@ class TableWidget extends HookWidget {
 
 @bound_widget
 Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
-  final scrollController = useScrollController();
-
-  return Container(
-    decoration: BoxDecoration(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      border: Border(bottom: BorderSide()),
-    ),
-    child: IntrinsicHeight(
+  return FocusTraversalGroup(
+    child: Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        border: Border(bottom: BorderSide()),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            child:
-                // TextButton(
-                //   onPressed: () {},
-                //   child: Text(table.title.get, style: Theme.of(context).textTheme.headline3),
-                // ),
-                BoundTextField(
+            child: BoundTextField(
               table.title,
               style: Theme.of(context).textTheme.headline3,
               decoration: _tableCellBoundTextDecoration,
@@ -133,11 +106,9 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Row(
-                // scrollController: scrollController,
-                // onReorder: (a, b) {
-                //   final aVal = table.columns[a].get;
-                //   table.columns[a].set(table.columns[b].get);
-                //   table.columns[b].set(aVal);
+                // onReorder: (oldIdx, newIdx) {
+                //   table.columns.insert(newIdx, table.columns[oldIdx].get);
+                //   table.columns.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
                 // },
                 children: [
                   for (final indexedColumn in table.columns.indexedValues)
@@ -151,11 +122,11 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
               ),
               Container(
                 alignment: Alignment.centerLeft,
-                child: IconButton(
-                  icon: Icon(Icons.add),
+                child: TextButton(
                   onPressed: () => table.columns.add(
                     model.StringColumn.empty(length: table.length.get),
                   ),
+                  child: Row(children: [Icon(Icons.add), Text('New column')]),
                 ),
               ),
             ],
@@ -194,8 +165,7 @@ Widget _tableHeaderCell(
           right: const BorderSide(),
         ),
       ),
-      padding: const EdgeInsets.all(2),
-      alignment: Alignment.bottomLeft,
+      padding: EdgeInsets.all(2),
       child: Text(column.title.get),
     ),
   );
@@ -218,8 +188,8 @@ Widget _columnConfigurationDropdown({
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final caze in model.ColumnCase.values)
-              GestureDetector(
-                onTap: () => table.setColumnType(columnIndex, caze),
+              TextButton(
+                onPressed: () => table.setColumnType(columnIndex, caze),
                 child: Text(caze.type.toString()),
               ),
           ],
@@ -254,10 +224,7 @@ Widget _tableRow(Cursor<model.Table> table, int rowIndex) {
 @bound_widget
 Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
   return Container(
-    constraints: BoxConstraints(
-      minWidth: column.width.get,
-      maxWidth: column.width.get,
-    ),
+    constraints: BoxConstraints.tightFor(width: column.width.get),
     decoration: const BoxDecoration(border: Border(right: BorderSide())),
     padding: const EdgeInsets.all(2),
     child: Focus(
@@ -280,7 +247,9 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
             children: [
               column.cases(
                 stringColumn: (column) => TableTextField(column.values[rowIndex]),
-                booleanColumn: (column) => TableCheckbox(column.values[rowIndex]),
+                booleanColumn: (column) => Expanded(
+                  child: TableCheckbox(column.values[rowIndex]),
+                ),
                 intColumn: (column) => TableIntField(column.values[rowIndex]),
                 dateColumn: (column) => TableDateField(column.values[rowIndex]),
               ),
@@ -331,8 +300,6 @@ const _tableCellBoundTextDecoration = InputDecoration(border: InputBorder.none, 
 
 @bound_widget
 Widget _tableDateField(Cursor<DateTime> date) {
-  final keyboardFocusNode = useFocusNode(skipTraversal: true);
-
   return Form(
     child: Builder(
       builder: (context) => Focus(
@@ -342,22 +309,19 @@ Widget _tableDateField(Cursor<DateTime> date) {
             Form.of(context)!.save();
           }
         },
-        child: RawKeyboardListener(
-          focusNode: keyboardFocusNode,
-          onKey: (keyEvent) {
-            if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-              keyboardFocusNode.unfocus();
-            } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-              keyboardFocusNode.unfocus();
-            }
-          },
-          child: InputDatePickerFormField(
-            initialDate: date.get,
-            firstDate: DateTime.utc(0),
-            lastDate: DateTime.utc(10000),
-            fieldLabelText: null,
-            onDateSaved: (newDate) => date.set(newDate),
-          ),
+        onKey: (focusNode, keyEvent) {
+          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+            focusNode.unfocus();
+          } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
+            focusNode.unfocus();
+          }
+        },
+        child: InputDatePickerFormField(
+          initialDate: date.get,
+          firstDate: DateTime.utc(0),
+          lastDate: DateTime.utc(10000),
+          fieldLabelText: null,
+          onDateSaved: (newDate) => date.set(newDate),
         ),
       ),
     ),
