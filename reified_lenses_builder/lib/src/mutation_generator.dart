@@ -2,7 +2,7 @@ import 'parsing.dart';
 import 'generating.dart';
 
 void generateMutations(StringBuffer output, Class clazz) {
-  final potentialMutations = clazz.methods.where((m) => m.returnType?.typeEquals(clazz) ?? false);
+  final potentialMutations = clazz.methods.where((m) => m.returnType?.typeEquals(clazz.type) ?? false);
   final mutationMutateds = potentialMutations.expand<Pair<Method, Method>>((mutation) {
     final potentialPairs = clazz.methods.where((m) => m.name == '_${mutation.name}_mutated');
     if (potentialPairs.isEmpty) return [];
@@ -13,9 +13,9 @@ void generateMutations(StringBuffer output, Class clazz) {
   });
   if (mutationMutateds.isEmpty) return;
 
-  final extension = Extension(
+  Extension(
     '${clazz.name}Mutations',
-    Type('Cursor', args: [clazz]),
+    Type('Cursor', args: [clazz.type]),
     params: clazz.params,
     methods: mutationMutateds.map((mutationMutated) {
       final mutation = mutationMutated.first;

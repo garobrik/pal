@@ -14,7 +14,7 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
 
   Extension(
     '${clazz.name}CasesCursorExtension',
-    Type('Cursor', args: [clazz]),
+    Type('Cursor', args: [clazz.type]),
     params: clazz.params,
     accessors: [_generateCaseGetter(clazz, cases)],
     methods: [_generateCasesMethod(clazz, cases)],
@@ -48,7 +48,7 @@ void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
 }
 
 AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
-  final param = Param(clazz, '_value');
+  final param = Param(clazz.type, '_value');
   final ifElsePart = ifElse(
     {for (final caze in cases) '${param.name} is $caze': 'return ${clazz.name}Case.${_caseArgName(caze)};'},
     elseBody: 'throw Exception(\'${clazz.name} type cursor getter: unknown subtype\');',
@@ -70,7 +70,7 @@ Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
   final typeParam = clazz.newTypeParams(1).first;
   final params = cases.map(
     (caze) => Param(
-      FunctionType(returnType: typeParam, requiredArgs: [
+      FunctionType(returnType: typeParam.type, requiredArgs: [
         Type('Cursor', args: [caze])
       ]),
       _caseArgName(caze),
@@ -82,7 +82,7 @@ Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
   return Method(
     'cases',
     typeParams: [typeParam],
-    returnType: typeParam,
+    returnType: typeParam.type,
     params: params,
     isExpression: true,
     body: call(
@@ -100,7 +100,7 @@ Method _generateTypeCases(Class clazz, Iterable<Type> cases) {
   final typeParam = clazz.newTypeParams(1).first;
   final params = cases.map(
     (caze) => Param(
-      FunctionType(returnType: typeParam),
+      FunctionType(returnType: typeParam.type),
       _caseArgName(caze),
       isNamed: true,
       isRequired: true,
@@ -110,7 +110,7 @@ Method _generateTypeCases(Class clazz, Iterable<Type> cases) {
   return Method(
     'cases',
     typeParams: [typeParam],
-    returnType: typeParam,
+    returnType: typeParam.type,
     params: params,
     body: switchCase(
       'type',
@@ -137,7 +137,7 @@ Method _generateEachCases(Class clazz, Iterable<Type> cases) {
   final typeParam = clazz.newTypeParams(1).first;
   final params = cases.map(
     (caze) => Param(
-      FunctionType(returnType: typeParam),
+      FunctionType(returnType: typeParam.type),
       _caseArgName(caze),
       isNamed: true,
       isRequired: true,
@@ -148,7 +148,7 @@ Method _generateEachCases(Class clazz, Iterable<Type> cases) {
     'each',
     isStatic: true,
     typeParams: [typeParam],
-    returnType: Type('List', args: [typeParam]),
+    returnType: Type('List', args: [typeParam.type]),
     params: params,
     isExpression: true,
     body: '[' + params.map((p) => '${p.name}(),').join(' ') + ']',

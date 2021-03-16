@@ -125,11 +125,10 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
 }
 
 @meta.immutable
-class Class extends DefinitionHolder<ClassElement> with ConcreteType {
+class Class extends DefinitionHolder<ClassElement> {
   late final Iterable<Constructor> constructors;
   final bool isAbstract;
-  @override
-  final analyzer_type.DartType? dartType;
+  final Type type;
 
   Class(
     String name, {
@@ -141,7 +140,7 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
     Iterable<String> annotations = const [],
     Type? extendedType,
     this.isAbstract = false,
-  })  : dartType = null,
+  })  : type = _ConcreteTypeImpl(name, args: params.map((p) => p.type), isNullable: false),
         super(
           name: name,
           params: params,
@@ -158,14 +157,14 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
 
   Class.fromElement(LibraryElement usageContext, ClassElement element)
       : isAbstract = element.isAbstract,
-        dartType = element.instantiate(
+        type = Type.fromDartType(usageContext, element.instantiate(
           typeArguments: List.from(
             element.typeParameters.map<analyzer_type.DartType>(
               (tp) => tp.instantiate(nullabilitySuffix: NullabilitySuffix.none),
             ),
           ),
           nullabilitySuffix: NullabilitySuffix.none,
-        ),
+        )),
         super.fromElement(
           usageContext,
           element,
@@ -180,9 +179,6 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
         ) {
     constructors = element.constructors.map((c) => Constructor.fromElement(usageContext, c, this));
   }
-
-  @override
-  Iterable<Type> get args => params;
 
   List<TypeParam> newTypeParams(int count) {
     int suffix = 0;
@@ -199,9 +195,6 @@ class Class extends DefinitionHolder<ClassElement> with ConcreteType {
 
   // ignore: unnecessary_cast, doesn't type check otherwise
   Constructor? get defaultCtor => constructors.maybeFirstWhere((c) => c.isDefault);
-
-  @override
-  bool get isNullable => false;
 }
 
 @meta.immutable
@@ -497,32 +490,28 @@ class Setter extends ElementAnalogue<PropertyAccessorElement> {
 }
 
 @meta.immutable
-class TypeParam extends ElementAnalogue<TypeParameterElement> with ConcreteType {
+class TypeParam extends ElementAnalogue<TypeParameterElement> {
   final Type? extendz;
-  @override
-  final analyzer_type.TypeParameterType? dartType;
+  final Type type;
 
-  const TypeParam(
+  TypeParam(
     String name, {
     this.extendz,
     Iterable<String> annotations = const [],
-  })  : dartType = null,
+  })  : type = _ConcreteTypeImpl(name, isNullable: false),
         super(name: name, annotations: annotations);
 
   TypeParam.fromElement(LibraryElement usageContext, TypeParameterElement element)
       : extendz = element.bound == null ? null : Type.fromDartType(usageContext, element.bound!),
-        dartType = element.instantiate(nullabilitySuffix: NullabilitySuffix.none),
+        type = Type.fromDartType(
+          usageContext,
+          element.instantiate(nullabilitySuffix: NullabilitySuffix.none),
+        ),
         super.fromElement(usageContext, element);
 
   String get nameWithBound => extendz == null ? name : '$name extends $extendz';
 
   TypeParam withBound(Type type) => TypeParam(name, extendz: type);
-
-  @override
-  Iterable<Type> get args => const [];
-
-  @override
-  bool get isNullable => false;
 
   @override
   bool operator ==(Object other) =>
@@ -538,6 +527,7 @@ abstract class Type {
   String renderType();
   bool get isNullable;
   analyzer_type.DartType? get dartType;
+  Type withNullable(bool isNullable);
 
   const factory Type(String name, {Iterable<Type> args, bool isNullable}) = ConcreteType;
   factory Type.fromDartType(LibraryElement usageContext, analyzer_type.DartType t) =>
@@ -575,34 +565,6 @@ class UnresolvableTypeException implements Exception {
   @override
   String toString() =>
       'UnresolvableTypeException: Could not resolve type $typeName in package $uri.';
-}
-
-@meta.immutable
-class _NullableWrapper implements Type {
-  final Type _wrapped;
-
-  _NullableWrapper(this._wrapped) : assert(!_wrapped.isNullable);
-
-  @override
-  bool typeEquals(Type b) {
-    if (!b.isNullable) return false;
-    if (b is _NullableWrapper) return _wrapped.typeEquals(b._wrapped);
-    return _wrapped.typeEquals(b);
-  }
-
-  @override
-  bool get isNullable => true;
-
-  @override
-  String renderType() {
-    return '${_wrapped.renderType()}?';
-  }
-
-  @override
-  String toString() => renderType();
-
-  @override
-  analyzer_type.DartType? get dartType => null;
 }
 
 @meta.immutable
@@ -726,6 +688,18 @@ class FunctionType implements Type {
 
   @override
   String toString() => renderType();
+
+  @override
+  Type withNullable(bool isNullable) {
+    if (this.isNullable == isNullable) return this;
+    return FunctionType(
+      returnType: returnType,
+      requiredArgs: requiredArgs,
+      optionalArgs: optionalArgs,
+      namedArgs: namedArgs,
+      isNullable: isNullable,
+    );
+  }
 }
 
 @meta.immutable
@@ -786,15 +760,11 @@ class _ConcreteTypeImpl with ConcreteType {
             : [],
         isNullable = type.nullabilitySuffix == NullabilitySuffix.question,
         dartType = type;
-}
 
-extension AsNullable on Type {
-  Type get asNullable {
-    if (isNullable) {
-      return this;
-    } else {
-      return _NullableWrapper(this);
-    }
+  @override
+  Type withNullable(bool isNullable) {
+    if (isNullable == this.isNullable) return this;
+    return _ConcreteTypeImpl(this.name, args: this.args, isNullable: isNullable);
   }
 }
 

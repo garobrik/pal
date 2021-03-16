@@ -18,7 +18,7 @@ Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz)
 
   Extension(
     '${clazz.name}CopyWithExtension',
-    clazz,
+    clazz.type,
     params: clazz.params,
     accessors: [AccessorPair(copyWithMethod.first.name, getter: copyWithMethod.first)],
   ).declare(output);
@@ -30,17 +30,17 @@ Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz)
 // vs omitting an argument is copied from https://github.com/rrousselGit/freezed, thanks remi!
 Pair<Getter, Iterable<Param>> _generateConcreteCopyWithFunction(Constructor constructor) {
   final params = constructor.params
-      .map((p) => Param(p.type.asNullable, p.name, isNamed: true, isRequired: false));
+      .map((p) => Param(p.type.withNullable(true), p.name, isNamed: true, isRequired: false));
   final paramsAsObject = constructor.params.map(
     (p) => Param(
-      Type.object.asNullable,
+      Type.object.withNullable(true),
       p.name,
       isNamed: true,
       isRequired: false,
       defaultValue: 'undefined',
     ),
   );
-  Type functionType = FunctionType.fromParams(returnType: constructor.parent, params: params);
+  Type functionType = FunctionType.fromParams(returnType: constructor.parent.type, params: params);
   final constructorArgs = constructor.params.map(
     (p) {
       final body = '${p.name} == undefined ? this.${p.name} : ${p.name} as ${p.type}';
@@ -66,7 +66,7 @@ Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
 
   final params = clazz.fields.where((f) => !f.isInitialized).map(
         (f) => Param(
-          f.type.asNullable,
+          f.type.withNullable(true),
           f.name,
           isNamed: true,
           isRequired: false,
@@ -74,13 +74,13 @@ Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
       );
 
   final functionType = FunctionType.fromParams(
-    returnType: clazz,
+    returnType: clazz.type,
     params: params,
   );
 
   final conditionsBodies = {
     for (final caze in cases)
-      'this is $caze': 'return ((this as $caze).copyWith as ${functionType});',
+      'this is $caze': 'return ((this as $caze).copyWith as $functionType);',
   };
 
   final getter = Getter(
@@ -96,7 +96,10 @@ Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
 Constructor? _findCopyConstructor(Class clazz) {
   final annotated = clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
 
-  final implicits = clazz.constructors.where((ctor) => _canCopyConstruct(clazz, ctor));
+  final implicits = clazz.constructors.where((ctor) {
+    print('${clazz.name} ${ctor.name} ${_canCopyConstruct(clazz, ctor)}');
+    return _canCopyConstruct(clazz, ctor);
+  });
 
   if (annotated.isNotEmpty) {
     assert(
@@ -118,12 +121,14 @@ Constructor? _findCopyConstructor(Class clazz) {
 bool _canCopyConstruct(Class clazz, Constructor constructor) {
   return constructor.params.every(
         (p) => clazz.fields.any(
-          (f) => f.name == p.name && f.type.typeEquals(p.type) && !f.hasAnnotation(Skip),
+          (f) => f.name == p.name &&
+                f.type.withNullable(false).typeEquals(p.type.withNullable(false)) &&
+                !f.hasAnnotation(Skip),
         ),
       ) &&
       clazz.fields.where((f) => !f.hasAnnotation(Skip)).every(
             (f) => constructor.params.any(
-              (p) => p.name == f.name && f.type.typeEquals(p.type),
+              (p) => p.name == f.name && f.type.withNullable(false).typeEquals(p.type.withNullable(false)),
             ),
           );
 }

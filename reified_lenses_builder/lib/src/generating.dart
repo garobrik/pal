@@ -110,7 +110,7 @@ extension ConstructorGenerating on Constructor {
     Iterable<Type> typeParams = const [],
   }) =>
       call(
-        '${parent.name}.${name}',
+        '${parent.name}.$name',
         positional,
         named: named,
         typeArgs: typeParams,

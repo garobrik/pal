@@ -86,7 +86,7 @@ class GeneratorContext {
         Param param = mutater.params.first;
         assert(!param.isNamed);
         assert(
-          mutater.returnType != null && mutater.returnType!.typeEquals(clazz),
+          mutater.returnType != null && mutater.returnType!.typeEquals(clazz.type),
         );
         assert(
           param.type.typeEquals(
@@ -140,7 +140,7 @@ class GeneratorContext {
       final isFunctionalUpdate = updateParam != null && updateParam.type is FunctionType;
       final stateArg = '_t';
       final updateArg = '_s';
-      final getBody = m.invokeFromParams(stateArg, typeArgs: m.typeParams);
+      final getBody = m.invokeFromParams(stateArg, typeArgs: m.typeParams.map((tp) => tp.type));
       // TODO: this isFunctionalUpdate case can fail when a generic type has its argument cast upwards
       final mutBody = mutater?.invokeFromParams(
         stateArg,
@@ -149,7 +149,7 @@ class GeneratorContext {
             : isFunctionalUpdate
                 ? updateArg
                 : '$updateArg($getBody)',
-        typeArgs: m.typeParams,
+        typeArgs: m.typeParams.map((tp) => tp.type),
       );
       return [
         Optic(
@@ -175,7 +175,7 @@ class OpticComposer {
   OpticComposer({required this.typeOf, required this.numParams});
 
   Type zoom(Class clazz, Type type, OpticKind kind) =>
-      Type(typeOf(kind), args: [...clazz.newTypeParams(numParams), type]);
+      Type(typeOf(kind), args: [...clazz.newTypeParams(numParams).map((tp) => tp.type), type]);
 
   Extension? extension(Class clazz, OpticKind kind, Iterable<Optic> optics) {
     final opticsOfKind = optics.where(
@@ -186,7 +186,7 @@ class OpticComposer {
     final name = '${clazz.name}${typeOf(kind)}Extension';
     final newParams = clazz.newTypeParams(numParams);
     final params = [...newParams, ...clazz.params];
-    final on = Type(typeOf(kind), args: [...newParams, clazz]);
+    final on = Type(typeOf(kind), args: [...newParams.map((tp) => tp.type), clazz.type]);
 
     return Extension(
       name,

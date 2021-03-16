@@ -37,7 +37,7 @@ void generateMixin(StringBuffer output, Class clazz) {
         isExpression: true,
         returnType: clazz.boolType,
         params: [
-          Param(clazz.objectType.asNullable, 'other'),
+          Param(clazz.objectType.withNullable(true), 'other'),
         ],
         body: [
           'other is ${clazz.name}',

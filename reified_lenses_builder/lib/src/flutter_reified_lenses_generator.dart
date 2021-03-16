@@ -77,7 +77,7 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
       buildBody.writeln('final ${param.name} = useBoundCursor(this.${param.name});');
     }
   }
-  final returnValue = function.invokeFromParams(typeArgs: function.typeParams);
+  final returnValue = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
   buildBody.writeln('return $returnValue;');
 
   Class(
@@ -90,7 +90,7 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
         isConst: true,
         params: [
           for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
-          Param(resolvedTypes.key.asNullable, 'key', isNamed: true, isRequired: false),
+          Param(resolvedTypes.key.withNullable(true), 'key', isNamed: true, isRequired: false),
         ],
         initializers: 'super(key: key)',
       ),
