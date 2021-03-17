@@ -239,3 +239,11 @@ class _GetCursorImpl<T, S> extends GetCursor<S> {
   @override
   String toString() => 'GetCursor($get)';
 }
+
+extension CursorNullability<T> on Cursor<T?> {
+  Cursor<T> get nonnull => then(Lens.nonnull());
+}
+
+extension GetCursorNullability<T> on GetCursor<T?> {
+  GetCursor<T> get nonnull => then(Lens.nonnull());
+}

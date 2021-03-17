@@ -46,8 +46,7 @@ typedef TransformF<T> = T Function(T);
 typedef ReifiedTransformF<T> = MutResult<T> Function(T);
 
 GetResult<T> _identityGetter<T>(T t) => GetResult(t, Iterable.empty());
-MutResult<T> _identityMutater<T>(T t, T Function(T) f) =>
-    MutResult.path(f(t), Iterable.empty());
+MutResult<T> _identityMutater<T>(T t, T Function(T) f) => MutResult.path(f(t), Iterable.empty());
 
 abstract class ThenLens<S1> {
   @protected
@@ -67,8 +66,7 @@ mixin ThenMut<S1> implements ThenLens<S1> {
 
 //////////////////////////////////////////////////////////
 mixin Getter<T, S> implements ThenGet<S>, ThenLens<S> {
-  static Getter<T, S> mkCast<T, S>() =>
-      _GetterImpl((T t) => GetResult(t as S, const []));
+  static Getter<T, S> mkCast<T, S>() => _GetterImpl((T t) => GetResult(t as S, const []));
   static Getter<T, S> mk<T, S>(ReifiedGetterF<T, S> getF) => _GetterImpl(getF);
   static Getter<T, T> identity<T>() => _GetterImpl(_identityGetter);
   static Getter<T, S> field<T, S>(Object field, GetterF<T, S> getter) =>
@@ -114,11 +112,10 @@ class _GetterImpl<T, S> with Getter<T, S> {
 
 //////////////////////////////////////////////////////////
 abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
-  static Mutater<T, S> mkCast<T, S>() => _MutaterImpl(
-      (T t, S Function(S) f) => MutResult(f(t as S) as T, Iterable.empty()));
+  static Mutater<T, S> mkCast<T, S>() =>
+      _MutaterImpl((T t, S Function(S) f) => MutResult(f(t as S) as T, Iterable.empty()));
 
-  static Mutater<T, S> mk<T, S>(ReifiedMutaterF<T, S> mutater) =>
-      _MutaterImpl(mutater);
+  static Mutater<T, S> mk<T, S>(ReifiedMutaterF<T, S> mutater) => _MutaterImpl(mutater);
 
   static Mutater<T, T> identity<T>() => _MutaterImpl(_identityMutater);
 
@@ -181,8 +178,7 @@ abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
 }
 
 extension MutaterNullability<T, S> on Mutater<T, S?> {
-  Mutater<T, S> get nonnull =>
-      thenMut(Mutater.mk((s, f) => MutResult.unchanged(f(s!))));
+  Mutater<T, S> get nonnull => thenMut(Mutater.mk((s, f) => MutResult.unchanged(f(s!))));
 }
 
 @immutable
@@ -216,8 +212,7 @@ abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
   ) =>
       _LensImpl(getF, mutF);
 
-  static Lens<T, T> identity<T>() =>
-      _LensImpl<T, T>(_identityGetter, _identityMutater);
+  static Lens<T, T> identity<T>() => _LensImpl<T, T>(_identityGetter, _identityMutater);
 
   static Lens<T, S> field<T, S>(
     Object field,
@@ -229,18 +224,16 @@ abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
         Mutater.field(field, mutater).mutResult,
       );
 
+  static Lens<T?, T> nonnull<T>() => Lens.mk(
+        (s) => GetResult(s!, const Iterable.empty()),
+        (s, f) => MutResult.unchanged(f(s!)),
+      );
+
   @override
   Lens<T, S2> then<S2>(Lens<S, S2> lens);
 
   @override
   Lens<T, S2> cast<S2>() => then(Lens.mkCast<S, S2>());
-}
-
-extension LensNullability<T, S> on Lens<T, S?> {
-  Lens<T, S> get nonnull => then(Lens.mk(
-        (s) => GetResult(s!, const Iterable.empty()),
-        (s, f) => MutResult.unchanged(f(s!)),
-      ));
 }
 
 @immutable
@@ -265,8 +258,7 @@ class _LensImpl<T, S> extends Lens<T, S> {
   S get(T t) => getResult(t).value;
 
   @override
-  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) =>
-      Getter.mk(_getF).thenGet(getter);
+  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) => Getter.mk(_getF).thenGet(getter);
 }
 
 //////////////////////////////////////////////////////////
