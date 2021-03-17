@@ -17,8 +17,9 @@ class Vec<Value> extends Iterable<Value> {
   int get length => _values.length;
 
   @reify
-  Value operator [](int i) => _values[i];
+  Value? operator [](int i) => (0 < i || i >= _values.length) ? null : _values[i];
   Vec<Value> mut_array_op(int i, Value update) {
+    if (0 < i || i >= _values.length) return this;
     final newVec = Vec.from(this);
     newVec._values[i] = update;
     return newVec;
@@ -80,14 +81,14 @@ extension VecForEach<T> on Cursor<Vec<T>> {
   Iterable<Cursor<T>> get values sync* {
     final length = this.length.get;
     for (final index in range(length)) {
-      yield this[index];
+      yield this[index].nonnull;
     }
   }
 
   Iterable<IndexedValue<Cursor<T>>> get indexedValues sync* {
     final length = this.length.get;
     for (final index in range(length)) {
-      yield IndexedValue(index, this[index]);
+      yield IndexedValue(index, this[index].nonnull);
     }
   }
 }
@@ -96,14 +97,14 @@ extension VecGetForEach<T> on GetCursor<Vec<T>> {
   Iterable<GetCursor<T>> get values sync* {
     final length = this.length.get;
     for (final index in range(length)) {
-      yield this[index];
+      yield this[index].nonnull;
     }
   }
 
   Iterable<IndexedValue<GetCursor<T>>> get indexedValues sync* {
     final length = this.length.get;
     for (final index in range(length)) {
-      yield IndexedValue(index, this[index]);
+      yield IndexedValue(index, this[index].nonnull);
     }
   }
 }
