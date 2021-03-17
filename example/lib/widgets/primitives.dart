@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 
 part 'primitives.g.dart';
 
@@ -12,11 +15,17 @@ Widget _boundTextField(
   Cursor<String> text, {
   int? maxLines = 1,
   TextInputType? keyboardType,
-  InputDecoration? decoration,
+  InputDecoration decoration = const InputDecoration(),
   TextStyle? style,
   TextAlignVertical? textAlignVertical,
+  bool autofocus = false,
+  FocusNode? focusNode,
 }) {
   final textController = useTextEditingController(text: text.get);
+  final firstFrame = useState(true);
+  if (firstFrame.value) {
+    scheduleMicrotask(() => firstFrame.value = false);
+  }
   // useEffect(() {
   //   return text.listen(() => textController.text = text.get);
   // }, [textController, text]);
@@ -30,7 +39,7 @@ Widget _boundTextField(
             focus.unfocus();
             return true;
           } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-            if (!keyEvent.isShiftPressed) {
+            if (!keyEvent.isShiftPressed && firstFrame.value) {
               focus.nextFocus();
               return true;
             }
@@ -44,6 +53,8 @@ Widget _boundTextField(
           decoration: decoration,
           style: style,
           textAlignVertical: textAlignVertical,
+          autofocus: autofocus,
+          focusNode: focusNode,
           onChanged: (newText) => text.set(newText),
         ),
       ),
@@ -57,38 +68,44 @@ Widget _dropdown({
   required Widget dropdown,
   Alignment? childAnchor,
   Alignment? dropdownAnchor,
-  bool isOpenOnHover = true,
   ButtonStyle? style,
 }) {
   final isOpen = useState(false);
   final focusNode = useFocusNode();
 
   return FocusTraversalGroup(
-    child: Focus(
-      skipTraversal: true,
-      onFocusChange: (hasFocus) {
-        if (!hasFocus) {
-          isOpen.value = false;
-        }
-      },
-      child: PortalEntry(
-        visible: isOpen.value,
-        childAnchor: childAnchor,
-        portalAnchor: dropdownAnchor,
-        portal: FocusTraversalGroup(
-          child: Material(
-            elevation: 4.0,
-            borderRadius: const BorderRadius.all(Radius.circular(3.0)),
-            child: dropdown,
+    policy: OrderedTraversalPolicy(),
+    child: PortalEntry(
+      visible: isOpen.value,
+      childAnchor: childAnchor,
+      portalAnchor: dropdownAnchor,
+      portal: FocusTraversalOrder(
+        order: NumericFocusOrder(2),
+        child: FocusTraversalGroup(
+          child: Focus(
+            skipTraversal: true,
+            onFocusChange: (hasFocus) {
+              if (!hasFocus) {
+                isOpen.value = false;
+              }
+            },
+            child: Material(
+              elevation: 4.0,
+              borderRadius: const BorderRadius.all(Radius.circular(3.0)),
+              child: dropdown,
+            ),
           ),
         ),
+      ),
+      child: FocusTraversalOrder(
+        order: NumericFocusOrder(1),
         child: TextButton(
           focusNode: focusNode,
           style: style,
           onPressed: () {
             isOpen.value = !isOpen.value;
             if (isOpen.value == true) {
-              focusNode.requestFocus();
+              SchedulerBinding.instance?.addPostFrameCallback((_) => focusNode.nextFocus());
             }
           },
           child: child,

@@ -1,7 +1,8 @@
 import 'package:example/widgets/cross_axis_protoheader.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:reorderables/reorderables.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_neumorphic/flutter_neumorphic.dart';
+import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import '../model/table.dart' as model;
 import 'primitives.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,8 @@ Widget _tableWidget(Cursor<model.Table> table) {
         controller: horizontalController,
         scrollDirection: Axis.horizontal,
         child: Container(
-          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(),
+          clipBehavior: Clip.none,
           padding: EdgeInsets.only(bottom: 15),
           child: CrossAxisProtoheader(
             header: (_) => Container(
@@ -109,7 +111,7 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                 children: [
                   for (final indexedColumn in table.columns.indexedValues)
                     TableHeaderCell(
-                      key: ValueKey(indexedColumn.index),
+                      key: ValueKey(indexedColumn.value.id.get),
                       table: table,
                       column: indexedColumn.value,
                       columnIndex: indexedColumn.index,
@@ -122,7 +124,10 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                   onPressed: () => table.columns.add(
                     model.StringColumn.empty(length: table.length.get),
                   ),
-                  child: Row(children: [Icon(Icons.add), Text('New column')]),
+                  child: Container(
+                    padding: EdgeInsets.only(right: 2),
+                    child: Row(children: [Icon(Icons.add), Text('New column')]),
+                  ),
                 ),
               ),
             ],
@@ -142,15 +147,12 @@ Widget _tableHeaderCell(
 }) {
   return Dropdown(
     style: ButtonStyle(alignment: Alignment.bottomLeft),
-    isOpenOnHover: false,
-    childAnchor: Alignment.bottomLeft,
-    dropdownAnchor: Alignment.topLeft,
-    dropdown: IntrinsicWidth(
-      child: ColumnConfigurationDropdown(
-        column: column,
-        table: table,
-        columnIndex: columnIndex,
-      ),
+    childAnchor: Alignment.topCenter,
+    dropdownAnchor: Alignment.topCenter,
+    dropdown: ColumnConfigurationDropdown(
+      column: column,
+      table: table,
+      columnIndex: columnIndex,
     ),
     child: Container(
       constraints: BoxConstraints.tightFor(
@@ -168,37 +170,59 @@ Widget _tableHeaderCell(
 }
 
 @bound_widget
-Widget _columnConfigurationDropdown({
+Widget _columnConfigurationDropdown(
+  BuildContext context, {
   required Cursor<model.Column<Object>> column,
   required Cursor<model.Table> table,
   required int columnIndex,
 }) {
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      BoundTextField(column.title),
-      Dropdown(
-        childAnchor: Alignment.topRight,
-        dropdownAnchor: Alignment.topLeft,
-        dropdown: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final caze in model.ColumnCase.values)
-              TextButton(
-                onPressed: () => table.setColumnType(columnIndex, caze),
-                child: Text(caze.type.toString()),
+  return TextButtonTheme(
+    data: TextButtonThemeData(
+      style: TextButton.styleFrom(
+          padding: EdgeInsets.symmetric(vertical: 10),
+          minimumSize: Size(double.infinity, 0),
+          textStyle: Theme.of(context).textTheme.bodyText1),
+    ),
+    child: IntrinsicWidth(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(10),
+            child: BoundTextField(
+              column.title,
+              decoration: _tableCellBoundTextDecoration.copyWith(
+                filled: true,
+                fillColor: Colors.grey.shade200,
+                contentPadding: EdgeInsets.symmetric(vertical: 6.0, horizontal: 6.0),
+                border: OutlineInputBorder(),
               ),
-          ],
-        ),
-        child: Text(column.caze.get.type.toString()),
+            ),
+          ),
+          Dropdown(
+            childAnchor: Alignment.topRight,
+            dropdownAnchor: Alignment.topLeft,
+            dropdown: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final caze in model.ColumnCase.values)
+                  TextButton(
+                    onPressed: () => table.setColumnType(columnIndex, caze),
+                    child: Text(caze.type.toString()),
+                  ),
+              ],
+            ),
+            child: Text(column.caze.get.type.toString()),
+          ),
+          TextButton(
+            onPressed: () {
+              table.removeColumn(columnIndex);
+            },
+            child: Text('Delete column'),
+          ),
+        ],
       ),
-      IconButton(
-        icon: Icon(Icons.remove),
-        onPressed: () {
-          table.removeColumn(columnIndex);
-        },
-      ),
-    ],
+    ),
   );
 }
 
@@ -210,7 +234,8 @@ Widget _tableRow(Cursor<model.Table> table, int rowIndex) {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final column in table.columns.values) TableCell(column, rowIndex),
+          for (final column in table.columns.values)
+            TableCell(column, rowIndex, key: ValueKey(column.id.get)),
         ],
       ),
     ),
