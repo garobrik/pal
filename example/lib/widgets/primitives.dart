@@ -69,6 +69,7 @@ Widget _dropdown({
   Alignment? childAnchor,
   Alignment? dropdownAnchor,
   ButtonStyle? style,
+  double? width,
 }) {
   final isOpen = useState(false);
   final focusNode = useFocusNode();
@@ -92,7 +93,9 @@ Widget _dropdown({
             child: Material(
               elevation: 4.0,
               borderRadius: const BorderRadius.all(Radius.circular(3.0)),
-              child: dropdown,
+              child: width == null
+                  ? IntrinsicWidth(child: dropdown)
+                  : ConstrainedBox(constraints: BoxConstraints.tightFor(width: width)),
             ),
           ),
         ),

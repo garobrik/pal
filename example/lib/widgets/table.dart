@@ -46,15 +46,15 @@ Widget _tableWidget(Cursor<model.Table> table) {
                 slivers: [
                   ReorderableSliverList(
                     onReorder: (old, nu) {
-                      table.columns.atomically((columns) {
-                        for (final column in columns.values) {
-                          column.values.insert(nu < old ? nu : nu + 1, column.values[old].get);
-                          column.values.remove(nu < old ? old + 1 : old);
-                        }
-                      });
+                      table.rowIDs.insert(nu < old ? nu : nu + 1, table.rowIDs[old].get);
+                      table.rowIDs.remove(nu < old ? old + 1 : old);
                     },
                     delegate: ReorderableSliverChildBuilderDelegate(
-                      (_, i) => TableRow(table, i),
+                      (_, i) => TableRow(
+                        table,
+                        table.rowIDs[i],
+                        key: ValueKey(table.rowIDs[i].get),
+                      ),
                       childCount: table.length.get,
                     ),
                   ),
@@ -109,21 +109,19 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                 //   table.columns.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
                 // },
                 children: [
-                  for (final indexedColumn in table.columns.indexedValues)
+                  for (final indexedColumnID in table.columnIDs.indexedValues)
                     TableHeaderCell(
-                      key: ValueKey(indexedColumn.value.id.get),
+                      key: ValueKey(indexedColumnID.value.get),
                       table: table,
-                      column: indexedColumn.value,
-                      columnIndex: indexedColumn.index,
+                      column: table.columns[indexedColumnID.value.get],
+                      columnIndex: indexedColumnID.index,
                     ),
                 ],
               ),
               Container(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: () => table.columns.add(
-                    model.StringColumn.empty(length: table.length.get),
-                  ),
+                  onPressed: () => table.addColumn(),
                   child: Container(
                     padding: EdgeInsets.only(right: 2),
                     child: Row(children: [Icon(Icons.add), Text('New column')]),
@@ -183,59 +181,57 @@ Widget _columnConfigurationDropdown(
           minimumSize: Size(double.infinity, 0),
           textStyle: Theme.of(context).textTheme.bodyText1),
     ),
-    child: IntrinsicWidth(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: EdgeInsets.all(10),
-            child: BoundTextField(
-              column.title,
-              decoration: _tableCellBoundTextDecoration.copyWith(
-                filled: true,
-                fillColor: Colors.grey.shade200,
-                contentPadding: EdgeInsets.symmetric(vertical: 6.0, horizontal: 6.0),
-                border: OutlineInputBorder(),
-              ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: EdgeInsets.all(10),
+          child: BoundTextField(
+            column.title,
+            decoration: _tableCellBoundTextDecoration.copyWith(
+              filled: true,
+              fillColor: Colors.grey.shade200,
+              contentPadding: EdgeInsets.symmetric(vertical: 6.0, horizontal: 6.0),
+              border: OutlineInputBorder(),
             ),
           ),
-          Dropdown(
-            childAnchor: Alignment.topRight,
-            dropdownAnchor: Alignment.topLeft,
-            dropdown: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final caze in model.ColumnCase.values)
-                  TextButton(
-                    onPressed: () => table.setColumnType(columnIndex, caze),
-                    child: Text(caze.type.toString()),
-                  ),
-              ],
-            ),
-            child: Text(column.caze.get.type.toString()),
+        ),
+        Dropdown(
+          childAnchor: Alignment.topRight,
+          dropdownAnchor: Alignment.topLeft,
+          dropdown: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final caze in model.ColumnCase.values)
+                TextButton(
+                  onPressed: () => column.setType(caze),
+                  child: Text(caze.type.toString()),
+                ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              table.removeColumn(columnIndex);
-            },
-            child: Text('Delete column'),
-          ),
-        ],
-      ),
+          child: Text(column.caze.get.type.toString()),
+        ),
+        TextButton(
+          onPressed: () {
+            table.removeColumn(column.id.get);
+          },
+          child: Text('Delete column'),
+        ),
+      ],
     ),
   );
 }
 
 @bound_widget
-Widget _tableRow(Cursor<model.Table> table, int rowIndex) {
+Widget _tableRow(Cursor<model.Table> table, Cursor<model.RowID> rowID) {
   return IntrinsicHeight(
     child: Container(
       decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final column in table.columns.values)
-            TableCell(column, rowIndex, key: ValueKey(column.id.get)),
+          for (final columnID in table.columnIDs.values)
+            TableCell(table.columns[columnID.get], rowID, key: ValueKey(columnID.get)),
         ],
       ),
     ),
@@ -243,7 +239,7 @@ Widget _tableRow(Cursor<model.Table> table, int rowIndex) {
 }
 
 @bound_widget
-Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
+Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID) {
   return Container(
     constraints: BoxConstraints.tightFor(width: column.width.get),
     decoration: const BoxDecoration(border: Border(right: BorderSide())),
@@ -267,12 +263,12 @@ Widget _tableCell(Cursor<model.Column<Object>> column, int rowIndex) {
           child: Column(
             children: [
               column.cases(
-                stringColumn: (column) => TableTextField(column.values[rowIndex]),
+                stringColumn: (column) => TableTextField(column.values[rowID.get]),
                 booleanColumn: (column) => Expanded(
-                  child: TableCheckbox(column.values[rowIndex]),
+                  child: TableCheckbox(column.values[rowID.get]),
                 ),
-                intColumn: (column) => TableIntField(column.values[rowIndex]),
-                dateColumn: (column) => TableDateField(column.values[rowIndex]),
+                intColumn: (column) => TableIntField(column.values[rowID.get]),
+                dateColumn: (column) => TableDateField(column.values[rowID.get]),
               ),
             ],
           ),

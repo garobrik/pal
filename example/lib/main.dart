@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
                 : Center(
                     child: TableWidget(
                       state.tables[state.selectedTable.get!],
-                      key: ValueKey(state.selectedTable.get),
+                      key: ValueKey(state.tables[state.selectedTable.get!].id.get),
                     ),
                   ),
             drawer: Drawer(
@@ -50,11 +50,8 @@ class MyApp extends StatelessWidget {
                       onPressed: () {
                         state.tables.add(
                           model.Table(
+                            id: model.TableID(),
                             title: 'table ${state.tables.length.get + 1}',
-                            columns: Vec([
-                              model.StringColumn(title: 'name'),
-                              model.BooleanColumn(title: 'done'),
-                            ]),
                           ),
                         );
                         state.selectedTable.set(state.tables.length.get - 1);
