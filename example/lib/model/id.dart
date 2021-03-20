@@ -1,6 +1,6 @@
 import 'package:uuid/uuid.dart';
 
-class UUID {
+abstract class UUID<T extends UUID<dynamic>> extends Comparable<T> {
   static const uuid = Uuid();
 
   final String id;
@@ -10,11 +10,16 @@ class UUID {
   UUID.from(this.id);
 
   @override
-  bool operator ==(Object? other) => other is UUID && id == other.id;
+  bool operator ==(Object? other) => other is T && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
 
   @override
   String toString() => '$runtimeType($id)';
+
+  @override
+  int compareTo(T other) {
+    return id.compareTo(other.id);
+  }
 }

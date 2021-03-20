@@ -7,76 +7,79 @@ part 'table.g.dart';
 
 const DEFAULT_COLUMN_WIDTH = 100.0;
 
-class TableID extends UUID {}
+class TableID extends UUID<TableID> {}
+class ColumnID extends UUID<ColumnID> {}
+class RowID extends UUID<RowID> {}
 
 @reify
 class Table with _TableMixin {
   final TableID id;
   final String title;
-  final Vec<Column<Object>> columns;
+  final Dict<ColumnID, Column<Object>> columns;
+  final Vec<ColumnID> columnIDs;
+  final Vec<RowID> rowIDs;
 
-  Table({TableID? id, this.columns = const Vec(), this.title = ''})
-      : this.id = id ?? TableID();
+  Table({
+    TableID? id,
+    Dict<ColumnID, Column<Object>>? columns,
+    this.title = '',
+    this.columnIDs = const Vec(),
+    this.rowIDs = const Vec(),
+  })  : this.id = id ?? TableID(),
+        this.columns = columns ?? Dict();
 }
 
 extension TableComputations on GetCursor<Table> {
-  GetCursor<int> get length => columns.length.get == 0 ? Cursor.from(0) : columns[0].length;
+  GetCursor<int> get length => rowIDs.length;
 }
 
 extension TableMutations on Cursor<Table> {
   void addRow([int? index]) {
-    columns.atomically((columns) {
-      for (final column in columns.values) {
-        column.values.insert(index ?? length.get, column.defaultValue.get);
-      }
+    final rowID = RowID();
+    for (final columnID in columnIDs.values) {
+      final column = columns[columnID.get];
+      column.values[rowID] = column.defaultValue.get;
+    }
+    rowIDs.insert(index ?? rowIDs.length.get, rowID);
+  }
+
+  void addColumn([int? index]) {
+    atomically((table) {
+      final columnID = ColumnID();
+
+      final column = StringColumn(
+        id: columnID,
+        values: Dict({
+          for (final key in table.rowIDs.values) key.get: '',
+        }),
+      );
+
+      table.columns[columnID] = column;
+      table.columnIDs.insert(index ?? table.columnIDs.length.get, columnID);
     });
   }
 
-  void removeColumn(int index) {
-    columns.remove(index);
-  }
-
-  void setColumnType(int index, ColumnCase columnType) {
-    final column = columnType.cases<Column<Object>>(
-      stringColumn: () => StringColumn(
-        values: Vec(List.generate(length.get, (_) => ' ')),
-        title: columns[index].title.get,
-        width: columns[index].width.get,
-      ),
-      booleanColumn: () => BooleanColumn(
-        values: Vec(List.generate(length.get, (_) => false)),
-        title: columns[index].title.get,
-        width: columns[index].width.get,
-      ),
-      intColumn: () => IntColumn(
-        values: Vec(List.generate(length.get, (_) => 0)),
-        title: columns[index].title.get,
-        width: columns[index].width.get,
-      ),
-      dateColumn: () => DateColumn(
-        values: Vec(List.generate(length.get, (_) => DateTime.now())),
-        title: columns[index].title.get,
-        width: columns[index].width.get,
-      ),
-    );
-    columns[index].set(column);
+  void removeColumn(ColumnID id) {
+    columns.remove(id);
+    for (final indexedValue in columnIDs.indexedValues) {
+      if (indexedValue.value.get == id) {
+        columnIDs.remove(indexedValue.index);
+        return;
+      }
+    }
   }
 }
 
-class ColumnID extends UUID {}
-
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn])
-abstract class Column<Value> extends Iterable<Value> {
+@immutable
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn])
+abstract class Column<Value> {
   final ColumnID id;
-  final Vec<Value> values;
+  final Dict<RowID, Value> values;
   final double width;
   final String title;
 
   @reify
   Value get defaultValue;
-
-  @override
-  Iterator<Value> get iterator => values.iterator;
 
   const Column({
     required this.id,
@@ -86,61 +89,110 @@ abstract class Column<Value> extends Iterable<Value> {
   });
 }
 
-extension ColumnLengthExtension<Value> on GetCursor<Column<Value>> {
-  GetCursor<int> get length => values.length;
+extension ColumnMutations on Cursor<Column<Object?>> {
+  void setType(ColumnCase columnType) {
+    set(
+      columnType.cases<Column<Object?>>(
+        stringColumn: () => StringColumn(
+          values: Dict({for (final key in values.keys.get) key: ''}),
+          title: title.get,
+          width: width.get,
+        ),
+        booleanColumn: () => BooleanColumn(
+          values: Dict({for (final key in values.keys.get) key: false}),
+          title: title.get,
+          width: width.get,
+        ),
+        intColumn: () => IntColumn(
+          values: Dict({for (final key in values.keys.get) key: 0}),
+          title: title.get,
+          width: width.get,
+        ),
+        dateColumn: () => DateColumn(
+          values: Dict({for (final key in values.keys.get) key: DateTime.now()}),
+          title: title.get,
+          width: width.get,
+        ),
+        selectColumn: () => SelectColumn(
+          values: Dict({for (final key in values.keys.get) key: null}),
+          title: title.get,
+          width: width.get,
+        ),
+      ),
+    );
+  }
 }
 
+@immutable
 @reify
 class BooleanColumn extends Column<bool> with _BooleanColumnMixin {
   BooleanColumn({
     ColumnID? id,
-    Vec<bool> values = const Vec(),
+    Dict<RowID, bool>? values,
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values, width: width);
+  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
 
   @override
   bool get defaultValue => false;
 }
 
+@immutable
 @reify
 class StringColumn extends Column<String> with _StringColumnMixin {
-  static StringColumn empty({int length = 0}) =>
-      StringColumn(values: Vec(List.generate(length, (_) => '')));
-
   StringColumn({
     ColumnID? id,
-    Vec<String> values = const Vec(),
+    Dict<RowID, String>? values,
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
-  }) : super(id: id ?? ColumnID(), values: values, width: width, title: title);
+  }) : super(id: id ?? ColumnID(), values: values ?? Dict(), width: width, title: title);
 
   @override
   String get defaultValue => '';
 }
 
+@immutable
 @reify
 class IntColumn extends Column<int> with _IntColumnMixin {
   IntColumn({
     ColumnID? id,
-    Vec<int> values = const Vec(),
+    Dict<RowID, int>? values,
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values, width: width);
+  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
 
   @override
   int get defaultValue => 0;
 }
 
+@immutable
 @reify
 class DateColumn extends Column<DateTime> with _DateColumnMixin {
   DateColumn({
     ColumnID? id,
-    Vec<DateTime> values = const Vec(),
+    Dict<RowID, DateTime>? values,
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values, width: width);
+  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
 
   @override
   DateTime get defaultValue => DateTime.now();
+}
+
+@immutable
+@reify
+class SelectColumn extends Column<String?> with _SelectColumnMixin {
+  final CSet<String> possibleValues;
+
+  SelectColumn({
+    ColumnID? id,
+    Dict<RowID, String?>? values,
+    double width = DEFAULT_COLUMN_WIDTH,
+    String title = '',
+    CSet<String>? possibleValues,
+  })  : possibleValues = possibleValues ?? CSet(),
+        super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
+
+  @override
+  String? get defaultValue => null;
 }
