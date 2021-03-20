@@ -23,7 +23,7 @@ extension ClassGenerating on Class {
     output.writeln();
 
     for (final accessor in accessors) {
-      if (accessor.getter != null) accessor.getter!.declare(output);
+      accessor.declare(output);
       output.writeln();
     }
     output.writeln();
@@ -51,6 +51,15 @@ extension FieldGenerating on Field {
   }
 }
 
+extension AccessorGenerating on AccessorPair {
+  void declare(StringBuffer output) {
+    getter?.declare(output);
+    output.writeln();
+    setter?.declare(output);
+    output.writeln();
+  }
+}
+
 extension GetterGenerating on Getter {
   void declare(StringBuffer output) {
     for (final annotation in annotations) {
@@ -62,6 +71,20 @@ extension GetterGenerating on Getter {
             ? ' => $body;'
             : ' { $body }';
     output.writeln('$returnType get $name $suffix');
+  }
+}
+
+extension SetterGenerating on Setter {
+  void declare(StringBuffer output) {
+    for (final annotation in annotations) {
+      output.writeln(annotation);
+    }
+    String suffix = body == null
+        ? ';'
+        : isExpression
+            ? ' => $body;'
+            : ' { $body }';
+    output.writeln('void set $name(${param.type} ${param.name}) $suffix');
   }
 }
 
@@ -77,7 +100,7 @@ extension ExtensionGenerating on Extension {
     }
 
     for (final accessor in accessors) {
-      if (accessor.getter != null) accessor.getter!.declare(output);
+      accessor.declare(output);
       output.writeln();
     }
 

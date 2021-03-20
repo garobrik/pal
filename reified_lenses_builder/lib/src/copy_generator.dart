@@ -95,11 +95,7 @@ Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
 
 Constructor? _findCopyConstructor(Class clazz) {
   final annotated = clazz.constructors.where((c) => c.hasAnnotation(CopyConstructor));
-
-  final implicits = clazz.constructors.where((ctor) {
-    print('${clazz.name} ${ctor.name} ${_canCopyConstruct(clazz, ctor)}');
-    return _canCopyConstruct(clazz, ctor);
-  });
+  final implicits = clazz.constructors.where((ctor) => _canCopyConstruct(clazz, ctor));
 
   if (annotated.isNotEmpty) {
     assert(

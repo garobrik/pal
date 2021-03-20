@@ -157,14 +157,16 @@ class Class extends DefinitionHolder<ClassElement> {
 
   Class.fromElement(LibraryElement usageContext, ClassElement element)
       : isAbstract = element.isAbstract,
-        type = Type.fromDartType(usageContext, element.instantiate(
-          typeArguments: List.from(
-            element.typeParameters.map<analyzer_type.DartType>(
-              (tp) => tp.instantiate(nullabilitySuffix: NullabilitySuffix.none),
-            ),
-          ),
-          nullabilitySuffix: NullabilitySuffix.none,
-        )),
+        type = Type.fromDartType(
+            usageContext,
+            element.instantiate(
+              typeArguments: List.from(
+                element.typeParameters.map<analyzer_type.DartType>(
+                  (tp) => tp.instantiate(nullabilitySuffix: NullabilitySuffix.none),
+                ),
+              ),
+              nullabilitySuffix: NullabilitySuffix.none,
+            )),
         super.fromElement(
           usageContext,
           element,
@@ -476,16 +478,22 @@ class Getter extends ElementAnalogue<PropertyAccessorElement> {
 
 @meta.immutable
 class Setter extends ElementAnalogue<PropertyAccessorElement> {
-  final Type type;
+  final Param param;
+  final String? body;
+  final bool isExpression;
 
   const Setter(
     String name,
-    this.type, {
+    this.param, {
     Iterable<String> annotations = const [],
+    this.body,
+    this.isExpression = false,
   }) : super(name: name, annotations: annotations);
 
   Setter.fromElement(LibraryElement usageContext, PropertyAccessorElement element)
-      : type = Type.fromDartType(usageContext, element.type.parameters.first.type),
+      : param = Param.fromElement(usageContext, element.type.parameters.first),
+        body = null,
+        isExpression = false,
         super.fromElement(usageContext, element);
 }
 

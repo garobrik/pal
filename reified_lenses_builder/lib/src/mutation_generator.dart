@@ -2,7 +2,9 @@ import 'parsing.dart';
 import 'generating.dart';
 
 void generateMutations(StringBuffer output, Class clazz) {
-  final potentialMutations = clazz.methods.where((m) => m.returnType?.typeEquals(clazz.type) ?? false);
+  final potentialMutations = clazz.methods.where(
+    (m) => (m.returnType?.typeEquals(clazz.type) ?? false) && m.name != 'mut_array_op',
+  );
   final mutationMutateds = potentialMutations.expand<Pair<Method, Method>>((mutation) {
     final potentialPairs = clazz.methods.where((m) => m.name == '_${mutation.name}_mutated');
     if (potentialPairs.isEmpty) return [];
