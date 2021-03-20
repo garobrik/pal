@@ -7,4 +7,5 @@ export 'src/functional/vec.dart';
 export 'src/functional/tuple.dart';
 export 'src/functional/equality.dart';
 export 'src/functional/map.dart';
+export 'src/functional/cset.dart';
 export 'annotations.dart';

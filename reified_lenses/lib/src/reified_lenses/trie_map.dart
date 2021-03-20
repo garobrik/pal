@@ -5,9 +5,9 @@ class TrieMap<K, V> extends Iterable<V> {
   final V? _value;
   final Map<K, TrieMap<K, V>> _children;
 
-  const TrieMap.empty()
+  TrieMap.empty()
       : _value = null,
-        _children = const {};
+        _children = {};
   const TrieMap(this._value, this._children);
 
   factory TrieMap.from(Map<Iterable<K>, V> map) {
@@ -24,8 +24,8 @@ class TrieMap<K, V> extends Iterable<V> {
     } else {
       final newChildren = <K, TrieMap<K, V>>{};
       newChildren.addAll(_children);
-      newChildren[key.first] = (newChildren[key.first] ?? TrieMap.empty())
-          .update(key.skip(1), updateFn);
+      newChildren[key.first] =
+          (newChildren[key.first] ?? TrieMap.empty()).update(key.skip(1), updateFn);
       if (newChildren[key.first]?.isEmpty ?? true) {
         newChildren.remove(key.first);
       }
@@ -76,8 +76,7 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  Iterable<MapEntry<Iterable<K>, V>> entries(
-      [Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<MapEntry<Iterable<K>, V>> entries([Iterable<K> key = const Iterable.empty()]) sync* {
     if (key.isNotEmpty) {
       final entries = _children[key.first]?.entries(key.skip(1)) ?? [];
       yield* entries.map(
@@ -91,8 +90,7 @@ class TrieMap<K, V> extends Iterable<V> {
     }
     for (final childEntry in _children.entries) {
       yield* childEntry.value.entries().map(
-            (entry) =>
-                MapEntry([childEntry.key].followedBy(entry.key), entry.value),
+            (entry) => MapEntry([childEntry.key].followedBy(entry.key), entry.value),
           );
     }
   }
@@ -189,8 +187,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
     }
   }
 
-  Iterable<MapEntry<Iterable<K>, V>> entries(
-      [Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<MapEntry<Iterable<K>, V>> entries([Iterable<K> key = const Iterable.empty()]) sync* {
     for (final entry in _wrapped.entries(key)) {
       yield* entry.value.map((value) => MapEntry(entry.key, value));
     }
@@ -218,7 +215,7 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
   factory TrieSet.from(Set<Iterable<K>> set) {
     var result = TrieSet<K>.empty();
     for (var key in set) {
-      result = result.add(key);
+      result = result.add(key.isEmpty ? <K>[] : key);
     }
     return result;
   }
@@ -240,8 +237,7 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
     return TrieSet._fromTrieMap(_wrapped.prepend(key));
   }
 
-  Iterable<Iterable<K>> values(
-      [Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<Iterable<K>> values([Iterable<K> key = const Iterable.empty()]) sync* {
     yield* _wrapped.keys(key);
   }
 

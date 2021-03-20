@@ -10,18 +10,22 @@ part 'map.g.dart';
 class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   @skip
   final SplayTreeMap<Key, Value> _values;
-  Dict([Map<Key, Value>? values]) : _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
+  Dict([Map<Key, Value>? values])
+      : _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
 
   @override
   @reify
   int get length => _values.length;
 
   @reify
-  Value? operator [](Key key) => _values[key];
-  Dict<Key, Value> mut_array_op(Key key, Value update) {
-    final newDict = Dict(SplayTreeMap.of(_values));
-    newDict._values[key] = update;
-    return newDict;
+  Value operator [](Key key) => _values[key]!;
+  Dict<Key, Value> mut_array_op(Key key, Value update) => Dict(SplayTreeMap.of(_values)).._values[key] = update;
+
+  TrieSet<Object> _mut_array_op_mutated(Key key, Value update) {
+    return TrieSet.from({
+      [key],
+      if (!_values.containsKey(key)) ['keys'],
+    });
   }
 
   Dict<Key, Value> remove(Key key) {
@@ -30,12 +34,18 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
     return newDict;
   }
 
-  TrieSet<Object> _remove_mutated(Key index) => TrieSet.from({
-        [index],
+  TrieSet<Object> _remove_mutated(Key key) => TrieSet.from({
+        if (_values.containsKey(key)) ...[
+          [key],
+          ['keys']
+        ],
       });
 
   @override
   Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;
+
+  @reify
+  Iterable<Key> get keys => _values.keys;
 
   @override
   bool operator ==(Object other) {
