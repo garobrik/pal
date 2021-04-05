@@ -1,10 +1,9 @@
 import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_portal/flutter_portal.dart';
-
-part 'main.g.dart';
 
 void main() {
   runApp(MyApp());
@@ -23,56 +22,47 @@ class MyApp extends StatelessWidget {
             isAlwaysShown: true,
           ),
         ),
-        home: CursorWidget<AppState>(
-          create: () => AppState(null, Vec()),
-          builder: (_, state) => Scaffold(
-            appBar: AppBar(
-              title: Text('knose'),
-            ),
-            body: state.selectedTable.get == null
-                ? SizedBox.shrink()
-                : Center(
-                    child: TableWidget(
-                      state.tables[state.selectedTable.get!],
-                      key: ValueKey(state.tables[state.selectedTable.get!].id.get),
-                    ),
-                  ),
-            drawer: Drawer(
-              child: Builder(
-                builder: (context) => ListView(
-                  children: [
-                    for (final indexedTable in state.tables.indexedValues)
-                      TextButton(
-                        onPressed: () => state.selectedTable.set(indexedTable.index),
-                        child: Text(indexedTable.value.title.get),
+        home: CursorWidget<model.State>(
+          create: () => model.State(tables: Dict(), tableIDs: Vec()),
+          builder: (_, state) {
+            final selectedTable = useState<model.TableID?>(null);
+
+            return Scaffold(
+              appBar: AppBar(
+                title: Text('knose'),
+              ),
+              body: selectedTable.value == null
+                  ? SizedBox.shrink()
+                  : Center(
+                      child: TableWidget(
+                        state.tables[selectedTable.value!],
+                        key: ValueKey(selectedTable.value!),
                       ),
-                    TextButton(
-                      onPressed: () {
-                        state.tables.add(
-                          model.Table(
-                            id: model.TableID(),
-                            title: 'table ${state.tables.length.get + 1}',
-                          ),
-                        );
-                        state.selectedTable.set(state.tables.length.get - 1);
-                        Navigator.pop(context);
-                      },
-                      child: Text('Add Table'),
-                    )
-                  ],
+                    ),
+              drawer: Drawer(
+                child: Builder(
+                  builder: (context) => ListView(
+                    children: [
+                      for (final tableID in state.tableIDs.values)
+                        TextButton(
+                          onPressed: () => selectedTable.value = tableID.get,
+                          child: Text(state.tables[tableID.get].title.get),
+                        ),
+                      TextButton(
+                        onPressed: () {
+                          selectedTable.value = state.addTable();
+                          Navigator.pop(context);
+                        },
+                        child: Text('Add Table'),
+                      )
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
-}
-
-@reify
-class AppState {
-  final int? selectedTable;
-  final Vec<model.Table> tables;
-  AppState(this.selectedTable, this.tables);
 }

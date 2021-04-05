@@ -7,10 +7,34 @@ part 'table.g.dart';
 
 const DEFAULT_COLUMN_WIDTH = 100.0;
 
+@immutable
+@reify
+class State with _StateMixin {
+  final Dict<TableID, Table> tables;
+  final Vec<TableID> tableIDs;
+
+  State({
+    Dict<TableID, Table>? tables,
+    this.tableIDs = const Vec(),
+  }) : tables = tables ?? Dict();
+}
+
+extension StateMutations on Cursor<State> {
+  TableID addTable() {
+    final newID = TableID();
+    tables[newID] = Table(id: newID);
+    tableIDs.add(newID);
+    return newID;
+  }
+}
+
 class TableID extends UUID<TableID> {}
+
 class ColumnID extends UUID<ColumnID> {}
+
 class RowID extends UUID<RowID> {}
 
+@immutable
 @reify
 class Table with _TableMixin {
   final TableID id;
@@ -71,7 +95,7 @@ extension TableMutations on Cursor<Table> {
 }
 
 @immutable
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn])
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, LinkColumn])
 abstract class Column<Value> {
   final ColumnID id;
   final Dict<RowID, Value> values;
@@ -114,6 +138,11 @@ extension ColumnMutations on Cursor<Column<Object>> {
           width: width.get,
         ),
         selectColumn: () => SelectColumn(
+          values: Dict({for (final key in values.keys.get) key: const Optional.none()}),
+          title: title.get,
+          width: width.get,
+        ),
+        linkColumn: () => LinkColumn(
           values: Dict({for (final key in values.keys.get) key: const Optional.none()}),
           title: title.get,
           width: width.get,
@@ -195,4 +224,23 @@ class SelectColumn extends Column<Optional<String>> with _SelectColumnMixin {
 
   @override
   Optional<String> get defaultValue => const Optional.none();
+}
+
+@immutable
+@reify
+class LinkColumn extends Column<Optional<RowID>> with _LinkColumnMixin {
+  final TableID? table;
+  final ColumnID? column;
+
+  LinkColumn({
+    ColumnID? id,
+    Dict<RowID, Optional<RowID>>? values,
+    double width = DEFAULT_COLUMN_WIDTH,
+    String title = '',
+    this.table,
+    this.column,
+  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
+
+  @override
+  Optional<RowID> get defaultValue => const Optional.none();
 }

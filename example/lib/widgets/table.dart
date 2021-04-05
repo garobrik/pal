@@ -270,6 +270,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID
                 intColumn: (column) => TableIntField(column.values[rowID.get]),
                 dateColumn: (column) => TableDateField(column.values[rowID.get]),
                 selectColumn: (column) => TableSelectField(column, rowID),
+                linkColumn: (column) => TableLinkField(column, rowID),
               ),
             ],
           ),
@@ -280,29 +281,57 @@ Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID
 }
 
 @bound_widget
+Widget _tableLinkField(Cursor<model.LinkColumn> column, Cursor<model.RowID> rowID) {
+  if (column.table.get == null || column.column.get == null) return Text('');
+  return InheritCursor<model.State>(
+    builder: (_, state) {
+      final linkedTable = state.tables[column.table.get!];
+      final linkedColumn = linkedTable.columns[column.column.get!];
+      return Dropdown(
+        childAnchor: Alignment.topLeft,
+        dropdownAnchor: Alignment.topLeft,
+        dropdown: Column(
+          children: [
+            for (final linkedRowID in linkedTable.rowIDs.get)
+              TextButton(
+                onPressed: () => column.values[rowID.get] = Optional(linkedRowID),
+                child: Text(linkedColumn.values[linkedRowID].get.toString()),
+              ),
+          ],
+        ),
+        child: column.values[rowID.get].get.cases(
+          some: (rowID) => Text(linkedColumn.values[rowID].get.toString()),
+          none: () => Container(),
+        ),
+      );
+    },
+  );
+}
+
+@bound_widget
 Widget _tableSelectField(Cursor<model.SelectColumn> column, Cursor<model.RowID> rowID) {
   return Dropdown(
-      childAnchor: Alignment.topLeft,
-      dropdownAnchor: Alignment.topLeft,
-      dropdown: Column(
-        children: [
-          TextFormField(
-            onFieldSubmitted: (result) {
-              if (result.isNotEmpty) {
-                column.possibleValues.add(result);
-                column.values[rowID.get] = Optional(result);
-              }
-            },
+    childAnchor: Alignment.topLeft,
+    dropdownAnchor: Alignment.topLeft,
+    dropdown: Column(
+      children: [
+        TextFormField(
+          onFieldSubmitted: (result) {
+            if (result.isNotEmpty) {
+              column.possibleValues.add(result);
+              column.values[rowID.get] = Optional(result);
+            }
+          },
+        ),
+        for (final possibleValue in column.possibleValues.get)
+          TextButton(
+            onPressed: () => column.values[rowID.get] = Optional(possibleValue),
+            child: Text(possibleValue),
           ),
-          for (final possibleValue in column.possibleValues.get)
-            TextButton(
-              onPressed: () => column.values[rowID.get] = Optional(possibleValue),
-              child: Text(possibleValue),
-            ),
-        ],
-      ),
-      child: Text(column.values[rowID.get].get.unwrap ?? ''),
-    );
+      ],
+    ),
+    child: Text(column.values[rowID.get].get.unwrap ?? ''),
+  );
 }
 
 @bound_widget
@@ -370,44 +399,4 @@ Widget _tableDateField(Cursor<DateTime> date) {
       ),
     ),
   );
-}
-
-class PersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-  final double height;
-
-  PersistentHeaderDelegate(this.child, {this.height = 30});
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return AnimatedContainer(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        boxShadow: [
-          if (shrinkOffset > 0)
-            BoxShadow(
-              blurRadius: 3,
-              spreadRadius: 0,
-              offset: Offset(0, 0),
-              color: Colors.grey,
-            )
-        ],
-      ),
-      duration: Duration(milliseconds: 100),
-      child: child,
-    );
-  }
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
 }

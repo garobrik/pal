@@ -22,10 +22,40 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   }
 
   @override
-  Widget build(BuildContext context) => CursorBinder<T, Cursor<T>>(
-        cursor: cursor,
-        builder: (context, cursor) => widget.builder(context, cursor),
+  Widget build(BuildContext context) => _CursorWidgetInherited(
+        cursor,
+        child: CursorBinder<T, Cursor<T>>(
+          cursor: cursor,
+          builder: (context, cursor) => widget.builder(context, cursor),
+        ),
       );
+}
+
+class InheritCursor<T> extends StatelessWidget {
+  final Widget Function(BuildContext, Cursor<T>) builder;
+
+  const InheritCursor({Key? key, required this.builder}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final inherited = context.dependOnInheritedWidgetOfExactType<_CursorWidgetInherited<T>>();
+    assert(inherited != null, 'Inherited cursor which was never provided.');
+    return CursorBinder<T, Cursor<T>>(
+      cursor: inherited!.cursor,
+      builder: builder,
+    );
+  }
+}
+
+class _CursorWidgetInherited<T> extends InheritedWidget {
+  final Cursor<T> cursor;
+
+  _CursorWidgetInherited(this.cursor, {required Widget child, Key? key})
+      : super(key: key, child: child);
+
+  @override
+  bool updateShouldNotify(covariant _CursorWidgetInherited<T> oldWidget) =>
+      cursor != oldWidget.cursor;
 }
 
 extension GetCursorBuildExtension<S> on GetCursor<S> {

@@ -8,5 +8,5 @@ class Optional<Value> {
 
   Value? get unwrap => _value;
 
-  T cases<T>(T Function(Value) some, T Function() none) => _value == null ? none() : some(_value!);
+  T cases<T>({required T Function(Value) some, required T Function() none}) => _value == null ? none() : some(_value!);
 }
