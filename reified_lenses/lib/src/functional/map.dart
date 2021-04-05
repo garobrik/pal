@@ -11,7 +11,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   @skip
   final SplayTreeMap<Key, Value> _values;
   Dict([Map<Key, Value>? values])
-      : _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
+      : assert(values?.values.where((value) => value == null).isEmpty ?? true),
+        _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
 
   @override
   @reify
@@ -19,7 +20,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
 
   @reify
   Value operator [](Key key) => _values[key]!;
-  Dict<Key, Value> mut_array_op(Key key, Value update) => Dict(SplayTreeMap.of(_values)).._values[key] = update;
+  Dict<Key, Value> mut_array_op(Key key, Value update) =>
+      Dict(SplayTreeMap.of(_values)).._values[key] = update;
 
   TrieSet<Object> _mut_array_op_mutated(Key key, Value update) {
     return TrieSet.from({

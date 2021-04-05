@@ -89,10 +89,10 @@ abstract class Column<Value> {
   });
 }
 
-extension ColumnMutations on Cursor<Column<Object?>> {
+extension ColumnMutations on Cursor<Column<Object>> {
   void setType(ColumnCase columnType) {
     set(
-      columnType.cases<Column<Object?>>(
+      columnType.cases<Column<Object>>(
         stringColumn: () => StringColumn(
           values: Dict({for (final key in values.keys.get) key: ''}),
           title: title.get,
@@ -114,7 +114,7 @@ extension ColumnMutations on Cursor<Column<Object?>> {
           width: width.get,
         ),
         selectColumn: () => SelectColumn(
-          values: Dict({for (final key in values.keys.get) key: null}),
+          values: Dict({for (final key in values.keys.get) key: const Optional.none()}),
           title: title.get,
           width: width.get,
         ),
@@ -181,12 +181,12 @@ class DateColumn extends Column<DateTime> with _DateColumnMixin {
 
 @immutable
 @reify
-class SelectColumn extends Column<String?> with _SelectColumnMixin {
+class SelectColumn extends Column<Optional<String>> with _SelectColumnMixin {
   final CSet<String> possibleValues;
 
   SelectColumn({
     ColumnID? id,
-    Dict<RowID, String?>? values,
+    Dict<RowID, Optional<String>>? values,
     double width = DEFAULT_COLUMN_WIDTH,
     String title = '',
     CSet<String>? possibleValues,
@@ -194,5 +194,5 @@ class SelectColumn extends Column<String?> with _SelectColumnMixin {
         super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
 
   @override
-  String? get defaultValue => null;
+  Optional<String> get defaultValue => const Optional.none();
 }

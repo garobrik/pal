@@ -269,6 +269,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID
                 ),
                 intColumn: (column) => TableIntField(column.values[rowID.get]),
                 dateColumn: (column) => TableDateField(column.values[rowID.get]),
+                selectColumn: (column) => TableSelectField(column, rowID),
               ),
             ],
           ),
@@ -276,6 +277,32 @@ Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID
       ),
     ),
   );
+}
+
+@bound_widget
+Widget _tableSelectField(Cursor<model.SelectColumn> column, Cursor<model.RowID> rowID) {
+  return Dropdown(
+      childAnchor: Alignment.topLeft,
+      dropdownAnchor: Alignment.topLeft,
+      dropdown: Column(
+        children: [
+          TextFormField(
+            onFieldSubmitted: (result) {
+              if (result.isNotEmpty) {
+                column.possibleValues.add(result);
+                column.values[rowID.get] = Optional(result);
+              }
+            },
+          ),
+          for (final possibleValue in column.possibleValues.get)
+            TextButton(
+              onPressed: () => column.values[rowID.get] = Optional(possibleValue),
+              child: Text(possibleValue),
+            ),
+        ],
+      ),
+      child: Text(column.values[rowID.get].get.unwrap ?? ''),
+    );
 }
 
 @bound_widget
