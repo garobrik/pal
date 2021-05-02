@@ -16,7 +16,7 @@ Widget _tableRow(Cursor<model.Table> table, Cursor<model.RowID> rowID) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final columnID in table.columnIDs.values)
-          TableCell(table.columns[columnID.get], rowID, key: ValueKey(columnID.get)),
+            TableCell(table.columns[columnID.get], rowID, key: ValueKey(columnID.get)),
         ],
       ),
     ),
@@ -165,13 +165,6 @@ Widget _tableDateField(Cursor<DateTime> date) {
         onFocusChange: (hasFocus) {
           if (!hasFocus) {
             Form.of(context)!.save();
-          }
-        },
-        onKey: (focusNode, keyEvent) {
-          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-            focusNode.unfocus();
-          } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-            focusNode.unfocus();
           }
         },
         child: InputDatePickerFormField(
