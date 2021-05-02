@@ -17,4 +17,4 @@ dev_dependencies:
   reified_lenses_builder:
     path:
       ../reified_lenses_builder
-  build_runner: ^1.10.7
+  build_runner: ^2.0.1

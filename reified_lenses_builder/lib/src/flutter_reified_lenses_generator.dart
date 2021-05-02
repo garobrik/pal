@@ -28,7 +28,7 @@ class FlutterReifiedLensesGenerator extends Generator {
 
     final resolveType = (String uri, String name) async {
       final libraryElement = await buildStep.resolver.libraryFor(
-        AssetId.resolve(uri, from: buildStep.inputId),
+        AssetId.resolve(Uri.parse(uri), from: buildStep.inputId),
       );
       final element = libraryElement.exportNamespace.get(name);
       if (element is! ClassElement) {
@@ -119,5 +119,5 @@ Param? firstOfNameAndType(Iterable<Param> params, String name, Type type) {
 
 extension AssignableTo on DartType {
   bool isAssignableTo(Type type) =>
-      TypeChecker.fromStatic(type.dartType).isAssignableFromType(this);
+      TypeChecker.fromStatic(type.dartType!).isAssignableFromType(this);
 }
