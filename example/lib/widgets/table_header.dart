@@ -136,6 +136,7 @@ Widget _columnConfigurationDropdown(
           ),
           child: Text(column.caze.get.type.toString()),
         ),
+        ...columnSpecificConfigurations(column),
         TextButton(
           onPressed: () {
             table.removeColumn(column.id.get);
@@ -144,6 +145,58 @@ Widget _columnConfigurationDropdown(
         ),
       ],
     ),
+  );
+}
+
+Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column<Object>> column) {
+  return column.cases(
+    booleanColumn: (_) => [],
+    stringColumn: (_) => [],
+    intColumn: (_) => [],
+    selectColumn: (_) => [],
+    dateColumn: (_) => [],
+    linkColumn: (column) => [
+      InheritCursor<model.State>(
+        builder: (_, state) => Dropdown(
+          childAnchor: Alignment.topRight,
+          dropdownAnchor: Alignment.topLeft,
+          dropdown: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final id in state.tableIDs.get)
+                TextButton(
+                  onPressed: () => column.table.set(id),
+                  child: Text(state.tables[id].title.get),
+                ),
+            ],
+          ),
+          child: Text(column.table.get == null ? '' : state.tables[column.table.get!].title.get),
+        ),
+      ),
+      if (column.table.get != null)
+        InheritCursor<model.State>(
+          builder: (_, state) {
+            final linkedTable = state.tables[column.table.get!];
+            final linkedColumn =
+                column.column.get == null ? null : linkedTable.columns[column.column.get!];
+            return Dropdown(
+              childAnchor: Alignment.topRight,
+              dropdownAnchor: Alignment.topLeft,
+              dropdown: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final id in linkedTable.columnIDs.get)
+                    TextButton(
+                      onPressed: () => column.column.set(id),
+                      child: Text(linkedTable.columns[id].title.get),
+                    ),
+                ],
+              ),
+              child: Text(linkedColumn?.title.get ?? ''),
+            );
+          },
+        ),
+    ],
   );
 }
 
