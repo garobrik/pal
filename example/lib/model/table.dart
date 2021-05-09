@@ -229,7 +229,9 @@ class SelectColumn extends Column<Optional<String>> with _SelectColumnMixin {
 @immutable
 @reify
 class LinkColumn extends Column<Optional<RowID>> with _LinkColumnMixin {
+  @override
   final TableID? table;
+  @override
   final ColumnID? column;
 
   LinkColumn({

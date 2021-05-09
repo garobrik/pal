@@ -10,9 +10,9 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
       return [];
     }
     final getter = a.getter!;
-    // ignore: unnecessary_cast, doesn't type check otherwise
-    final mutater = (clazz.methods as Iterable<Method?>)
-        .firstWhere((m) => m!.name == 'mut_${a.name}', orElse: () => null);
+    final mutaters = clazz.methods.where((m) => m.name == 'mut_${a.name}');
+    final mutater = mutaters.isEmpty ? null : mutaters.first;
+
     if (mutater != null) {
       assert(mutater.params.length == 1);
       Param param = mutater.params.first;

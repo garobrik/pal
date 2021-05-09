@@ -1,11 +1,11 @@
 import 'package:uuid/uuid.dart';
 
 abstract class UUID<T extends UUID<dynamic>> extends Comparable<T> {
-  static const uuid = Uuid();
+  static const _uuid = Uuid();
 
   final String id;
 
-  UUID() : id = uuid.v4();
+  UUID() : id = _uuid.v4();
 
   UUID.from(this.id);
 

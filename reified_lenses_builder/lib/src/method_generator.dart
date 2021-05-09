@@ -16,12 +16,10 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
 
     final isArrayOp = m.name == '[]';
     final mutaterName = isArrayOp ? 'mut_array_op' : 'mut_${m.name}';
-    // ignore: unnecessary_cast, doesn't type check otherwise
-    final mutater = (clazz.methods as Iterable<Method?>)
-        .firstWhere((m) => m!.name == mutaterName, orElse: () => null);
-    // ignore: unnecessary_cast, doesn't type check otherwise
-    final mutated = (clazz.methods as Iterable<Method?>)
-        .firstWhere((m) => m!.name == '_${mutaterName}_mutated', orElse: () => null);
+    final mutaters = clazz.methods.where((m) => m.name == mutaterName);
+    final mutater = mutaters.isEmpty ? null : mutaters.first;
+    final mutateds = clazz.methods.where((m) => m.name == '_${mutaterName}_mutated');
+    final mutated = mutateds.isEmpty ? null : mutateds.first;
 
     late final Param? updateParam;
     if (mutater != null) {
@@ -61,7 +59,6 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
     );
     final pathExpression = "Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])";
 
-    print(isArrayOp);
     return [
       Optic(
         kind: kind,

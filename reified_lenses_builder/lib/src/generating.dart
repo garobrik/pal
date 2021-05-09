@@ -404,3 +404,7 @@ String switchCase(String switched, Map<String, String> casesBodies, {String? def
 }
 
 String statements(Iterable<String> statements) => statements.map((s) => '$s;').join('\n');
+
+String map(Map<String, String> entries) {
+  return "{${entries.entries.map<String>((entry) => entry.key + ': ' + entry.value).join(', ')}}";
+}

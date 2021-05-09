@@ -4,7 +4,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'vec.g.dart';
 
 @immutable
-@reify
+@ReifiedLens(type: ReifiedKind.List)
 class Vec<Value> extends Iterable<Value> {
   @skip
   final List<Value> _values;

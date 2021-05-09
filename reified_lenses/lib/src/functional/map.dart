@@ -6,10 +6,11 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'map.g.dart';
 
 @immutable
-@reify
+@ReifiedLens(type: ReifiedKind.Map)
 class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   @skip
   final SplayTreeMap<Key, Value> _values;
+
   Dict([Map<Key, Value>? values])
       : assert(values?.values.where((value) => value == null).isEmpty ?? true),
         _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
@@ -45,6 +46,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
 
   @override
   Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;
+
+  Iterable<MapEntry<Key, Value>> get entries => this;
 
   @reify
   Iterable<Key> get keys => _values.keys;

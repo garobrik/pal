@@ -7,6 +7,7 @@ import 'package:build/build.dart';
 import 'package:flutter_reified_lenses/flutter_annotations.dart';
 import 'package:source_gen/source_gen.dart';
 import 'parsing.dart';
+import 'parsing.dart' as parsing;
 import 'generating.dart';
 
 class FlutterReifiedLensesGenerator extends Generator {
@@ -73,7 +74,7 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
   final nonSpecialParams = function.params.where((p) => p != buildContextParam && p != keyParam);
   final buildBody = StringBuffer();
   for (final param in nonSpecialParams) {
-    if (param.type.dartType!.isAssignableTo(resolvedTypes.getCursor)) {
+    if (param.type is! parsing.FunctionType &&  param.type.dartType!.isAssignableTo(resolvedTypes.getCursor)) {
       buildBody.writeln('final ${param.name} = useBoundCursor(this.${param.name});');
     }
   }

@@ -5,10 +5,23 @@ enum OpticKind {
   Getter,
 }
 
+enum ReifiedKind {
+  Primitive,
+  Map,
+  List,
+  Struct,
+  Union,
+}
+
 class ReifiedLens {
   final bool allFields;
+  final ReifiedKind type;
   final Iterable<Type> cases;
-  const ReifiedLens({this.allFields = true, this.cases = const []});
+  const ReifiedLens({
+    this.allFields = true,
+    this.cases = const [],
+    this.type = ReifiedKind.Struct,
+  });
 }
 
 const reify = ReifiedLens();

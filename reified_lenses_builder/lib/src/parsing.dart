@@ -534,6 +534,7 @@ abstract class Type {
   bool typeEquals(Type b);
   String renderType();
   bool get isNullable;
+  bool get isTypeParameter;
   analyzer_type.DartType? get dartType;
   Type withNullable(bool isNullable);
 
@@ -562,6 +563,7 @@ abstract class Type {
   static const Type dynamic = Type('dynamic');
   static const Type object = Type('Object');
   static const Type type = Type('Type');
+  static const Type string = Type('String');
 }
 
 class UnresolvableTypeException implements Exception {
@@ -708,6 +710,9 @@ class FunctionType implements Type {
       isNullable: isNullable,
     );
   }
+
+  @override
+  bool get isTypeParameter => false;
 }
 
 @meta.immutable
@@ -757,9 +762,12 @@ class _ConcreteTypeImpl with ConcreteType {
   @override
   final bool isNullable;
   @override
+  final bool isTypeParameter;
+  @override
   final analyzer_type.DartType? dartType;
 
-  const _ConcreteTypeImpl(this.name, {this.args = const [], this.isNullable = false})
+  const _ConcreteTypeImpl(this.name,
+      {this.args = const [], this.isNullable = false, this.isTypeParameter = false})
       : dartType = null;
   _ConcreteTypeImpl.fromDartType(LibraryElement usageContext, analyzer_type.DartType type)
       : name = qualifiedNameIn(type.element!, usageContext)!,
@@ -767,6 +775,7 @@ class _ConcreteTypeImpl with ConcreteType {
             ? type.typeArguments.map((a) => Type.fromDartType(usageContext, a))
             : [],
         isNullable = type.nullabilitySuffix == NullabilitySuffix.question,
+        isTypeParameter = type is analyzer_type.TypeParameterType,
         dartType = type;
 
   @override

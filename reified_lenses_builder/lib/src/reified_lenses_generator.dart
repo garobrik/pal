@@ -13,6 +13,7 @@ import 'copy_generator.dart';
 import 'case_generator.dart';
 import 'mutation_generator.dart';
 import 'field_generator.dart';
+import 'serialization_generator.dart';
 import 'parsing.dart';
 import 'generating.dart';
 import 'optics.dart';
@@ -24,36 +25,49 @@ class ReifiedLensesGenerator extends Generator {
   FutureOr<String> generate(LibraryReader library, BuildStep buildStep) {
     final output = StringBuffer();
 
-    for (final clazz in library.classes) {
-      if (clazz.hasAnnotation(ReifiedLens)) {
-        GeneratorContext(Class.fromElement(library.element, clazz)).generate(output);
-      }
+    final reifiedClassesWithCases = [
+      for (final classElem in library.classes)
+        if (classElem.hasAnnotation(ReifiedLens)) Class.fromElement(library.element, classElem),
+    ];
+
+    final reifiedClasses = reifiedClassesWithCases.where((clazz) {
+      final parentAnnotation = clazz.extendedType?.dartType!.element?.getAnnotation(ReifiedKind);
+      if (parentAnnotation == null) return true;
+      return ReifiedKind.Union.index !=
+          parentAnnotation.read('type').objectValue.getField('index')!.toIntValue();
+    });
+
+    for (final clazz in reifiedClasses) {
+      final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
+      final optics = [
+        ...generateFieldOptics(clazz, copyWithParams),
+        ...generateAccessorOptics(clazz),
+        ...generateMethodOptics(clazz),
+      ];
+      composers.forEach((composer) {
+        OpticKind.values.forEach((kind) {
+          composer.extension(clazz, kind, optics)?.declare(output);
+        });
+      });
+      generateMutations(output, clazz);
+      maybeGenerateCasesExtension(output, clazz);
+
+      final mixins = <Class>[
+        maybeGenerateSerialization(output, clazz, copyWithParams),
+        generateMixin(output, clazz),
+      ];
+
+      Class(
+        mixins.first.name,
+        params: mixins.first.params,
+        isAbstract: mixins.first.isAbstract,
+        accessors: mixins.expand((m) => m.accessors),
+        fields: mixins.expand((m) => m.fields),
+        methods: mixins.expand((m) => m.methods),
+      ).declare(output);
     }
 
     return output.toString();
-  }
-}
-
-class GeneratorContext {
-  final Class clazz;
-
-  GeneratorContext(this.clazz);
-
-  void generate(StringBuffer output) {
-    final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
-    final optics = [
-      ...generateFieldOptics(clazz, copyWithParams),
-      ...generateAccessorOptics(clazz),
-      ...generateMethodOptics(clazz),
-    ];
-    composers.forEach((composer) {
-      OpticKind.values.forEach((kind) {
-        composer.extension(clazz, kind, optics)?.declare(output);
-      });
-    });
-    generateMutations(output, clazz);
-    maybeGenerateCasesExtension(output, clazz);
-    generateMixin(output, clazz);
   }
 }
 

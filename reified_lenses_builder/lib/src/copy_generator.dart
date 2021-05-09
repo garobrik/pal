@@ -117,14 +117,17 @@ Constructor? _findCopyConstructor(Class clazz) {
 bool _canCopyConstruct(Class clazz, Constructor constructor) {
   return constructor.params.every(
         (p) => clazz.fields.any(
-          (f) => f.name == p.name &&
-                f.type.withNullable(false).typeEquals(p.type.withNullable(false)) &&
-                !f.hasAnnotation(Skip),
+          (f) =>
+              f.name == p.name &&
+              f.type.withNullable(false).typeEquals(p.type.withNullable(false)) &&
+              !f.hasAnnotation(Skip),
         ),
       ) &&
       clazz.fields.where((f) => !f.hasAnnotation(Skip)).every(
             (f) => constructor.params.any(
-              (p) => p.name == f.name && f.type.withNullable(false).typeEquals(p.type.withNullable(false)),
+              (p) =>
+                  p.name == f.name &&
+                  f.type.withNullable(false).typeEquals(p.type.withNullable(false)),
             ),
           );
 }

@@ -1,8 +1,8 @@
 import 'parsing.dart';
 import 'generating.dart';
 
-void generateMixin(StringBuffer output, Class clazz) {
-  Class(
+Class generateMixin(StringBuffer output, Class clazz) {
+  return Class(
     clazz.isPrivate ? '${clazz.name}Mixin' : '_${clazz.name}Mixin',
     isAbstract: true,
     params: clazz.params,
@@ -45,5 +45,5 @@ void generateMixin(StringBuffer output, Class clazz) {
         ].join(' && '),
       ),
     ],
-  ).declare(output);
+  );
 }
