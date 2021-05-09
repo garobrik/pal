@@ -199,7 +199,7 @@ extension MethodGenerating on Method {
     output.write(typeParams.asDeclaration);
     output.write('(${params.asDeclaration})');
     if (body == null) {
-      output.write('{}');
+      output.write(';');
     } else if (isExpression) {
       output.write(' => $body;');
     } else {

@@ -37,14 +37,14 @@ Widget _boundTextField(
         onKey: (focus, keyEvent) {
           if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
             focus.unfocus();
-            return true;
+            return KeyEventResult.handled;
           } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
             if (!keyEvent.isShiftPressed && firstFrame.value) {
               focus.nextFocus();
-              return true;
+              return KeyEventResult.handled;
             }
           }
-          return false;
+          return KeyEventResult.ignored;
         },
         child: TextFormField(
           maxLines: maxLines,

@@ -53,6 +53,34 @@ Class maybeGenerateSerialization(
           }
         }(),
       ),
+      if (kind == ReifiedKind.List)
+        Method(
+          'map',
+          returnType: Type('Iterable', args: [clazz.newTypeParams(1).first.type]),
+          typeParams: clazz.newTypeParams(1),
+          params: [
+            Param(
+              FunctionType(
+                returnType: clazz.newTypeParams(1).first.type,
+                requiredArgs: [clazz.params.first.type],
+              ),
+              'f',
+            )
+          ],
+        ),
+    ],
+    accessors: [
+      if (kind == ReifiedKind.Map)
+        AccessorPair(
+          'entries',
+          getter: Getter(
+            'entries',
+            Type(
+              'Iterable',
+              args: [Type('MapEntry', args: clazz.params.map((tp) => tp.type))],
+            ),
+          ),
+        ),
     ],
   );
 }
