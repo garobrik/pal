@@ -11,13 +11,15 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   @skip
   final SplayTreeMap<Key, Value> _values;
 
-  Dict([Map<Key, Value>? values])
-      : assert(values?.values.where((value) => value == null).isEmpty ?? true),
-        _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values ?? {});
+  Dict([Map<Key, Value> values = const {}])
+      : _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values);
 
   @override
   @reify
   int get length => _values.length;
+
+  @reify
+  Iterable<Key> get keys => _values.keys;
 
   @reify
   Value operator [](Key key) => _values[key]!;
@@ -27,7 +29,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   TrieSet<Object> _mut_array_op_mutated(Key key, Value update) {
     return TrieSet.from({
       [key],
-      if (!_values.containsKey(key)) ['keys'],
+      if (!_values.containsKey(key)) ['keys', 'length'],
     });
   }
 
@@ -40,7 +42,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   TrieSet<Object> _remove_mutated(Key key) => TrieSet.from({
         if (_values.containsKey(key)) ...[
           [key],
-          ['keys']
+          ['keys'],
+          ['length'],
         ],
       });
 
@@ -48,9 +51,6 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;
 
   Iterable<MapEntry<Key, Value>> get entries => this;
-
-  @reify
-  Iterable<Key> get keys => _values.keys;
 
   @override
   bool operator ==(Object other) {
