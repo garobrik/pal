@@ -5,12 +5,12 @@ import 'id.dart';
 
 part 'table.g.dart';
 
-const DEFAULT_COLUMN_WIDTH = 100.0;
-
 @immutable
 @reify
 class State with _StateMixin {
+  @override
   final Dict<TableID, Table> tables;
+  @override
   final Vec<TableID> tableIDs;
 
   State({
@@ -37,15 +37,20 @@ class RowID extends UUID<RowID> {}
 @immutable
 @reify
 class Table with _TableMixin {
+  @override
   final TableID id;
+  @override
   final String title;
-  final Dict<ColumnID, Column<Object>> columns;
+  @override
+  final Dict<ColumnID, Column> columns;
+  @override
   final Vec<ColumnID> columnIDs;
+  @override
   final Vec<RowID> rowIDs;
 
   Table({
     TableID? id,
-    Dict<ColumnID, Column<Object>>? columns,
+    Dict<ColumnID, Column>? columns,
     this.title = '',
     this.columnIDs = const Vec(),
     this.rowIDs = const Vec(),
@@ -58,24 +63,15 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) {
-    final rowID = RowID();
-    for (final columnID in columnIDs.values) {
-      final column = columns[columnID.get];
-      column.values[rowID] = column.defaultValue.get;
-    }
-    rowIDs.insert(index ?? rowIDs.length.get, rowID);
-  }
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.get, RowID());
 
   void addColumn([int? index]) {
     atomically((table) {
       final columnID = ColumnID();
 
-      final column = StringColumn(
+      final column = Column(
         id: columnID,
-        values: Dict({
-          for (final key in table.rowIDs.values) key.get: '',
-        }),
+        rows: StringColumn(),
       );
 
       table.columns[columnID] = column;
@@ -95,154 +91,95 @@ extension TableMutations on Cursor<Table> {
 }
 
 @immutable
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, LinkColumn])
-abstract class Column<Value> {
+@reify
+class Column with _ColumnMixin {
+  @override
   final ColumnID id;
-  final Dict<RowID, Value> values;
+  @override
+  final ColumnRows rows;
+  @override
   final double width;
+  @override
   final String title;
-
-  @reify
-  Value get defaultValue;
 
   const Column({
     required this.id,
-    required this.values,
-    required this.width,
-    required this.title,
+    required this.rows,
+    this.width = 100,
+    this.title = '',
   });
 }
 
-extension ColumnMutations on Cursor<Column<Object>> {
-  void setType(ColumnCase columnType) {
-    set(
-      columnType.cases<Column<Object>>(
-        stringColumn: () => StringColumn(
-          values: Dict({for (final key in values.keys.get) key: ''}),
-          title: title.get,
-          width: width.get,
-        ),
-        booleanColumn: () => BooleanColumn(
-          values: Dict({for (final key in values.keys.get) key: false}),
-          title: title.get,
-          width: width.get,
-        ),
-        intColumn: () => IntColumn(
-          values: Dict({for (final key in values.keys.get) key: 0}),
-          title: title.get,
-          width: width.get,
-        ),
-        dateColumn: () => DateColumn(
-          values: Dict({for (final key in values.keys.get) key: DateTime.now()}),
-          title: title.get,
-          width: width.get,
-        ),
-        selectColumn: () => SelectColumn(
-          values: Dict({for (final key in values.keys.get) key: const Optional.none()}),
-          title: title.get,
-          width: width.get,
-        ),
-        linkColumn: () => LinkColumn(
-          values: Dict({for (final key in values.keys.get) key: const Optional.none()}),
-          title: title.get,
-          width: width.get,
-        ),
-      ),
-    );
-  }
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, LinkColumn])
+abstract class ColumnRows {
+  // @reify
+  // Dict<RowID, Object> get values;
 }
 
 @immutable
 @reify
-class BooleanColumn extends Column<bool> with _BooleanColumnMixin {
-  BooleanColumn({
-    ColumnID? id,
-    Dict<RowID, bool>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
-
+class BooleanColumn extends ColumnRows with _BooleanColumnMixin {
   @override
-  bool get defaultValue => false;
+  final Dict<RowID, bool> values;
+
+  BooleanColumn({Dict<RowID, bool>? values}) : values = values ?? Dict();
 }
 
 @immutable
 @reify
-class StringColumn extends Column<String> with _StringColumnMixin {
-  StringColumn({
-    ColumnID? id,
-    Dict<RowID, String>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
-  }) : super(id: id ?? ColumnID(), values: values ?? Dict(), width: width, title: title);
-
+class StringColumn extends ColumnRows with _StringColumnMixin {
   @override
-  String get defaultValue => '';
+  final Dict<RowID, String> values;
+
+  StringColumn({Dict<RowID, String>? values}) : values = values ?? Dict();
 }
 
 @immutable
 @reify
-class IntColumn extends Column<int> with _IntColumnMixin {
-  IntColumn({
-    ColumnID? id,
-    Dict<RowID, int>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
-
+class IntColumn extends ColumnRows with _IntColumnMixin {
   @override
-  int get defaultValue => 0;
+  final Dict<RowID, int> values;
+
+  IntColumn({Dict<RowID, int>? values}) : values = values ?? Dict();
 }
 
 @immutable
 @reify
-class DateColumn extends Column<DateTime> with _DateColumnMixin {
-  DateColumn({
-    ColumnID? id,
-    Dict<RowID, DateTime>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
-  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
-
+class DateColumn extends ColumnRows with _DateColumnMixin {
   @override
-  DateTime get defaultValue => DateTime.now();
+  final Dict<RowID, DateTime> values;
+
+  DateColumn({Dict<RowID, DateTime>? values}) : values = values ?? Dict();
 }
 
 @immutable
 @reify
-class SelectColumn extends Column<Optional<String>> with _SelectColumnMixin {
+class SelectColumn extends ColumnRows with _SelectColumnMixin {
+  @override
   final CSet<String> possibleValues;
+  @override
+  final Dict<RowID, String> values;
 
   SelectColumn({
-    ColumnID? id,
-    Dict<RowID, Optional<String>>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
     CSet<String>? possibleValues,
+    Dict<RowID, String>? values,
   })  : possibleValues = possibleValues ?? CSet(),
-        super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
-
-  @override
-  Optional<String> get defaultValue => const Optional.none();
+        values = values ?? Dict();
 }
 
 @immutable
 @reify
-class LinkColumn extends Column<Optional<RowID>> with _LinkColumnMixin {
+class LinkColumn extends ColumnRows with _LinkColumnMixin {
   @override
   final TableID? table;
   @override
   final ColumnID? column;
+  @override
+  final Dict<RowID, RowID> values;
 
   LinkColumn({
-    ColumnID? id,
-    Dict<RowID, Optional<RowID>>? values,
-    double width = DEFAULT_COLUMN_WIDTH,
-    String title = '',
+    Dict<RowID, RowID>? values,
     this.table,
     this.column,
-  }) : super(id: id ?? ColumnID(), title: title, values: values ?? Dict(), width: width);
-
-  @override
-  Optional<RowID> get defaultValue => const Optional.none();
+  }) : values = values ?? Dict();
 }

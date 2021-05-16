@@ -24,7 +24,7 @@ Widget _tableRow(Cursor<model.Table> table, Cursor<model.RowID> rowID) {
 }
 
 @bound_widget
-Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID) {
+Widget _tableCell(Cursor<model.Column> column, Cursor<model.RowID> rowID) {
   return Container(
     constraints: BoxConstraints.tightFor(width: column.width.get),
     decoration: const BoxDecoration(border: Border(right: BorderSide())),
@@ -47,7 +47,7 @@ Widget _tableCell(Cursor<model.Column<Object>> column, Cursor<model.RowID> rowID
           padding: EdgeInsets.symmetric(horizontal: 4, vertical: 0),
           child: Column(
             children: [
-              column.cases(
+              column.rows.cases(
                 stringColumn: (column) => TableTextField(column.values[rowID.get]),
                 booleanColumn: (column) => Expanded(
                   child: TableCheckbox(column.values[rowID.get]),
@@ -71,7 +71,7 @@ Widget _tableLinkField(Cursor<model.LinkColumn> column, Cursor<model.RowID> rowI
   return InheritCursor<model.State>(
     builder: (_, state) {
       final linkedTable = state.tables[column.table.get!];
-      final linkedColumn = linkedTable.columns[column.column.get!];
+      // final linkedColumn = linkedTable.columns[column.column.get!];
       return Dropdown(
         childAnchor: Alignment.topLeft,
         dropdownAnchor: Alignment.topLeft,
@@ -79,15 +79,12 @@ Widget _tableLinkField(Cursor<model.LinkColumn> column, Cursor<model.RowID> rowI
           children: [
             for (final linkedRowID in linkedTable.rowIDs.get)
               TextButton(
-                onPressed: () => column.values[rowID.get] = Optional(linkedRowID),
-                child: Text(linkedColumn.values[linkedRowID].get.toString()),
+                onPressed: () => column.values[rowID.get] = linkedRowID,
+                child: Text('$linkedRowID'),
               ),
           ],
         ),
-        child: column.values[rowID.get].get.cases(
-          some: (rowID) => Text(linkedColumn.values[rowID].get.toString()),
-          none: () => Container(),
-        ),
+        child: column.values.keys.get.contains(rowID) ? Text(column.values[rowID.get].get.toString()) : Container(),
       );
     },
   );
@@ -104,18 +101,18 @@ Widget _tableSelectField(Cursor<model.SelectColumn> column, Cursor<model.RowID> 
           onFieldSubmitted: (result) {
             if (result.isNotEmpty) {
               column.possibleValues.add(result);
-              column.values[rowID.get] = Optional(result);
+              column.values[rowID.get] = result;
             }
           },
         ),
         for (final possibleValue in column.possibleValues.get)
           TextButton(
-            onPressed: () => column.values[rowID.get] = Optional(possibleValue),
+            onPressed: () => column.values[rowID.get] = possibleValue,
             child: Text(possibleValue),
           ),
       ],
     ),
-    child: Text(column.values[rowID.get].get.unwrap ?? ''),
+    child: Text(column.values.keys.get.contains(rowID.get) ? column.values[rowID.get].get : ''),
   );
 }
 

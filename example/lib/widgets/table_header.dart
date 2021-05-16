@@ -65,7 +65,7 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
 Widget _tableHeaderCell(
   BuildContext context, {
   required Cursor<model.Table> table,
-  required Cursor<model.Column<Object>> column,
+  required Cursor<model.Column> column,
   required int columnIndex,
 }) {
   return Dropdown(
@@ -95,7 +95,7 @@ Widget _tableHeaderCell(
 @bound_widget
 Widget _columnConfigurationDropdown(
   BuildContext context, {
-  required Cursor<model.Column<Object>> column,
+  required Cursor<model.Column> column,
   required Cursor<model.Table> table,
   required int columnIndex,
 }) {
@@ -127,14 +127,23 @@ Widget _columnConfigurationDropdown(
           dropdown: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final caze in model.ColumnCase.values)
+              for (final caze in model.ColumnRowsCase.values)
                 TextButton(
-                  onPressed: () => column.setType(caze),
+                  onPressed: () => column.rows.set(
+                    caze.cases(
+                      booleanColumn: () => model.BooleanColumn(),
+                      intColumn: () => model.IntColumn(),
+                      stringColumn: () => model.StringColumn(),
+                      dateColumn: () => model.DateColumn(),
+                      selectColumn: () => model.SelectColumn(),
+                      linkColumn: () => model.LinkColumn(),
+                    ),
+                  ),
                   child: Text(caze.type.toString()),
                 ),
             ],
           ),
-          child: Text(column.caze.get.type.toString()),
+          child: Text(column.rows.caze.get.type.toString()),
         ),
         ...columnSpecificConfigurations(column),
         TextButton(
@@ -148,8 +157,8 @@ Widget _columnConfigurationDropdown(
   );
 }
 
-Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column<Object>> column) {
-  return column.cases(
+Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
+  return column.rows.cases(
     booleanColumn: (_) => [],
     stringColumn: (_) => [],
     intColumn: (_) => [],
