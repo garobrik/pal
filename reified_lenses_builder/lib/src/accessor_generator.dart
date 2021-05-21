@@ -41,7 +41,7 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
               wrapper(getter.returnType),
               body: call(parentKind.thenMethod, [
                 call(parentKind.fieldCtor, [
-                  "'${a.name}'",
+                  "const ['${a.name}']",
                   '(_t) => _t.${a.name}',
                   if (parentKind == OpticKind.Lens)
                     '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',

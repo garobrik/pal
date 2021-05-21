@@ -25,20 +25,30 @@ class Vec<Value> extends Iterable<Value> {
     return Vec.from([..._values.take(index), v, ..._values.skip(index)]);
   }
 
-  TrieSet<Object> _insert_mutated(int index, Value v) => TrieSet.from({
-        for (final j in range(length, start: index)) [j],
-        const ['length']
-      });
+  Diff _insert_mutated(int index, Value v) => Diff(
+        added: PathSet.from({
+          [length]
+        }),
+        changed: PathSet.from({
+          for (final j in range(length, start: index)) [j],
+          ['length']
+        }),
+      );
 
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
     return Vec.from([..._values.take(index), ..._values.skip(index + 1)]);
   }
 
-  TrieSet<Object> _remove_mutated(int index) => TrieSet.from({
-        for (final j in range(length - 1, start: index)) [j],
-        const ['length']
-      });
+  Diff _remove_mutated(int index) => Diff(
+        changed: PathSet.from({
+          for (final j in range(length - 1, start: index)) [j],
+          const ['length']
+        }),
+        removed: PathSet.from({
+          [length - 1]
+        }),
+      );
 
   @override
   Iterator<Value> get iterator => _values.iterator;

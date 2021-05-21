@@ -57,7 +57,7 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
               : '$updateArg($getBody)',
       typeArgs: m.typeParams.map((tp) => tp.type),
     );
-    final pathExpression = "Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])";
+    final pathExpression = "[Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])]";
 
     return [
       Optic(
@@ -72,9 +72,9 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
             ]);
           } else {
             body = call(parentKind.ctor, [
-              '($stateArg) => GetResult($getBody, [$pathExpression])',
-              if (parentKind == OpticKind.Lens)
-                '($stateArg, $updateArg) => MutResult($mutBody, [$pathExpression], $mutatedBody)',
+              pathExpression,
+              '($stateArg) => $getBody',
+              if (parentKind == OpticKind.Lens) '($stateArg, $updateArg) => $mutBody',
             ]);
           }
 
@@ -94,10 +94,9 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
                 params: [m.params.first, updateParam!],
                 body: '''
                   mutResult(
-                    (_obj) => MutResult(
+                    (_obj) => DiffResult(
                       ${mutater!.invokeFromParams("_obj")},
-                      const [],
-                      ${mutated == null ? "TrieSet.from({[$pathExpression]})" : mutated.invokeFromParams("_obj")},
+                      ${mutated == null ? "Diff(changed: PathSet.from({$pathExpression}),)" : mutated.invokeFromParams("_obj")},
                     ),
                   );
                 ''',

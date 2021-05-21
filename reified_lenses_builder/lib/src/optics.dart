@@ -34,6 +34,6 @@ extension OpticKindGeneration on OpticKind {
 
   String get opticName => this.cases(lens: 'Lens', getter: 'Getter');
 
-  String get fieldCtor => '$opticName.field';
-  String get ctor => '$opticName.mk';
+  String get fieldCtor => '$opticName';
+  String get ctor => '$opticName';
 }

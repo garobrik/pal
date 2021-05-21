@@ -22,8 +22,8 @@ class CSet<Value> extends Iterable<Value> {
     return newSet;
   }
 
-  TrieSet<Object> _remove_mutated(Value value) =>
-      !_values.contains(value) ? TrieSet.empty() : TrieSet.from({[]});
+  Diff _remove_mutated(Value value) =>
+      !_values.contains(value) ? const Diff() : const Diff.allChanged();
 
   CSet<Value> add(Value value) {
     final newSet = CSet(_values);
@@ -31,8 +31,8 @@ class CSet<Value> extends Iterable<Value> {
     return newSet;
   }
 
-  TrieSet<Object> _add_mutated(Value value) =>
-      _values.contains(value) ? TrieSet.empty() : TrieSet.from({[]});
+  Diff _add_mutated(Value value) =>
+      _values.contains(value) ? const Diff() : const Diff.allChanged();
 
   @override
   Iterator<Value> get iterator => _values.iterator;

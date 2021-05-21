@@ -18,7 +18,7 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   @override
   void initState() {
     super.initState();
-    cursor = Cursor.from(widget.create());
+    cursor = Cursor(widget.create());
   }
 
   @override
@@ -114,13 +114,13 @@ class CursorBinder<S, T extends GetCursor<S>> extends StatefulWidget {
 
 class _CursorBindState<S, T extends GetCursor<S>> extends State<CursorBinder<S, T>>
     with CursorCallback {
-  TrieMapSet<Object, void Function()> disposals = TrieMapSet.empty();
+  PathMapSet<void Function()> disposals = TrieMapSet.empty();
   @override
   Widget build(BuildContext context) {
     for (final dispose in disposals) {
       dispose();
     }
-    disposals = TrieMapSet.empty();
+    disposals = PathMapSet.empty();
 
     return HookBuilder(
       builder: (context) => widget.builder(
@@ -142,7 +142,7 @@ class _CursorBindState<S, T extends GetCursor<S>> extends State<CursorBinder<S, 
   void onChanged() => setState(() {});
 
   @override
-  void onGet(WithDisposal<Iterable<Object>> result) {
+  void onGet(WithDisposal<Path> result) {
     disposals = disposals.add(result.value, result.dispose);
   }
 }
@@ -163,7 +163,7 @@ class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
 
 class _CursorBindHookState<S, T extends GetCursor<S>> extends HookState<T, _CursorBindHook<S, T>>
     with CursorCallback {
-  TrieMapSet<Object, void Function()> disposals = TrieMapSet.empty();
+  PathMapSet<void Function()> disposals = PathMapSet.empty();
 
   @override
   T build(BuildContext context) {
@@ -187,7 +187,7 @@ class _CursorBindHookState<S, T extends GetCursor<S>> extends HookState<T, _Curs
   void onChanged() => setState(() {});
 
   @override
-  void onGet(WithDisposal<Iterable<Object>> result) {
+  void onGet(WithDisposal<Path> result) {
     disposals = disposals.add(result.value, result.dispose);
   }
 }

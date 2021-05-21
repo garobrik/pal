@@ -2,6 +2,7 @@ import 'package:reified_lenses/annotations.dart';
 
 import 'parsing.dart';
 import 'generating.dart';
+import 'optics.dart';
 
 void maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
   final cases = clazz
@@ -60,7 +61,7 @@ AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
       'caze',
       Type('GetCursor', args: [Type('${clazz.name}Case')]),
       body: '''
-        thenGet<${clazz.name}Case>(Getter.field(\'case\', ($param) { $ifElsePart }))
+        thenGet<${clazz.name}Case>(${OpticKind.Getter.fieldCtor}([\'case\'], ($param) { $ifElsePart }))
     ''',
     ),
   );

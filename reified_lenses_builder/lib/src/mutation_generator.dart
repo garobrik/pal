@@ -10,7 +10,7 @@ void generateMutations(StringBuffer output, Class clazz) {
     if (potentialPairs.isEmpty) return [];
     final potentialPair = potentialPairs.first;
     assert(potentialPair.params.iterableEqual(mutation.params));
-    assert(potentialPair.returnType!.typeEquals(Type('TrieSet', args: [Type.object])));
+    assert(potentialPair.returnType!.typeEquals(Type('PathSet')));
     return [Pair(mutation, potentialPair)];
   });
   if (mutationMutateds.isEmpty) return;
@@ -28,9 +28,8 @@ void generateMutations(StringBuffer output, Class clazz) {
         typeParams: mutation.typeParams,
         body: '''
         mutResult(
-          (_obj) => MutResult(
+          (_obj) => DiffResult(
             ${mutation.invokeFromParams("_obj")},
-            const [],
             ${mutated.invokeFromParams("_obj")},
           ),
         );

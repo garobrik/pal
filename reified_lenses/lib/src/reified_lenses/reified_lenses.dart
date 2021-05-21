@@ -1,314 +1,200 @@
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
-@immutable
-class GetResult<A> {
-  final A value;
-  final Iterable<Object> path;
+typedef PathMap<V> = TrieMap<Object, V>;
+typedef PathMapSet<V> = TrieMapSet<Object, V>;
+typedef PathSet = TrieSet<Object>;
+typedef Path = Iterable<Object>;
 
-  const GetResult(this.value, this.path);
+@immutable
+class Diff {
+  final PathSet changed;
+  final PathSet removed;
+  final PathSet added;
+
+  const Diff({
+    this.changed = const PathSet.empty(),
+    this.removed = const PathSet.empty(),
+    this.added = const PathSet.empty(),
+  });
+
+  const Diff.allChanged()
+      : this.changed = const PathSet.root(),
+        this.removed = const PathSet.empty(),
+        this.added = const PathSet.empty();
+
+  Diff prepend(Path path) => Diff(
+        added: added.prepend(path),
+        changed: changed.prepend(path),
+        removed: removed.prepend(path),
+      );
+
+  Diff union(Diff other) => Diff(
+        changed: changed.union(other.changed),
+        added: added.union(other.added),
+        removed: removed.union(other.removed),
+      );
 }
 
 @immutable
-class MutResult<A> {
-  final A value;
-  final Iterable<Object> path;
-  final TrieSet<Object> mutated;
+class DiffResult<T> {
+  final T value;
+  final Diff diff;
 
-  MutResult(this.value, this.path, [TrieSet<Object>? mutated])
-      : mutated = mutated ?? TrieSet.empty();
+  const DiffResult(this.value, this.diff);
+  const DiffResult.same(this.value) : diff = const Diff();
+  const DiffResult.allChanged(this.value) : diff = const Diff.allChanged();
+}
 
-  MutResult.unchanged(this.value)
-      : path = const Iterable.empty(),
-        mutated = TrieSet.empty();
+@immutable
+class PathResult<T> {
+  final T value;
+  final Path path;
 
-  MutResult.allChanged(this.value)
-      : path = const Iterable.empty(),
-        mutated = TrieSet.from({[]});
-
-  MutResult.path(this.value, this.path) : mutated = TrieSet.from({path});
+  const PathResult(this.value, this.path);
 }
 
 typedef GetterF<T, S> = S Function(T);
 
-typedef ReifiedGetterF<T, S> = GetResult<S> Function(T);
-
-typedef MutaterF<T, S> = T Function(T, S Function(S));
-
-typedef ReifiedMutaterF<T, S> = MutResult<T> Function(T, S Function(S));
+typedef MutaterF<T, S> = T Function(T, TransformF<S>);
 
 typedef SetterF<T, S> = T Function(T, S);
 
-typedef ReifiedSetterF<T, S> = MutResult<T> Function(T, S);
-
 typedef TransformF<T> = T Function(T);
 
-typedef ReifiedTransformF<T> = MutResult<T> Function(T);
+abstract class Getter<T, S> {
+  const factory Getter(Path path, GetterF<T, S> _getter) = _GetterImpl;
+  const factory Getter.identity() = _IdentityImpl;
+  const factory Getter.mkCast() = _CastImpl;
 
-GetResult<T> _identityGetter<T>(T t) => GetResult(t, Iterable.empty());
-MutResult<T> _identityMutater<T>(T t, T Function(T) f) => MutResult.path(f(t), Iterable.empty());
+  S get(T t);
+  Path get path;
 
-abstract class ThenLens<S1> {
-  @protected
-  ThenLens<S2> then<S2>(Lens<S1, S2> lens);
-}
-
-mixin ThenGet<S1> implements ThenLens<S1> {
-  @protected
-  ThenGet<S2> thenGet<S2>(Getter<S1, S2> getter);
-}
-
-//////////////////////////////////////////////////////////
-mixin ThenMut<S1> implements ThenLens<S1> {
-  @protected
-  ThenMut<S2> thenMut<S2>(Mutater<S1, S2> mutater);
-}
-
-//////////////////////////////////////////////////////////
-mixin Getter<T, S> implements ThenGet<S>, ThenLens<S> {
-  static Getter<T, S> mkCast<T, S>() => _GetterImpl((T t) => GetResult(t as S, const []));
-  static Getter<T, S> mk<T, S>(ReifiedGetterF<T, S> getF) => _GetterImpl(getF);
-  static Getter<T, T> identity<T>() => _GetterImpl(_identityGetter);
-  static Getter<T, S> field<T, S>(Object field, GetterF<T, S> getter) =>
-      Getter.mk((t) => GetResult(getter(t), [field]));
-
-  GetResult<S> getResult(T t);
-
-  S get(T t) => getResult(t).value;
-
-  @override
   Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) {
-    return Getter.mk((t) {
-      final sResult = getResult(t);
-      final s1Result = getter.getResult(sResult.value);
-      return GetResult(s1Result.value, sResult.path + s1Result.path);
+    return Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
+  }
+
+  Getter<T, S2> then<S2>(Lens<S, S2> getter);
+
+  Getter<T, S2> cast<S2>() => thenGet(Getter<S, S2>.mkCast());
+}
+
+@immutable
+abstract class Lens<T, S> implements Getter<T, S> {
+  const factory Lens(Path path, GetterF<T, S> getF, MutaterF<T, S> mutF) = _LensImpl;
+  const factory Lens.mkCast() = _CastImpl;
+  static Lens<T, T> identity<T>() => _IdentityImpl();
+
+  T mut(T t, S Function(S) s);
+
+  DiffResult<T> mutDiff(T t, DiffResult<S> Function(S) f) {
+    late Diff diff;
+    final newT = mut(t, (s) {
+      final result = f(s);
+      diff = result.diff;
+      return result.value;
     });
+    return DiffResult(newT, diff.prepend(path));
   }
 
   @override
-  Getter<T, S2> then<S2>(Lens<S, S2> getter);
+  Lens<T, S2> then<S2>(Lens<S, S2> lens) => Lens(
+        path.followedBy(lens.path),
+        (t) => lens.get(get(t)),
+        (t, f) => mut(t, (s) => lens.mut(s, f)),
+      );
 
-  Getter<T, S2> cast<S2>() => thenGet(Getter.mkCast<S, S2>());
-}
+  @override
+  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) => Getter(
+        path.followedBy(getter.path),
+        (t) => getter.get(get(t)),
+      );
 
-extension GetterNullability<T, S> on Getter<T, S?> {
-  Getter<T, S> get nonnull => thenGet(Getter.mk(
-        (s) => GetResult(s!, Iterable.empty()),
-      ));
+  @override
+  Lens<T, S2> cast<S2>() => then(Lens<S, S2>.mkCast());
 }
 
 @immutable
 class _GetterImpl<T, S> with Getter<T, S> {
-  final ReifiedGetterF<T, S> _getter;
+  final Path _path;
+  final GetterF<T, S> _getter;
 
-  _GetterImpl(this._getter);
+  const _GetterImpl(this._path, this._getter);
 
   @override
-  GetResult<S> getResult(T t) => _getter(t);
+  Path get path => _path;
+
+  @override
+  S get(T t) => _getter(t);
 
   @override
   Getter<T, S2> then<S2>(Lens<S, S2> lens) => thenGet(lens);
 }
 
-//////////////////////////////////////////////////////////
-abstract class Mutater<T, S> implements ThenMut<S>, ThenLens<S> {
-  static Mutater<T, S> mkCast<T, S>() =>
-      _MutaterImpl((T t, S Function(S) f) => MutResult(f(t as S) as T, Iterable.empty()));
+@immutable
+class _LensImpl<T, S> with Lens<T, S> {
+  final Path _path;
+  final GetterF<T, S> _getF;
+  final MutaterF<T, S> _mutF;
 
-  static Mutater<T, S> mk<T, S>(ReifiedMutaterF<T, S> mutater) => _MutaterImpl(mutater);
-
-  static Mutater<T, T> identity<T>() => _MutaterImpl(_identityMutater);
-
-  static Mutater<T, S> field<T, S>(Object field, MutaterF<T, S> mutater) =>
-      _MutaterImpl((t, f) => MutResult.path(
-            mutater(t, f),
-            [field],
-          ));
-
-  MutResult<T> mutResult(T t, S Function(S s) f);
-
-  Mutater<T0, S> mutAfter<T0>(Mutater<T0, T> prevMutater) {
-    return Mutater.mk((t0, f) {
-      MutResult<T>? tResult;
-      final t0Result = prevMutater.mutResult(t0, (t) {
-        tResult = mutResult(t, f);
-        return tResult!.value;
-      });
-      return MutResult(
-        t0Result.value,
-        t0Result.path + tResult!.path,
-        // TODO: figure out this logic
-        tResult!.mutated.prepend(t0Result.path),
-      );
-    });
-  }
+  const _LensImpl(this._path, this._getF, this._mutF);
 
   @override
-  Mutater<T, S2> thenMut<S2>(Mutater<S, S2> mutater) => mutater.mutAfter(this);
+  Path get path => _path;
 
   @override
-  Mutater<T, S2> then<S2>(Lens<S, S2> lens);
+  S get(T t) => _getF(t);
 
-  T mut(T t, S Function(S) f) => mutResult(t, f).value;
-
-  MutResult<T> setResult(T t, S value) => mutResult(t, (_) => value);
-
-  T set(T t, S value) => setResult(t, value).value;
-
-  ReifiedSetterF<T, S> get setter => (t, s) => setResult(t, s);
-
-  ReifiedTransformF<T> transform(S Function(S) f) => (t) => mutResult(t, f);
-  ReifiedTransformF<T> reifiedTransform(ReifiedTransformF<S> f) {
-    return (t) {
-      MutResult<S>? sResult;
-      final tResult = mutResult(t, (s) {
-        sResult = f(s);
-        return sResult!.value;
-      });
-      return MutResult(
-        tResult.value,
-        tResult.path + sResult!.path,
-        // TODO: figure out this logic
-        sResult!.mutated.prepend(tResult.path),
-      );
-    };
-  }
-
-  Mutater<T, S2> cast<S2>() => thenMut(Mutater.mkCast<S, S2>());
-}
-
-extension MutaterNullability<T, S> on Mutater<T, S?> {
-  Mutater<T, S> get nonnull => thenMut(Mutater.mk((s, f) => MutResult.unchanged(f(s!))));
+  @override
+  T mut(T t, S Function(S) f) => _mutF(t, f);
 }
 
 @immutable
-class _MutaterImpl<T, S> with Mutater<T, S> {
-  final ReifiedMutaterF<T, S> _mutater;
-
-  _MutaterImpl(this._mutater);
+class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
+  const _IdentityImpl();
 
   @override
-  MutResult<T> mutResult(T t, S Function(S s) f) => _mutater(t, f);
+  Path get path => const [];
 
   @override
-  Mutater<T, S2> then<S2>(Lens<S, S2> lens) => thenMut(lens);
+  T get(T t) => t;
+
+  @override
+  Lens<T, S2> then<S2>(Lens<T, S2> lens) => lens;
+
+  @override
+  Getter<T, S2> thenGet<S2>(Getter<T, S2> getter) => getter;
+
+  @override
+  Lens<T, S2> cast<S2>() => Lens<T, S2>.mkCast();
+
+  @override
+  T mut(T t, T Function(T) f) => f(t);
+
+  @override
+  DiffResult<T> mutDiff(T t, DiffResult<T> Function(T p1) f) => f(t);
 }
 
-extension SetterExt<T, S> on ReifiedSetterF<T, S> {
-  T set(T t, S value) => this(t, value).value;
-  ReifiedTransformF<T> transform(S value) => (t) => this(t, value);
+class _CastImpl<T, S> with Getter<T, S>, Lens<T, S> {
+  const _CastImpl();
+
+  @override
+  Path get path => const [];
+
+  @override
+  S get(T t) => t as S;
+
+  @override
+  Lens<T, S2> cast<S2>() => Lens<T, S2>.mkCast();
+
+  @override
+  T mut(T t, S Function(S) f) => f(t as S) as T;
 }
 
-//////////////////////////////////////////////////////////
-abstract class Lens<T, S> with Mutater<T, S> implements Getter<T, S> {
-  static Lens<T, S> mkCast<T, S>() => _LensImpl(
-        Getter.mkCast<T, S>().getResult,
-        Mutater.mkCast<T, S>().mutResult,
-      );
-
-  static Lens<T, S> mk<T, S>(
-    ReifiedGetterF<T, S> getF,
-    ReifiedMutaterF<T, S> mutF,
-  ) =>
-      _LensImpl(getF, mutF);
-
-  static Lens<T, T> identity<T>() => _LensImpl<T, T>(_identityGetter, _identityMutater);
-
-  static Lens<T, S> field<T, S>(
-    Object field,
-    S Function(T t) getter,
-    T Function(T t, S Function(S s) s) mutater,
-  ) =>
-      _LensImpl(
-        Getter.field(field, getter).getResult,
-        Mutater.field(field, mutater).mutResult,
-      );
-
-  static Lens<T?, T> nonnull<T>() => Lens.mk(
-        (s) => GetResult(s!, const Iterable.empty()),
-        (s, f) => MutResult.unchanged(f(s!)),
-      );
-
-  @override
-  Lens<T, S2> then<S2>(Lens<S, S2> lens);
-
-  @override
-  Lens<T, S2> cast<S2>() => then(Lens.mkCast<S, S2>());
+extension GetterNullability<T, S> on Getter<T, S?> {
+  Getter<T, S> get nonnull => thenGet(Getter(const [], (s) => s!));
 }
 
-@immutable
-class _LensImpl<T, S> extends Lens<T, S> {
-  final ReifiedGetterF<T, S> _getF;
-  final ReifiedMutaterF<T, S> _mutF;
-
-  _LensImpl(this._getF, this._mutF);
-
-  @override
-  GetResult<S> getResult(T t) => _getF(t);
-
-  @override
-  MutResult<T> mutResult(T t, S Function(S s) f) => _mutF(t, f);
-
-  @override
-  Lens<T, S2> then<S2>(Lens<S, S2> lens) {
-    return Lens.mk(thenGet(lens).getResult, thenMut(lens).mutResult);
-  }
-
-  @override
-  S get(T t) => getResult(t).value;
-
-  @override
-  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) => Getter.mk(_getF).thenGet(getter);
-}
-
-//////////////////////////////////////////////////////////
-class Traversal<O, T, S, S1> with Mutater<T, S1> {
-  final Mutater<T, O> _prefix;
-  final Mutater<S, S1> _suffix;
-  final Iterable<GetResult<S>> Function(O) _to;
-  final O Function(Iterable<S>) _from;
-
-  Traversal._(this._to, this._from, this._prefix, this._suffix);
-  static Traversal<O, O, S, S> mk<O, S>(
-    Iterable<GetResult<S>> Function(O) to,
-    O Function(Iterable<S>) from,
-  ) =>
-      Traversal._(to, from, Mutater.identity(), Mutater.identity());
-
-  @override
-  Traversal<O, T, S, S2> then<S2>(Lens<S1, S2> lens) {
-    return thenMut(lens);
-  }
-
-  @override
-  Traversal<O, T, S, S2> thenMut<S2>(Mutater<S1, S2> mutater) {
-    return Traversal._(_to, _from, _prefix, _suffix.thenMut(mutater));
-  }
-
-  @override
-  MutResult<T> mutResult(T t, S1 Function(S1 s) f) {
-    var sMutateds = TrieSet<Object>.empty();
-    final tResult = _prefix.mutResult(t, (o) {
-      final resultO = _from(_to(o).map((s) {
-        final sResult = _suffix.mutResult(s.value, f);
-        sMutateds = sResult.mutated.prepend(s.path);
-        return sResult.value;
-      }));
-      return resultO;
-    });
-    return MutResult(
-      tResult.value,
-      tResult.path,
-      tResult.mutated.union(sMutateds.prepend(tResult.path)),
-    );
-  }
-
-  @override
-  Traversal<O, T0, S, S1> mutAfter<T0>(Mutater<T0, T> arg) {
-    return Traversal._(_to, _from, _prefix.mutAfter(arg), _suffix);
-  }
-}
-
-extension _IterableAppend<V> on Iterable<V> {
-  Iterable<V> operator +(Iterable<V> other) => this.followedBy(other);
+extension LensNullability<T, S> on Lens<T, S?> {
+  Lens<T, S> get nonnull => then(Lens(const [], (s) => s!, (s, f) => f(s!)));
 }

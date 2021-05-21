@@ -26,11 +26,23 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   Dict<Key, Value> mut_array_op(Key key, Value update) =>
       Dict(SplayTreeMap.of(_values)).._values[key] = update;
 
-  TrieSet<Object> _mut_array_op_mutated(Key key, Value update) {
-    return TrieSet.from({
-      [key],
-      if (!_values.containsKey(key)) ['keys', 'length'],
-    });
+  Diff _mut_array_op_mutated(Key key, Value update) {
+    if (!_values.containsKey(key)) {
+      return Diff(
+        added: PathSet.from({
+          [key]
+        }),
+        changed: PathSet.from({
+          ['keys', 'length']
+        }),
+      );
+    } else {
+      return Diff(
+        changed: PathSet.from({
+          [key]
+        }),
+      );
+    }
   }
 
   Dict<Key, Value> remove(Key key) {
@@ -39,13 +51,21 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
     return newDict;
   }
 
-  TrieSet<Object> _remove_mutated(Key key) => TrieSet.from({
-        if (_values.containsKey(key)) ...[
-          [key],
+  Diff _remove_mutated(Key key) {
+    if (_values.containsKey(key)) {
+      return Diff(
+        removed: PathSet.from({
+          [key]
+        }),
+        changed: PathSet.from({
           ['keys'],
-          ['length'],
-        ],
-      });
+          ['length']
+        }),
+      );
+    } else {
+      return const Diff();
+    }
+  }
 
   @override
   Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;

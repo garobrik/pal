@@ -80,7 +80,7 @@ Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
 
   final conditionsBodies = {
     for (final caze in cases)
-      'this is $caze': 'return ((this as $caze).copyWith as $functionType);',
+      'this is $caze': 'return (this as $caze).copyWith;',
   };
 
   final getter = Getter(

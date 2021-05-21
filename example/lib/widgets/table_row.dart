@@ -48,6 +48,7 @@ Widget _tableCell(Cursor<model.Column> column, Cursor<model.RowID> rowID) {
           child: Column(
             children: [
               column.rows.cases(
+                // TODO: optional table indexing
                 stringColumn: (column) => TableTextField(column.values[rowID.get]),
                 booleanColumn: (column) => Expanded(
                   child: TableCheckbox(column.values[rowID.get]),
@@ -130,9 +131,10 @@ Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
 @bound_widget
 Widget _tableIntField(Cursor<int> value) {
   final asString = value.then<String>(
-    Lens.mk(
-      (value) => GetResult(value.toString(), []),
-      (value, update) => MutResult.allChanged(int.tryParse(update(value.toString())) ?? value),
+    Lens(
+      Path.empty(),
+      (value) => value.toString(),
+      (value, update) => int.tryParse(update(value.toString())) ?? value,
     ),
   );
   return BoundTextField(

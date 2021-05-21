@@ -3,13 +3,50 @@ import 'package:reified_lenses/reified_lenses.dart';
 import 'reified_lenses.dart';
 import 'trie_map.dart';
 
-class ListenableState<T> {
+abstract class GetCursor<S> {
+  const factory GetCursor(S state) = _GetCursorImpl;
+
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
+
+  GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
+
+  S get get;
+
+  GetCursor<S> withCallback<F extends CursorCallback>(F callback);
+
+  GetCursor<S1> cast<S1>() => thenGet(Getter<S, S1>.mkCast());
+
+  @override
+  String toString() => 'GetCursor($get)';
+}
+
+abstract class Cursor<S> implements GetCursor<S> {
+  factory Cursor(S state) => _CursorImpl(_ListenableState(state), Lens.identity(), {});
+
+  @override
+  Cursor<S2> then<S2>(Lens<S, S2> lens);
+
+  void mut(S Function(S) f) => mutResult((s) => DiffResult.allChanged(f(s)));
+  void mutResult(DiffResult<S> Function(S) f);
+  void set(S s) => mut((_) => s);
+
+  @override
+  Cursor<S1> cast<S1>() => then(Lens<S, S1>.mkCast());
+
+  @override
+  Cursor<S> withCallback<F extends CursorCallback>(F callback);
+
+  T atomically<T>(T Function(Cursor<S>) f);
+
+  @override
+  String toString() => 'Cursor($get)';
+}
+
+class _ListenableState<T> {
   T _state;
   TrieMapSet<Object, void Function()> _listenables = TrieMapSet.empty();
 
-  ListenableState(this._state);
-
-  Cursor<T> get cursor => _CursorImpl(this, Lens.identity(), {});
+  _ListenableState(this._state);
 
   T get bareState => _state;
 
@@ -29,27 +66,19 @@ class ListenableState<T> {
     });
   }
 
-  GetResult<S> getResultAndListen<S>(
+  PathResult<S> getResultAndListen<S>(
     Getter<T, S> getter,
     Iterable<CursorCallback> callbacks,
   ) {
-    final result = getter.getResult(_state);
-    listen(TrieSet.from({result.path}), callbacks);
-    return result;
+    final result = getter.get(_state);
+    listen(TrieSet.from({getter.path}), callbacks);
+    return PathResult(result, getter.path);
   }
 
-  void mutAndNotify<S>(Mutater<T, S> mutater, S Function(S s) mutation) {
-    transformAndNotify(mutater.transform(mutation));
-  }
-
-  void setAndNotify<S>(ReifiedSetterF<T, S> setter, S newValue) {
-    transformAndNotify((state) => setter(state, newValue));
-  }
-
-  MutResult<T> transformAndNotify(ReifiedTransformF<T> transform) {
+  DiffResult<T> transformAndNotify(DiffResult<T> Function(T) transform) {
     final result = transform(_state);
     _state = result.value;
-    _listenables.eachChildren(result.mutated.values()).forEach((f) => f());
+    _listenables.eachChildren(result.diff.changed.values()).forEach((f) => f());
     return result;
   }
 }
@@ -62,28 +91,9 @@ class WithDisposal<T> {
   const WithDisposal(this.dispose, this.value);
 }
 
-abstract class Cursor<S> implements GetCursor<S> {
-  static Cursor<S> from<S>(S state) => ListenableState(state).cursor;
-
-  @override
-  Cursor<S2> then<S2>(Lens<S, S2> lens);
-
-  void mut(S Function(S) f) => mutResult((s) => MutResult.allChanged(f(s)));
-  void mutResult(ReifiedTransformF<S> f);
-  void set(S s) => mut((_) => s);
-
-  @override
-  Cursor<S1> cast<S1>() => then(Lens.mkCast<S, S1>());
-
-  @override
-  Cursor<S> withCallback<F extends CursorCallback>(F callback);
-
-  T atomically<T>(T Function(Cursor<S>) f);
-}
-
 @immutable
-class _CursorImpl<T, S> extends Cursor<S> {
-  final ListenableState<T> state;
+class _CursorImpl<T, S> with Cursor<S> {
+  final _ListenableState<T> state;
   final Lens<T, S> lens;
   final Map<Type, CursorCallback> callbacks;
 
@@ -96,7 +106,7 @@ class _CursorImpl<T, S> extends Cursor<S> {
 
   @override
   GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) =>
-      GetCursor.mk(state, lens.thenGet(getter), callbacks: callbacks);
+      _CursorImpl(state, this.lens.then(Lens(getter.path, getter.get, (s, f) => s)), callbacks);
 
   @override
   Cursor<S> withCallback<F extends CursorCallback>(F callback) {
@@ -107,28 +117,26 @@ class _CursorImpl<T, S> extends Cursor<S> {
   }
 
   @override
-  S get get => GetCursor.mk(state, lens, callbacks: callbacks).get;
+  S get get => state.getResultAndListen(lens, callbacks.values).value;
 
   @override
-  void mutResult(ReifiedTransformF<S> f) {
-    final result = state.transformAndNotify(lens.reifiedTransform(f));
+  void mutResult(DiffResult<S> Function(S) f) {
+    final result = state.transformAndNotify((t) => lens.mutDiff(t, f));
     callbacks.values.forEach((callback) => callback.onMut(result));
   }
 
   @override
   V atomically<V>(V Function(Cursor<S> p1) f) {
-    final stateResult = lens.getResult(state.bareState);
-    final bareCursor = ListenableState(stateResult.value).cursor;
+    final bareCursor = Cursor(lens.get(state.bareState));
     final actionLogger = _LoggingCursorCallback();
     final loggedCursor = bareCursor.withCallback(actionLogger);
     final result = f(loggedCursor);
     state.listen(actionLogger.gotten, callbacks.values);
 
     mutResult(
-      (_) => MutResult(
+      (_) => DiffResult(
         loggedCursor.get,
-        const [],
-        actionLogger.mutated,
+        actionLogger.diff,
       ),
     );
     return result;
@@ -139,47 +147,25 @@ class _CursorImpl<T, S> extends Cursor<S> {
 }
 
 class _LoggingCursorCallback extends CursorCallback {
-  TrieSet<Object> mutated = TrieSet.empty();
-  TrieSet<Object> gotten = TrieSet.empty();
+  Diff diff = Diff();
+  PathSet gotten = PathSet.empty();
 
   @override
-  void onGet(WithDisposal<Iterable<Object>> result) {
+  void onGet(WithDisposal<Path> result) {
     result.dispose();
     gotten = gotten.add(result.value);
   }
 
   @override
-  void onMut<S>(MutResult<S> result) {
-    mutated = mutated.union(result.mutated);
+  void onMut<S>(DiffResult<S> result) {
+    diff = diff.union(result.diff);
   }
 }
 
 abstract class CursorCallback {
   void onChanged() {}
-  void onGet(WithDisposal<Iterable<Object>> result) => result.dispose();
-  void onMut<S>(MutResult<S> result) {}
-}
-
-@immutable
-abstract class GetCursor<S> implements ThenGet<S>, ThenLens<S> {
-  static GetCursor<S> mk<T, S>(
-    ListenableState<T> state,
-    Getter<T, S> getter, {
-    Map<Type, CursorCallback> callbacks = const {},
-  }) =>
-      _GetCursorImpl(state, getter, callbacks);
-
-  @override
-  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
-
-  @override
-  GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
-
-  S get get;
-
-  GetCursor<S> withCallback<F extends CursorCallback>(F callback);
-
-  GetCursor<S1> cast<S1>() => thenGet(Getter.mkCast<S, S1>());
+  void onGet(WithDisposal<Path> result) => result.dispose();
+  void onMut<S>(DiffResult<S> result) {}
 }
 
 extension GetCursorListenExtension<S> on GetCursor<S> {
@@ -201,7 +187,7 @@ extension GetCursorListenExtension<S> on GetCursor<S> {
 
 class _GetCursorListenExtensionCallback extends CursorCallback {
   final void Function() onChangedCallback;
-  final void Function(WithDisposal<Iterable<Object>> result) onGetCallback;
+  final void Function(WithDisposal<Path> result) onGetCallback;
 
   _GetCursorListenExtensionCallback(this.onChangedCallback, this.onGetCallback);
 
@@ -213,37 +199,27 @@ class _GetCursorListenExtensionCallback extends CursorCallback {
 }
 
 @immutable
-class _GetCursorImpl<T, S> extends GetCursor<S> {
-  final ListenableState<T> state;
-  final Getter<T, S> getter;
-  final Map<Type, CursorCallback> getCallbacks;
+class _GetCursorImpl<S> with GetCursor<S> {
+  final S state;
 
-  _GetCursorImpl(this.state, this.getter, this.getCallbacks);
+  const _GetCursorImpl(this.state);
 
   @override
-  S get get => state.getResultAndListen(getter, getCallbacks.values).value;
+  S get get => state;
 
   @override
-  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
-    return _GetCursorImpl(state, this.getter.thenGet(getter), getCallbacks);
-  }
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) => _GetCursorImpl(getter.get(state));
 
   @override
   GetCursor<S> withCallback<F extends CursorCallback>(F callback) {
-    final newCallbacks = <Type, CursorCallback>{};
-    newCallbacks.addAll(getCallbacks);
-    newCallbacks[callback.runtimeType] = callback;
-    return _GetCursorImpl(state, getter, newCallbacks);
+    return this;
   }
-
-  @override
-  String toString() => 'GetCursor($get)';
 }
 
 extension CursorNullability<T> on Cursor<T?> {
-  Cursor<T> get nonnull => then(Lens.nonnull());
+  Cursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
 }
 
 extension GetCursorNullability<T> on GetCursor<T?> {
-  GetCursor<T> get nonnull => then(Lens.nonnull());
+  GetCursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
 }

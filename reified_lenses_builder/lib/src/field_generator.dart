@@ -28,7 +28,7 @@ Iterable<Optic> generateFieldOptics(
               wrapper(f.type),
               body: call(parentKind.thenMethod, [
                 call(parentKind.fieldCtor, [
-                  "'${f.name}'",
+                  "const ['${f.name}']",
                   '(_t) => _t.${f.name}',
                   if (parentKind == OpticKind.Lens)
                     '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
