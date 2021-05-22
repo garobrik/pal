@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
                   ? SizedBox.shrink()
                   : Center(
                       child: TableWidget(
-                        state.tables[selectedTable.value!],
+                        state.tables[selectedTable.value!].nonnull,
                         key: ValueKey(selectedTable.value!),
                       ),
                     ),
@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
                       for (final tableID in state.tableIDs.values)
                         TextButton(
                           onPressed: () => selectedTable.value = tableID.get,
-                          child: Text(state.tables[tableID.get].title.get),
+                          child: Text(state.tables[tableID.get].nonnull.title.get),
                         ),
                       TextButton(
                         onPressed: () {

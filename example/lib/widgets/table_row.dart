@@ -16,7 +16,7 @@ Widget _tableRow(Cursor<model.Table> table, Cursor<model.RowID> rowID) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final columnID in table.columnIDs.values)
-            TableCell(table.columns[columnID.get], rowID, key: ValueKey(columnID.get)),
+            TableCell(table.columns[columnID.get].nonnull, rowID, key: ValueKey(columnID.get)),
         ],
       ),
     ),
@@ -51,7 +51,7 @@ Widget _tableCell(Cursor<model.Column> column, Cursor<model.RowID> rowID) {
                 // TODO: optional table indexing
                 stringColumn: (column) => TableTextField(column.values[rowID.get]),
                 booleanColumn: (column) => Expanded(
-                  child: TableCheckbox(column.values[rowID.get]),
+                  child: TableCheckbox(column.values[rowID.get].orElse(false)),
                 ),
                 intColumn: (column) => TableIntField(column.values[rowID.get]),
                 dateColumn: (column) => TableDateField(column.values[rowID.get]),
@@ -71,7 +71,7 @@ Widget _tableLinkField(Cursor<model.LinkColumn> column, Cursor<model.RowID> rowI
   if (column.table.get == null || column.column.get == null) return Text('');
   return InheritCursor<model.State>(
     builder: (_, state) {
-      final linkedTable = state.tables[column.table.get!];
+      final linkedTable = state.tables[column.table.get!].nonnull;
       // final linkedColumn = linkedTable.columns[column.column.get!];
       return Dropdown(
         childAnchor: Alignment.topLeft,
@@ -113,7 +113,7 @@ Widget _tableSelectField(Cursor<model.SelectColumn> column, Cursor<model.RowID> 
           ),
       ],
     ),
-    child: Text(column.values.keys.get.contains(rowID.get) ? column.values[rowID.get].get : ''),
+    child: Text(column.values[rowID.get].get ?? ''),
   );
 }
 
@@ -129,11 +129,11 @@ Widget _tableCheckbox(Cursor<bool> checked) => Checkbox(
     );
 
 @bound_widget
-Widget _tableIntField(Cursor<int> value) {
+Widget _tableIntField(Cursor<int?> value) {
   final asString = value.then<String>(
     Lens(
       Path.empty(),
-      (value) => value.toString(),
+      (value) => value?.toString() ?? '',
       (value, update) => int.tryParse(update(value.toString())) ?? value,
     ),
   );
@@ -145,9 +145,9 @@ Widget _tableIntField(Cursor<int> value) {
 }
 
 @bound_widget
-Widget _tableTextField(Cursor<String> text) {
+Widget _tableTextField(Cursor<String?> text) {
   return BoundTextField(
-    text,
+    text.orElse(''),
     maxLines: null,
     decoration: _tableCellBoundTextDecoration,
   );
@@ -156,7 +156,7 @@ Widget _tableTextField(Cursor<String> text) {
 const _tableCellBoundTextDecoration = InputDecoration(border: InputBorder.none, isDense: true);
 
 @bound_widget
-Widget _tableDateField(Cursor<DateTime> date) {
+Widget _tableDateField(Cursor<DateTime?> date) {
   return Form(
     child: Builder(
       builder: (context) => Focus(

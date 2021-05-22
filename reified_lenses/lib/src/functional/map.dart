@@ -22,26 +22,44 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
   Iterable<Key> get keys => _values.keys;
 
   @reify
-  Value operator [](Key key) => _values[key]!;
-  Dict<Key, Value> mut_array_op(Key key, Value update) =>
-      Dict(SplayTreeMap.of(_values)).._values[key] = update;
+  Value? operator [](Key key) => _values[key];
+  Dict<Key, Value> mut_array_op(Key key, Value? update) => update != null
+      ? (Dict(SplayTreeMap.of(_values)).._values[key] = update)
+      : (Dict(SplayTreeMap.of(_values)).._values.remove(key));
 
-  Diff _mut_array_op_mutated(Key key, Value update) {
-    if (!_values.containsKey(key)) {
-      return Diff(
-        added: PathSet.from({
-          [key]
-        }),
-        changed: PathSet.from({
-          ['keys', 'length']
-        }),
-      );
+  Diff _mut_array_op_mutated(Key key, Value? update) {
+    if (update != null) {
+      if (!_values.containsKey(key)) {
+        return Diff(
+          added: PathSet.from({
+            [key]
+          }),
+          changed: PathSet.from({
+            ['keys'],
+            ['length'],
+          }),
+        );
+      } else {
+        return Diff(
+          changed: PathSet.from({
+            [key]
+          }),
+        );
+      }
     } else {
-      return Diff(
-        changed: PathSet.from({
-          [key]
-        }),
-      );
+      if (!_values.containsKey(key)) {
+        return const Diff();
+      } else {
+        return Diff(
+          removed: PathSet.from({
+            [key]
+          }),
+          changed: PathSet.from({
+            ['keys'],
+            ['length'],
+          }),
+        );
+      }
     }
   }
 

@@ -218,8 +218,15 @@ class _GetCursorImpl<S> with GetCursor<S> {
 
 extension CursorNullability<T> on Cursor<T?> {
   Cursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
+  Cursor<T> orElse(T defaultValue) => then(Lens(
+        Path.empty(),
+        (t) => t ?? defaultValue,
+        (t, f) => f(t ?? defaultValue),
+      ));
 }
 
 extension GetCursorNullability<T> on GetCursor<T?> {
   GetCursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
+  GetCursor<T> orElse(T defaultValue) =>
+      thenGet(Getter(Path.empty(), (t) => t ?? defaultValue));
 }

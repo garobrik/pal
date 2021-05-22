@@ -34,12 +34,11 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                 //   table.columns.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
                 // },
                 children: [
-                  for (final indexedColumnID in table.columnIDs.indexedValues)
+                  for (final columnID in table.columnIDs.values)
                     TableHeaderCell(
-                      key: ValueKey(indexedColumnID.value.get),
+                      key: ValueKey(columnID.get),
                       table: table,
-                      column: table.columns[indexedColumnID.value.get],
-                      columnIndex: indexedColumnID.index,
+                      column: table.columns[columnID.get].nonnull,
                     ),
                 ],
               ),
@@ -66,7 +65,6 @@ Widget _tableHeaderCell(
   BuildContext context, {
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
-  required int columnIndex,
 }) {
   return Dropdown(
     style: ButtonStyle(alignment: Alignment.bottomLeft),
@@ -75,7 +73,6 @@ Widget _tableHeaderCell(
     dropdown: ColumnConfigurationDropdown(
       column: column,
       table: table,
-      columnIndex: columnIndex,
     ),
     child: Container(
       constraints: BoxConstraints.tightFor(
@@ -97,7 +94,6 @@ Widget _columnConfigurationDropdown(
   BuildContext context, {
   required Cursor<model.Column> column,
   required Cursor<model.Table> table,
-  required int columnIndex,
 }) {
   return TextButtonTheme(
     data: TextButtonThemeData(
@@ -175,19 +171,19 @@ Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
               for (final id in state.tableIDs.get)
                 TextButton(
                   onPressed: () => column.table.set(id),
-                  child: Text(state.tables[id].title.get),
+                  child: Text(state.tables[id].nonnull.title.get),
                 ),
             ],
           ),
-          child: Text(column.table.get == null ? '' : state.tables[column.table.get!].title.get),
+          child: Text(column.table.get == null ? '' : state.tables[column.table.get!].nonnull.title.get),
         ),
       ),
       if (column.table.get != null)
         InheritCursor<model.State>(
           builder: (_, state) {
-            final linkedTable = state.tables[column.table.get!];
+            final linkedTable = state.tables[column.table.get!].nonnull;
             final linkedColumn =
-                column.column.get == null ? null : linkedTable.columns[column.column.get!];
+                column.column.get == null ? null : linkedTable.columns[column.column.get!].nonnull;
             return Dropdown(
               childAnchor: Alignment.topRight,
               dropdownAnchor: Alignment.topLeft,
@@ -197,7 +193,7 @@ Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
                   for (final id in linkedTable.columnIDs.get)
                     TextButton(
                       onPressed: () => column.column.set(id),
-                      child: Text(linkedTable.columns[id].title.get),
+                      child: Text(linkedTable.columns[id].nonnull.title.get),
                     ),
                 ],
               ),
