@@ -60,6 +60,15 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
   );
 }
 
+class _MaterialStateEdgeInsetsGeometry extends MaterialStateProperty<EdgeInsetsGeometry?> {
+  final EdgeInsetsGeometry? geometry;
+
+  _MaterialStateEdgeInsetsGeometry(this.geometry);
+
+  @override
+  EdgeInsetsGeometry? resolve(Set<MaterialState> states) => geometry;
+}
+
 @bound_widget
 Widget _tableHeaderCell(
   BuildContext context, {
@@ -67,7 +76,10 @@ Widget _tableHeaderCell(
   required Cursor<model.Column> column,
 }) {
   return Dropdown(
-    style: ButtonStyle(alignment: Alignment.bottomLeft),
+    style: ButtonStyle(
+      alignment: Alignment.bottomLeft,
+      padding: _MaterialStateEdgeInsetsGeometry(EdgeInsets.zero),
+    ),
     childAnchor: Alignment.topCenter,
     dropdownAnchor: Alignment.topCenter,
     dropdown: ColumnConfigurationDropdown(
@@ -175,7 +187,8 @@ Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
                 ),
             ],
           ),
-          child: Text(column.table.get == null ? '' : state.tables[column.table.get!].nonnull.title.get),
+          child: Text(
+              column.table.get == null ? '' : state.tables[column.table.get!].nonnull.title.get),
         ),
       ),
       if (column.table.get != null)
