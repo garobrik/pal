@@ -27,14 +27,32 @@ Class maybeGenerateSerialization(
               return 'return toString();';
             case ReifiedKind.Map:
               return '''
-                return List<Map<String, dynamic>>.from(
-                  this.entries.map<Map<String, dynamic>>(
-                    (entry) => <String, dynamic>{
-                      'key': ${checkedToJsonCall('entry.key')},
-                      'value': ${checkedToJsonCall('entry.value')},
-                    },
-                  ),
+                bool allString = true;
+                final toJsonEntries = this.entries.map(
+                  (entry) {
+                  dynamic key = ${checkedToJsonCall('entry.key')};
+                  dynamic value = ${checkedToJsonCall('entry.value')};
+                  if (key is num) {
+                    key = key.toString();
+                  }
+                  if (key is! String) {
+                    allString = false;
+                  }
+                  return MapEntry<dynamic, dynamic>(key, value);
+                } ,
                 );
+                if (allString) {
+                  return Map<dynamic, dynamic>.fromEntries(toJsonEntries);
+                } else {
+                  return List<Map<String, dynamic>>.from(
+                    toJsonEntries.map<Map<String, dynamic>>(
+                      (entry) => <String, dynamic>{
+                        'key': entry.key,
+                        'value': entry.value,
+                      },
+                    ),
+                  );
+                }
               ''';
             case ReifiedKind.List:
               return '''

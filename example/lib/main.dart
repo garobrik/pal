@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:example/model/table.dart' as model;
 import 'package:example/widgets/table.dart';
 import 'package:flutter/material.dart';
@@ -18,13 +20,19 @@ class MyApp extends StatelessWidget {
         title: 'Flutter Demo',
         theme: ThemeData(
           primarySwatch: Colors.green,
-          scrollbarTheme: ScrollbarThemeData(
-            isAlwaysShown: true,
-          ),
         ),
         home: CursorWidget<model.State>(
           create: () => model.State(tables: Dict(), tableIDs: Vec()),
-          builder: (_, state) {
+          onChanged: (old, nu, diff) {
+            print(old);
+            print(nu);
+            print(diff);
+            print(nu.toJson());
+            print(JsonEncoder.withIndent('  ').convert(old));
+            print(JsonEncoder.withIndent('  ').convert(old));
+            print(diff);
+          },
+          builder: (_, reader, state) {
             final selectedTable = useState<model.TableID?>(null);
 
             return Scaffold(
@@ -43,10 +51,11 @@ class MyApp extends StatelessWidget {
                 child: Builder(
                   builder: (context) => ListView(
                     children: [
-                      for (final tableID in state.tableIDs.values)
+                      for (final tableID in state.tableIDs.values(reader))
                         TextButton(
-                          onPressed: () => selectedTable.value = tableID.get,
-                          child: Text(state.tables[tableID.get].nonnull.title.get),
+                          onPressed: () => selectedTable.value = tableID.read(reader),
+                          child:
+                              Text(state.tables[tableID.read(reader)].nonnull.title.read(reader)),
                         ),
                       TextButton(
                         onPressed: () {

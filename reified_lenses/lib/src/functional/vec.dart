@@ -5,7 +5,7 @@ part 'vec.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.List)
-class Vec<Value> extends Iterable<Value> {
+class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
   @skip
   final List<Value> _values;
 
@@ -65,7 +65,7 @@ class Vec<Value> extends Iterable<Value> {
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   void add(Value v) {
-    insert(length.get, v);
+    insert(length.read(noopReader), v);
   }
 }
 
@@ -83,15 +83,15 @@ class IndexedValue<T> {
 }
 
 extension VecForEach<T> on Cursor<Vec<T>> {
-  Iterable<Cursor<T>> get values sync* {
-    final length = this.length.get;
+  Iterable<Cursor<T>> values(Reader reader) sync* {
+    final length = this.length.read(reader);
     for (final index in range(length)) {
       yield this[index];
     }
   }
 
-  Iterable<IndexedValue<Cursor<T>>> get indexedValues sync* {
-    final length = this.length.get;
+  Iterable<IndexedValue<Cursor<T>>> indexedValues(Reader reader) sync* {
+    final length = this.length.read(reader);
     for (final index in range(length)) {
       yield IndexedValue(index, this[index]);
     }
@@ -99,15 +99,15 @@ extension VecForEach<T> on Cursor<Vec<T>> {
 }
 
 extension VecGetForEach<T> on GetCursor<Vec<T>> {
-  Iterable<GetCursor<T>> get values sync* {
-    final length = this.length.get;
+  Iterable<GetCursor<T>> values(Reader reader) sync* {
+    final length = this.length.read(reader);
     for (final index in range(length)) {
       yield this[index];
     }
   }
 
-  Iterable<IndexedValue<GetCursor<T>>> get indexedValues sync* {
-    final length = this.length.get;
+  Iterable<IndexedValue<GetCursor<T>>> indexedValues(Reader reader) sync* {
+    final length = this.length.read(reader);
     for (final index in range(length)) {
       yield IndexedValue(index, this[index]);
     }

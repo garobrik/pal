@@ -1,7 +1,7 @@
 import 'parsing.dart';
 import 'generating.dart';
 
-Class generateMixin(StringBuffer output, Class clazz) {
+Class equalityGenerator(StringBuffer output, Class clazz) {
   return Class(
     clazz.isPrivate ? '${clazz.name}Mixin' : '_${clazz.name}Mixin',
     isAbstract: true,
@@ -37,7 +37,7 @@ Class generateMixin(StringBuffer output, Class clazz) {
         isExpression: true,
         returnType: clazz.boolType,
         params: [
-          Param(clazz.objectType.withNullable(true), 'other'),
+          Param(clazz.objectType, 'other'),
         ],
         body: [
           'other is ${clazz.name}',

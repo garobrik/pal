@@ -57,9 +57,28 @@ class TrieMap<K, V> extends Iterable<V> {
         .prepend(key.take(key.length - 1));
   }
 
+  TrieMap<K, V> atPrefix(Iterable<K> key) {
+    if (key.isEmpty) return this;
+    return _children[key.first]?.atPrefix(key.skip(1)) ?? TrieMap.empty();
+  }
+
+  Iterable<V> connectedValues(TrieSet<K> values) sync* {
+    if (values.isEmpty) return;
+    if (values._wrapped._value ?? false) {
+      yield* children();
+      return;
+    }
+
+    if (_value != null) yield _value!;
+
+    for (final entry in values._wrapped._children.entries) {
+      yield* _children[entry.key]?.connectedValues(TrieSet._fromTrieMap(entry.value)) ?? [];
+    }
+  }
+
   Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
     if (key.isNotEmpty) {
-      yield* _children[key.first]?.children(key.skip(1)) ?? <V>[];
+      yield* _children[key.first]?.children(key.skip(1)) ?? [];
       return;
     }
 
@@ -176,6 +195,16 @@ class TrieMapSet<K, V> extends Iterable<V> {
     return TrieMapSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).prepend(key));
   }
 
+  TrieMapSet<K, V> atPrefix(Iterable<K> key) {
+    return TrieMapSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).atPrefix(key));
+  }
+
+  Iterable<V> connectedValues(TrieSet<K> keys) {
+    return TrieMap(_wrapped._value, _wrapped._children)
+        .connectedValues(keys)
+        .reduce((set1, set2) => set1.union(set2));
+  }
+
   Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
     for (final set in TrieMap(_wrapped._value, _wrapped._children).children(key)) {
       yield* set;
@@ -236,6 +265,10 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
 
   TrieSet<K> prepend(Iterable<K> key) {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).prepend(key));
+  }
+
+  TrieSet<K> atPrefix(Iterable<K> key) {
+    return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).atPrefix(key));
   }
 
   Iterable<Iterable<K>> values([Iterable<K> key = const Iterable.empty()]) sync* {

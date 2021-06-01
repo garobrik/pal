@@ -4,9 +4,15 @@ import 'package:reified_lenses/reified_lenses.dart';
 
 class CursorWidget<T> extends StatefulWidget {
   final T Function() create;
-  final Widget Function(BuildContext, Cursor<T>) builder;
+  final Widget Function(BuildContext, Reader, Cursor<T>) builder;
+  final void Function(T old, T nu, Diff diff)? onChanged;
 
-  const CursorWidget({Key? key, required this.create, required this.builder}) : super(key: key);
+  const CursorWidget({
+    Key? key,
+    required this.create,
+    required this.builder,
+    this.onChanged,
+  }) : super(key: key);
 
   @override
   State<StatefulWidget> createState() => _CursorWidgetState<T>();
@@ -14,25 +20,35 @@ class CursorWidget<T> extends StatefulWidget {
 
 class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   late final Cursor<T> cursor;
+  void Function()? disposeFn;
 
   @override
   void initState() {
     super.initState();
+
     cursor = Cursor(widget.create());
+    if (widget.onChanged != null) {
+      disposeFn = cursor.listen(widget.onChanged!);
+    }
   }
 
   @override
   Widget build(BuildContext context) => _CursorWidgetInherited(
         cursor,
-        child: CursorBinder<T, Cursor<T>>(
-          cursor: cursor,
-          builder: (context, cursor) => widget.builder(context, cursor),
+        child: CursorReader(
+          builder: (context, reader) => widget.builder(context, reader, cursor),
         ),
       );
+
+  @override
+  void dispose() {
+    super.dispose();
+    if (disposeFn != null) disposeFn!();
+  }
 }
 
 class InheritCursor<T> extends StatelessWidget {
-  final Widget Function(BuildContext, Cursor<T>) builder;
+  final Widget Function(BuildContext, Reader, Cursor<T>) builder;
 
   const InheritCursor({Key? key, required this.builder}) : super(key: key);
 
@@ -40,9 +56,8 @@ class InheritCursor<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final inherited = context.dependOnInheritedWidgetOfExactType<_CursorWidgetInherited<T>>();
     assert(inherited != null, 'Inherited cursor which was never provided.');
-    return CursorBinder<T, Cursor<T>>(
-      cursor: inherited!.cursor,
-      builder: builder,
+    return CursorReader(
+      builder: (ctx, reader) => builder(ctx, reader, inherited!.cursor),
     );
   }
 }
@@ -82,9 +97,8 @@ class _CursorBuildState<S> extends State<CursorBuilder<S>> {
     if (disposeFn != null) {
       disposeFn!();
     }
-    final withDisposal = widget.cursor.getAndListen(() => setState(() {}));
-    disposeFn = withDisposal.dispose;
-    return widget.builder(context, withDisposal.value);
+    disposeFn = widget.cursor.listen((_, __, ___) => setState(() {}));
+    return widget.builder(context, widget.cursor.read(noopReader));
   }
 
   @override
@@ -96,36 +110,29 @@ class _CursorBuildState<S> extends State<CursorBuilder<S>> {
   }
 }
 
-extension GetCursorBindExtension<S, T extends GetCursor<S>> on T {
-  Widget bind(Widget Function(BuildContext b, T t) builder, {Key? key}) {
-    return CursorBinder<S, T>(builder: builder, cursor: this, key: key);
-  }
-}
+class CursorReader extends StatefulWidget {
+  final Widget Function(BuildContext, Reader) builder;
 
-class CursorBinder<S, T extends GetCursor<S>> extends StatefulWidget {
-  final Widget Function(BuildContext, T) builder;
-  final T cursor;
-
-  const CursorBinder({required this.builder, required this.cursor, Key? key}) : super(key: key);
+  const CursorReader({required this.builder, Key? key}) : super(key: key);
 
   @override
-  _CursorBindState<S, T> createState() => _CursorBindState<S, T>();
+  _CursorReaderState createState() => _CursorReaderState();
 }
 
-class _CursorBindState<S, T extends GetCursor<S>> extends State<CursorBinder<S, T>>
-    with CursorCallback {
-  PathMapSet<void Function()> disposals = TrieMapSet.empty();
+class _CursorReaderState extends State<CursorReader> with Reader {
+  List<void Function()> disposals = [];
+
   @override
   Widget build(BuildContext context) {
     for (final dispose in disposals) {
       dispose();
     }
-    disposals = PathMapSet.empty();
+    disposals.clear();
 
     return HookBuilder(
       builder: (context) => widget.builder(
         context,
-        widget.cursor.withCallback(this) as T,
+        this,
       ),
     );
   }
@@ -142,37 +149,31 @@ class _CursorBindState<S, T extends GetCursor<S>> extends State<CursorBinder<S, 
   void onChanged() => setState(() {});
 
   @override
-  void onGet(WithDisposal<Path> result) {
-    disposals = disposals.add(result.value, result.dispose);
+  void handleDispose(void Function() dispose) {
+    disposals.add(dispose);
   }
 }
 
-Cursor<S> useBoundCursor<S>(Cursor<S> cursor) => use(_CursorBindHook<S, Cursor<S>>(cursor));
+Reader useCursorReader() => use(const _CursorReaderHook());
 
-GetCursor<S> useBoundGetCursor<S>(GetCursor<S> cursor) =>
-    use(_CursorBindHook<S, GetCursor<S>>(cursor));
-
-class _CursorBindHook<S, T extends GetCursor<S>> extends Hook<T> {
-  final T cursor;
-
-  const _CursorBindHook(this.cursor);
+class _CursorReaderHook extends Hook<Reader> {
+  const _CursorReaderHook();
 
   @override
-  _CursorBindHookState<S, T> createState() => _CursorBindHookState<S, T>();
+  _CursorReaderHookState createState() => _CursorReaderHookState();
 }
 
-class _CursorBindHookState<S, T extends GetCursor<S>> extends HookState<T, _CursorBindHook<S, T>>
-    with CursorCallback {
-  PathMapSet<void Function()> disposals = PathMapSet.empty();
+class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with Reader {
+  List<void Function()> disposals = [];
 
   @override
-  T build(BuildContext context) {
+  Reader build(BuildContext context) {
     for (final dispose in disposals) {
       dispose();
     }
-    disposals = TrieMapSet.empty();
+    disposals.clear();
 
-    return hook.cursor.withCallback(this) as T;
+    return this;
   }
 
   @override
@@ -187,7 +188,7 @@ class _CursorBindHookState<S, T extends GetCursor<S>> extends HookState<T, _Curs
   void onChanged() => setState(() {});
 
   @override
-  void onGet(WithDisposal<Path> result) {
-    disposals = disposals.add(result.value, result.dispose);
+  void handleDispose(void Function() dispose) {
+    disposals.add(dispose);
   }
 }

@@ -63,7 +63,7 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.get, RowID());
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(noopReader), RowID());
 
   void addColumn([int? index]) {
     atomically((table) {
@@ -75,14 +75,14 @@ extension TableMutations on Cursor<Table> {
       );
 
       table.columns[columnID] = column;
-      table.columnIDs.insert(index ?? table.columnIDs.length.get, columnID);
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(noopReader), columnID);
     });
   }
 
   void removeColumn(ColumnID id) {
     columns.remove(id);
-    for (final indexedValue in columnIDs.indexedValues) {
-      if (indexedValue.value.get == id) {
+    for (final indexedValue in columnIDs.indexedValues(noopReader)) {
+      if (indexedValue.value.read(noopReader) == id) {
         columnIDs.remove(indexedValue.index);
         return;
       }

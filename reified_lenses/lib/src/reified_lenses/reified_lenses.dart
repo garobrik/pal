@@ -1,13 +1,16 @@
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
+part 'reified_lenses.g.dart';
+
 typedef PathMap<V> = TrieMap<Object, V>;
 typedef PathMapSet<V> = TrieMapSet<Object, V>;
 typedef PathSet = TrieSet<Object>;
 typedef Path = Iterable<Object>;
 
 @immutable
-class Diff {
+@reify
+class Diff with _DiffMixin {
   final PathSet changed;
   final PathSet removed;
   final PathSet added;
@@ -33,6 +36,12 @@ class Diff {
         changed: changed.union(other.changed),
         added: added.union(other.added),
         removed: removed.union(other.removed),
+      );
+
+  Diff atPrefix(Path path) => Diff(
+        added: added.atPrefix(path),
+        changed: changed.atPrefix(path),
+        removed: removed.atPrefix(path),
       );
 }
 

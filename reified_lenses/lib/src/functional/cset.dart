@@ -6,8 +6,8 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'cset.g.dart';
 
 @immutable
-@reify
-class CSet<Value> extends Iterable<Value> {
+@ReifiedLens(type: ReifiedKind.List)
+class CSet<Value> extends Iterable<Value> with _CSetMixin<Value> {
   @skip
   final SplayTreeSet<Value> _values;
   CSet([Iterable<Value>? values]) : _values = SplayTreeSet.of(values ?? {});

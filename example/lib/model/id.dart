@@ -22,4 +22,6 @@ abstract class UUID<T extends UUID<dynamic>> extends Comparable<T> {
   int compareTo(T other) {
     return id.compareTo(other.id);
   }
+
+  dynamic toJson() => id;
 }

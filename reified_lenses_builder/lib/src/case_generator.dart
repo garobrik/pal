@@ -84,10 +84,10 @@ Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
     'cases',
     typeParams: [typeParam],
     returnType: typeParam.type,
-    params: params,
+    params: [Param(Type('Reader'), 'reader'), ...params],
     isExpression: true,
     body: call(
-      'caze.get.cases',
+      'caze.read(reader).cases',
       [],
       named: {
         for (final caseParam in zip(cases, params))

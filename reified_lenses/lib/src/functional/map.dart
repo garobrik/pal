@@ -7,7 +7,7 @@ part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.Map)
-class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> {
+class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> with _DictMixin<Key, Value> {
   @skip
   final SplayTreeMap<Key, Value> _values;
 

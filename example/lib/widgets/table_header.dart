@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 
 part 'table_header.g.dart';
 
-@bound_widget
-Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
+@reader_widget
+Widget _tableHeader(Reader reader, BuildContext context, Cursor<model.Table> table) {
   return FocusTraversalGroup(
     child: Container(
       decoration: BoxDecoration(
@@ -34,11 +34,11 @@ Widget _tableHeader(BuildContext context, Cursor<model.Table> table) {
                 //   table.columns.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
                 // },
                 children: [
-                  for (final columnID in table.columnIDs.values)
+                  for (final columnID in table.columnIDs.values(reader))
                     TableHeaderCell(
-                      key: ValueKey(columnID.get),
+                      key: ValueKey(columnID.read(reader)),
                       table: table,
-                      column: table.columns[columnID.get].nonnull,
+                      column: table.columns[columnID.read(reader)].nonnull,
                     ),
                 ],
               ),
@@ -69,9 +69,9 @@ class _MaterialStateEdgeInsetsGeometry extends MaterialStateProperty<EdgeInsetsG
   EdgeInsetsGeometry? resolve(Set<MaterialState> states) => geometry;
 }
 
-@bound_widget
+@reader_widget
 Widget _tableHeaderCell(
-  BuildContext context, {
+  BuildContext context, Reader reader, {
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
@@ -88,7 +88,7 @@ Widget _tableHeaderCell(
     ),
     child: Container(
       constraints: BoxConstraints.tightFor(
-        width: column.width.get,
+        width: column.width.read(reader),
       ),
       decoration: BoxDecoration(
         border: Border(
@@ -96,14 +96,14 @@ Widget _tableHeaderCell(
         ),
       ),
       padding: EdgeInsets.all(2),
-      child: Text(column.title.get),
+      child: Text(column.title.read(reader)),
     ),
   );
 }
 
-@bound_widget
+@reader_widget
 Widget _columnConfigurationDropdown(
-  BuildContext context, {
+  BuildContext context, Reader reader, {
   required Cursor<model.Column> column,
   required Cursor<model.Table> table,
 }) {
@@ -151,12 +151,12 @@ Widget _columnConfigurationDropdown(
                 ),
             ],
           ),
-          child: Text(column.rows.caze.get.type.toString()),
+          child: Text(column.rows.caze.read(reader).type.toString()),
         ),
-        ...columnSpecificConfigurations(column),
+        ...columnSpecificConfigurations(reader, column),
         TextButton(
           onPressed: () {
-            table.removeColumn(column.id.get);
+            table.removeColumn(column.id.read(reader));
           },
           child: Text('Delete column'),
         ),
@@ -165,8 +165,9 @@ Widget _columnConfigurationDropdown(
   );
 }
 
-Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
+Iterable<Widget> columnSpecificConfigurations(Reader reader, Cursor<model.Column> column) {
   return column.rows.cases(
+    reader,
     booleanColumn: (_) => [],
     stringColumn: (_) => [],
     intColumn: (_) => [],
@@ -174,43 +175,43 @@ Iterable<Widget> columnSpecificConfigurations(Cursor<model.Column> column) {
     dateColumn: (_) => [],
     linkColumn: (column) => [
       InheritCursor<model.State>(
-        builder: (_, state) => Dropdown(
+        builder: (_, reader, state) => Dropdown(
           childAnchor: Alignment.topRight,
           dropdownAnchor: Alignment.topLeft,
           dropdown: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final id in state.tableIDs.get)
+              for (final id in state.tableIDs.read(reader))
                 TextButton(
                   onPressed: () => column.table.set(id),
-                  child: Text(state.tables[id].nonnull.title.get),
+                  child: Text(state.tables[id].nonnull.title.read(reader)),
                 ),
             ],
           ),
           child: Text(
-              column.table.get == null ? '' : state.tables[column.table.get!].nonnull.title.get),
+              column.table.read(reader) == null ? '' : state.tables[column.table.read(reader)!].nonnull.title.read(reader)),
         ),
       ),
-      if (column.table.get != null)
+      if (column.table.read(reader) != null)
         InheritCursor<model.State>(
-          builder: (_, state) {
-            final linkedTable = state.tables[column.table.get!].nonnull;
+          builder: (_, reader, state) {
+            final linkedTable = state.tables[column.table.read(reader)!].nonnull;
             final linkedColumn =
-                column.column.get == null ? null : linkedTable.columns[column.column.get!].nonnull;
+                column.column.read(reader) == null ? null : linkedTable.columns[column.column.read(reader)!].nonnull;
             return Dropdown(
               childAnchor: Alignment.topRight,
               dropdownAnchor: Alignment.topLeft,
               dropdown: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final id in linkedTable.columnIDs.get)
+                  for (final id in linkedTable.columnIDs.read(reader))
                     TextButton(
                       onPressed: () => column.column.set(id),
-                      child: Text(linkedTable.columns[id].nonnull.title.get),
+                      child: Text(linkedTable.columns[id].nonnull.title.read(reader)),
                     ),
                 ],
               ),
-              child: Text(linkedColumn?.title.get ?? ''),
+              child: Text(linkedColumn?.title.read(reader) ?? ''),
             );
           },
         ),

@@ -8,7 +8,7 @@ import 'dart:core';
 
 import 'accessor_generator.dart';
 import 'method_generator.dart';
-import 'mixin_generator.dart';
+import 'equality_generator.dart';
 import 'copy_generator.dart';
 import 'case_generator.dart';
 import 'mutation_generator.dart';
@@ -54,7 +54,7 @@ class ReifiedLensesGenerator extends Generator {
 
       final mixins = <Class>[
         maybeGenerateSerialization(output, clazz, copyWithParams),
-        generateMixin(output, clazz),
+        equalityGenerator(output, clazz),
       ];
 
       Class(

@@ -18,10 +18,10 @@ class FlutterReifiedLensesGenerator extends Generator {
     final output = StringBuffer();
 
     final boundWidgetElements =
-        library.annotatedWith(TypeChecker.fromRuntime(BoundWidget)).where((elem) {
+        library.annotatedWith(TypeChecker.fromRuntime(ReaderWidget)).where((elem) {
       if (elem.element is FunctionElement) return true;
       log.warning(
-          '@bound_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.');
+          '@reader_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.');
       return false;
     });
 
@@ -42,6 +42,7 @@ class FlutterReifiedLensesGenerator extends Generator {
       buildContext: await resolveType('package:flutter/widgets.dart', 'BuildContext'),
       key: await resolveType('package:flutter/widgets.dart', 'Key'),
       getCursor: await resolveType('package:reified_lenses/reified_lenses.dart', 'GetCursor'),
+      reader: await resolveType('package:reified_lenses/reified_lenses.dart', 'Reader'),
     );
 
     for (final annotated in boundWidgetElements) {
@@ -60,8 +61,14 @@ class _ResolvedTypes {
   final Type buildContext;
   final Type key;
   final Type getCursor;
+  final Type reader;
 
-  _ResolvedTypes({required this.buildContext, required this.key, required this.getCursor});
+  _ResolvedTypes({
+    required this.buildContext,
+    required this.key,
+    required this.getCursor,
+    required this.reader,
+  });
 }
 
 void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Function function) {
@@ -71,12 +78,12 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
   final buildContextParam =
       firstOfNameAndType(function.params, 'context', resolvedTypes.buildContext);
   final keyParam = firstOfNameAndType(function.params, 'key', resolvedTypes.key);
-  final nonSpecialParams = function.params.where((p) => p != buildContextParam && p != keyParam);
+  final readerParam = firstOfNameAndType(function.params, 'reader', resolvedTypes.reader);
+  final nonSpecialParams =
+      function.params.where((p) => p != buildContextParam && p != keyParam && p != readerParam);
   final buildBody = StringBuffer();
-  for (final param in nonSpecialParams) {
-    if (param.type is! parsing.FunctionType &&  param.type.dartType!.isAssignableTo(resolvedTypes.getCursor)) {
-      buildBody.writeln('final ${param.name} = useBoundCursor(this.${param.name});');
-    }
+  if (readerParam != null) {
+    buildBody.writeln('final ${readerParam.name} = useCursorReader();');
   }
   final returnValue = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
   buildBody.writeln('return $returnValue;');

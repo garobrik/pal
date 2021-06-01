@@ -31,7 +31,7 @@ dependencies:
   flutter_portal: #^0.4.0-nullsafety.0
     path:
       ../my_flutter_portal
-  flutter_hooks: ^0.16.0
+  flutter_hooks: ^0.17.0
   flutter_neumorphic: ^3.1.0
   path_provider: ^2.0.0
   boxy: ^1.3.0

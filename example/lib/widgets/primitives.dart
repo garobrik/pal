@@ -9,9 +9,10 @@ import 'package:flutter/scheduler.dart';
 
 part 'primitives.g.dart';
 
-@bound_widget
+@reader_widget
 Widget _boundTextField(
   BuildContext context,
+  Reader reader,
   Cursor<String> text, {
   int? maxLines = 1,
   TextInputType? keyboardType,
@@ -21,7 +22,7 @@ Widget _boundTextField(
   bool autofocus = false,
   FocusNode? focusNode,
 }) {
-  final textController = useTextEditingController(text: text.get);
+  final textController = useTextEditingController(text: text.read(reader));
   final firstFrame = useState(true);
   if (firstFrame.value) {
     scheduleMicrotask(() => firstFrame.value = false);
@@ -62,7 +63,7 @@ Widget _boundTextField(
   );
 }
 
-@bound_widget
+@reader_widget
 Widget _dropdown({
   required Widget child,
   required Widget dropdown,

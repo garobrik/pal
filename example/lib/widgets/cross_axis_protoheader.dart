@@ -6,39 +6,25 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 
 part 'cross_axis_protoheader.g.dart';
 
-@bound_widget
+@reader_widget
 Widget _crossAxisProtoheader({
-  required Widget Function(bool) header,
-  required Widget Function(ScrollController) body,
+  required Widget header,
+  required Widget body,
 }) {
-  final scrollController = useScrollController();
-  final isScrolled = useState(false);
-  useEffect(
-    () {
-      final listener = () => isScrolled.value = scrollController.offset != 0;
-      scrollController.addListener(listener);
-      return listener;
-    },
-    [scrollController, isScrolled],
-  );
-
-  return PrimaryScrollController(
-    controller: scrollController,
-    child: CustomBoxy(
-      delegate: _CrossAxisProtoHeaderDelegate(),
-      children: [
-        body(scrollController),
-        IntrinsicWidth(child: header(isScrolled.value)),
-      ],
-    ),
+  return CustomBoxy(
+    delegate: _CrossAxisProtoHeaderDelegate(),
+    children: [
+      IntrinsicWidth(child: header),
+      body,
+    ],
   );
 }
 
 class _CrossAxisProtoHeaderDelegate extends BoxyDelegate<CrossAxisProtoheader> {
   @override
   Size layout() {
-    final header = getChild(1);
-    final body = getChild(0);
+    final header = getChild(0);
+    final body = getChild(1);
 
     final headerSize = header.layout(constraints);
     header.position(Offset.zero);
