@@ -24,13 +24,8 @@ class MyApp extends StatelessWidget {
         home: CursorWidget<model.State>(
           create: () => model.State(tables: Dict(), tableIDs: Vec()),
           onChanged: (old, nu, diff) {
-            print(old);
-            print(nu);
-            print(diff);
-            print(nu.toJson());
             print(JsonEncoder.withIndent('  ').convert(old));
-            print(JsonEncoder.withIndent('  ').convert(old));
-            print(diff);
+            print(JsonEncoder.withIndent('  ').convert(nu));
           },
           builder: (_, reader, state) {
             final selectedTable = useState<model.TableID?>(null);

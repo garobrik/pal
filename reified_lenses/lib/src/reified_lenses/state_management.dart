@@ -15,8 +15,7 @@ abstract class GetCursor<S> {
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
-  S read(Reader r) {
-    r.handleDispose(listen((_, __, ___) => r.onChanged()));
+  S read(Reader? r) {
     return _value;
   }
 
@@ -25,19 +24,30 @@ abstract class GetCursor<S> {
 }
 
 abstract class Reader {
-  void onChanged() {}
+  const factory Reader({
+    required void Function() onChanged,
+    required void Function(void Function()) handleDispose,
+  }) = _CallbackReader;
+
+  void onChanged();
   void handleDispose(void Function() dispose);
 }
 
-const noopReader = NoopReader();
+class _CallbackReader implements Reader {
+  final void Function() _onChangedFn;
+  final void Function(void Function()) _handleDisposeFn;
 
-class NoopReader with Reader {
-  const NoopReader();
+  const _CallbackReader({
+    required void Function() onChanged,
+    required void Function(void Function()) handleDispose,
+  })  : _onChangedFn = onChanged,
+        _handleDisposeFn = handleDispose;
 
   @override
-  void handleDispose(void Function() dispose) {
-    dispose();
-  }
+  void onChanged() => _onChangedFn();
+
+  @override
+  void handleDispose(void Function() dispose) => _handleDisposeFn(dispose);
 }
 
 abstract class Cursor<S> implements GetCursor<S> {
@@ -57,8 +67,8 @@ abstract class Cursor<S> implements GetCursor<S> {
   Cursor<S1> cast<S1>() => then(Lens<S, S1>.mkCast());
 
   @override
-  S read(Reader r) {
-    r.handleDispose(listen((_, __, ___) => r.onChanged()));
+  S read(Reader? r) {
+    r?.handleDispose(listen((_, __, ___) => r.onChanged()));
     return _value;
   }
 
@@ -170,6 +180,7 @@ class _GetCursorImpl<S> with GetCursor<S> {
 
 extension CursorNullability<T> on Cursor<T?> {
   Cursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
+
   Cursor<T> orElse(T defaultValue) => then(Lens(
         Path.empty(),
         (t) => t ?? defaultValue,

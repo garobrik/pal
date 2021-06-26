@@ -6,6 +6,7 @@ part 'vec.g.dart';
 @immutable
 @ReifiedLens(type: ReifiedKind.List)
 class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
+  @override
   @skip
   final List<Value> _values;
 
@@ -65,7 +66,7 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   void add(Value v) {
-    insert(length.read(noopReader), v);
+    insert(length.read(null), v);
   }
 }
 
@@ -90,7 +91,7 @@ extension VecForEach<T> on Cursor<Vec<T>> {
     }
   }
 
-  Iterable<IndexedValue<Cursor<T>>> indexedValues(Reader reader) sync* {
+  Iterable<IndexedValue<Cursor<T>>> indexedValues(Reader? reader) sync* {
     final length = this.length.read(reader);
     for (final index in range(length)) {
       yield IndexedValue(index, this[index]);

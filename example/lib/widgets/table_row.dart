@@ -1,6 +1,7 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import '../model/table.dart' as model;
+import 'page.dart';
 import 'primitives.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,13 +9,28 @@ import 'package:flutter/services.dart';
 part 'table_row.g.dart';
 
 @reader_widget
-Widget _tableRow(Reader reader, Cursor<model.Table> table, Cursor<model.RowID> rowID) {
+Widget _tableRow(
+    BuildContext context, Reader reader, Cursor<model.Table> table, Cursor<model.RowID> rowID) {
   return IntrinsicHeight(
     child: Container(
       decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          TextButton(
+            onPressed: () => Navigator.push<void>(
+              context,
+              RawDialogRoute(
+                pageBuilder: (_, __, ___) => Scaffold(body: PageWidget(table, rowID)),
+              ),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.open_in_full, size: 20.0),
+                Text(' Open'),
+              ],
+            ),
+          ),
           for (final columnID in table.columnIDs.values(reader))
             TableCell(
               table.columns[columnID.read(reader)].nonnull,
@@ -53,7 +69,6 @@ Widget _tableCell(Reader reader, Cursor<model.Column> column, Cursor<model.RowID
             children: [
               column.rows.cases(
                 reader,
-                // TODO: optional table indexing
                 stringColumn: (column) => TableTextField(column.values[rowID.read(reader)]),
                 booleanColumn: (column) => Expanded(
                   child: TableCheckbox(column.values[rowID.read(reader)].orElse(false)),
@@ -61,6 +76,7 @@ Widget _tableCell(Reader reader, Cursor<model.Column> column, Cursor<model.RowID
                 intColumn: (column) => TableIntField(column.values[rowID.read(reader)]),
                 dateColumn: (column) => TableDateField(column.values[rowID.read(reader)]),
                 selectColumn: (column) => TableSelectField(column, rowID),
+                multiselectColumn: (column) => TableMultiselectField(column, rowID),
                 linkColumn: (column) => TableLinkField(column, rowID),
               ),
             ],
@@ -125,6 +141,61 @@ Widget _tableSelectField(
       ],
     ),
     child: Text(column.values[rowID.read(reader)].read(reader) ?? ''),
+  );
+}
+
+@reader_widget
+Widget _tableMultiselectField(
+  Reader reader,
+  Cursor<model.MultiselectColumn> column,
+  Cursor<model.RowID> rowID,
+) {
+  final row = column.values[rowID.read(null)];
+
+  return Dropdown(
+    childAnchor: Alignment.topLeft,
+    dropdownAnchor: Alignment.topLeft,
+    dropdown: Column(
+      children: [
+        TextFormField(
+          onFieldSubmitted: (result) {
+            if (result.isNotEmpty) {
+              column.possibleValues.add(result);
+              row.set(row.read(null)?.add(result) ?? CSet({result}));
+            }
+          },
+        ),
+        for (final possibleValue in column.possibleValues.read(reader))
+          Row(
+            children: [
+              Checkbox(
+                onChanged: (selected) {
+                  if (selected!) {
+                    row.set(row.read(null)?.add(possibleValue) ?? CSet({possibleValue}));
+                  } else {
+                    row.set(row.read(null)?.remove(possibleValue));
+                  }
+                },
+                value: column.values[rowID.read(reader)].read(reader)?.contains(possibleValue) ??
+                    false,
+              ),
+              Text(possibleValue),
+            ],
+          ),
+      ],
+    ),
+    child: Wrap(
+      children: [
+        for (final value in row.read(reader) ?? CSet<String>())
+          Padding(
+            padding: const EdgeInsets.all(3.0),
+            child: Material(
+              color: Colors.amber.shade200,
+              child: Text(value),
+            ),
+          ),
+      ],
+    ),
   );
 }
 

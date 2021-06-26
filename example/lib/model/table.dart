@@ -47,15 +47,26 @@ class Table with _TableMixin {
   final Vec<ColumnID> columnIDs;
   @override
   final Vec<RowID> rowIDs;
+  @override
+  final Dict<RowID, Page> pages;
 
   Table({
     TableID? id,
-    Dict<ColumnID, Column>? columns,
+    this.columns = const Dict(),
     this.title = '',
     this.columnIDs = const Vec(),
     this.rowIDs = const Vec(),
-  })  : this.id = id ?? TableID(),
-        this.columns = columns ?? Dict();
+    this.pages = const Dict(),
+  }) : this.id = id ?? TableID();
+}
+
+@immutable
+@reify
+class Page with _PageMixin {
+  @override
+  final String contents;
+
+  const Page(this.contents);
 }
 
 extension TableComputations on GetCursor<Table> {
@@ -63,7 +74,7 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(noopReader), RowID());
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
   void addColumn([int? index]) {
     atomically((table) {
@@ -75,14 +86,14 @@ extension TableMutations on Cursor<Table> {
       );
 
       table.columns[columnID] = column;
-      table.columnIDs.insert(index ?? table.columnIDs.length.read(noopReader), columnID);
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), columnID);
     });
   }
 
   void removeColumn(ColumnID id) {
     columns.remove(id);
-    for (final indexedValue in columnIDs.indexedValues(noopReader)) {
-      if (indexedValue.value.read(noopReader) == id) {
+    for (final indexedValue in columnIDs.indexedValues(null)) {
+      if (indexedValue.value.read(null) == id) {
         columnIDs.remove(indexedValue.index);
         return;
       }
@@ -110,10 +121,9 @@ class Column with _ColumnMixin {
   });
 }
 
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, LinkColumn])
+@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, MultiselectColumn, LinkColumn])
 abstract class ColumnRows {
-  // @reify
-  // Dict<RowID, Object> get values;
+  const ColumnRows();
 }
 
 @immutable
@@ -122,7 +132,7 @@ class BooleanColumn extends ColumnRows with _BooleanColumnMixin {
   @override
   final Dict<RowID, bool> values;
 
-  BooleanColumn({Dict<RowID, bool>? values}) : values = values ?? Dict();
+  const BooleanColumn({this.values = const Dict()});
 }
 
 @immutable
@@ -131,7 +141,7 @@ class StringColumn extends ColumnRows with _StringColumnMixin {
   @override
   final Dict<RowID, String> values;
 
-  StringColumn({Dict<RowID, String>? values}) : values = values ?? Dict();
+  const StringColumn({this.values = const Dict()});
 }
 
 @immutable
@@ -140,7 +150,7 @@ class IntColumn extends ColumnRows with _IntColumnMixin {
   @override
   final Dict<RowID, int> values;
 
-  IntColumn({Dict<RowID, int>? values}) : values = values ?? Dict();
+  const IntColumn({this.values = const Dict()});
 }
 
 @immutable
@@ -149,7 +159,7 @@ class DateColumn extends ColumnRows with _DateColumnMixin {
   @override
   final Dict<RowID, DateTime> values;
 
-  DateColumn({Dict<RowID, DateTime>? values}) : values = values ?? Dict();
+  const DateColumn({this.values = const Dict()});
 }
 
 @immutable
@@ -160,11 +170,24 @@ class SelectColumn extends ColumnRows with _SelectColumnMixin {
   @override
   final Dict<RowID, String> values;
 
-  SelectColumn({
-    CSet<String>? possibleValues,
-    Dict<RowID, String>? values,
-  })  : possibleValues = possibleValues ?? CSet(),
-        values = values ?? Dict();
+  const SelectColumn({
+    this.possibleValues = const CSet(),
+    this.values = const Dict(),
+  });
+}
+
+@immutable
+@reify
+class MultiselectColumn extends ColumnRows with _MultiselectColumnMixin {
+  @override
+  final CSet<String> possibleValues;
+  @override
+  final Dict<RowID, CSet<String>> values;
+
+  const MultiselectColumn({
+    this.possibleValues = const CSet(),
+    this.values = const Dict(),
+  });
 }
 
 @immutable
@@ -177,9 +200,9 @@ class LinkColumn extends ColumnRows with _LinkColumnMixin {
   @override
   final Dict<RowID, RowID> values;
 
-  LinkColumn({
-    Dict<RowID, RowID>? values,
+  const LinkColumn({
+    this.values = const Dict(),
     this.table,
     this.column,
-  }) : values = values ?? Dict();
+  });
 }

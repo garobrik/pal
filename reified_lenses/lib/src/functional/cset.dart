@@ -9,27 +9,19 @@ part 'cset.g.dart';
 @ReifiedLens(type: ReifiedKind.List)
 class CSet<Value> extends Iterable<Value> with _CSetMixin<Value> {
   @skip
-  final SplayTreeSet<Value> _values;
-  CSet([Iterable<Value>? values]) : _values = SplayTreeSet.of(values ?? {});
+  final Set<Value> _values;
+  const CSet([this._values = const {}]);
 
   @override
   @reify
   int get length => _values.length;
 
-  CSet<Value> remove(Value value) {
-    final newSet = CSet(_values);
-    newSet._values.remove(value);
-    return newSet;
-  }
+  CSet<Value> remove(Value value) => CSet(Set.of(_values)).._values.remove(value);
 
   Diff _remove_mutated(Value value) =>
       !_values.contains(value) ? const Diff() : const Diff.allChanged();
 
-  CSet<Value> add(Value value) {
-    final newSet = CSet(_values);
-    newSet._values.add(value);
-    return newSet;
-  }
+  CSet<Value> add(Value value) => CSet(Set.of(_values)).._values.add(value);
 
   Diff _add_mutated(Value value) =>
       _values.contains(value) ? const Diff() : const Diff.allChanged();

@@ -10,7 +10,7 @@ import 'package:flutter/material.dart' hide TableRow;
 part 'table.g.dart';
 
 @reader_widget
-Widget _tableWidget(Reader reader, Cursor<model.Table> table) {
+Widget _tableWidget(BuildContext context, Reader reader, Cursor<model.Table> table) {
   return Padding(
     padding: EdgeInsets.all(20),
     child: SingleChildScrollView(
@@ -22,6 +22,7 @@ Widget _tableWidget(Reader reader, Cursor<model.Table> table) {
         child: CrossAxisProtoheader(
           header: Container(
             decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
               boxShadow: [
                 BoxShadow(
                   blurRadius: 6,
@@ -29,7 +30,19 @@ Widget _tableWidget(Reader reader, Cursor<model.Table> table) {
                 ),
               ],
             ),
-            child: TableHeader(table),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Visibility(
+                  visible: false,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: TextButton(onPressed: () {}, child: Icon(Icons.open_in_full)),
+                ),
+                IntrinsicWidth(child: TableHeader(table)),
+              ],
+            ),
           ),
           body: CustomScrollView(
             scrollDirection: Axis.vertical,
@@ -58,11 +71,9 @@ Widget _tableWidget(Reader reader, Cursor<model.Table> table) {
                     alignment: Alignment.centerLeft,
                     child: TextButton(
                       onPressed: () => table.addRow(),
-                      child: Container(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [Icon(Icons.add), Text('New row')],
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [Icon(Icons.add), Text('New row')],
                       ),
                     ),
                   ),

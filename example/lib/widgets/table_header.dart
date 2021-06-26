@@ -1,6 +1,7 @@
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_neumorphic/flutter_neumorphic.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
+import 'package:reorderables/reorderables.dart';
 import '../model/table.dart' as model;
 import 'primitives.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ part 'table_header.g.dart';
 
 @reader_widget
 Widget _tableHeader(Reader reader, BuildContext context, Cursor<model.Table> table) {
+  final scrollController = useScrollController();
+
   return FocusTraversalGroup(
     child: Container(
       decoration: BoxDecoration(
@@ -28,11 +31,12 @@ Widget _tableHeader(Reader reader, BuildContext context, Cursor<model.Table> tab
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Row(
-                // onReorder: (oldIdx, newIdx) {
-                //   table.columns.insert(newIdx, table.columns[oldIdx].get);
-                //   table.columns.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
-                // },
+              ReorderableRow(
+                scrollController: scrollController,
+                onReorder: (oldIdx, newIdx) {
+                  table.columnIDs.insert(newIdx, table.columnIDs[oldIdx].read(null));
+                  table.columnIDs.remove(newIdx < oldIdx ? oldIdx + 1 : oldIdx);
+                },
                 children: [
                   for (final columnID in table.columnIDs.values(reader))
                     TableHeaderCell(
@@ -71,7 +75,8 @@ class _MaterialStateEdgeInsetsGeometry extends MaterialStateProperty<EdgeInsetsG
 
 @reader_widget
 Widget _tableHeaderCell(
-  BuildContext context, Reader reader, {
+  BuildContext context,
+  Reader reader, {
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
@@ -103,7 +108,8 @@ Widget _tableHeaderCell(
 
 @reader_widget
 Widget _columnConfigurationDropdown(
-  BuildContext context, Reader reader, {
+  BuildContext context,
+  Reader reader, {
   required Cursor<model.Column> column,
   required Cursor<model.Table> table,
 }) {
@@ -144,6 +150,7 @@ Widget _columnConfigurationDropdown(
                       stringColumn: () => model.StringColumn(),
                       dateColumn: () => model.DateColumn(),
                       selectColumn: () => model.SelectColumn(),
+                      multiselectColumn: () => model.MultiselectColumn(),
                       linkColumn: () => model.LinkColumn(),
                     ),
                   ),
@@ -172,6 +179,7 @@ Iterable<Widget> columnSpecificConfigurations(Reader reader, Cursor<model.Column
     stringColumn: (_) => [],
     intColumn: (_) => [],
     selectColumn: (_) => [],
+    multiselectColumn: (_) => [],
     dateColumn: (_) => [],
     linkColumn: (column) => [
       InheritCursor<model.State>(
@@ -188,16 +196,18 @@ Iterable<Widget> columnSpecificConfigurations(Reader reader, Cursor<model.Column
                 ),
             ],
           ),
-          child: Text(
-              column.table.read(reader) == null ? '' : state.tables[column.table.read(reader)!].nonnull.title.read(reader)),
+          child: Text(column.table.read(reader) == null
+              ? ''
+              : state.tables[column.table.read(reader)!].nonnull.title.read(reader)),
         ),
       ),
       if (column.table.read(reader) != null)
         InheritCursor<model.State>(
           builder: (_, reader, state) {
             final linkedTable = state.tables[column.table.read(reader)!].nonnull;
-            final linkedColumn =
-                column.column.read(reader) == null ? null : linkedTable.columns[column.column.read(reader)!].nonnull;
+            final linkedColumn = column.column.read(reader) == null
+                ? null
+                : linkedTable.columns[column.column.read(reader)!].nonnull;
             return Dropdown(
               childAnchor: Alignment.topRight,
               dropdownAnchor: Alignment.topLeft,

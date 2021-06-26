@@ -7,12 +7,12 @@ part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.Map)
-class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> with _DictMixin<Key, Value> {
+class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
+    with _DictMixin<Key, Value> {
   @skip
-  final SplayTreeMap<Key, Value> _values;
+  final Map<Key, Value> _values;
 
-  Dict([Map<Key, Value> values = const {}])
-      : _values = values is SplayTreeMap<Key, Value> ? values : SplayTreeMap.of(values);
+  const Dict([this._values = const {}]);
 
   @override
   @reify
@@ -24,8 +24,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> wit
   @reify
   Value? operator [](Key key) => _values[key];
   Dict<Key, Value> mut_array_op(Key key, Value? update) => update != null
-      ? (Dict(SplayTreeMap.of(_values)).._values[key] = update)
-      : (Dict(SplayTreeMap.of(_values)).._values.remove(key));
+      ? (Dict(Map.of(_values)).._values[key] = update)
+      : (Dict(Map.of(_values)).._values.remove(key));
 
   Diff _mut_array_op_mutated(Key key, Value? update) {
     if (update != null) {
@@ -64,7 +64,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> wit
   }
 
   Dict<Key, Value> remove(Key key) {
-    final newDict = Dict(SplayTreeMap.of(_values));
+    final newDict = Dict(Map.of(_values));
     newDict._values.remove(key);
     return newDict;
   }
@@ -88,6 +88,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>> wit
   @override
   Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;
 
+  @override
   Iterable<MapEntry<Key, Value>> get entries => this;
 
   @override

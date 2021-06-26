@@ -40,7 +40,7 @@ Widget _boundTextField(
             focus.unfocus();
             return KeyEventResult.handled;
           } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-            if (!keyEvent.isShiftPressed && firstFrame.value) {
+            if (!keyEvent.isShiftPressed) {
               focus.nextFocus();
               return KeyEventResult.handled;
             }

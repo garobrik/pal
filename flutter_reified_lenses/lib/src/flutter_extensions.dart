@@ -33,7 +33,7 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   }
 
   @override
-  Widget build(BuildContext context) => _CursorWidgetInherited(
+  Widget build(BuildContext context) => CursorProvider(
         cursor,
         child: CursorReader(
           builder: (context, reader) => widget.builder(context, reader, cursor),
@@ -54,7 +54,7 @@ class InheritCursor<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inherited = context.dependOnInheritedWidgetOfExactType<_CursorWidgetInherited<T>>();
+    final inherited = context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
     assert(inherited != null, 'Inherited cursor which was never provided.');
     return CursorReader(
       builder: (ctx, reader) => builder(ctx, reader, inherited!.cursor),
@@ -62,14 +62,14 @@ class InheritCursor<T> extends StatelessWidget {
   }
 }
 
-class _CursorWidgetInherited<T> extends InheritedWidget {
+class CursorProvider<T> extends InheritedWidget {
   final Cursor<T> cursor;
 
-  _CursorWidgetInherited(this.cursor, {required Widget child, Key? key})
+  CursorProvider(this.cursor, {required Widget child, Key? key})
       : super(key: key, child: child);
 
   @override
-  bool updateShouldNotify(covariant _CursorWidgetInherited<T> oldWidget) =>
+  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) =>
       cursor != oldWidget.cursor;
 }
 
@@ -97,8 +97,15 @@ class _CursorBuildState<S> extends State<CursorBuilder<S>> {
     if (disposeFn != null) {
       disposeFn!();
     }
-    disposeFn = widget.cursor.listen((_, __, ___) => setState(() {}));
-    return widget.builder(context, widget.cursor.read(noopReader));
+    return widget.builder(
+      context,
+      widget.cursor.read(
+        Reader(
+          onChanged: () => setState(() {}),
+          handleDispose: (dispose) => disposeFn = dispose,
+        ),
+      ),
+    );
   }
 
   @override
