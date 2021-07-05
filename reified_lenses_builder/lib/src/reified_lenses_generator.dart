@@ -50,11 +50,11 @@ class ReifiedLensesGenerator extends Generator {
         });
       });
       generateMutations(output, clazz);
-      maybeGenerateCasesExtension(output, clazz);
 
       final mixins = <Class>[
         maybeGenerateSerialization(output, clazz, copyWithParams),
         equalityGenerator(output, clazz),
+        maybeGenerateCasesExtension(output, clazz),
       ];
 
       Class(

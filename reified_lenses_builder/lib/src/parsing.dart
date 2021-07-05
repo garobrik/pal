@@ -44,12 +44,13 @@ String? qualifiedNameIn(Element element, LibraryElement usageContext) {
   if (element.name == null) return null;
   if (element.library == null) return element.name;
   if (!element.library!.topLevelElements.contains(element)) return element.name;
-  for (final import in usageContext.imports) {
-    if (import.importedLibrary == null) continue;
-    if (import.importedLibrary != element.library) continue;
-
-    if (import.prefix == null) return element.name;
-    return '${import.prefix!.name}.${element.name}';
+  final potentialImports = usageContext.imports.where(
+    (import) {
+      return import.prefix != null && import.namespace.getPrefixed(import.prefix!.name, element.name!) == element;
+    },
+  );
+  if (potentialImports.isNotEmpty) {
+    return '${potentialImports.first.prefix!.name}.${element.name}';
   }
   return element.name;
 }
@@ -359,17 +360,6 @@ class Field extends ElementAnalogue<FieldElement> {
         isInitialized = element.hasInitializer,
         initializer = null,
         super.fromElement(usageContext, element);
-
-  @override
-  String toString() {
-    final output = StringBuffer();
-    if (isLate) output.write('late ');
-    if (isStatic) output.write('static ');
-    if (isConst) output.write('const ');
-    if (isFinal) output.write('final ');
-    output.write('$type $name');
-    return output.toString();
-  }
 }
 
 @meta.immutable

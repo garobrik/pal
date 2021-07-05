@@ -5,16 +5,13 @@ import 'generating.dart';
 
 Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
+  if (cases.isNotEmpty) return const [];
 
   late final Pair<Getter, Iterable<Param>> copyWithMethod;
-  if (cases.isEmpty) {
-    final ctor = _findCopyConstructor(clazz);
+  final ctor = _findCopyConstructor(clazz);
 
-    if (ctor == null) return [];
-    copyWithMethod = _generateConcreteCopyWithFunction(ctor);
-  } else {
-    copyWithMethod = _generateCaseParentCopyWithFunction(clazz);
-  }
+  if (ctor == null) return [];
+  copyWithMethod = _generateConcreteCopyWithFunction(ctor);
 
   Extension(
     '${clazz.name}CopyWithExtension',
@@ -52,42 +49,6 @@ Pair<Getter, Iterable<Param>> _generateConcreteCopyWithFunction(Constructor cons
     'copyWith',
     functionType,
     body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
-  );
-
-  return Pair(getter, params);
-}
-
-Pair<Getter, Iterable<Param>> _generateCaseParentCopyWithFunction(Class clazz) {
-  final cases = clazz
-      .getAnnotation(ReifiedLens)!
-      .read('cases')
-      .listValue
-      .map((caze) => Type.fromDartType(clazz.element!.library, caze.toTypeValue()!));
-
-  final params = clazz.fields.where((f) => !f.isInitialized).map(
-        (f) => Param(
-          f.type.withNullable(true),
-          f.name,
-          isNamed: true,
-          isRequired: false,
-        ),
-      );
-
-  final functionType = FunctionType.fromParams(
-    returnType: clazz.type,
-    params: params,
-  );
-
-  final conditionsBodies = {
-    for (final caze in cases)
-      'this is $caze': 'return (this as $caze).copyWith;',
-  };
-
-  final getter = Getter(
-    'copyWith',
-    functionType,
-    body: ifElse(conditionsBodies, elseBody: 'throw Error();'),
-    isExpression: false,
   );
 
   return Pair(getter, params);
