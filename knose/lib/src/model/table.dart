@@ -12,11 +12,17 @@ class State with _StateMixin {
   final Dict<TableID, Table> tables;
   @override
   final Vec<TableID> tableIDs;
+  @override
+  final Dict<PageID, Page> pages;
+  @override
+  final Vec<PageID> pageIDs;
 
   State({
-    Dict<TableID, Table>? tables,
+    this.tables = const Dict(),
     this.tableIDs = const Vec(),
-  }) : tables = tables ?? Dict();
+    this.pages = const Dict(),
+    this.pageIDs = const Vec(),
+  });
 }
 
 extension StateMutations on Cursor<State> {
@@ -28,11 +34,16 @@ extension StateMutations on Cursor<State> {
   }
 }
 
+@ReifiedLens(cases: [TableID, PageID])
+abstract class PageOrTableID with _PageOrTableIDMixin {}
+
 class TableID extends UUID<TableID> {}
 
 class ColumnID extends UUID<ColumnID> {}
 
 class RowID extends UUID<RowID> {}
+
+class PageID extends UUID<PageID> {}
 
 @immutable
 @reify
@@ -48,7 +59,7 @@ class Table with _TableMixin {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Dict<RowID, Page> pages;
+  final Dict<RowID, PageID> pages;
 
   Table({
     TableID? id,
@@ -64,9 +75,13 @@ class Table with _TableMixin {
 @reify
 class Page with _PageMixin {
   @override
+  final String title;
+  @override
   final String contents;
+  @override
+  final PageID id;
 
-  const Page(this.contents);
+  Page({this.title = '', this.contents = '', PageID? id}) : this.id = id ?? PageID();
 }
 
 extension TableComputations on GetCursor<Table> {
@@ -121,7 +136,15 @@ class Column with _ColumnMixin {
   });
 }
 
-@ReifiedLens(cases: [StringColumn, BooleanColumn, IntColumn, DateColumn, SelectColumn, MultiselectColumn, LinkColumn])
+@ReifiedLens(cases: [
+  StringColumn,
+  BooleanColumn,
+  IntColumn,
+  DateColumn,
+  SelectColumn,
+  MultiselectColumn,
+  LinkColumn
+])
 abstract class ColumnRows {
   const ColumnRows();
 }
