@@ -10,7 +10,7 @@ abstract class UUID<T extends UUID<dynamic>> extends Comparable<T> {
   UUID.from(this.id);
 
   @override
-  bool operator ==(Object? other) => other is T && id == other.id;
+  bool operator ==(Object other) => other is T && id == other.id;
 
   @override
   int get hashCode => id.hashCode;

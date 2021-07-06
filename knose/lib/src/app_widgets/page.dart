@@ -6,6 +6,13 @@ import 'package:knose/model.dart' as model;
 part 'page.g.dart';
 
 @reader_widget
-Widget mainPageWidget(Cursor<model.Page> page) {
-  return Center(child: Text('Page widget'));
+Widget _mainPageWidget(Cursor<model.Page> page) {
+  return Container(
+    padding: EdgeInsets.all(20),
+    child: BoundTextFormField(
+      page.contents,
+      autofocus: true,
+      maxLines: null,
+    ),
+  );
 }

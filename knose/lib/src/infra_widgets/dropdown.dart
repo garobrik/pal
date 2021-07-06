@@ -1,70 +1,43 @@
-import 'dart:async';
-
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/scheduler.dart';
 
-part 'primitives.g.dart';
+part 'dropdown.g.dart';
 
 @reader_widget
-Widget _boundTextField(
-  BuildContext context,
-  Reader reader,
-  Cursor<String> text, {
-  int? maxLines = 1,
-  TextInputType? keyboardType,
-  InputDecoration decoration = const InputDecoration(),
-  TextStyle? style,
-  TextAlignVertical? textAlignVertical,
-  bool autofocus = false,
-  FocusNode? focusNode,
+Widget _myOverlay(
+  BuildContext context, {
+  required Widget child,
+  required Widget overlay,
+  required bool isOpen,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.topLeft,
+  Alignment overlayAnchor = Alignment.topLeft,
 }) {
-  final textController = useTextEditingController(text: text.read(reader));
-  final firstFrame = useState(true);
-  if (firstFrame.value) {
-    scheduleMicrotask(() => firstFrame.value = false);
-  }
-  // useEffect(() {
-  //   return text.listen(() => textController.text = text.get);
-  // }, [textController, text]);
-
-  return Form(
-    child: Builder(
-      builder: (context) => Focus(
-        skipTraversal: true,
-        onKey: (focus, keyEvent) {
-          if (keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-            focus.unfocus();
-            return KeyEventResult.handled;
-          } else if (keyEvent.logicalKey == LogicalKeyboardKey.enter) {
-            if (!keyEvent.isShiftPressed) {
-              focus.nextFocus();
-              return KeyEventResult.handled;
-            }
-          }
-          return KeyEventResult.ignored;
-        },
-        child: TextFormField(
-          maxLines: maxLines,
-          controller: textController,
-          keyboardType: keyboardType,
-          decoration: decoration,
-          style: style,
-          textAlignVertical: textAlignVertical,
-          autofocus: autofocus,
-          focusNode: focusNode,
-          onChanged: (newText) => text.set(newText),
+  final layerLink = useRef(LayerLink()).value;
+  useEffect(() {
+    if (isOpen) {
+      final entry = OverlayEntry(
+        builder: (context) => CompositedTransformFollower(
+          link: layerLink,
+          targetAnchor: childAnchor,
+          followerAnchor: overlayAnchor,
+          offset: offset,
+          child: overlay,
         ),
-      ),
-    ),
-  );
+      );
+      Overlay.of(context)!.insert(entry);
+      return entry.remove;
+    }
+  }, [isOpen, child]);
+
+  return CompositedTransformTarget(link: layerLink, child: child);
 }
 
 @reader_widget
-Widget _dropdown({
+Widget _dropdownPortal({
   required Widget child,
   required Widget dropdown,
   Alignment? childAnchor,

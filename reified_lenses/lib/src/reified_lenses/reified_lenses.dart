@@ -11,8 +11,11 @@ typedef Path = Iterable<Object>;
 @immutable
 @reify
 class Diff with _DiffMixin {
+  @override
   final PathSet changed;
+  @override
   final PathSet removed;
+  @override
   final PathSet added;
 
   const Diff({
@@ -25,6 +28,9 @@ class Diff with _DiffMixin {
       : this.changed = const PathSet.root(),
         this.removed = const PathSet.empty(),
         this.added = const PathSet.empty();
+
+  bool get isEmpty => changed.isEmpty && removed.isEmpty && added.isEmpty;
+  bool get isNotEmpty => !isEmpty;
 
   Diff prepend(Path path) => Diff(
         added: added.prepend(path),

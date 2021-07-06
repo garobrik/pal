@@ -65,12 +65,10 @@ class InheritCursor<T> extends StatelessWidget {
 class CursorProvider<T> extends InheritedWidget {
   final Cursor<T> cursor;
 
-  CursorProvider(this.cursor, {required Widget child, Key? key})
-      : super(key: key, child: child);
+  CursorProvider(this.cursor, {required Widget child, Key? key}) : super(key: key, child: child);
 
   @override
-  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) =>
-      cursor != oldWidget.cursor;
+  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) => cursor != oldWidget.cursor;
 }
 
 extension GetCursorBuildExtension<S> on GetCursor<S> {
@@ -198,4 +196,22 @@ class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with R
   void handleDispose(void Function() dispose) {
     disposals.add(dispose);
   }
+}
+
+Cursor<T> useCursor<T>(T initialValue) => use(_CursorHook(initialValue));
+
+class _CursorHook<T> extends Hook<Cursor<T>> {
+  final T initialValue;
+
+  _CursorHook(this.initialValue);
+
+  @override
+  _CursorHookState<T> createState() => _CursorHookState();
+}
+
+class _CursorHookState<T> extends HookState<Cursor<T>, _CursorHook<T>> {
+  late final Cursor<T> cursor = Cursor(hook.initialValue);
+
+  @override
+  Cursor<T> build(BuildContext context) => cursor;
 }

@@ -26,24 +26,31 @@ class State with _StateMixin {
 }
 
 extension StateMutations on Cursor<State> {
-  TableID addTable() {
-    final newID = TableID();
-    tables[newID] = Table(id: newID);
-    tableIDs.add(newID);
-    return newID;
+  TableID addTable([Table? table]) {
+    table ??= Table();
+    tables[table.id] = table;
+    tableIDs.add(table.id);
+    return table.id;
+  }
+
+  PageID addPage([Page? page]) {
+    page ??= Page();
+    pages[page.id] = page;
+    pageIDs.add(page.id);
+    return page.id;
   }
 }
 
 @ReifiedLens(cases: [TableID, PageID])
 abstract class PageOrTableID with _PageOrTableIDMixin {}
 
-class TableID extends UUID<TableID> {}
+class TableID extends UUID<TableID> with _PageOrTableIDMixin implements PageOrTableID {}
 
 class ColumnID extends UUID<ColumnID> {}
 
 class RowID extends UUID<RowID> {}
 
-class PageID extends UUID<PageID> {}
+class PageID extends UUID<PageID> with _PageOrTableIDMixin implements PageOrTableID {}
 
 @immutable
 @reify

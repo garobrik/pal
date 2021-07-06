@@ -202,7 +202,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
   Iterable<V> connectedValues(TrieSet<K> keys) {
     return TrieMap(_wrapped._value, _wrapped._children)
         .connectedValues(keys)
-        .reduce((set1, set2) => set1.union(set2));
+        .fold<Set<V>>(Set.identity(), (set1, set2) => set1.union(set2));
   }
 
   Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
