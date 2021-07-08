@@ -76,6 +76,27 @@ class Table with _TableMixin {
     this.rowIDs = const Vec(),
     this.pages = const Dict(),
   }) : this.id = id ?? TableID();
+
+  static Table newDefault() {
+    final columns = [
+      Column(
+        id: ColumnID(),
+        rows: StringColumn(),
+        title: 'Task',
+      ),
+      Column(
+        id: ColumnID(),
+        rows: BooleanColumn(),
+        title: 'Done',
+      ),
+    ];
+
+    return Table(
+      columns: Dict({for (final column in columns) column.id: column}),
+      columnIDs: Vec([for (final column in columns) column.id]),
+      title: 'Untitled table',
+    );
+  }
 }
 
 @immutable
@@ -135,12 +156,12 @@ class Column with _ColumnMixin {
   @override
   final String title;
 
-  const Column({
-    required this.id,
+  Column({
+    ColumnID? id,
     required this.rows,
     this.width = 100,
     this.title = '',
-  });
+  }) : this.id = id ?? ColumnID();
 }
 
 @ReifiedLens(cases: [

@@ -19,13 +19,17 @@ final shortcuts = <LogicalKeySet, Intent>{
 final actions = {
   ...WidgetsApp.defaultActions,
   UnfocusFieldIntent: UnfocusFieldAction(),
+  NextFocusFieldIntent: NextFocusFieldAction(),
 };
 
 @reader_widget
 Widget _knoseActions(BuildContext context, {required Widget child}) {
-  return Actions(
-    actions: {GoBackIntent: GoBackAction()},
-    child: child,
+  return Shortcuts(
+    shortcuts: {LogicalKeySet(LogicalKeyboardKey.enter): NextFocusFieldIntent()},
+    child: Actions(
+      actions: {GoBackIntent: GoBackAction()},
+      child: child,
+    ),
   );
 }
 
@@ -50,5 +54,14 @@ class UnfocusFieldAction extends TextEditingAction<UnfocusFieldIntent> {
   @override
   Object? invoke(covariant UnfocusFieldIntent intent, [BuildContext? context]) {
     primaryFocus?.unfocus();
+  }
+}
+
+class NextFocusFieldIntent extends Intent {}
+
+class NextFocusFieldAction extends TextEditingAction<NextFocusFieldIntent> {
+  @override
+  Object? invoke(covariant NextFocusFieldIntent intent, [BuildContext? context]) {
+    primaryFocus?.nextFocus();
   }
 }

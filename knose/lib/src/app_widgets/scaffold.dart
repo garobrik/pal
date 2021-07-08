@@ -1,12 +1,11 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/model.dart' as model;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/shortcuts.dart';
+import 'package:knose/src/infra_widgets/dropdown.dart';
 
 part 'scaffold.g.dart';
 
@@ -22,17 +21,22 @@ Widget _mainScaffold(
       appBar: AppBar(
         title: displayed == null
             ? Text('knose')
-            : BoundTextFormField(
-                displayed.cases(
-                  tableID: (tableID) => state.tables[tableID].nonnull.title,
-                  pageID: (pageID) => state.pages[pageID].nonnull.title,
+            : IntrinsicWidth(
+                child: BoundTextFormField(
+                  displayed.cases(
+                    tableID: (tableID) => state.tables[tableID].nonnull.title,
+                    pageID: (pageID) => state.pages[pageID].nonnull.title,
+                  ),
+                  style: Theme.of(context).textTheme.headline6,
+                  decoration: InputDecoration(hintText: 'table title'),
                 ),
-                style: Theme.of(context).textTheme.headline6,
               ),
       ),
-      bottomNavigationBar: Material(
-        elevation: 10.0,
-        color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [BoxShadow(blurRadius: 4, color: Colors.black38)],
+          color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -55,9 +59,10 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final tableID = state.addTable(model.Table(title: 'Untitled table'));
-                final route =
-                    MaterialPageRoute<Null>(builder: (context) => MainScaffold(state, tableID));
+                final tableID = state.addTable(model.Table.newDefault());
+                final route = MaterialPageRoute<Null>(
+                  builder: (context) => MainScaffold(state, tableID),
+                );
 
                 if (displayed == null) {
                   Navigator.pushReplacement(context, route);
@@ -70,17 +75,23 @@ Widget _mainScaffold(
               text: 'Search',
               icon: Icons.search,
               onPressed: () {
-                showDialog<Null>(context: context, builder: (_) => SearchDialog(state));
+                showDialog<Null>(
+                  barrierColor: Colors.black12,
+                  context: context,
+                  builder: (_) => SearchDialog(state),
+                );
               },
             ),
           ],
         ),
       ),
-      body: displayed?.cases(
-            tableID: (tableID) => MainTableWidget(state.tables[tableID].nonnull),
-            pageID: (pageID) => MainPageWidget(state.pages[pageID].nonnull),
-          ) ??
-          Center(child: Text('Nothing selected!')),
+      body: InheritedStack(
+        child: displayed?.cases(
+              tableID: (tableID) => MainTableWidget(state.tables[tableID].nonnull),
+              pageID: (pageID) => MainPageWidget(state.pages[pageID].nonnull),
+            ) ??
+            Center(child: Text('Nothing selected!')),
+      ),
     ),
   );
 }
@@ -91,7 +102,7 @@ Widget _bottomButton({
   required IconData icon,
   required String text,
 }) {
-  return TextButton(
+  return ElevatedButton(
     onPressed: onPressed,
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -100,50 +111,6 @@ Widget _bottomButton({
         children: [
           Icon(icon),
           Text(text),
-        ],
-      ),
-    ),
-  );
-}
-
-@reader_widget
-Widget _scrollable2D(BuildContext context) {
-  final transformationController = useTransformationController();
-
-  return Listener(
-    onPointerSignal: (signal) {
-      final shiftPressed = isKeyPressed(context, LogicalKeyboardKey.shiftLeft) ||
-          isKeyPressed(context, LogicalKeyboardKey.shiftRight) ||
-          isKeyPressed(context, LogicalKeyboardKey.shift);
-
-      if (signal is PointerScrollEvent) {
-        transformationController.value = transformationController.value.clone()
-          ..translate(
-            shiftPressed ? signal.scrollDelta.dy : signal.scrollDelta.dx,
-            shiftPressed ? 0.0 : signal.scrollDelta.dy,
-          );
-      }
-    },
-    child: InteractiveViewer(
-      transformationController: transformationController,
-      clipBehavior: Clip.hardEdge,
-      scaleEnabled: false,
-      constrained: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final _ in range(10))
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final _ in range(10))
-                  Container(
-                    height: 100,
-                    width: 100,
-                    decoration: BoxDecoration(border: Border.all()),
-                  ),
-              ],
-            ),
         ],
       ),
     ),

@@ -14,10 +14,38 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
         foregroundColor: MaterialStateProperty.all(colorScheme.onSurface),
       ),
     ),
-    inputDecorationTheme: InputDecorationTheme(border: InputBorder.none),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ButtonStyle(
+        backgroundColor: MaterialStateProperty.all(colorScheme.surface),
+        overlayColor: MaterialStateProperty.resolveWith(
+          (states) => states.contains(MaterialState.pressed)
+              ? colorScheme.primary
+              : states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+                  ? colorScheme.background
+                  : colorScheme.surface,
+        ),
+        elevation: MaterialStateProperty.resolveWith(
+          (states) => states.intersection({MaterialState.pressed}).isNotEmpty ? 0 : 2,
+        ),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      isDense: true,
+      isCollapsed: true,
+      contentPadding: EdgeInsets.all(10),
+      fillColor: colorScheme.background,
+      border: InputBorder.none,
+      focusedBorder: OutlineInputBorder(
+        borderSide: BorderSide(
+          color: colorScheme.primary,
+          width: 0.0,
+        ),
+      ),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: colorScheme.surface,
-      elevation: 2.0,
+      elevation: 2,
       iconTheme: IconThemeData(color: colorScheme.onSurface),
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(

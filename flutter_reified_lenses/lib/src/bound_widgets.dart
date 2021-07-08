@@ -12,13 +12,14 @@ Widget _boundTextFormField(
   Cursor<String> text, {
   int? maxLines = 1,
   TextInputType? keyboardType,
-  InputDecoration? decoration = const InputDecoration(),
+  InputDecoration decoration = const InputDecoration(),
   TextStyle? style,
   TextAlignVertical? textAlignVertical,
   bool autofocus = false,
   FocusNode? focusNode,
+  bool readOnly = false,
 }) {
-  focusNode ??= useFocusNode();
+  focusNode ??= useFocusNode(skipTraversal: readOnly);
   final textController = useTextEditingController(text: text.read(reader));
 
   useEffect(() {
@@ -38,6 +39,7 @@ Widget _boundTextFormField(
     textAlignVertical: textAlignVertical,
     autofocus: autofocus,
     focusNode: focusNode,
+    readOnly: readOnly,
     onChanged: (newText) => text.set(newText),
   );
 }
