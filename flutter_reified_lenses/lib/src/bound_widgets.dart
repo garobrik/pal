@@ -43,6 +43,5 @@ Widget _boundTextFormField(
     readOnly: readOnly,
     onChanged: (newText) => text.set(newText),
     expands: expands,
-    scrollPadding: ,
   );
 }
