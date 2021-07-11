@@ -12,15 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^5.0.0-nullsafety.5
-  reorderables: #^0.3.2
-    path:
-      ../reorderables
+  reorderables: ^0.4.1
   flutter_reified_lenses:
     path:
       ../flutter_reified_lenses
-  flutter_portal: #^0.4.0-nullsafety.0
-    path:
-      ../my_flutter_portal
   flutter_hooks:
     path:
       ../flutter_hooks/packages/flutter_hooks
