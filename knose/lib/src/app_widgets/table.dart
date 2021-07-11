@@ -1,14 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/model.dart' as model;
 import 'package:knose/infra_widgets.dart';
-import 'package:reorderables/reorderables.dart';
+import 'package:knose/app_widgets.dart';
 
 part 'table.g.dart';
 
 @reader_widget
-Widget _mainTableWidget(Cursor<model.Table> table) {
+Widget _mainTableWidget(Reader reader, Cursor<model.Table> table) {
   return Scrollable2D(
     child: Container(
       padding: EdgeInsets.all(20),
@@ -19,7 +21,10 @@ Widget _mainTableWidget(Cursor<model.Table> table) {
             TableHeader(table),
             ClipRectNotBottom(
               child: Container(
-                decoration: BoxDecoration(color: Colors.black, boxShadow: [BoxShadow(blurRadius: 4)]),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  boxShadow: [BoxShadow(blurRadius: 4)],
+                ),
                 constraints: BoxConstraints.expand(height: 1),
               ),
             ),
@@ -40,82 +45,21 @@ Widget _mainTableWidget(Cursor<model.Table> table) {
 }
 
 @reader_widget
-Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> table) {
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final columnID in table.columnIDs.read(reader))
-        Container(
-          decoration: BoxDecoration(border: Border(right: BorderSide())),
-          width: table.columns[columnID].nonnull.width.read(reader),
-          child: Dropdown(
-            minWidth: table.columns[columnID].nonnull.width.read(reader),
-            childAnchor: Alignment.topLeft,
-            dropdownBuilder: (focusNode) => TableHeaderDropdown(
-              focusNode: focusNode,
-              column: table.columns[columnID].nonnull,
-            ),
-            childBuilder: (onPressed) => HookBuilder(
-              builder: (_) {
-                final focusNode = useFocusNode();
-
-                return TextButton(
-                  style: ButtonStyle(
-                    padding: MaterialStateProperty.all(EdgeInsets.only(left: 18)),
-                    alignment: Alignment.centerLeft,
-                  ),
-                  onPressed: () {
-                    onPressed();
-                    focusNode.skipTraversal = !focusNode.skipTraversal;
-                  },
-                  child: Text(
-                    table.columns[columnID].nonnull.title.read(reader),
-                    style: Theme.of(context).textTheme.bodyText2,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-      NewColumnButton(table),
-    ],
-  );
-}
-
-@reader_widget
-Widget _tableHeaderDropdown(
-  BuildContext context,
-  Reader reader, {
-  FocusNode? focusNode,
-  required Cursor<model.Column> column,
-}) {
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      BoundTextFormField(
-        column.title,
-        focusNode: focusNode,
-        autofocus: true,
-        style: Theme.of(context).textTheme.bodyText2,
-        decoration: InputDecoration(
-          focusedBorder: InputBorder.none,
-        ),
-      ),
-    ],
-  );
-}
-
-@reader_widget
 Widget _tableRows(Reader reader, Cursor<model.Table> table) {
-  return ReorderableColumn(
-    onReorder: (old, nu) {
-      table.rowIDs.insert(nu < old ? nu : nu + 1, table.rowIDs[old].read(reader));
-      table.rowIDs.remove(nu < old ? old + 1 : old);
-    },
+  return Column(
+    // onReorder: (old, nu) {
+    //   table.rowIDs.atomically((rowIDs) {
+    //     rowIDs.insert(nu < old ? nu : nu + 1, rowIDs[old].read(null));
+    //     rowIDs.remove(nu < old ? old + 1 : old);
+    //   });
+    // },
     children: [
-      for (final rowID in table.rowIDs.read(reader)) TableRow(table, rowID, key: ValueKey(rowID)),
+      for (final rowID in table.rowIDs.read(reader))
+        TableRow(
+          table,
+          rowID,
+          key: ValueKey(rowID),
+        ),
     ],
   );
 }
@@ -126,33 +70,29 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
     decoration: BoxDecoration(border: Border(bottom: BorderSide())),
     child: IntrinsicHeight(
       child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final columnID in table.columnIDs.read(reader))
             Container(
+              key: ValueKey(columnID),
               width: table.columns[columnID].nonnull.width.read(reader),
               decoration: BoxDecoration(border: Border(right: BorderSide())),
-              child: Column(
-                children: [
-                  table.columns[columnID].nonnull.rows.cases(
-                    reader,
-                    stringColumn: (Cursor<model.StringColumn> column) => BoundTextFormField(
-                      column.values[rowID].orElse(''),
-                      decoration: InputDecoration(
-                        filled: false,
-                        focusedBorder: InputBorder.none,
-                      ),
-                    ),
-                    booleanColumn: (Cursor<model.BooleanColumn> column) => Checkbox(
-                      onChanged: (newValue) => column.values[rowID].set(newValue!),
-                      value: column.values[rowID].orElse(false).read(reader),
-                    ),
-                    multiselectColumn: (Cursor<model.MultiselectColumn> column) => Container(),
-                    linkColumn: (Cursor<model.LinkColumn> column) => Container(),
-                    dateColumn: (Cursor<model.DateColumn> column) => Container(),
-                    intColumn: (Cursor<model.IntColumn> column) => Container(),
-                    selectColumn: (Cursor<model.SelectColumn> column) => Container(),
-                  )
-                ],
+              child: table.columns[columnID].nonnull.rows.cases(
+                reader,
+                stringColumn: (column) => StringField(
+                  column: table.columns[columnID].nonnull,
+                  string: column.values[rowID],
+                ),
+                booleanColumn: (column) => Checkbox(
+                  onChanged: (newValue) => column.values[rowID].set(newValue!),
+                  value: column.values[rowID].orElse(false).read(reader),
+                ),
+                multiselectColumn: (column) => Container(),
+                linkColumn: (column) => Container(),
+                dateColumn: (column) => Container(),
+                intColumn: (column) => Container(),
+                selectColumn: (column) => Container(),
               ),
             ),
           FocusTraversalGroup(
@@ -172,13 +112,87 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
 }
 
 @reader_widget
-Widget _newColumnButton(Cursor<model.Table>? table) {
-  return ElevatedButton(
-    onPressed: () => table?.addColumn(),
-    child: Container(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(Icons.add), Text('New column')],
+Widget _stringField(
+  BuildContext context,
+  Reader reader, {
+  required Cursor<model.Column> column,
+  required Cursor<String?> string,
+}) {
+  final isOpen = useState(false);
+  final textStyle = Theme.of(context).textTheme.bodyText2;
+  final padding = EdgeInsetsDirectional.only(top: 5, bottom: 5, start: 5, end: 0);
+  final maxWidth = 200.0;
+  final focusRef = useRef(Pair([true, false], FocusNode()));
+  useEffect(
+    () {
+      return () {
+        if (focusRef.value.first[0]) focusRef.value.second.dispose();
+        focusRef.value.first[1] = true;
+      };
+    },
+    [0],
+  );
+
+  return ReplacerDropdown(
+    isOpen: isOpen,
+    dropdownFocus: focusRef.value.second,
+    dropdownBuilder: (context, replacedSize) => ScrollConfiguration(
+      behavior: ScrollBehavior().copyWith(scrollbars: false),
+      child: ModifiedIntrinsicWidth(
+        modification: 2,
+        child: Container(
+          constraints: BoxConstraints(
+            minWidth: replacedSize.width - 2,
+            maxWidth: math.max(replacedSize.width - 2, maxWidth),
+            minHeight: replacedSize.height,
+            maxHeight: replacedSize.height,
+          ),
+          child: Container(
+            child: HookBuilder(
+              builder: (_) {
+                useEffect(
+                  () {
+                    focusRef.value.first[0] = false;
+                    return () {
+                      if (focusRef.value.first[1]) {
+                        focusRef.value.second.dispose();
+                      }
+                      focusRef.value.first[0] = true;
+                    };
+                  },
+                  [0],
+                );
+
+                return BoundTextFormField(
+                  string.orElse(''),
+                  style: textStyle,
+                  focusNode: focusRef.value.second,
+                  maxLines: null,
+                  expands: true,
+                  decoration: InputDecoration(
+                    focusedBorder: InputBorder.none,
+                    contentPadding: padding,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    ),
+    child: TextButton(
+      onPressed: () {
+        isOpen.value = !isOpen.value;
+      },
+      child: Container(
+        padding: padding,
+        alignment: Alignment.topLeft,
+        child: Text(
+          string.orElse('').read(reader),
+          style: textStyle,
+          maxLines: 5,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     ),
   );

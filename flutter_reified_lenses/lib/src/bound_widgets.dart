@@ -18,6 +18,7 @@ Widget _boundTextFormField(
   bool autofocus = false,
   FocusNode? focusNode,
   bool readOnly = false,
+  bool expands = false,
 }) {
   focusNode ??= useFocusNode(skipTraversal: readOnly);
   final textController = useTextEditingController(text: text.read(reader));
@@ -41,5 +42,7 @@ Widget _boundTextFormField(
     focusNode: focusNode,
     readOnly: readOnly,
     onChanged: (newText) => text.set(newText),
+    expands: expands,
+    scrollPadding: ,
   );
 }

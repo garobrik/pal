@@ -45,7 +45,7 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
     ),
     appBarTheme: AppBarTheme(
       backgroundColor: colorScheme.surface,
-      elevation: 2,
+      elevation: 1,
       iconTheme: IconThemeData(color: colorScheme.onSurface),
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(

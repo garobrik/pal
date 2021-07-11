@@ -19,6 +19,7 @@ Widget _mainScaffold(
   return KnoseActions(
     child: Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: displayed == null
             ? Text('knose')
             : IntrinsicWidth(
@@ -34,7 +35,7 @@ Widget _mainScaffold(
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: [BoxShadow(blurRadius: 4, color: Colors.black38)],
+          boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
           color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
         ),
         child: Row(

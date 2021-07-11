@@ -6,13 +6,23 @@ import 'package:knose/model.dart' as model;
 part 'page.g.dart';
 
 @reader_widget
-Widget _mainPageWidget(Cursor<model.Page> page) {
+Widget _mainPageWidget(BuildContext context, Cursor<model.Page> page) {
   return Container(
-    padding: EdgeInsets.all(20),
-    child: BoundTextFormField(
-      page.contents,
-      autofocus: true,
-      maxLines: null,
+    color: Theme.of(context).colorScheme.background,
+    constraints: BoxConstraints.expand(),
+    child: Container(
+      // margin: EdgeInsets.all(15),
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)]
+      ),
+      child: BoundTextFormField(
+        page.contents,
+        decoration: InputDecoration(filled: false, focusedBorder: InputBorder.none),
+        autofocus: true,
+        maxLines: null,
+      ),
     ),
   );
 }

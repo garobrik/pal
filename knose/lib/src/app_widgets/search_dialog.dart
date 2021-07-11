@@ -19,7 +19,6 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search),
               Expanded(
                 child: BoundTextFormField(
                   searchText,
@@ -27,6 +26,7 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
                   decoration: InputDecoration(filled: false, focusedBorder: InputBorder.none,),
                 ),
               ),
+              Icon(Icons.search),
             ],
           ),
           Divider(height: 0),
