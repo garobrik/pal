@@ -21,7 +21,7 @@ final actions = {
 @reader_widget
 Widget _knoseActions(BuildContext context, {required Widget child}) {
   return Shortcuts(
-    shortcuts: {LogicalKeySet(LogicalKeyboardKey.enter): NextFocusFieldIntent()},
+    shortcuts: {SingleActivator(LogicalKeyboardKey.enter): NextFocusFieldIntent()},
     child: Actions(
       actions: {GoBackIntent: GoBackAction()},
       child: child,

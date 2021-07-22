@@ -1,7 +1,7 @@
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
-import 'id.dart';
+import 'package:knose/model.dart';
 
 part 'table.g.dart';
 
@@ -41,16 +41,11 @@ extension StateMutations on Cursor<State> {
   }
 }
 
-@ReifiedLens(cases: [TableID, PageID])
-abstract class PageOrTableID with _PageOrTableIDMixin {}
-
-class TableID extends UUID<TableID> with _PageOrTableIDMixin implements PageOrTableID {}
+class TableID extends UUID<TableID> {}
 
 class ColumnID extends UUID<ColumnID> {}
 
 class RowID extends UUID<RowID> {}
-
-class PageID extends UUID<PageID> with _PageOrTableIDMixin implements PageOrTableID {}
 
 @immutable
 @reify

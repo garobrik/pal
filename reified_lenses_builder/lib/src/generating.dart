@@ -140,7 +140,7 @@ extension ConstructorGenerating on Constructor {
       );
 }
 
-extension FunctionGenerating on Function {
+extension FunctionGenerating on FunctionDefinition {
   void declare(StringBuffer output) {
     for (final annotation in annotations) {
       output.writeln(annotation);

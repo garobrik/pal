@@ -363,30 +363,27 @@ class Field extends ElementAnalogue<FieldElement> {
 }
 
 @meta.immutable
-class Function extends ElementAnalogue<FunctionElement> {
+class FunctionDefinition extends ElementAnalogue<FunctionElement> {
   final Iterable<TypeParam> typeParams;
   final Iterable<Param> params;
   final Type? returnType;
-  final bool isStatic;
   final bool isExpression;
   final String? body;
 
-  Function(
+  FunctionDefinition(
     String name, {
     this.typeParams = const [],
     this.params = const [],
     this.returnType,
-    this.isStatic = false,
     this.isExpression = false,
     this.body,
     Iterable<String> annotations = const [],
   }) : super(name: name, annotations: annotations);
 
-  Function.fromElement(LibraryElement usageContext, FunctionElement element)
+  FunctionDefinition.fromElement(LibraryElement usageContext, FunctionElement element)
       : params = element.parameters.map((p) => Param.fromElement(usageContext, p)),
         typeParams = element.typeParameters.map((tp) => TypeParam.fromElement(usageContext, tp)),
         returnType = Type.fromDartType(usageContext, element.returnType),
-        isStatic = element.isStatic,
         isExpression = false,
         body = null,
         super.fromElement(usageContext, element);

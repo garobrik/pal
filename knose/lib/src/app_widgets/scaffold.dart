@@ -12,26 +12,17 @@ part 'scaffold.g.dart';
 @reader_widget
 Widget _mainScaffold(
   BuildContext context,
-  Reader reader,
-  Cursor<model.State> state,
-  model.PageOrTableID? displayed,
-) {
+  Reader reader, {
+  required Cursor<model.State> state,
+  required Widget title,
+  required Widget body,
+  required bool replaceRouteOnPush,
+}) {
   return KnoseActions(
     child: Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: displayed == null
-            ? Text('knose')
-            : IntrinsicWidth(
-                child: BoundTextFormField(
-                  displayed.cases(
-                    tableID: (tableID) => state.tables[tableID].nonnull.title,
-                    pageID: (pageID) => state.pages[pageID].nonnull.title,
-                  ),
-                  style: Theme.of(context).textTheme.headline6,
-                  decoration: InputDecoration(hintText: 'table title'),
-                ),
-              ),
+        title: title,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -46,13 +37,11 @@ Widget _mainScaffold(
               icon: Icons.post_add,
               onPressed: () {
                 final pageID = state.addPage(model.Page(title: 'Untitled page'));
-                final route =
-                    MaterialPageRoute<Null>(builder: (context) => MainScaffold(state, pageID));
 
-                if (displayed == null) {
-                  Navigator.pushReplacement(context, route);
+                if (replaceRouteOnPush) {
+                  Navigator.pushReplacementNamed(context, '', arguments: model.PageRoute(pageID));
                 } else {
-                  Navigator.push(context, route);
+                  Navigator.pushNamed(context, '', arguments: model.PageRoute(pageID));
                 }
               },
             ),
@@ -61,14 +50,11 @@ Widget _mainScaffold(
               icon: Icons.playlist_add,
               onPressed: () {
                 final tableID = state.addTable(model.Table.newDefault());
-                final route = MaterialPageRoute<Null>(
-                  builder: (context) => MainScaffold(state, tableID),
-                );
 
-                if (displayed == null) {
-                  Navigator.pushReplacement(context, route);
+                if (replaceRouteOnPush) {
+                  Navigator.pushReplacementNamed(context, '', arguments: model.TableRoute(tableID));
                 } else {
-                  Navigator.push(context, route);
+                  Navigator.pushNamed(context, '', arguments: model.TableRoute(tableID));
                 }
               },
             ),
@@ -86,14 +72,27 @@ Widget _mainScaffold(
           ],
         ),
       ),
-      body: InheritedStack(
-        child: displayed?.cases(
-              tableID: (tableID) => MainTableWidget(state.tables[tableID].nonnull),
-              pageID: (pageID) => MainPageWidget(state.pages[pageID].nonnull),
-            ) ??
-            Center(child: Text('Nothing selected!')),
-      ),
+      body: InheritedStack(child: body),
     ),
+  );
+}
+
+@reader_widget
+Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
+  return IntrinsicWidth(
+    child: BoundTextFormField(
+      title,
+      style: Theme.of(context).textTheme.headline6,
+      decoration: InputDecoration(hintText: 'table title'),
+    ),
+  );
+}
+
+@reader_widget
+Widget _scaffoldTitle(Reader reader, BuildContext context, GetCursor<String> title) {
+  return Text(
+    title.read(reader),
+    style: Theme.of(context).textTheme.headline6,
   );
 }
 

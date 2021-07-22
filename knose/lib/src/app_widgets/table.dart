@@ -10,6 +10,19 @@ import 'package:reorderables/reorderables.dart';
 
 part 'table.g.dart';
 
+Route<Null> generateTableRoute(Cursor<model.State> state, model.TableID tableID) {
+  final table = state.tables[tableID].nonnull;
+  return MaterialPageRoute(
+    settings: RouteSettings(name: table.title.read(null), arguments: model.TableRoute(tableID)),
+    builder: (_) => MainScaffold(
+      title: EditableScaffoldTitle(table.title),
+      state: state,
+      body: MainTableWidget(table),
+      replaceRouteOnPush: false,
+    ),
+  );
+}
+
 @reader_widget
 Widget _mainTableWidget(Reader reader, Cursor<model.Table> table) {
   return Scrollable2D(

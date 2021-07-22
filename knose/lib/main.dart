@@ -23,7 +23,28 @@ Widget myApp() {
         shortcuts: shortcuts,
         actions: actions,
         theme: theme(Colors.grey, Brightness.light),
-        home: MainScaffold(state, null),
+        onGenerateRoute: (settings) {
+          if (settings.name == '/') {
+            return MaterialPageRoute<Null>(
+              settings: settings,
+              builder: (_) => MainScaffold(
+                replaceRouteOnPush: true,
+                state: state,
+                title: Text('knose'),
+                body: Center(child: Text('Nothing selected!')),
+              ),
+            );
+          }
+
+          final arguments = settings.arguments;
+          if (arguments is model.Route) {
+            return arguments.cases(
+              tableRoute: (table) => generateTableRoute(state, table.id),
+              pageRoute: (page) => generatePageRoute(state, page.id),
+              searchRoute: (_) => null,
+            );
+          }
+        },
       ),
     ),
   );

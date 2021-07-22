@@ -49,7 +49,7 @@ class FlutterReifiedLensesGenerator extends Generator {
       generateBoundWidget(
         output,
         resolvedTypes,
-        Function.fromElement(library.element, annotated.element as FunctionElement),
+        FunctionDefinition.fromElement(library.element, annotated.element as FunctionElement),
       );
     }
 
@@ -71,7 +71,7 @@ class _ResolvedTypes {
   });
 }
 
-void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Function function) {
+void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, FunctionDefinition function) {
   final offset = function.name.startsWith('_') ? 1 : 0;
   final name = function.name.substring(offset, offset + 1).toUpperCase() +
       function.name.substring(offset + 1);
