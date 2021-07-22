@@ -11,16 +11,27 @@ part 'table_header.g.dart';
 @reader_widget
 Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> table) {
   return Row(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      for (final columnID in table.columnIDs.read(reader))
-        Container(
-          key: ValueKey(columnID),
-          decoration: BoxDecoration(border: Border(right: BorderSide())),
-          width: table.columns[columnID].nonnull.width.read(reader),
-          child: TableHeaderDropdown(table: table, column: table.columns[columnID].nonnull),
-        ),
+      ReorderResizeable(
+        direction: Axis.horizontal,
+        onReorder: (old, nu) {
+          table.columnIDs.atomically((columnIDs) {
+            columnIDs.insert(nu < old ? nu : nu + 1, columnIDs[old].read(null));
+            columnIDs.remove(nu < old ? old + 1 : old);
+          });
+        },
+        mainAxisSizes: [
+          for (final columnID in table.columnIDs.read(reader)) table.columns[columnID].nonnull.width
+        ],
+        children: [
+          for (final columnID in table.columnIDs.read(reader))
+            Container(
+              key: ValueKey(columnID),
+              width: table.columns[columnID].nonnull.width.read(reader),
+              child: TableHeaderDropdown(table: table, column: table.columns[columnID].nonnull),
+            ),
+        ],
+      ),
       NewColumnButton(table, key: UniqueKey()),
     ],
   );
@@ -37,6 +48,7 @@ Widget _tableHeaderDropdown(
   final textStyle = Theme.of(context).textTheme.bodyText1;
   final dropdownFocus = useFocusNode();
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
+  useEffect(() => () => print('disposed header dropdown'), [0]);
 
   return ReplacerDropdown(
     isOpen: isOpen,

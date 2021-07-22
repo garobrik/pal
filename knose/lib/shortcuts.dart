@@ -5,15 +5,11 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'shortcuts.g.dart';
 
-final shortcuts = <LogicalKeySet, Intent>{
+final shortcuts = <ShortcutActivator, Intent>{
   ...WidgetsApp.defaultShortcuts,
-  for (final alt in [
-    LogicalKeyboardKey.altLeft,
-    LogicalKeyboardKey.altRight,
-    LogicalKeyboardKey.alt
-  ])
-    LogicalKeySet(LogicalKeyboardKey.arrowLeft, alt): GoBackIntent(),
-    LogicalKeySet(LogicalKeyboardKey.escape): PrioritizedIntents(orderedIntents: [UnfocusFieldIntent(), DismissIntent()]),
+  SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): GoBackIntent(),
+  SingleActivator(LogicalKeyboardKey.escape):
+      PrioritizedIntents(orderedIntents: [UnfocusFieldIntent(), DismissIntent()]),
 };
 
 final actions = {

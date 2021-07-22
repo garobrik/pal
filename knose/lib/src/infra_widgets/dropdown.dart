@@ -32,7 +32,7 @@ Widget _replacerDropdown({
     childAnchor: Alignment.topLeft,
     dropdownAnchor: Alignment.topLeft,
     isOpen: isOpen,
-    dropdown: LayoutBuilder(
+    dropdownBuilder: (_) => LayoutBuilder(
       builder: (context, __) => dropdownBuilder(
         context,
         (globalKey.currentContext!.findRenderObject()! as RenderBox).size,
@@ -56,27 +56,27 @@ Widget _replacerDropdown({
 @reader_widget
 Widget _dropdown({
   required Widget child,
-  required Widget dropdown,
+  required WidgetBuilder dropdownBuilder,
   required ValueNotifier<bool> isOpen,
   FocusNode? dropdownFocus,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.bottomLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
-  return InheritedStackEntry(
+  return FollowingInheritedStackEntry(
     isOpen: isOpen,
     childAnchor: childAnchor,
     overlayAnchor: dropdownAnchor,
     offset: offset,
-    overlay: FocusTraversalGroup(
+    overlayBuilder: (_) => FocusTraversalGroup(
       child: Focus(
         skipTraversal: true,
         onFocusChange: (isFocused) {
           if (!isFocused) isOpen.value = false;
         },
         child: Material(
-          elevation: 5,
-          child: dropdown,
+          elevation: 3,
+          child: Builder(builder: dropdownBuilder),
         ),
       ),
     ),
@@ -85,33 +85,49 @@ Widget _dropdown({
 }
 
 @reader_widget
-Widget _inheritedStackEntry(
+Widget _followingInheritedStackEntry(
   BuildContext context, {
   required Widget child,
-  required Widget overlay,
+  required WidgetBuilder overlayBuilder,
   required ValueListenable<bool> isOpen,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.topLeft,
   Alignment overlayAnchor = Alignment.topLeft,
+  bool rootStack = true,
 }) {
   final layerLink = useRef(LayerLink()).value;
+
+  return InheritedStackEntry(
+    isOpen: isOpen,
+    overlayBuilder: (_) => CompositedTransformFollower(
+      offset: offset,
+      targetAnchor: childAnchor,
+      followerAnchor: overlayAnchor,
+      link: layerLink,
+      child: Builder(builder: overlayBuilder),
+    ),
+    child: CompositedTransformTarget(link: layerLink, child: child),
+  );
+}
+
+@reader_widget
+Widget _inheritedStackEntry(
+  BuildContext context, {
+  required Widget child,
+  required Widget Function(BuildContext) overlayBuilder,
+  required ValueListenable<bool> isOpen,
+  bool rootStack = true,
+}) {
   final dropdownKey = useRef(UniqueKey()).value;
 
   useEffect(() {
     final entry = _InheritedStackEntryState(
-      (BuildContext context) => CompositedTransformFollower(
-        key: dropdownKey,
-        link: layerLink,
-        targetAnchor: childAnchor,
-        followerAnchor: overlayAnchor,
-        offset: offset,
-        child: overlay,
-      ),
+      (_) => Builder(key: dropdownKey, builder: overlayBuilder),
     );
 
     final listener = () {
       if (isOpen.value) {
-        InheritedStack._of(context).insert(entry);
+        InheritedStack._of(context, rootStack: rootStack).insert(entry);
       } else {
         entry.remove();
       }
@@ -124,9 +140,9 @@ Widget _inheritedStackEntry(
       scheduleMicrotask(() => entry.remove());
       isOpen.removeListener(listener);
     };
-  }, [isOpen, child, overlay]);
+  }, [isOpen, child, overlayBuilder]);
 
-  return CompositedTransformTarget(link: layerLink, child: child);
+  return child;
 }
 
 class InheritedStack extends StatefulWidget {
@@ -147,20 +163,6 @@ class InheritedStack extends StatefulWidget {
   State<StatefulWidget> createState() => _InheritedStackState();
 }
 
-class _InheritedStackEntryState {
-  final WidgetBuilder builder;
-
-  Dispose? _remove;
-
-  _InheritedStackEntryState(this.builder);
-
-  void remove() {
-    if (_remove != null) {
-      _remove!();
-    }
-  }
-}
-
 class _InheritedStackState extends State<InheritedStack> {
   final stack = <_InheritedStackEntryState>[];
 
@@ -177,5 +179,19 @@ class _InheritedStackState extends State<InheritedStack> {
   void insert(_InheritedStackEntryState entry, {bool rootStack = false}) {
     setState(() => stack.add(entry));
     entry._remove = () => setState(() => stack.remove(entry));
+  }
+}
+
+class _InheritedStackEntryState {
+  final WidgetBuilder builder;
+
+  Dispose? _remove;
+
+  _InheritedStackEntryState(this.builder);
+
+  void remove() {
+    if (_remove != null) {
+      _remove!();
+    }
   }
 }

@@ -18,7 +18,7 @@ class FlutterReifiedLensesGenerator extends Generator {
     final output = StringBuffer();
 
     final boundWidgetElements =
-        library.annotatedWith(TypeChecker.fromRuntime(ReaderWidget)).where((elem) {
+        library.annotatedWith(TypeChecker.fromRuntime(ReaderWidgetAnnotation)).where((elem) {
       if (elem.element is FunctionElement) return true;
       log.warning(
           '@reader_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.');

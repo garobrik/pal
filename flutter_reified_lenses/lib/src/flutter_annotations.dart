@@ -1,5 +1,5 @@
-class ReaderWidget {
-  const ReaderWidget._();
+class ReaderWidgetAnnotation {
+  const ReaderWidgetAnnotation._();
 }
 
-const reader_widget = ReaderWidget._();
+const reader_widget = ReaderWidgetAnnotation._();

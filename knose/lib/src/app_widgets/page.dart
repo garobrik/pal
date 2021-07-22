@@ -15,7 +15,7 @@ Widget _mainPageWidget(BuildContext context, Cursor<model.Page> page) {
       padding: EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)]
+        boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
       ),
       child: BoundTextFormField(
         page.contents,

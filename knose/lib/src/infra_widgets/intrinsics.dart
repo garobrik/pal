@@ -1,5 +1,43 @@
+import 'package:boxy/boxy.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+
+class ConstrainWithin extends StatelessWidget {
+  final Widget constraints;
+  final Widget child;
+
+  const ConstrainWithin({
+    Key? key,
+    required this.constraints,
+    required this.child,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomBoxy(delegate: _ConstrainWithinDelegate(constraints), children: [child]);
+  }
+}
+
+class _ConstrainWithinDelegate extends BoxyDelegate {
+  final Widget constrainer;
+
+  _ConstrainWithinDelegate(this.constrainer);
+
+  @override
+  Size layout() {
+    final inflatedConstrainer = inflate(constrainer);
+    final constrainerSize = inflatedConstrainer.layout(constraints);
+    final child = getChild(0);
+    final size = child.layout(
+      constraints.enforce(BoxConstraints(
+        maxHeight: constrainerSize.height,
+        maxWidth: constrainerSize.width,
+      )),
+    );
+    child.position(Offset.zero);
+    return size;
+  }
+}
 
 class ModifiedIntrinsicWidth extends SingleChildRenderObjectWidget {
   final double modification;
@@ -15,7 +53,7 @@ class ModifiedIntrinsicWidth extends SingleChildRenderObjectWidget {
 
   @override
   RenderModifiedIntrinsicWidth createRenderObject(BuildContext context) =>
-  RenderModifiedIntrinsicWidth(modification: modification);
+      RenderModifiedIntrinsicWidth(modification: modification);
 
   @override
   void updateRenderObject(BuildContext context, RenderModifiedIntrinsicWidth renderObject) {

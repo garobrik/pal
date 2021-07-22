@@ -6,6 +6,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/model.dart' as model;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/app_widgets.dart';
+import 'package:reorderables/reorderables.dart';
 
 part 'table.g.dart';
 
@@ -46,13 +47,16 @@ Widget _mainTableWidget(Reader reader, Cursor<model.Table> table) {
 
 @reader_widget
 Widget _tableRows(Reader reader, Cursor<model.Table> table) {
-  return Column(
-    // onReorder: (old, nu) {
-    //   table.rowIDs.atomically((rowIDs) {
-    //     rowIDs.insert(nu < old ? nu : nu + 1, rowIDs[old].read(null));
-    //     rowIDs.remove(nu < old ? old + 1 : old);
-    //   });
-    // },
+  final scrollController = useScrollController();
+
+  return ReorderableColumn(
+    scrollController: scrollController,
+    onReorder: (old, nu) {
+      table.rowIDs.atomically((rowIDs) {
+        rowIDs.insert(nu < old ? nu : nu + 1, rowIDs[old].read(null));
+        rowIDs.remove(nu < old ? old + 1 : old);
+      });
+    },
     children: [
       for (final rowID in table.rowIDs.read(reader))
         TableRow(
@@ -66,6 +70,8 @@ Widget _tableRows(Reader reader, Cursor<model.Table> table) {
 
 @reader_widget
 Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
+  useEffect(() => () => print('disposed table row'), [0]);
+
   return Container(
     decoration: BoxDecoration(border: Border(bottom: BorderSide())),
     child: IntrinsicHeight(

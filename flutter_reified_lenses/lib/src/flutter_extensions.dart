@@ -35,7 +35,7 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   @override
   Widget build(BuildContext context) => CursorProvider(
         cursor,
-        child: CursorReader(
+        child: ReaderWidget(
           builder: (context, reader) => widget.builder(context, reader, cursor),
         ),
       );
@@ -56,7 +56,7 @@ class InheritCursor<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final inherited = context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
     assert(inherited != null, 'Inherited cursor which was never provided.');
-    return CursorReader(
+    return ReaderWidget(
       builder: (ctx, reader) => builder(ctx, reader, inherited!.cursor),
     );
   }
@@ -115,16 +115,16 @@ class _CursorBuildState<S> extends State<CursorBuilder<S>> {
   }
 }
 
-class CursorReader extends StatefulWidget {
+class ReaderWidget extends StatefulWidget {
   final Widget Function(BuildContext, Reader) builder;
 
-  const CursorReader({required this.builder, Key? key}) : super(key: key);
+  const ReaderWidget({required this.builder, Key? key}) : super(key: key);
 
   @override
-  _CursorReaderState createState() => _CursorReaderState();
+  _ReaderWidgetState createState() => _ReaderWidgetState();
 }
 
-class _CursorReaderState extends State<CursorReader> with Reader {
+class _ReaderWidgetState extends State<ReaderWidget> with Reader {
   List<void Function()> disposals = [];
 
   @override
