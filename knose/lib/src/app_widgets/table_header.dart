@@ -48,7 +48,6 @@ Widget _tableHeaderDropdown(
   final textStyle = Theme.of(context).textTheme.bodyText1;
   final dropdownFocus = useFocusNode();
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
-  useEffect(() => () => print('disposed header dropdown'), [0]);
 
   return ReplacerDropdown(
     isOpen: isOpen,

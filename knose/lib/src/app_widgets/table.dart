@@ -83,8 +83,6 @@ Widget _tableRows(Reader reader, Cursor<model.Table> table) {
 
 @reader_widget
 Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
-  useEffect(() => () => print('disposed table row'), [0]);
-
   return Container(
     decoration: BoxDecoration(border: Border(bottom: BorderSide())),
     child: IntrinsicHeight(

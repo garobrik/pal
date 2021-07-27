@@ -23,7 +23,10 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
                 child: BoundTextFormField(
                   searchText,
                   autofocus: true,
-                  decoration: InputDecoration(filled: false, focusedBorder: InputBorder.none,),
+                  decoration: InputDecoration(
+                    filled: false,
+                    focusedBorder: InputBorder.none,
+                  ),
                 ),
               ),
               Icon(Icons.search),
@@ -31,7 +34,9 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
           ),
           Divider(height: 0),
           for (final tableID in state.tableIDs.read(reader))
-            if (state.tables[tableID].nonnull.title
+            if (state
+                .getTable(tableID)
+                .title
                 .read(reader)
                 .toLowerCase()
                 .startsWith(searchText.read(reader).toLowerCase()))
@@ -41,7 +46,7 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
                 child: Row(
                   children: [
                     Icon(Icons.menu),
-                    Text(state.tables[tableID].nonnull.title.read(reader))
+                    Text(state.getTable(tableID).title.read(reader)),
                   ],
                 ),
               ),
