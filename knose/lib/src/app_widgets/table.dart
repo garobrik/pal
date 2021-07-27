@@ -11,7 +11,7 @@ import 'package:reorderables/reorderables.dart';
 part 'table.g.dart';
 
 Route<Null> generateTableRoute(Cursor<model.State> state, model.TableID tableID) {
-  final table = state.tables[tableID].nonnull;
+  final table = state.getTable(tableID);
   return MaterialPageRoute(
     settings: RouteSettings(name: table.title.read(null), arguments: model.TableRoute(tableID)),
     builder: (_) => MainScaffold(

@@ -5,41 +5,6 @@ import 'package:knose/model.dart';
 
 part 'table.g.dart';
 
-@immutable
-@reify
-class State with _StateMixin {
-  @override
-  final Dict<TableID, Table> tables;
-  @override
-  final Vec<TableID> tableIDs;
-  @override
-  final Dict<PageID, Page> pages;
-  @override
-  final Vec<PageID> pageIDs;
-
-  State({
-    this.tables = const Dict(),
-    this.tableIDs = const Vec(),
-    this.pages = const Dict(),
-    this.pageIDs = const Vec(),
-  });
-}
-
-extension StateMutations on Cursor<State> {
-  TableID addTable([Table? table]) {
-    table ??= Table();
-    tables[table.id] = table;
-    tableIDs.add(table.id);
-    return table.id;
-  }
-
-  PageID addPage([Page? page]) {
-    page ??= Page();
-    pages[page.id] = page;
-    pageIDs.add(page.id);
-    return page.id;
-  }
-}
 
 class TableID extends UUID<TableID> {}
 
@@ -92,19 +57,6 @@ class Table with _TableMixin {
       title: 'Untitled table',
     );
   }
-}
-
-@immutable
-@reify
-class Page with _PageMixin {
-  @override
-  final String title;
-  @override
-  final String contents;
-  @override
-  final PageID id;
-
-  Page({this.title = '', this.contents = '', PageID? id}) : this.id = id ?? PageID();
 }
 
 extension TableComputations on GetCursor<Table> {
