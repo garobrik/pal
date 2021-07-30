@@ -71,7 +71,8 @@ class _ResolvedTypes {
   });
 }
 
-void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, FunctionDefinition function) {
+void generateBoundWidget(
+    StringBuffer output, _ResolvedTypes resolvedTypes, FunctionDefinition function) {
   final offset = function.name.startsWith('_') ? 1 : 0;
   final name = function.name.substring(offset, offset + 1).toUpperCase() +
       function.name.substring(offset + 1);
@@ -88,6 +89,12 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
   final returnValue = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
   buildBody.writeln('return $returnValue;');
 
+  final ctorParams = [
+    for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
+    Param(resolvedTypes.key.withNullable(true), 'key', isNamed: true, isRequired: false),
+  ];
+  final tearoffParams = ctorParams.map((p) => p.copyWith(isInitializingFormal: false));
+
   Class(
     name,
     params: function.typeParams,
@@ -96,10 +103,7 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
       Constructor(
         parent: clazz,
         isConst: true,
-        params: [
-          for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
-          Param(resolvedTypes.key.withNullable(true), 'key', isNamed: true, isRequired: false),
-        ],
+        params: ctorParams,
         initializers: 'super(key: key)',
       ),
     ],
@@ -111,6 +115,19 @@ void generateBoundWidget(StringBuffer output, _ResolvedTypes resolvedTypes, Func
         returnType: Type('Widget'),
         params: [buildContextParam ?? Param(Type('BuildContext'), 'context')],
         body: buildBody.toString(),
+      ),
+      Method(
+        'tearoff',
+        isStatic: true,
+        params: tearoffParams,
+        typeParams: function.typeParams,
+        returnType: Type('Widget'),
+        isExpression: true,
+        body: callString(
+          name,
+          tearoffParams.asArgs(),
+          typeArgs: function.typeParams.map((tp) => tp.type),
+        ),
       ),
     ],
   ).declare(output);
