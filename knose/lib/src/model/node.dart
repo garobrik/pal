@@ -1,60 +1,117 @@
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 import 'package:knose/model.dart';
+import 'package:flutter/widgets.dart' as flutter;
 
 part 'node.g.dart';
 
 @immutable
-class NodeID extends UUID<NodeID> {
+class NodeID<T extends Node> extends UUID<NodeID<T>> {
+  NodeID() : super();
   NodeID.from(String id) : super.from(id);
 }
 
-@immutable
-@ReifiedLens(cases: [TableView, PageView, CustomView])
-abstract class NodeViewer {
-  const NodeViewer();
+abstract class Node {
+  NodeID get id;
 }
 
 @immutable
 @reify
-class TableView extends NodeViewer {
-  const TableView();
-}
-
-@immutable
-@reify
-class PageView extends NodeViewer {
-  const PageView();
-}
-
-@immutable
-@reify
-class CustomView extends NodeViewer {
-  const CustomView();
-}
-
-@immutable
-@reify
-class NodeView with _NodeViewMixin {
+abstract class TitledNode extends Node with _TitledNodeMixin {
   @override
-  final NodeID node;
+  NodeID<TitledNode> get id;
 
-  @override
-  final NodeViewer viewer;
+  @reify
+  String get title;
+  @reify
+  TitledNode mut_title(String title);
+}
 
-  const NodeView({
-    required this.node,
-    required this.viewer,
-  });
+typedef NodeBuilderFn<N> = flutter.Widget Function(Cursor<State> state, Cursor<N> node);
+
+@immutable
+@reify
+abstract class NodeBuilder {
+  NodeBuilderFn<Node> get builder;
 }
 
 @immutable
 @reify
-class Text with _TextMixin {
+abstract class TypedNodeBuilder<N extends Node> implements NodeBuilder {
+  @override
+  NodeBuilderFn<Node> get builder => (state, node) => typedBuilder(state, node.cast<N>());
+
+  NodeBuilderFn<N> get typedBuilder;
+}
+
+@immutable
+@reify
+class NodeView<N extends Node> with _NodeViewMixin implements Node {
+  @override
+  final NodeID<NodeView> id;
+
+  @override
+  final NodeID<N> nodeID;
+
+  @override
+  final NodeBuilder builder;
+
+  NodeView._({
+    NodeID<NodeView>? id,
+    required this.nodeID,
+    required this.builder,
+  }) : id = id ?? NodeID<NodeView>();
+
+  static NodeView<N> from<N extends Node>({
+    NodeID<NodeView>? id,
+    required NodeID<N> nodeID,
+    required TypedNodeBuilder<N> builder,
+  }) {
+    return NodeView._(id: id ?? NodeID<NodeView<N>>(), nodeID: nodeID, builder: builder);
+  }
+}
+
+extension NodeViewIDBuild<N extends Node> on NodeID<NodeView<N>> {
+  flutter.Widget build(Cursor<State> state) {
+    return ReaderWidget(builder: (_, reader) {
+      final nodeView = state.getNode(this);
+      final viewNode = nodeView.builder.read(reader);
+      final node = state.getNode(nodeView.nodeID.read(reader));
+      return viewNode.builder(state, node);
+    });
+  }
+}
+
+extension NodeViewIDReads<N extends Node> on Cursor<NodeID<NodeView<N>>> {
+  flutter.Widget build(Cursor<State> state) {
+    return ReaderWidget(builder: (_, reader) {
+      final nodeView = state.getNode(this.read(reader));
+      final viewNode = nodeView.builder.read(reader);
+      final node = state.getNode(nodeView.nodeID.read(reader));
+      return viewNode.builder(state, node);
+    });
+  }
+}
+
+// extension NodeViewReads<N, V> on Cursor<NodeView<N>> {
+//   flutter.Widget build(Cursor<State> state) {
+//     return ReaderWidget(builder: (_, reader) {
+//       final build = viewer.build.read(reader);
+//       final node = state.getNode(nodeID.read(reader));
+//     });
+//   }
+// }
+
+@immutable
+@reify
+class Text with _TextMixin implements Node {
+  @override
+  final NodeID<Text> id;
+
   @override
   final Vec<TextElement> elements;
 
-  const Text([this.elements = const Vec([PlainText('')])]);
+  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id]) : id = id ?? NodeID();
 }
 
 @immutable
@@ -76,7 +133,7 @@ class PlainText extends TextElement with _PlainTextMixin {
 @reify
 class InlineNode extends TextElement with _InlineNodeMixin {
   @override
-  final NodeView view;
+  final NodeID<NodeView> view;
 
   InlineNode(this.view);
 }

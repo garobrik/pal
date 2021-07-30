@@ -5,8 +5,15 @@ import 'package:knose/model.dart' as model;
 
 part 'text_widget.g.dart';
 
+class TextBuilder with model.TypedNodeBuilder<model.Text> {
+  const TextBuilder();
+
+  @override
+  model.NodeBuilderFn<model.Text> get typedBuilder => TextWidget.tearoff;
+}
+
 @reader_widget
-Widget _textWidget(Reader reader, Cursor<model.Text> text) {
+Widget _textWidget(Reader reader, Cursor<model.State> state, Cursor<model.Text> text) {
   return BoundTextFormField(
     text.elements[0].cast<model.PlainText>().text,
     maxLines: null,

@@ -5,27 +5,28 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 
 part 'page.g.dart';
 
-class PageID extends UUID<PageID> {}
-
 @immutable
 @reify
-class Page with _PageMixin {
+class Page with _PageMixin implements TitledNode {
   @override
-  final PageID id;
+  final NodeID<Page> id;
   @override
   final String title;
   @override
-  final Vec<PageElement> elements;
+  final Vec<NodeID<NodeView>> nodeViews;
 
   Page({
-    PageID? id,
+    NodeID<Page>? id,
     this.title = '',
-    this.elements = const Vec([Paragraph()]),
-  }) : this.id = id ?? PageID();
+    this.nodeViews = const Vec(),
+  }) : this.id = id ?? NodeID<Page>();
+
+  @override
+  Page mut_title(String title) => copyWith(title: title);
 }
 
 @immutable
-@ReifiedLens(cases: [Header, Paragraph, PageList])
+@ReifiedLens(cases: [Header, PageList])
 class PageElement with _PageElementMixin {
   const PageElement();
 }
@@ -39,15 +40,6 @@ class Header extends PageElement with _HeaderMixin {
   final int level;
 
   const Header(this.text, [this.level = 1]);
-}
-
-@immutable
-@reify
-class Paragraph extends PageElement with _ParagraphMixin {
-  @override
-  final Text text;
-
-  const Paragraph([this.text = const Text()]);
 }
 
 @immutable

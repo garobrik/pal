@@ -4,7 +4,7 @@ import 'package:meta/meta.dart';
 
 part 'route.g.dart';
 
-@ReifiedLens(cases: [TableRoute, PageRoute, SearchRoute])
+@ReifiedLens(cases: [TableRoute, PageRoute, SearchRoute, NodeRoute])
 class Route with _RouteMixin {
   const Route();
 }
@@ -20,7 +20,7 @@ class TableRoute extends Route with _TableRouteMixin {
 @reify
 class PageRoute extends Route with _PageRouteMixin {
   @override
-  final PageID id;
+  final NodeID<Page> id;
 
   const PageRoute(this.id);
 }
@@ -28,4 +28,13 @@ class PageRoute extends Route with _PageRouteMixin {
 @reify
 class SearchRoute extends Route with _SearchRouteMixin {
   const SearchRoute();
+}
+
+
+@reify
+class NodeRoute extends Route with _NodeRouteMixin {
+  @override
+  final NodeID<NodeView<TitledNode>> id;
+
+  const NodeRoute(this.id);
 }

@@ -5,7 +5,6 @@ import 'package:knose/model.dart';
 
 part 'table.g.dart';
 
-
 class TableID extends UUID<TableID> {}
 
 class ColumnID extends UUID<ColumnID> {}
@@ -14,9 +13,9 @@ class RowID extends UUID<RowID> {}
 
 @immutable
 @reify
-class Table with _TableMixin {
+class Table with _TableMixin implements TitledNode {
   @override
-  final TableID id;
+  final NodeID<Table> id;
   @override
   final String title;
   @override
@@ -26,16 +25,16 @@ class Table with _TableMixin {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Dict<RowID, PageID> pages;
+  final Dict<RowID, NodeID<Page>> pages;
 
   Table({
-    TableID? id,
+    NodeID<Table>? id,
     this.columns = const Dict(),
     this.title = '',
     this.columnIDs = const Vec(),
     this.rowIDs = const Vec(),
     this.pages = const Dict(),
-  }) : this.id = id ?? TableID();
+  }) : this.id = id ?? NodeID<Table>();
 
   static Table newDefault() {
     final columns = [
@@ -57,6 +56,9 @@ class Table with _TableMixin {
       title: 'Untitled table',
     );
   }
+
+  @override
+  Table mut_title(String title) => copyWith(title: title);
 }
 
 extension TableComputations on GetCursor<Table> {

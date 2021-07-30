@@ -33,23 +33,22 @@ Widget _searchDialog(Reader reader, Cursor<model.State> state) {
             ],
           ),
           Divider(height: 0),
-          for (final tableID in state.tableIDs.read(reader))
-            if (state
-                .getTable(tableID)
-                .title
-                .read(reader)
-                .toLowerCase()
-                .startsWith(searchText.read(reader).toLowerCase()))
-              TextButton(
-                key: ValueKey(tableID),
-                onPressed: () {},
-                child: Row(
-                  children: [
-                    Icon(Icons.menu),
-                    Text(state.getTable(tableID).title.read(reader)),
-                  ],
-                ),
-              ),
+          ...state.nodes.keys.read(reader).expand((nodeID) {
+            final node = state.getNode(nodeID).read(reader);
+            return [
+              if (node is model.TitledNode)
+                TextButton(
+                  key: ValueKey(nodeID),
+                  onPressed: () {},
+                  child: Row(
+                    children: [
+                      Icon(Icons.menu),
+                      Text(node.title),
+                    ],
+                  ),
+                )
+            ];
+          }),
         ],
       ),
     ),

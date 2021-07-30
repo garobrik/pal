@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:knose/app_widgets.dart';
 import 'package:knose/model.dart' as model;
 
 part 'page.g.dart';
 
-Route<Null> generatePageRoute(Cursor<model.State> state, model.PageID pageID) {
-  final page = state.getPage(pageID);
-  return MaterialPageRoute(
-    settings: RouteSettings(name: page.title.read(null), arguments: model.PageRoute(pageID)),
-    builder: (_) => MainScaffold(
-      title: EditableScaffoldTitle(page.title),
-      state: state,
-      body: MainPageWidget(page),
-      replaceRouteOnPush: false,
-    ),
-  );
+@immutable
+@reify
+class PageBuilder with model.TypedNodeBuilder<model.Page> {
+  const PageBuilder();
+
+  @override
+  model.NodeBuilderFn<model.Page> get typedBuilder => MainPageWidget.tearoff;
 }
 
 @reader_widget
-Widget _mainPageWidget(Reader reader, BuildContext context, Cursor<model.Page> page) {
+Widget _mainPageWidget(
+  Reader reader,
+  BuildContext context,
+  Cursor<model.State> state,
+  Cursor<model.Page> page,
+) {
   return Container(
     color: Theme.of(context).colorScheme.background,
     constraints: BoxConstraints.expand(),
@@ -33,20 +33,10 @@ Widget _mainPageWidget(Reader reader, BuildContext context, Cursor<model.Page> p
       ),
       child: Column(
         children: [
-          for (final element in page.elements.values(reader)) PageElement(element),
+          for (final nodeView in page.nodeViews.values(reader)) nodeView.build(state),
         ],
       ),
     ),
-  );
-}
-
-@reader_widget
-Widget _pageElement(Reader reader, Cursor<model.PageElement> element) {
-  return element.cases(
-    reader,
-    header: (header) => PageHeader(header),
-    paragraph: (paragraph) => TextWidget(paragraph.text),
-    pageList: (list) => Container(),
   );
 }
 

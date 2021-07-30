@@ -36,12 +36,32 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final pageID = state.addPage(model.Page(title: 'Untitled page'));
+                final nodeViewID = state.addNode(
+                  model.NodeView.from(
+                    builder: const PageBuilder(),
+                    nodeID: state.addNode(
+                      model.Page(
+                        title: 'Untitled page',
+                        nodeViews: Vec([
+                          state.addNode(
+                            model.NodeView.from(
+                              builder: const TextBuilder(),
+                              nodeID: state.addNode(
+                                model.Text(),
+                              ),
+                            ),
+                          )
+                        ]),
+                      ),
+                    ),
+                  ),
+                );
 
                 if (replaceRouteOnPush) {
-                  Navigator.pushReplacementNamed(context, '', arguments: model.PageRoute(pageID));
+                  Navigator.pushReplacementNamed(context, '',
+                      arguments: model.NodeRoute(nodeViewID));
                 } else {
-                  Navigator.pushNamed(context, '', arguments: model.PageRoute(pageID));
+                  Navigator.pushNamed(context, '', arguments: model.NodeRoute(nodeViewID));
                 }
               },
             ),
@@ -49,12 +69,17 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final tableID = state.addTable(model.Table.newDefault());
+                final nodeViewID = state.addNode(
+                  model.NodeView.from(
+                    builder: const TableBuilder(),
+                    nodeID: state.addNode(model.Table.newDefault()),
+                  ),
+                );
 
                 if (replaceRouteOnPush) {
-                  Navigator.pushReplacementNamed(context, '', arguments: model.TableRoute(tableID));
+                  Navigator.pushReplacementNamed(context, '', arguments: model.NodeRoute(nodeViewID));
                 } else {
-                  Navigator.pushNamed(context, '', arguments: model.TableRoute(tableID));
+                  Navigator.pushNamed(context, '', arguments: model.NodeRoute(nodeViewID));
                 }
               },
             ),
