@@ -71,50 +71,6 @@ class CursorProvider<T> extends InheritedWidget {
   bool updateShouldNotify(covariant CursorProvider<T> oldWidget) => cursor != oldWidget.cursor;
 }
 
-extension GetCursorBuildExtension<S> on GetCursor<S> {
-  Widget build(Widget Function(BuildContext, S) builder, {Key? key}) {
-    return CursorBuilder(builder: builder, cursor: this, key: key);
-  }
-}
-
-class CursorBuilder<S> extends StatefulWidget {
-  final Widget Function(BuildContext, S) builder;
-  final GetCursor<S> cursor;
-
-  const CursorBuilder({required this.builder, required this.cursor, Key? key}) : super(key: key);
-
-  @override
-  _CursorBuildState<S> createState() => _CursorBuildState();
-}
-
-class _CursorBuildState<S> extends State<CursorBuilder<S>> {
-  void Function()? disposeFn;
-
-  @override
-  Widget build(BuildContext context) {
-    if (disposeFn != null) {
-      disposeFn!();
-    }
-    return widget.builder(
-      context,
-      widget.cursor.read(
-        Reader(
-          onChanged: () => setState(() {}),
-          handleDispose: (dispose) => disposeFn = dispose,
-        ),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    if (disposeFn != null) {
-      disposeFn!();
-    }
-  }
-}
-
 class ReaderWidget extends StatefulWidget {
   final Widget Function(BuildContext, Reader) builder;
 
