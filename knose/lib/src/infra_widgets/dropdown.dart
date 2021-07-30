@@ -15,24 +15,12 @@ Widget _replacerDropdown({
   FocusNode? dropdownFocus,
 }) {
   final globalKey = useRef(GlobalKey()).value;
-  useEffect(
-    () {
-      final listener = () {
-        if (isOpen.value) {
-          dropdownFocus?.requestFocus();
-        }
-      };
-      isOpen.addListener(listener);
-      return () => isOpen.removeListener(listener);
-    },
-    [isOpen, dropdownFocus],
-  );
 
   return Dropdown(
     childAnchor: Alignment.topLeft,
     dropdownAnchor: Alignment.topLeft,
     isOpen: isOpen,
-    dropdownBuilder: (_) => LayoutBuilder(
+    dropdown: LayoutBuilder(
       builder: (context, __) => dropdownBuilder(
         context,
         (globalKey.currentContext!.findRenderObject()! as RenderBox).size,
@@ -56,13 +44,26 @@ Widget _replacerDropdown({
 @reader_widget
 Widget _dropdown({
   required Widget child,
-  required WidgetBuilder dropdownBuilder,
+  required Widget dropdown,
   required ValueNotifier<bool> isOpen,
   FocusNode? dropdownFocus,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.bottomLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
+  useEffect(
+    () {
+      final listener = () {
+        if (isOpen.value) {
+          dropdownFocus?.requestFocus();
+        }
+      };
+      isOpen.addListener(listener);
+      return () => isOpen.removeListener(listener);
+    },
+    [isOpen, dropdownFocus],
+  );
+
   return FollowingInheritedStackEntry(
     isOpen: isOpen,
     childAnchor: childAnchor,
@@ -76,7 +77,7 @@ Widget _dropdown({
         },
         child: Material(
           elevation: 3,
-          child: Builder(builder: dropdownBuilder),
+          child: dropdown,
         ),
       ),
     ),
