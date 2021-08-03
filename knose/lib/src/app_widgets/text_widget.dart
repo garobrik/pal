@@ -13,7 +13,11 @@ class TextBuilder with model.TypedNodeBuilder<model.Text> {
 }
 
 @reader_widget
-Widget _textWidget(Reader reader, Cursor<model.State> state, Cursor<model.Text> text) {
+Widget _textWidget(
+  Reader reader,
+  Cursor<model.State> state,
+  Cursor<model.Text> text,
+) {
   return BoundTextFormField(
     text.elements[0].cast<model.PlainText>().text,
     maxLines: null,

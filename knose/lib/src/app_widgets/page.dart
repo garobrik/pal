@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:knose/app_widgets.dart';
 import 'package:knose/model.dart' as model;
 
 part 'page.g.dart';
@@ -33,7 +34,7 @@ Widget _mainPageWidget(
       ),
       child: Column(
         children: [
-          for (final nodeView in page.nodeViews.values(reader)) nodeView.build(state),
+          for (final nodeViewID in page.nodeViews.values(reader)) NodeViewWidget(state, nodeViewID),
         ],
       ),
     ),
@@ -57,6 +58,7 @@ Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> hea
         default:
           return textTheme.headline4!;
       }
-    }().copyWith(decoration: TextDecoration.underline),
+    }()
+        .copyWith(decoration: TextDecoration.underline),
   );
 }

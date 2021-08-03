@@ -67,40 +67,13 @@ class NodeView<N extends Node> with _NodeViewMixin implements Node {
     required NodeID<N> nodeID,
     required TypedNodeBuilder<N> builder,
   }) {
-    return NodeView._(id: id ?? NodeID<NodeView<N>>(), nodeID: nodeID, builder: builder);
+    return NodeView._(
+      id: id ?? NodeID<NodeView<N>>(),
+      nodeID: nodeID,
+      builder: builder,
+    );
   }
 }
-
-extension NodeViewIDBuild<N extends Node> on NodeID<NodeView<N>> {
-  flutter.Widget build(Cursor<State> state) {
-    return ReaderWidget(builder: (_, reader) {
-      final nodeView = state.getNode(this);
-      final viewNode = nodeView.builder.read(reader);
-      final node = state.getNode(nodeView.nodeID.read(reader));
-      return viewNode.builder(state, node);
-    });
-  }
-}
-
-extension NodeViewIDReads<N extends Node> on Cursor<NodeID<NodeView<N>>> {
-  flutter.Widget build(Cursor<State> state) {
-    return ReaderWidget(builder: (_, reader) {
-      final nodeView = state.getNode(this.read(reader));
-      final viewNode = nodeView.builder.read(reader);
-      final node = state.getNode(nodeView.nodeID.read(reader));
-      return viewNode.builder(state, node);
-    });
-  }
-}
-
-// extension NodeViewReads<N, V> on Cursor<NodeView<N>> {
-//   flutter.Widget build(Cursor<State> state) {
-//     return ReaderWidget(builder: (_, reader) {
-//       final build = viewer.build.read(reader);
-//       final node = state.getNode(nodeID.read(reader));
-//     });
-//   }
-// }
 
 @immutable
 @reify

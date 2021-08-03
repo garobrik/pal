@@ -25,7 +25,7 @@ Widget _boundTextFormField(
 
   useEffect(() {
     return text.listen((_, __, Diff diff) {
-      if (!focusNode!.hasFocus) {
+      if (!focusNode!.hasFocus && diff.isNotEmpty) {
         textController.text = text.read(reader);
       }
     });
