@@ -1,4 +1,4 @@
-import 'package:knose/model.dart';
+import 'package:knose/model.dart' hide List;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 

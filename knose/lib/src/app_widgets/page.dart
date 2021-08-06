@@ -12,11 +12,11 @@ class PageBuilder with model.TypedNodeBuilder<model.Page> {
   const PageBuilder();
 
   @override
-  model.NodeBuilderFn<model.Page> get typedBuilder => MainPageWidget.tearoff;
+  model.NodeBuilderFn<model.Page> get typedBuilder => PageWidget.tearoff;
 }
 
 @reader_widget
-Widget _mainPageWidget(
+Widget _pageWidget(
   Reader reader,
   BuildContext context,
   Cursor<model.State> state,
@@ -34,7 +34,30 @@ Widget _mainPageWidget(
       ),
       child: Column(
         children: [
-          for (final nodeViewID in page.nodeViews.values(reader)) NodeViewWidget(state, nodeViewID),
+          for (final index in range(page.nodeViews.length.read(reader)))
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 4),
+              child: Material(
+                elevation: 2,
+                child: Actions(
+                  actions: {
+                    NewNodeBelowIntent: NewNodeBelowAction(
+                      onInvoke: (_) {
+                        page.nodeViews.insert(
+                          index + 1,
+                          state.addTextView(),
+                        );
+                      },
+                    ),
+                  },
+                  child: NodeViewWidget(
+                    state,
+                    page.nodeViews[index],
+                    key: ValueKey(page.nodeViews[index].read(reader)),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     ),

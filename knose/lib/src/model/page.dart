@@ -26,27 +26,12 @@ class Page with _PageMixin implements TitledNode {
 }
 
 @immutable
-@ReifiedLens(cases: [Header, PageList])
-class PageElement with _PageElementMixin {
-  const PageElement();
-}
-
-@immutable
 @reify
-class Header extends PageElement with _HeaderMixin {
+class Header with _HeaderMixin {
   @override
   final String text;
   @override
   final int level;
 
   const Header(this.text, [this.level = 1]);
-}
-
-@immutable
-@reify
-class PageList with _PageListMixin {
-  @override
-  final Vec<NodeID> nodes;
-
-  const PageList([this.nodes = const Vec()]);
 }
