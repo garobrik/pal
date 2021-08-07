@@ -46,15 +46,14 @@ Widget _tableHeaderDropdown(
 }) {
   final isOpen = useState(false);
   final textStyle = Theme.of(context).textTheme.bodyText1;
-  final dropdownFocus = useFocusNode();
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
 
   return ReplacerDropdown(
     isOpen: isOpen,
-    dropdownFocus: dropdownFocus,
     dropdownBuilder: (context, constraints) => IntrinsicWidth(
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
             decoration: BoxDecoration(border: Border(bottom: BorderSide())),
@@ -69,7 +68,6 @@ Widget _tableHeaderDropdown(
                 column.title,
                 autofocus: true,
                 style: textStyle,
-                focusNode: dropdownFocus,
                 decoration: InputDecoration(
                   focusedBorder: InputBorder.none,
                   contentPadding: padding,
@@ -81,24 +79,20 @@ Widget _tableHeaderDropdown(
         ],
       ),
     ),
-    child: HookBuilder(
-      builder: (_) {
-        return TextButton(
-          style: ButtonStyle(
-            padding: MaterialStateProperty.all(padding),
-            alignment: Alignment.centerLeft,
-          ),
-          onPressed: () {
-            isOpen.value = !isOpen.value;
-          },
-          child: Text(
-            column.title.read(reader),
-            style: textStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
+    child: TextButton(
+      style: ButtonStyle(
+        padding: MaterialStateProperty.all(padding),
+        alignment: Alignment.centerLeft,
+      ),
+      onPressed: () {
+        isOpen.value = !isOpen.value;
       },
+      child: Text(
+        column.title.read(reader),
+        style: textStyle,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
     ),
   );
 }
@@ -109,14 +103,46 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
+  final columnTypeIsOpen = useState(false);
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      TextButton(
-        onPressed: () {},
-        child: Row(
-          children: [Icon(Icons.list), Text('Column type')],
+      Dropdown(
+        isOpen: columnTypeIsOpen,
+        childAnchor: Alignment.topRight,
+        dropdownAnchor: Alignment.topLeft,
+        dropdown: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextButton(
+                autofocus: true,
+                onPressed: () => column.rows.set(model.StringColumn()),
+                child: Row(
+                  children: [
+                    Text('Text'),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => column.rows.set(model.BooleanColumn()),
+                child: Row(
+                  children: [
+                    Text('Checkbox'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        child: TextButton(
+          onPressed: () => columnTypeIsOpen.value = true,
+          child: Row(
+            children: [Icon(Icons.list), Text('Column type')],
+          ),
         ),
       ),
       TextButton(

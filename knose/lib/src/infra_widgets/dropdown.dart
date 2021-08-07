@@ -13,12 +13,14 @@ Widget _replacerDropdown({
   required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
   required ValueNotifier<bool> isOpen,
   FocusNode? dropdownFocus,
+  Alignment childAnchor = Alignment.topLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
 }) {
   final globalKey = useRef(GlobalKey()).value;
 
   return Dropdown(
-    childAnchor: Alignment.topLeft,
-    dropdownAnchor: Alignment.topLeft,
+    childAnchor: childAnchor,
+    dropdownAnchor: dropdownAnchor,
     isOpen: isOpen,
     dropdown: LayoutBuilder(
       builder: (context, __) => dropdownBuilder(
@@ -33,10 +35,7 @@ Widget _replacerDropdown({
       maintainAnimation: true,
       maintainSize: true,
       visible: !isOpen.value,
-      child: FocusTraversalGroup(
-        descendantsAreFocusable: !isOpen.value,
-        child: child,
-      ),
+      child: child,
     ),
   );
 }
@@ -64,7 +63,126 @@ Widget _dropdown({
     [isOpen, dropdownFocus],
   );
 
-  return FollowingInheritedStackEntry(
+  return FollowingModalRoute(
+    isOpen: isOpen,
+    childAnchor: childAnchor,
+    overlayAnchor: dropdownAnchor,
+    offset: offset,
+    overlayBuilder: (_) => FocusTraversalGroup(
+      child: Focus(
+        skipTraversal: true,
+        onFocusChange: (isFocused) {
+          if (!isFocused) isOpen.value = false;
+        },
+        child: Material(
+          elevation: 3,
+          child: dropdown,
+        ),
+      ),
+    ),
+    child: child,
+  );
+}
+
+@reader_widget
+Widget _followingModalRoute(
+  BuildContext context, {
+  required Widget child,
+  required WidgetBuilder overlayBuilder,
+  required ValueListenable<bool> isOpen,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.topLeft,
+  Alignment overlayAnchor = Alignment.topLeft,
+  bool rootStack = true,
+}) {
+  final layerLink = useRef(LayerLink()).value;
+  useEffect(() {
+    final listener = () {
+      if (isOpen.value) {
+        showDialog<Null>(
+          context: context,
+          builder: (_) => Center(
+            child: CompositedTransformFollower(
+              offset: offset,
+              targetAnchor: childAnchor,
+              followerAnchor: overlayAnchor,
+              link: layerLink,
+              child: Builder(builder: overlayBuilder),
+            ),
+          ),
+          barrierColor: null,
+        );
+      } else {
+        // Navigator.pop(context);
+      }
+    };
+    isOpen.addListener(listener);
+    return () => isOpen.removeListener(listener);
+  }, [isOpen, overlayBuilder]);
+
+  return CompositedTransformTarget(link: layerLink, child: child);
+}
+
+@reader_widget
+Widget _oldReplacerDropdown({
+  required Widget child,
+  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
+  required ValueNotifier<bool> isOpen,
+  FocusNode? dropdownFocus,
+  Alignment childAnchor = Alignment.topLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
+}) {
+  final globalKey = useRef(GlobalKey()).value;
+
+  return Dropdown(
+    childAnchor: childAnchor,
+    dropdownAnchor: dropdownAnchor,
+    isOpen: isOpen,
+    dropdown: LayoutBuilder(
+      builder: (context, __) => dropdownBuilder(
+        context,
+        (globalKey.currentContext!.findRenderObject()! as RenderBox).size,
+      ),
+    ),
+    dropdownFocus: dropdownFocus,
+    child: Visibility(
+      key: globalKey,
+      maintainState: true,
+      maintainAnimation: true,
+      maintainSize: true,
+      visible: !isOpen.value,
+      child: FocusTraversalGroup(
+        descendantsAreFocusable: !isOpen.value,
+        child: child,
+      ),
+    ),
+  );
+}
+
+@reader_widget
+Widget _oldDropdown({
+  required Widget child,
+  required Widget dropdown,
+  required ValueNotifier<bool> isOpen,
+  FocusNode? dropdownFocus,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.bottomLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
+}) {
+  useEffect(
+    () {
+      final listener = () {
+        if (isOpen.value) {
+          dropdownFocus?.requestFocus();
+        }
+      };
+      isOpen.addListener(listener);
+      return () => isOpen.removeListener(listener);
+    },
+    [isOpen, dropdownFocus],
+  );
+
+  return FollowingModalRoute(
     isOpen: isOpen,
     childAnchor: childAnchor,
     overlayAnchor: dropdownAnchor,
