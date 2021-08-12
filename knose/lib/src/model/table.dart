@@ -112,6 +112,22 @@ class Column with _ColumnMixin {
   }) : this.id = id ?? ColumnID();
 }
 
+extension ColumnMutations on Cursor<Column> {
+  void setType(ColumnRowsCase caze) {
+    rows.set(
+      caze.cases(
+        linkColumn: () => LinkColumn(),
+        selectColumn: () => SelectColumn(),
+        multiselectColumn: () => MultiselectColumn(),
+        dateColumn: () => DateColumn(),
+        booleanColumn: () => BooleanColumn(),
+        intColumn: () => IntColumn(),
+        stringColumn: () => StringColumn(),
+      ),
+    );
+  }
+}
+
 @ReifiedLens(cases: [
   StringColumn,
   BooleanColumn,
