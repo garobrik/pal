@@ -128,23 +128,12 @@ Widget _columnConfigurationDropdown(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextButton(
-                autofocus: true,
-                onPressed: () => column.rows.set(model.StringColumn()),
-                child: Row(
-                  children: [
-                    Text('Text'),
-                  ],
+              for (final caze in model.ColumnRowsCase.values)
+                TextButton(
+                  autofocus: caze == column.rows.caze.read(reader),
+                  onPressed: () => column.setType(caze),
+                  child: Row(children: [Text('${caze.type}')]),
                 ),
-              ),
-              TextButton(
-                onPressed: () => column.rows.set(model.BooleanColumn()),
-                child: Row(
-                  children: [
-                    Text('Checkbox'),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
