@@ -3,24 +3,22 @@ import 'package:reified_lenses/reified_lenses.dart';
 import 'reified_lenses.dart';
 
 abstract class GetCursor<S> {
-  const factory GetCursor(S state) = _GetCursorImpl;
+  const factory GetCursor(S state) = _ValueCursor;
+  factory GetCursor.compute(S Function(Reader) reader) =>
+      StateCursor(_ComputedState(reader), Getter<S, S>.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
   GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
 
-  S get _value;
-
   GetCursor<S1> cast<S1>() => thenGet(Getter<S, S1>.mkCast());
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
-  S read(Reader? r) {
-    return _value;
-  }
+  S read(Reader? r);
 
   @override
-  String toString() => 'GetCursor($_value)';
+  String toString() => 'GetCursor(${read(null)})';
 }
 
 abstract class Reader {
@@ -51,8 +49,8 @@ class _CallbackReader implements Reader {
 }
 
 abstract class Cursor<S> implements GetCursor<S> {
-  factory Cursor(S state) => _CursorImpl(
-        _ListenableState(state),
+  factory Cursor(S state) => MutableStateCursor(
+        ListenableStateBase(state),
         Lens.identity(),
       );
 
@@ -66,26 +64,45 @@ abstract class Cursor<S> implements GetCursor<S> {
   @override
   Cursor<S1> cast<S1>() => then(Lens<S, S1>.mkCast());
 
-  @override
-  S read(Reader? r) {
-    r?.handleDispose(listen((_, __, ___) => r.onChanged()));
-    return _value;
+  V atomically<V>(V Function(Cursor<S> p1) f) {
+    // TODO: implement
+    return f(this);
   }
 
-  T atomically<T>(T Function(Cursor<S>) f);
-
   @override
-  String toString() => 'Cursor($_value)';
+  String toString() => 'Cursor(${read(null)})';
 }
 
-class _ListenableState<T> {
+extension CursorPartial<S> on Cursor<S> {
+  Cursor<S1> partial<S1>(
+          {required S1? Function(S) to,
+          required DiffResult<S> Function(DiffResult<S1>) from,
+          DiffResult<S1?> Function(S old, S nu, Diff)? update}) =>
+      MutableStateCursor(
+        _PartialViewState(viewed: this, to: to, from: from, update: update),
+        Lens.identity(),
+      );
+}
+
+abstract class ListenableState<T> {
+  T get currentState;
+  void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback);
+}
+
+abstract class MutableListenableState<T> implements ListenableState<T> {
+  DiffResult<T> transformAndNotify(DiffResult<T> Function(T) transform);
+}
+
+class ListenableStateBase<T> implements MutableListenableState<T> {
   T _state;
   PathMapSet<void Function(T old, T nu, Diff diff)> _listenables = PathMapSet.empty();
 
-  _ListenableState(this._state);
+  ListenableStateBase(this._state);
 
-  T get bareState => _state;
+  @override
+  T get currentState => _state;
 
+  @override
   void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
     _listenables = _listenables.add(path, callback);
     return () {
@@ -93,6 +110,7 @@ class _ListenableState<T> {
     };
   }
 
+  @override
   DiffResult<T> transformAndNotify(DiffResult<T> Function(T) transform) {
     final origState = _state;
     final result = transform(_state);
@@ -104,42 +122,22 @@ class _ListenableState<T> {
   }
 }
 
-@immutable
-class WithDisposal<T> {
-  final void Function() dispose;
-  final T value;
+class StateCursor<T, S> with GetCursor<S> {
+  final ListenableState<T> state;
+  final Getter<T, S> lens;
 
-  const WithDisposal(this.dispose, this.value);
-}
-
-@immutable
-class _CursorImpl<T, S> with Cursor<S> {
-  final _ListenableState<T> state;
-  final Lens<T, S> lens;
-
-  _CursorImpl(this.state, this.lens);
+  StateCursor(this.state, this.lens);
 
   @override
-  Cursor<S2> then<S2>(Lens<S, S2> lens) {
-    return _CursorImpl(state, this.lens.then(lens));
-  }
+  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) => StateCursor(
+        state,
+        this.lens.thenGet(Getter(getter.path, getter.get)),
+      );
 
   @override
-  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) =>
-      _CursorImpl(state, this.lens.then(Lens(getter.path, getter.get, (s, f) => s)));
-
-  @override
-  S get _value => lens.get(state.bareState);
-
-  @override
-  void mutResult(DiffResult<S> Function(S) f) {
-    state.transformAndNotify((t) => lens.mutDiff(t, f));
-  }
-
-  @override
-  V atomically<V>(V Function(Cursor<S> p1) f) {
-    // TODO: implement
-    return f(this);
+  S read(Reader? r) {
+    r?.handleDispose(listen((_, __, ___) => r.onChanged()));
+    return lens.get(state.currentState);
   }
 
   @override
@@ -149,33 +147,44 @@ class _CursorImpl<T, S> with Cursor<S> {
       (T old, T nu, Diff diff) => f(lens.get(old), lens.get(nu), diff.atPrefix(lens.path)),
     );
   }
-
-  @override
-  String toString() => 'Cursor($_value)';
-}
-
-abstract class CursorCallback {
-  void onChanged() {}
-  void onGet(WithDisposal<Path> result) => result.dispose();
-  void onMut<S>(S old, S nu, Diff diff) {}
 }
 
 @immutable
-class _GetCursorImpl<S> with GetCursor<S> {
+class MutableStateCursor<T, S> extends StateCursor<T, S> with Cursor<S> {
+  @override
+  final MutableListenableState<T> state;
+  @override
+  final Lens<T, S> lens;
+
+  MutableStateCursor(this.state, this.lens) : super(state, lens);
+
+  @override
+  Cursor<S2> then<S2>(Lens<S, S2> lens) {
+    return MutableStateCursor(state, this.lens.then(lens));
+  }
+
+  @override
+  void mutResult(DiffResult<S> Function(S) f) {
+    state.transformAndNotify((t) => lens.mutDiff(t, f));
+  }
+}
+
+@immutable
+class _ValueCursor<S> with GetCursor<S> {
   final S state;
 
-  const _GetCursorImpl(this.state);
+  const _ValueCursor(this.state);
 
   @override
-  S get _value => state;
-
-  @override
-  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) => _GetCursorImpl(getter.get(state));
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) => _ValueCursor(getter.get(state));
 
   @override
   void Function() listen(void Function(S old, S nu, Diff diff) f) {
     return () => null;
   }
+
+  @override
+  S read(Reader? r) => state;
 }
 
 extension CursorNullability<T> on Cursor<T?> {
@@ -191,4 +200,116 @@ extension CursorNullability<T> on Cursor<T?> {
 extension GetCursorNullability<T> on GetCursor<T?> {
   GetCursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
   GetCursor<T> orElse(T defaultValue) => thenGet(Getter(Path.empty(), (t) => t ?? defaultValue));
+}
+
+class _ComputedState<T> implements Reader, ListenableState<T> {
+  final T Function(Reader) computation;
+  final List<void Function()> disposals = [];
+
+  ListenableStateBase<T>? _stateVar;
+  ListenableStateBase<T> get _state {
+    _stateVar ??= ListenableStateBase(computation(this));
+    return _stateVar!;
+  }
+
+  bool dirty = false;
+
+  @override
+  T get currentState {
+    if (dirty) {
+      _state.transformAndNotify(
+        (_) => DiffResult(computation(this), const Diff.allChanged()),
+      );
+      dirty = false;
+    }
+    return _state.currentState;
+  }
+
+  _ComputedState(this.computation);
+
+  @override
+  void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
+    final dispose = _state.listen(path, callback);
+    return () {
+      dispose();
+      if (_state._listenables.isEmpty) {
+        disposals.forEach((f) => f());
+        disposals.clear();
+        dirty = true;
+      }
+    };
+  }
+
+  @override
+  void handleDispose(void Function() dispose) {
+    disposals.add(dispose);
+  }
+
+  @override
+  void onChanged() {
+    disposals.forEach((f) => f());
+    disposals.clear();
+    _state.transformAndNotify(
+      (_) => DiffResult(computation(this), const Diff.allChanged()),
+    );
+  }
+}
+
+class _PartialViewState<T, S> implements MutableListenableState<S> {
+  final Cursor<T> viewed;
+  final S? Function(T) to;
+  final DiffResult<T> Function(DiffResult<S>) from;
+  final DiffResult<S?> Function(T old, T nu, Diff)? update;
+  void Function()? disposeListener;
+
+  ListenableStateBase<S>? _stateVar;
+
+  _PartialViewState({
+    required this.viewed,
+    required this.to,
+    required this.from,
+    this.update,
+  });
+
+  ListenableStateBase<S> get _state {
+    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
+    return _stateVar!;
+  }
+
+  @override
+  S get currentState => _state.currentState;
+
+  @override
+  void Function() listen(Path path, void Function(S old, S nu, Diff diff) callback) {
+    final dispose = _state.listen(path, callback);
+
+    disposeListener ??= viewed.listen((old, nu, diff) {
+      late final DiffResult<S?> result;
+
+      if (update != null) {
+        result = update!(old, nu, diff);
+      } else {
+        result = DiffResult(to(nu), const Diff.allChanged());
+      }
+
+      if (result.value != null) {
+        _state.transformAndNotify((_) => DiffResult(result.value!, result.diff));
+      }
+    });
+
+    return () {
+      dispose();
+      if (_state._listenables.isEmpty) {
+        if (disposeListener != null) disposeListener!();
+        disposeListener = null;
+      }
+    };
+  }
+
+  @override
+  DiffResult<S> transformAndNotify(DiffResult<S> Function(S p1) transform) {
+    final result = transform(_state.currentState);
+    viewed.mutResult((_) => from(result));
+    return result;
+  }
 }
