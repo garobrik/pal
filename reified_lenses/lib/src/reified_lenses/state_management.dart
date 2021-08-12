@@ -188,7 +188,11 @@ class _ValueCursor<S> with GetCursor<S> {
 }
 
 extension CursorNullability<T> on Cursor<T?> {
-  Cursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
+  Cursor<T> get nonnull => partial(
+        to: (t) => t,
+        from: (diff) => diff,
+        update: (old, nu, diff) => DiffResult(nu, diff),
+      );
 
   Cursor<T> orElse(T defaultValue) => then(Lens(
         Path.empty(),
