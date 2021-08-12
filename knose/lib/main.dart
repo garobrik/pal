@@ -40,9 +40,9 @@ Widget myApp() {
           if (arguments is model.Route) {
             return arguments.cases(
               nodeRoute: (node) => generateNodeRoute(state, node.id),
-              tableRoute: (table) => null,
-              pageRoute: (page) => null,
-              searchRoute: (_) => null,
+              tableRoute: (_) => null,
+              pageRoute: (_) => null,
+              searchRoute: (_) => generateSearchRoute(state),
             );
           }
         },

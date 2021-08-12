@@ -14,16 +14,18 @@ Widget _mainScaffold(
   BuildContext context,
   Reader reader, {
   required Cursor<model.State> state,
-  required Widget title,
   required Widget body,
   required bool replaceRouteOnPush,
+  Widget? title,
 }) {
   return KnoseActions(
     child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: title,
-      ),
+      appBar: title == null
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              title: title,
+            ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
@@ -77,7 +79,11 @@ Widget _mainScaffold(
                 );
 
                 if (replaceRouteOnPush) {
-                  Navigator.pushReplacementNamed(context, '', arguments: model.NodeRoute(nodeViewID));
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '',
+                    arguments: model.NodeRoute(nodeViewID),
+                  );
                 } else {
                   Navigator.pushNamed(context, '', arguments: model.NodeRoute(nodeViewID));
                 }
@@ -87,11 +93,11 @@ Widget _mainScaffold(
               text: 'Search',
               icon: Icons.search,
               onPressed: () {
-                showDialog<Null>(
-                  barrierColor: Colors.black12,
-                  context: context,
-                  builder: (_) => SearchDialog(state),
-                );
+                if (replaceRouteOnPush) {
+                  Navigator.pushReplacementNamed(context, '', arguments: model.SearchRoute());
+                } else {
+                  Navigator.pushNamed(context, '', arguments: model.SearchRoute());
+                }
               },
             ),
           ],
