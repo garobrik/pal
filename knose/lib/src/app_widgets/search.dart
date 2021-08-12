@@ -27,8 +27,12 @@ Widget _searchPage(BuildContext context, Reader reader, Cursor<model.State> stat
     children: [
       Center(
         child: Container(
-          margin: EdgeInsetsDirectional.fromSTEB(100, 100, 100, 50),
-          decoration: BoxDecoration(border: Border.all(), borderRadius: BorderRadius.circular(10)),
+          margin: EdgeInsetsDirectional.fromSTEB(100, 50, 100, 50),
+          decoration: BoxDecoration(
+            boxShadow: [BoxShadow(blurRadius: 5, color: Colors.grey)],
+            borderRadius: BorderRadius.circular(7),
+            color: Theme.of(context).colorScheme.surface,
+          ),
           child: Row(
             children: [
               Icon(
