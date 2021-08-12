@@ -76,12 +76,13 @@ Widget _followingModalRoute(
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.topLeft,
   Alignment overlayAnchor = Alignment.topLeft,
-  bool rootStack = true,
 }) {
-  final layerLink = useRef(LayerLink()).value;
-  useEffect(() {
-    return isOpen.listen((_, currentlyOpen, ___) {
-      if (currentlyOpen) {
+  final layerLink = useMemoized(() => LayerLink());
+  final currentlyOpen = useCursor(false);
+
+  final showDropdown = useMemoized(() {
+    return () {
+      if (!currentlyOpen.read(null)) {
         showDialog<Null>(
           context: context,
           builder: (_) => Center(
@@ -95,13 +96,30 @@ Widget _followingModalRoute(
           ),
           barrierColor: null,
         ).then(
-          (_) => isOpen.set(false),
+          (_) {
+            isOpen.set(false);
+            currentlyOpen.set(false);
+          },
         );
-      } else {
-        // Navigator.pop(context);
+
+        currentlyOpen.set(true);
+      }
+    };
+  }, [overlayBuilder, childAnchor, overlayAnchor, layerLink, offset]);
+
+  useEffect(() {
+    if (isOpen.read(null)) {
+      scheduleMicrotask(showDropdown);
+    }
+  });
+
+  useEffect(() {
+    return isOpen.listen((_, currentlyOpen, ___) {
+      if (currentlyOpen) {
+        showDropdown();
       }
     });
-  }, [isOpen, overlayBuilder]);
+  }, [isOpen, showDropdown]);
 
   return CompositedTransformTarget(link: layerLink, child: child);
 }
