@@ -131,7 +131,7 @@ Widget _stringField(
   required Cursor<model.Column> column,
   required Cursor<String?> string,
 }) {
-  final isOpen = useState(false);
+  final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText2;
   final padding = EdgeInsetsDirectional.only(top: 5, bottom: 5, start: 5, end: 0);
   final maxWidth = 200.0;
@@ -146,7 +146,7 @@ Widget _stringField(
     [0],
   );
 
-  return ReplacerDropdown(
+  return ReplacerWidget(
     isOpen: isOpen,
     dropdownFocus: focusRef.value.second,
     dropdownBuilder: (context, replacedSize) => ScrollConfiguration(
@@ -195,7 +195,7 @@ Widget _stringField(
     ),
     child: TextButton(
       onPressed: () {
-        isOpen.value = !isOpen.value;
+        isOpen.set(true);
       },
       child: Container(
         padding: padding,

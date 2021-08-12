@@ -35,13 +35,12 @@ Widget _nodeViewWidget(
   final nodeView = state.getNode(nodeViewID.read(reader));
   final viewNode = nodeView.builder.read(reader);
   final node = state.getNode(nodeView.nodeID.read(reader));
-  final isOpen = useState(false);
-  final dropdownFocus = useFocusNode();
+  final isOpen = useCursor(false);
 
   return Actions(
     actions: {
       ConfigureNodeViewIntent: CallbackAction<ConfigureNodeViewIntent>(
-        onInvoke: (_) => isOpen.value = true,
+        onInvoke: (_) => isOpen.set(true),
       ),
     },
     child: Shortcuts(
@@ -50,11 +49,9 @@ Widget _nodeViewWidget(
       },
       child: Dropdown(
         isOpen: isOpen,
-        dropdownFocus: dropdownFocus,
         dropdown: NodeViewConfigWidget(
           state: state,
           view: nodeView,
-          defaultFocus: dropdownFocus,
         ),
         child: viewNode.builder(state, node),
       ),
@@ -64,7 +61,6 @@ Widget _nodeViewWidget(
 
 @reader_widget
 Widget _nodeViewConfigWidget({
-  FocusNode? defaultFocus,
   required Cursor<model.State> state,
   required Cursor<model.NodeView> view,
 }) {
@@ -72,7 +68,7 @@ Widget _nodeViewConfigWidget({
     mainAxisSize: MainAxisSize.min,
     children: [
       TextButton(
-        focusNode: defaultFocus,
+        autofocus: true,
         onPressed: () {
           if (view.read(null) is! model.NodeView<model.Text>) {
             view.set(

@@ -3,6 +3,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:reorderables/reorderables.dart';
 
 part 'page.g.dart';
 
@@ -33,12 +34,19 @@ Widget _pageWidget(
         boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
       ),
       child: Column(
+        // onReorder: (old, nu) {
+        //   page.nodeViews.atomically((nodeViews) {
+        //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
+        //     nodeViews.remove(nu < old ? old + 1 : old);
+        //   });
+        // },
         children: [
           for (final index in range(page.nodeViews.length.read(reader)))
             Padding(
+              key: ValueKey(page.nodeViews[index].read(reader)),
               padding: EdgeInsets.symmetric(vertical: 4),
               child: Material(
-                elevation: 2,
+                elevation: 6,
                 child: Actions(
                   actions: {
                     NewNodeBelowIntent: NewNodeBelowAction(
@@ -53,7 +61,6 @@ Widget _pageWidget(
                   child: NodeViewWidget(
                     state,
                     page.nodeViews[index],
-                    key: ValueKey(page.nodeViews[index].read(reader)),
                   ),
                 ),
               ),

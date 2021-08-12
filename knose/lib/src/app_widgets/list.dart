@@ -27,12 +27,15 @@ Widget _listWidget(
     children: [
       for (final index in range(list.nodeViews.length.read(reader)))
         Padding(
+          key: ValueKey(list.nodeViews[index].read(reader)),
           padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(Icons.circle, size: 10),
-              SizedBox(width: 5,),
+              SizedBox(
+                width: 5,
+              ),
               Expanded(
                 child: Material(
                   elevation: 2,
@@ -50,7 +53,6 @@ Widget _listWidget(
                     child: NodeViewWidget(
                       state,
                       list.nodeViews[index],
-                      key: ValueKey(list.nodeViews[index].read(reader)),
                     ),
                   ),
                 ),

@@ -8,11 +8,11 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 part 'dropdown.g.dart';
 
 @reader_widget
-Widget _replacerDropdown({
+Widget _replacerDropdown(
+  Reader reader, {
   required Widget child,
   required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
-  required ValueNotifier<bool> isOpen,
-  FocusNode? dropdownFocus,
+  required Cursor<bool> isOpen,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
@@ -28,13 +28,12 @@ Widget _replacerDropdown({
         (globalKey.currentContext!.findRenderObject()! as RenderBox).size,
       ),
     ),
-    dropdownFocus: dropdownFocus,
     child: Visibility(
       key: globalKey,
       maintainState: true,
       maintainAnimation: true,
       maintainSize: true,
-      visible: !isOpen.value,
+      visible: !isOpen.read(reader),
       child: child,
     ),
   );
@@ -44,40 +43,24 @@ Widget _replacerDropdown({
 Widget _dropdown({
   required Widget child,
   required Widget dropdown,
-  required ValueNotifier<bool> isOpen,
-  FocusNode? dropdownFocus,
+  required Cursor<bool> isOpen,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.bottomLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
-  useEffect(
-    () {
-      final listener = () {
-        if (isOpen.value) {
-          dropdownFocus?.requestFocus();
-        }
-      };
-      isOpen.addListener(listener);
-      return () => isOpen.removeListener(listener);
-    },
-    [isOpen, dropdownFocus],
-  );
-
   return FollowingModalRoute(
     isOpen: isOpen,
     childAnchor: childAnchor,
     overlayAnchor: dropdownAnchor,
     offset: offset,
-    overlayBuilder: (_) => FocusTraversalGroup(
-      child: Focus(
-        skipTraversal: true,
-        onFocusChange: (isFocused) {
-          if (!isFocused) isOpen.value = false;
-        },
-        child: Material(
-          elevation: 3,
-          child: dropdown,
-        ),
+    overlayBuilder: (_) => Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(color: Colors.grey, blurRadius: 7),
+        ],
+      ),
+      child: Material(
+        child: dropdown,
       ),
     ),
     child: child,
@@ -89,7 +72,7 @@ Widget _followingModalRoute(
   BuildContext context, {
   required Widget child,
   required WidgetBuilder overlayBuilder,
-  required ValueListenable<bool> isOpen,
+  required Cursor<bool> isOpen,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.topLeft,
   Alignment overlayAnchor = Alignment.topLeft,
@@ -97,8 +80,8 @@ Widget _followingModalRoute(
 }) {
   final layerLink = useRef(LayerLink()).value;
   useEffect(() {
-    final listener = () {
-      if (isOpen.value) {
+    return isOpen.listen((_, currentlyOpen, ___) {
+      if (currentlyOpen) {
         showDialog<Null>(
           context: context,
           builder: (_) => Center(
@@ -111,30 +94,31 @@ Widget _followingModalRoute(
             ),
           ),
           barrierColor: null,
+        ).then(
+          (_) => isOpen.set(false),
         );
       } else {
         // Navigator.pop(context);
       }
-    };
-    isOpen.addListener(listener);
-    return () => isOpen.removeListener(listener);
+    });
   }, [isOpen, overlayBuilder]);
 
   return CompositedTransformTarget(link: layerLink, child: child);
 }
 
 @reader_widget
-Widget _oldReplacerDropdown({
+Widget _replacerWidget(
+  Reader reader, {
   required Widget child,
   required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
-  required ValueNotifier<bool> isOpen,
+  required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
   final globalKey = useRef(GlobalKey()).value;
 
-  return Dropdown(
+  return OldDropdown(
     childAnchor: childAnchor,
     dropdownAnchor: dropdownAnchor,
     isOpen: isOpen,
@@ -150,9 +134,9 @@ Widget _oldReplacerDropdown({
       maintainState: true,
       maintainAnimation: true,
       maintainSize: true,
-      visible: !isOpen.value,
+      visible: !isOpen.read(reader),
       child: FocusTraversalGroup(
-        descendantsAreFocusable: !isOpen.value,
+        descendantsAreFocusable: !isOpen.read(reader),
         child: child,
       ),
     ),
@@ -163,43 +147,45 @@ Widget _oldReplacerDropdown({
 Widget _oldDropdown({
   required Widget child,
   required Widget dropdown,
-  required ValueNotifier<bool> isOpen,
+  required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.bottomLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
 }) {
+  final numChildren = Cursor(0);
   useEffect(
-    () {
-      final listener = () {
-        if (isOpen.value) {
+    () => isOpen.listen(
+      (_, isOpen, ___) {
+        if (isOpen) {
           dropdownFocus?.requestFocus();
         }
-      };
-      isOpen.addListener(listener);
-      return () => isOpen.removeListener(listener);
-    },
+      },
+    ),
     [isOpen, dropdownFocus],
   );
 
-  return FollowingModalRoute(
-    isOpen: isOpen,
-    childAnchor: childAnchor,
-    overlayAnchor: dropdownAnchor,
-    offset: offset,
-    overlayBuilder: (_) => FocusTraversalGroup(
-      child: Focus(
-        skipTraversal: true,
-        onFocusChange: (isFocused) {
-          if (!isFocused) isOpen.value = false;
-        },
-        child: Material(
-          elevation: 3,
-          child: dropdown,
+  return DropdownChild(
+    child: FollowingInheritedStackEntry(
+      isOpen: GetCursor.compute((reader) => isOpen.read(reader) || numChildren.read(reader) > 0),
+      childAnchor: childAnchor,
+      overlayAnchor: dropdownAnchor,
+      offset: offset,
+      overlayBuilder: (_) => _DropdownInheritedWidget(
+        numChildren: numChildren,
+        child: FocusTraversalGroup(
+          child: Focus(
+            skipTraversal: true,
+            onFocusChange: isOpen.set,
+            child: Material(
+              elevation: 3,
+              child: dropdown,
+            ),
+          ),
         ),
       ),
+      child: child,
     ),
-    child: child,
   );
 }
 
@@ -208,7 +194,7 @@ Widget _followingInheritedStackEntry(
   BuildContext context, {
   required Widget child,
   required WidgetBuilder overlayBuilder,
-  required ValueListenable<bool> isOpen,
+  required GetCursor<bool> isOpen,
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.topLeft,
   Alignment overlayAnchor = Alignment.topLeft,
@@ -234,34 +220,59 @@ Widget _inheritedStackEntry(
   BuildContext context, {
   required Widget child,
   required Widget Function(BuildContext) overlayBuilder,
-  required ValueListenable<bool> isOpen,
+  required GetCursor<bool> isOpen,
   bool rootStack = true,
 }) {
   final dropdownKey = useRef(UniqueKey()).value;
 
   useEffect(() {
-    final entry = _InheritedStackEntryState(
+    final entry = _InheritedStackEntry(
       (_) => Builder(key: dropdownKey, builder: overlayBuilder),
     );
 
     final listener = () {
-      if (isOpen.value) {
+      if (isOpen.read(null) && !entry.isEntered) {
         InheritedStack._of(context, rootStack: rootStack).insert(entry);
-      } else {
+      } else if (!isOpen.read(null) && entry.isEntered) {
         entry.remove();
       }
     };
 
-    isOpen.addListener(listener);
+    final dispose = isOpen.listen((_, __, ___) => listener());
     scheduleMicrotask(listener);
 
     return () {
       scheduleMicrotask(() => entry.remove());
-      isOpen.removeListener(listener);
+      dispose();
     };
-  }, [isOpen, child, overlayBuilder]);
+  }, [isOpen, overlayBuilder]);
 
   return child;
+}
+
+@reader_widget
+Widget _dropdownChild(BuildContext context, {required Widget child}) {
+  final inherited = context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
+  useEffect(
+    () {
+      inherited?.numChildren.mut((i) => i + 1);
+      return () => inherited?.numChildren.mut((i) => i - 1);
+    },
+    [inherited, inherited?.numChildren],
+  );
+
+  return child;
+}
+
+class _DropdownInheritedWidget extends InheritedWidget {
+  final Cursor<int> numChildren;
+
+  _DropdownInheritedWidget({required this.numChildren, required Widget child, Key? key})
+      : super(child: child, key: key);
+
+  @override
+  bool updateShouldNotify(covariant _DropdownInheritedWidget oldWidget) =>
+      this.numChildren != oldWidget.numChildren;
 }
 
 class InheritedStack extends StatefulWidget {
@@ -283,7 +294,7 @@ class InheritedStack extends StatefulWidget {
 }
 
 class _InheritedStackState extends State<InheritedStack> {
-  final stack = <_InheritedStackEntryState>[];
+  final stack = <_InheritedStackEntry>[];
 
   @override
   Widget build(BuildContext context) {
@@ -295,22 +306,25 @@ class _InheritedStackState extends State<InheritedStack> {
     );
   }
 
-  void insert(_InheritedStackEntryState entry, {bool rootStack = false}) {
+  void insert(_InheritedStackEntry entry, {bool rootStack = false}) {
     setState(() => stack.add(entry));
     entry._remove = () => setState(() => stack.remove(entry));
   }
 }
 
-class _InheritedStackEntryState {
+class _InheritedStackEntry {
   final WidgetBuilder builder;
 
   Dispose? _remove;
 
-  _InheritedStackEntryState(this.builder);
+  _InheritedStackEntry(this.builder);
 
   void remove() {
     if (_remove != null) {
       _remove!();
+      _remove = null;
     }
   }
+
+  bool get isEntered => _remove != null;
 }

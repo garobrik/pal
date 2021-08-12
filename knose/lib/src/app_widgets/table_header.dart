@@ -44,7 +44,7 @@ Widget _tableHeaderDropdown(
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
-  final isOpen = useState(false);
+  final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText1;
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
 
@@ -85,7 +85,7 @@ Widget _tableHeaderDropdown(
         alignment: Alignment.centerLeft,
       ),
       onPressed: () {
-        isOpen.value = !isOpen.value;
+        isOpen.mut((b) => !b);
       },
       child: Text(
         column.title.read(reader),
@@ -103,7 +103,7 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
-  final columnTypeIsOpen = useState(false);
+  final columnTypeIsOpen = useCursor(false);
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -139,7 +139,7 @@ Widget _columnConfigurationDropdown(
           ),
         ),
         child: TextButton(
-          onPressed: () => columnTypeIsOpen.value = true,
+          onPressed: () => columnTypeIsOpen.mut((b) => !b),
           child: Row(
             children: [Icon(Icons.list), Text('Column type')],
           ),
