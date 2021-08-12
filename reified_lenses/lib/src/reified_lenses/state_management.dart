@@ -145,6 +145,11 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
       (T old, T nu, Diff diff) => f(lens.get(old), lens.get(nu), diff.atPrefix(lens.path)),
     );
   }
+
+  @override
+  bool operator ==(Object? other) {
+    return other is StateCursorBase<T, S> && state == other.state && lens.path == other.lens.path;
+  }
 }
 
 class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
