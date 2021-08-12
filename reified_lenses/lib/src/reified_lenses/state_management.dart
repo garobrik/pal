@@ -5,7 +5,7 @@ import 'reified_lenses.dart';
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor;
   factory GetCursor.compute(S Function(Reader) reader) =>
-      StateCursor(_ComputedState(reader), Getter<S, S>.identity());
+      StateCursor(_ComputedState(reader), Getter.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
@@ -122,11 +122,9 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
   }
 }
 
-class StateCursor<T, S> with GetCursor<S> {
-  final ListenableState<T> state;
-  final Getter<T, S> lens;
-
-  StateCursor(this.state, this.lens);
+abstract class StateCursorBase<T, S> implements GetCursor<S> {
+  ListenableState<T> get state;
+  Getter<T, S> get lens;
 
   @override
   GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) => StateCursor(
@@ -149,14 +147,23 @@ class StateCursor<T, S> with GetCursor<S> {
   }
 }
 
+class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
+  @override
+  final ListenableState<T> state;
+  @override
+  final Getter<T, S> lens;
+
+  StateCursor(this.state, this.lens);
+}
+
 @immutable
-class MutableStateCursor<T, S> extends StateCursor<T, S> with Cursor<S> {
+class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
   @override
   final MutableListenableState<T> state;
   @override
   final Lens<T, S> lens;
 
-  MutableStateCursor(this.state, this.lens) : super(state, lens);
+  MutableStateCursor(this.state, this.lens);
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens) {

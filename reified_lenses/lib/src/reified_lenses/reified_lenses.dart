@@ -79,8 +79,8 @@ typedef TransformF<T> = T Function(T);
 
 abstract class Getter<T, S> {
   const factory Getter(Path path, GetterF<T, S> _getter) = _GetterImpl;
-  const factory Getter.identity() = _IdentityImpl;
   const factory Getter.mkCast() = _CastImpl;
+  static Getter<S, S> identity<S>() => _IdentityImpl();
 
   S get(T t);
   Path get path;
@@ -166,7 +166,7 @@ class _LensImpl<T, S> with Lens<T, S> {
 
 @immutable
 class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
-  const _IdentityImpl();
+  _IdentityImpl();
 
   @override
   Path get path => const [];
