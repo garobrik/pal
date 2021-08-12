@@ -68,18 +68,17 @@ extension TableComputations on GetCursor<Table> {
 extension TableMutations on Cursor<Table> {
   void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
-  void addColumn([int? index]) {
+  ColumnID addColumn([int? index]) {
+    late final ColumnID columnID;
     atomically((table) {
-      final columnID = ColumnID();
+      final column = Column(rows: StringColumn());
 
-      final column = Column(
-        id: columnID,
-        rows: StringColumn(),
-      );
+      table.columns[column.id] = column;
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
 
-      table.columns[columnID] = column;
-      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), columnID);
+      columnID = column.id;
     });
+    return columnID;
   }
 
   void removeColumn(ColumnID id) {
