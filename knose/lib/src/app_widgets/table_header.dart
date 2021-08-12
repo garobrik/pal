@@ -10,6 +10,8 @@ part 'table_header.g.dart';
 
 @reader_widget
 Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> table) {
+  final openColumns = useCursor(Dict<model.ColumnID, bool>());
+
   return Row(
     children: [
       ReorderResizeable(
@@ -28,11 +30,19 @@ Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> tab
             Container(
               key: ValueKey(columnID),
               width: table.columns[columnID].nonnull.width.read(reader),
-              child: TableHeaderDropdown(table: table, column: table.columns[columnID].nonnull),
+              child: TableHeaderDropdown(
+                table: table,
+                column: table.columns[columnID].nonnull,
+                isOpen: openColumns[columnID].orElse(false),
+              ),
             ),
         ],
       ),
-      NewColumnButton(table, key: UniqueKey()),
+      NewColumnButton(
+        table: table,
+        openColumns: openColumns,
+        key: UniqueKey(),
+      ),
     ],
   );
 }
@@ -43,8 +53,8 @@ Widget _tableHeaderDropdown(
   Reader reader, {
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
+  required Cursor<bool> isOpen,
 }) {
-  final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText1;
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
 
@@ -156,9 +166,17 @@ Widget _columnConfigurationDropdown(
 }
 
 @reader_widget
-Widget _newColumnButton(Cursor<model.Table>? table) {
+Widget _newColumnButton({
+  Cursor<model.Table>? table,
+  Cursor<Dict<model.ColumnID, bool>>? openColumns,
+}) {
   return ElevatedButton(
-    onPressed: () => table?.addColumn(),
+    onPressed: () {
+      final columnID = table?.addColumn();
+      if (columnID != null) {
+        openColumns?[columnID] = true;
+      }
+    },
     child: Container(
       child: Row(
         mainAxisSize: MainAxisSize.min,

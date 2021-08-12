@@ -115,7 +115,7 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
               maintainSize: true,
               maintainAnimation: true,
               maintainState: true,
-              child: NewColumnButton(null),
+              child: NewColumnButton(),
             ),
           ),
         ],
