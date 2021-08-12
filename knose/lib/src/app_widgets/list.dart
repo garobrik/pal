@@ -28,13 +28,15 @@ Widget _listWidget(
       for (final index in range(list.nodeViews.length.read(reader)))
         Padding(
           key: ValueKey(list.nodeViews[index].read(reader)),
-          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+          padding: index == 0
+              ? EdgeInsetsDirectional.only(start: 4, end: 4, bottom: 4)
+              : EdgeInsets.symmetric(vertical: 4, horizontal: 4),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.circle, size: 10),
-              SizedBox(
-                width: 5,
+              Padding(
+                padding: EdgeInsetsDirectional.only(top: 10, end: 5),
+                child: Icon(Icons.circle, size: 10),
               ),
               Expanded(
                 child: Material(
