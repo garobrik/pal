@@ -154,20 +154,4 @@ class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with R
   }
 }
 
-Cursor<T> useCursor<T>(T initialValue) => use(_CursorHook(initialValue));
-
-class _CursorHook<T> extends Hook<Cursor<T>> {
-  final T initialValue;
-
-  _CursorHook(this.initialValue);
-
-  @override
-  _CursorHookState<T> createState() => _CursorHookState();
-}
-
-class _CursorHookState<T> extends HookState<Cursor<T>, _CursorHook<T>> {
-  late final Cursor<T> cursor = Cursor(hook.initialValue);
-
-  @override
-  Cursor<T> build(BuildContext context) => cursor;
-}
+Cursor<T> useCursor<T>(T initialValue) => useMemoized(() => Cursor(initialValue));
