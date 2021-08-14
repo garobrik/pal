@@ -1,12 +1,21 @@
-import 'package:reified_lenses/reified_lenses.dart';
-
 class Optional<Value> {
   final Value? _value;
 
-  Optional(Value value): assert(value != null), _value = value;
+  const Optional(Value value)
+      : assert(value != null),
+        _value = value;
   const Optional.none() : _value = null;
+  const Optional.fromNullable(this._value);
 
   Value? get unwrap => _value;
 
-  T cases<T>({required T Function(Value) some, required T Function() none}) => _value == null ? none() : some(_value!);
+  T cases<T>({required T Function(Value) some, required T Function() none}) =>
+      _value == null ? none() : some(_value!);
+
+  Optional<T> map<T>(T Function(Value) f) =>
+      _value == null ? Optional.none() : Optional(f(_value!));
+
+  void ifPresent<T>(void Function(Value) f) {
+    if (_value != null) f(_value!);
+  }
 }
