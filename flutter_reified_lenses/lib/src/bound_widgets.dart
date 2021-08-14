@@ -41,7 +41,7 @@ Widget _boundTextFormField(
     autofocus: autofocus,
     focusNode: focusNode,
     readOnly: readOnly,
-    onChanged: (newText) => text.set(newText),
+    onChanged: text.set,
     expands: expands,
   );
 }
