@@ -1,5 +1,6 @@
 library reified_lenses;
 
+export 'src/reified_lenses/reified_helpers.dart';
 export 'src/reified_lenses/reified_lenses.dart';
 export 'src/reified_lenses/state_management.dart';
 export 'src/reified_lenses/trie_map.dart';
