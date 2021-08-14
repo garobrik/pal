@@ -25,15 +25,7 @@ Widget myApp() {
         theme: theme(Colors.grey, Brightness.light),
         onGenerateRoute: (settings) {
           if (settings.name == '/') {
-            return MaterialPageRoute<Null>(
-              settings: settings,
-              builder: (_) => MainScaffold(
-                replaceRouteOnPush: true,
-                state: state,
-                title: Text('knose'),
-                body: Center(child: Text('Nothing selected!')),
-              ),
-            );
+            return generateSearchRoute(state);
           }
 
           final arguments = settings.arguments;
