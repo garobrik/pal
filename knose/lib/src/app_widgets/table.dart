@@ -93,10 +93,8 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
               decoration: BoxDecoration(border: Border(right: BorderSide())),
               child: table.columns[columnID].nonnull.rows.cases(
                 reader,
-                stringColumn: (column) => StringField(
-                  column: table.columns[columnID].nonnull,
-                  string: column.values[rowID],
-                ),
+                stringColumn: (column) => StringField(string: column.values[rowID]),
+                numColumn: (column) => NumField(number: column.values[rowID]),
                 booleanColumn: (column) => Checkbox(
                   onChanged: (newValue) => column.values[rowID].set(newValue!),
                   value: column.values[rowID].orElse(false).read(reader),
@@ -104,7 +102,6 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
                 multiselectColumn: (column) => Container(),
                 linkColumn: (column) => Container(),
                 dateColumn: (column) => Container(),
-                numColumn: (column) => Container(),
                 selectColumn: (column) => Container(),
               ),
             ),
@@ -128,8 +125,38 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
 Widget _stringField(
   BuildContext context,
   Reader reader, {
-  required Cursor<model.Column> column,
   required Cursor<String?> string,
+}) {
+  return TableCellTextField(
+    value: string,
+    toText: (String? value) => value ?? '',
+    parse: (text) => Optional(text.isEmpty ? null : text),
+    expands: true,
+  );
+}
+
+@reader_widget
+Widget _numField(
+  BuildContext context,
+  Reader reader, {
+  required Cursor<num?> number,
+}) {
+  return TableCellTextField(
+    value: number,
+    toText: (num? value) => value?.toString() ?? '',
+    parse: (text) => Optional.fromNullable(num.tryParse(text)),
+    expands: false,
+  );
+}
+
+@reader_widget
+Widget _tableCellTextField<T>(
+  BuildContext context,
+  Reader reader, {
+  required Cursor<T> value,
+  required String Function(T) toText,
+  required Optional<T> Function(String) parse,
+  required bool expands,
 }) {
   final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText2;
@@ -145,28 +172,26 @@ Widget _stringField(
       child: ModifiedIntrinsicWidth(
         modification: 2,
         child: Container(
-          constraints: BoxConstraints(
-            minWidth: replacedSize.width - 2,
-            maxWidth: math.max(replacedSize.width - 2, maxWidth),
-            minHeight: replacedSize.height,
-            maxHeight: replacedSize.height,
-          ),
-          child: Container(
-            child: HookBuilder(
-              builder: (_) {
-                return BoundTextFormField(
-                  string.orElse(''),
-                  style: textStyle,
-                  focusNode: dropdownFocus,
-                  maxLines: null,
-                  expands: true,
-                  decoration: InputDecoration(
-                    focusedBorder: InputBorder.none,
-                    contentPadding: padding,
-                  ),
-                );
-              },
+          constraints: expands
+              ? BoxConstraints(
+                  minWidth: replacedSize.width - 2,
+                  maxWidth: math.max(replacedSize.width - 2, maxWidth),
+                  minHeight: replacedSize.height,
+                  maxHeight: replacedSize.height,
+                )
+              : BoxConstraints.tight(replacedSize),
+          decoration: BoxDecoration(color: Theme.of(context).backgroundColor),
+          child: TextFormField(
+            initialValue: toText(value.read(null)),
+            style: textStyle,
+            focusNode: dropdownFocus,
+            maxLines: expands ? null : 1,
+            expands: expands,
+            decoration: InputDecoration(
+              focusedBorder: InputBorder.none,
+              contentPadding: padding,
             ),
+            onChanged: (newText) => parse(newText).ifPresent<T>(value.set),
           ),
         ),
       ),
@@ -177,9 +202,9 @@ Widget _stringField(
         padding: padding,
         alignment: Alignment.topLeft,
         child: Text(
-          string.orElse('').read(reader),
+          toText(value.read(reader)),
           style: textStyle,
-          maxLines: 5,
+          maxLines: expands ? 5 : 1,
           overflow: TextOverflow.ellipsis,
         ),
       ),
