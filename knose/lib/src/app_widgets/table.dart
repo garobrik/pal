@@ -104,7 +104,7 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
                 multiselectColumn: (column) => Container(),
                 linkColumn: (column) => Container(),
                 dateColumn: (column) => Container(),
-                intColumn: (column) => Container(),
+                numColumn: (column) => Container(),
                 selectColumn: (column) => Container(),
               ),
             ),

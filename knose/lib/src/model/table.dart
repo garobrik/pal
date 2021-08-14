@@ -121,7 +121,7 @@ extension ColumnMutations on Cursor<Column> {
         multiselectColumn: () => MultiselectColumn(),
         dateColumn: () => DateColumn(),
         booleanColumn: () => BooleanColumn(),
-        intColumn: () => IntColumn(),
+        numColumn: () => NumColumn(),
         stringColumn: () => StringColumn(),
       ),
     );
@@ -131,7 +131,7 @@ extension ColumnMutations on Cursor<Column> {
 @ReifiedLens(cases: [
   StringColumn,
   BooleanColumn,
-  IntColumn,
+  NumColumn,
   DateColumn,
   SelectColumn,
   MultiselectColumn,
@@ -161,11 +161,11 @@ class StringColumn extends ColumnRows with _StringColumnMixin {
 
 @immutable
 @reify
-class IntColumn extends ColumnRows with _IntColumnMixin {
+class NumColumn extends ColumnRows with _NumColumnMixin {
   @override
-  final Dict<RowID, int> values;
+  final Dict<RowID, num> values;
 
-  const IntColumn({this.values = const Dict()});
+  const NumColumn({this.values = const Dict()});
 }
 
 @immutable
