@@ -199,23 +199,18 @@ class _ValueCursor<S> with GetCursor<S> {
   S read(Reader? r) => state;
 }
 
-extension CursorNullability<T> on Cursor<T?> {
-  Cursor<T> get nonnull => partial(
-        to: (t) => t,
-        from: (diff) => diff,
-        update: (old, nu, diff) => DiffResult(nu, diff),
+extension CursorOptional<T> on Cursor<Optional<T>> {
+  Cursor<T> get whenPresent => partial(
+        to: (t) => t.unwrap,
+        from: (diff) => DiffResult(Optional(diff.value), diff.diff),
+        update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
       );
 
   Cursor<T> orElse(T defaultValue) => then(Lens(
         Path.empty(),
-        (t) => t ?? defaultValue,
-        (t, f) => f(t ?? defaultValue),
+        (t) => t.orElse(defaultValue),
+        (t, f) => Optional(f(t.orElse(defaultValue))),
       ));
-}
-
-extension GetCursorNullability<T> on GetCursor<T?> {
-  GetCursor<T> get nonnull => then(Lens.identity<T?>().nonnull);
-  GetCursor<T> orElse(T defaultValue) => thenGet(Getter(Path.empty(), (t) => t ?? defaultValue));
 }
 
 class _ComputedState<T> implements Reader, ListenableState<T> {

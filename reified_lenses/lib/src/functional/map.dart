@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
@@ -22,13 +20,14 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
   Iterable<Key> get keys => _values.keys;
 
   @reify
-  Value? operator [](Key key) => _values[key];
-  Dict<Key, Value> mut_array_op(Key key, Value? update) => update != null
-      ? (Dict(Map.of(_values)).._values[key] = update)
-      : (Dict(Map.of(_values)).._values.remove(key));
+  Optional<Value> operator [](Key key) => Optional.fromNullable(_values[key]);
+  Dict<Key, Value> mut_array_op(Key key, Optional<Value> update) => update.cases(
+        some: (update) => Dict(Map.of(_values)).._values[key] = update,
+        none: () => Dict(Map.of(_values)).._values.remove(key),
+      );
 
-  Diff _mut_array_op_mutated(Key key, Value? update) {
-    if (update != null) {
+  Diff _mut_array_op_mutated(Key key, Optional<Value> update) {
+    return update.cases(some: (update) {
       if (!_values.containsKey(key)) {
         return Diff(
           added: PathSet.from({
@@ -46,7 +45,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
           }),
         );
       }
-    } else {
+    }, none: () {
       if (!_values.containsKey(key)) {
         return const Diff();
       } else {
@@ -60,7 +59,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
           }),
         );
       }
-    }
+    });
   }
 
   Dict<Key, Value> remove(Key key) {

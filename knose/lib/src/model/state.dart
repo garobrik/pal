@@ -17,13 +17,13 @@ class State with _StateMixin {
 
 extension StateReads on Cursor<State> {
   Cursor<N> getNode<N extends Node>(NodeID<N> id) {
-    return nodes[id].nonnull.cast<N>();
+    return nodes[id].whenPresent.cast<N>();
   }
 }
 
 extension StateMutations on Cursor<State> {
   NodeID<N> addNode<N extends Node>(N node) {
-    nodes[node.id] = node;
+    nodes[node.id] = Optional(node);
     return node.id as NodeID<N>;
   }
 }

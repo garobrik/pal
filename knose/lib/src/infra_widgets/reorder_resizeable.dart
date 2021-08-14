@@ -69,12 +69,12 @@ Widget _reorderResizeable(
             }
           }
 
-          animations[i].mut((controller) => controller ?? _makeAnimation());
+          animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
           animations[i]
-              .nonnull
+              .whenPresent
               .read(null)
-              .reverse(from: animations[grabbedChild.value!].nonnull.read(null).value);
-          animations[grabbedChild.value!].nonnull.read(null).forward(from: 0);
+              .reverse(from: animations[grabbedChild.value!].read(null).unwrap!.value);
+          animations[grabbedChild.value!].read(null).unwrap!.forward(from: 0);
 
           return true;
         },
@@ -83,8 +83,8 @@ Widget _reorderResizeable(
           onDragStarted: () {
             grabbedChild.value = i;
             grabbedPosition.value = i;
-            animations[i].mut((controller) => controller ?? _makeAnimation());
-            animations[i].nonnull.read(null).value = 1.0;
+            animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
+            animations[i].read(null).unwrap!.value = 1.0;
           },
           onDraggableCanceled: (_, __) {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -125,15 +125,14 @@ Widget _reorderResizeable(
   Widget _makeTransition(int index) => ReaderWidget(
         builder: (_, reader) {
           final animation = animations[index].read(reader);
-          if (animation == null) {
-            return SizedBox.shrink();
-          } else {
-            return SizeTransition(
+          return animation.cases(
+            none: () => SizedBox.shrink(),
+            some: (animation) => SizeTransition(
               axis: direction,
               sizeFactor: animation,
               child: Container(width: mainAxisSizes[grabbedChild.value!].read(reader)),
-            );
-          }
+            ),
+          );
         },
       );
 

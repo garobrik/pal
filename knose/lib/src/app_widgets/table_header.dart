@@ -23,16 +23,16 @@ Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> tab
           });
         },
         mainAxisSizes: [
-          for (final columnID in table.columnIDs.read(reader)) table.columns[columnID].nonnull.width
+          for (final columnID in table.columnIDs.read(reader)) table.columns[columnID].whenPresent.width
         ],
         children: [
           for (final columnID in table.columnIDs.read(reader))
             Container(
               key: ValueKey(columnID),
-              width: table.columns[columnID].nonnull.width.read(reader),
+              width: table.columns[columnID].whenPresent.width.read(reader),
               child: TableHeaderDropdown(
                 table: table,
-                column: table.columns[columnID].nonnull,
+                column: table.columns[columnID].whenPresent,
                 isOpen: openColumns[columnID].orElse(false),
               ),
             ),
@@ -163,7 +163,7 @@ Widget _newColumnButton({
     onPressed: () {
       final columnID = table?.addColumn();
       if (columnID != null) {
-        openColumns?[columnID] = true;
+        openColumns?[columnID] = Optional(true);
       }
     },
     child: Container(

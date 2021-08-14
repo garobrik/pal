@@ -73,7 +73,7 @@ extension TableMutations on Cursor<Table> {
     atomically((table) {
       final column = Column(rows: StringColumn());
 
-      table.columns[column.id] = column;
+      table.columns[column.id] = Optional(column);
       table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
 
       columnID = column.id;
