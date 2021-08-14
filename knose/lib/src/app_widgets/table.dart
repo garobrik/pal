@@ -135,20 +135,11 @@ Widget _stringField(
   final textStyle = Theme.of(context).textTheme.bodyText2;
   final padding = EdgeInsetsDirectional.only(top: 5, bottom: 5, start: 5, end: 0);
   final maxWidth = 200.0;
-  final focusRef = useRef(Pair([true, false], FocusNode()));
-  useEffect(
-    () {
-      return () {
-        if (focusRef.value.first[0]) focusRef.value.second.dispose();
-        focusRef.value.first[1] = true;
-      };
-    },
-    [0],
-  );
+  final dropdownFocus = useFocusNode();
 
   return ReplacerWidget(
     isOpen: isOpen,
-    dropdownFocus: focusRef.value.second,
+    dropdownFocus: dropdownFocus,
     dropdownBuilder: (context, replacedSize) => ScrollConfiguration(
       behavior: ScrollBehavior().copyWith(scrollbars: false),
       child: ModifiedIntrinsicWidth(
@@ -163,23 +154,10 @@ Widget _stringField(
           child: Container(
             child: HookBuilder(
               builder: (_) {
-                useEffect(
-                  () {
-                    focusRef.value.first[0] = false;
-                    return () {
-                      if (focusRef.value.first[1]) {
-                        focusRef.value.second.dispose();
-                      }
-                      focusRef.value.first[0] = true;
-                    };
-                  },
-                  [0],
-                );
-
                 return BoundTextFormField(
                   string.orElse(''),
                   style: textStyle,
-                  focusNode: focusRef.value.second,
+                  focusNode: dropdownFocus,
                   maxLines: null,
                   expands: true,
                   decoration: InputDecoration(
@@ -194,9 +172,7 @@ Widget _stringField(
       ),
     ),
     child: TextButton(
-      onPressed: () {
-        isOpen.set(true);
-      },
+      onPressed: () => isOpen.set(true),
       child: Container(
         padding: padding,
         alignment: Alignment.topLeft,
