@@ -203,9 +203,15 @@ Widget _oldDropdown({
             },
             skipTraversal: true,
             onFocusChange: isOpen.set,
-            child: Material(
-              elevation: 3,
-              child: dropdown,
+            child: Container(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(color: Colors.grey, blurRadius: 7),
+                ],
+              ),
+              child: Material(
+                child: dropdown,
+              ),
             ),
           ),
         ),

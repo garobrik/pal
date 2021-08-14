@@ -170,7 +170,7 @@ Widget _tableCellTextField<T>(
     dropdownBuilder: (context, replacedSize) => ScrollConfiguration(
       behavior: ScrollBehavior().copyWith(scrollbars: false),
       child: ModifiedIntrinsicWidth(
-        modification: 2,
+        modification: expands ? 2 : 0,
         child: Container(
           constraints: expands
               ? BoxConstraints(
