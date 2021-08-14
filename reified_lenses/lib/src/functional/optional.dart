@@ -1,9 +1,7 @@
 class Optional<Value> {
   final Value? _value;
 
-  const Optional(Value value)
-      : assert(value != null),
-        _value = value;
+  const Optional(Value value) : _value = value;
   const Optional.none() : _value = null;
   const Optional.fromNullable(this._value);
 
@@ -18,4 +16,7 @@ class Optional<Value> {
   void ifPresent<T>(void Function(Value) f) {
     if (_value != null) f(_value!);
   }
+
+  Value orElse(Value v) => _value == null ? v : _value!;
 }
+
