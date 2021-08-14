@@ -134,12 +134,14 @@ Widget _replacerWidget(
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
+  Offset offset = Offset.zero,
 }) {
   final globalKey = useRef(GlobalKey()).value;
 
   return OldDropdown(
     childAnchor: childAnchor,
     dropdownAnchor: dropdownAnchor,
+    offset: offset,
     isOpen: isOpen,
     dropdown: LayoutBuilder(
       builder: (context, __) => dropdownBuilder(
@@ -209,9 +211,7 @@ Widget _oldDropdown({
                   BoxShadow(color: Colors.grey, blurRadius: 7),
                 ],
               ),
-              child: Material(
-                child: dropdown,
-              ),
+              child: dropdown,
             ),
           ),
         ),
