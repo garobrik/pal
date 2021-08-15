@@ -55,23 +55,24 @@ Widget _searchPage(BuildContext context, Reader reader, Cursor<model.State> stat
         ),
       ),
       ...state.nodes.keys.read(reader).expand((nodeID) {
-        if (nodeID is! model.NodeID<model.TitledNode>) return [];
-        final node = state.getNode(nodeID);
+        if (nodeID is! model.NodeID<model.NodeView<model.TitledNode>>) return [];
+        final nodeView = state.getNode(nodeID);
+        final titledNode = state.getNode(nodeView.nodeID.read(reader));
         return [
-          if (node.title.read(reader).toLowerCase().startsWith(searchText.read(reader)))
+          if (titledNode.title.read(reader).toLowerCase().startsWith(searchText.read(reader)))
             TextButton(
               key: ValueKey(nodeID),
               onPressed: () {
-                // Navigator.pushNamed(
-                //   context,
-                //   '',
-                //   arguments: model.NodeRoute(node.id),
-                // );
+                Navigator.pushNamed(
+                  context,
+                  '',
+                  arguments: model.NodeRoute(nodeID),
+                );
               },
               child: Row(
                 children: [
                   Icon(Icons.menu),
-                  Text(node.title.read(reader)),
+                  Text(titledNode.title.read(reader)),
                 ],
               ),
             )
