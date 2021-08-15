@@ -32,16 +32,16 @@ typedef NodeBuilderFn<N> = flutter.Widget Function(Cursor<State> state, Cursor<N
 @immutable
 @reify
 abstract class NodeBuilder {
-  NodeBuilderFn<Node> get builder;
+  NodeBuilderFn<Node> get build;
 }
 
 @immutable
 @reify
 abstract class TypedNodeBuilder<N extends Node> implements NodeBuilder {
   @override
-  NodeBuilderFn<Node> get builder => (state, node) => typedBuilder(state, node.cast<N>());
+  NodeBuilderFn<Node> get build => (state, node) => buildTyped(state, node.cast<N>());
 
-  NodeBuilderFn<N> get typedBuilder;
+  NodeBuilderFn<N> get buildTyped;
 }
 
 @immutable

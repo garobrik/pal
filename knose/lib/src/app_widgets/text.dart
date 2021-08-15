@@ -11,7 +11,7 @@ class TextBuilder with model.TypedNodeBuilder<model.Text> {
   const TextBuilder();
 
   @override
-  model.NodeBuilderFn<model.Text> get typedBuilder => TextWidget.tearoff;
+  model.NodeBuilderFn<model.Text> get buildTyped => TextWidget.tearoff;
 }
 
 extension AddTextView on Cursor<model.State> {

@@ -13,7 +13,7 @@ class PageBuilder with model.TypedNodeBuilder<model.Page> {
   const PageBuilder();
 
   @override
-  model.NodeBuilderFn<model.Page> get typedBuilder => PageWidget.tearoff;
+  model.NodeBuilderFn<model.Page> get buildTyped => PageWidget.tearoff;
 }
 
 @reader_widget

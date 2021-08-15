@@ -33,7 +33,6 @@ Widget _nodeViewWidget(
   Cursor<model.NodeID<model.NodeView>> nodeViewID,
 ) {
   final nodeView = state.getNode(nodeViewID.read(reader));
-  final viewNode = nodeView.builder.read(reader);
   final node = state.getNode(nodeView.nodeID.read(reader));
   final isOpen = useCursor(false);
 
@@ -53,7 +52,7 @@ Widget _nodeViewWidget(
           state: state,
           view: nodeView,
         ),
-        child: viewNode.builder(state, node),
+        child: nodeView.builder.read(reader).build(state, node),
       ),
     ),
   );

@@ -16,7 +16,7 @@ class TableBuilder with model.TypedNodeBuilder<model.Table> {
   const TableBuilder();
 
   @override
-  model.NodeBuilderFn<model.Table> get typedBuilder => MainTableWidget.tearoff;
+  model.NodeBuilderFn<model.Table> get buildTyped => MainTableWidget.tearoff;
 }
 
 @reader_widget

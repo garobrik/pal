@@ -12,7 +12,7 @@ class ListBuilder with model.TypedNodeBuilder<model.List> {
   const ListBuilder();
 
   @override
-  model.NodeBuilderFn<model.List> get typedBuilder => ListWidget.tearoff;
+  model.NodeBuilderFn<model.List> get buildTyped => ListWidget.tearoff;
 }
 
 @reader_widget
