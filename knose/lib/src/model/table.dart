@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' as flutter;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
@@ -10,6 +11,8 @@ class TableID extends UUID<TableID> {}
 class ColumnID extends UUID<ColumnID> {}
 
 class RowID extends UUID<RowID> {}
+
+class TagID extends UUID<TagID> {}
 
 @immutable
 @reify
@@ -181,26 +184,46 @@ class DateColumn extends ColumnRows with _DateColumnMixin {
 @reify
 class SelectColumn extends ColumnRows with _SelectColumnMixin {
   @override
-  final CSet<String> possibleValues;
+  final Dict<TagID, Tag> tags;
   @override
-  final Dict<RowID, String> values;
+  final Dict<RowID, TagID> values;
 
   const SelectColumn({
-    this.possibleValues = const CSet(),
+    this.tags = const Dict(),
     this.values = const Dict(),
   });
+}
+
+extension SelectColumnMutations on Cursor<SelectColumn> {
+  TagID addTag(Tag tag) {
+    tags[tag.id] = Optional(tag);
+    return tag.id;
+  }
+}
+
+@immutable
+@reify
+class Tag with _TagMixin {
+  @override
+  final TagID id;
+  @override
+  final String name;
+  @override
+  final flutter.Color color;
+
+  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
 }
 
 @immutable
 @reify
 class MultiselectColumn extends ColumnRows with _MultiselectColumnMixin {
   @override
-  final CSet<String> possibleValues;
+  final Dict<TagID, Tag> tags;
   @override
-  final Dict<RowID, CSet<String>> values;
+  final Dict<RowID, CSet<TagID>> values;
 
   const MultiselectColumn({
-    this.possibleValues = const CSet(),
+    this.tags = const Dict(),
     this.values = const Dict(),
   });
 }
