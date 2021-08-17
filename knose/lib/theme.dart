@@ -51,5 +51,12 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: colorScheme.surface,
     ),
+    chipTheme: ThemeData().chipTheme.copyWith(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          labelPadding: EdgeInsets.zero,
+          padding: EdgeInsets.zero,
+        ),
   );
 }

@@ -6,7 +6,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
 
-part 'table_header.g.dart';
+part 'header.g.dart';
 
 @reader_widget
 Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> table) {
