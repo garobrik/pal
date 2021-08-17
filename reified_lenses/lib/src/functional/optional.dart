@@ -18,5 +18,7 @@ class Optional<Value> {
   }
 
   Value orElse(Value v) => _value == null ? v : _value!;
-}
 
+  @override
+  String toString() => _value == null ? 'Optional.none' : 'Optional($_value)';
+}
