@@ -55,7 +55,7 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
-          labelPadding: EdgeInsets.zero,
+          labelPadding: EdgeInsets.symmetric(horizontal: 2),
           padding: EdgeInsets.zero,
         ),
   );

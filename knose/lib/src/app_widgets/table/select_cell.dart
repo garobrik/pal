@@ -15,23 +15,69 @@ Widget _selectField(
   required Cursor<model.SelectColumn> column,
   required Cursor<Optional<model.TagID>> row,
 }) {
+  return SelectCell(
+    cellTags: (reader) => row.read(reader).cases(
+          some: (id) => [column.tags[id].whenPresent.read(reader)],
+          none: () => [],
+        ),
+    columnTags: (reader) => column.tags.keys
+        .read(reader)
+        .map((id) => column.tags[id].whenPresent.read(reader))
+        .toList(),
+    onDelete: (tag) => row.set(Optional.none()),
+    onCreate: (tag) {
+      final id = column.addTag(tag);
+      row.set(Optional(id));
+    },
+    onSelect: (tag) => row.set(Optional(tag.id)),
+  );
+}
+
+@reader_widget
+Widget _multiselectField(
+  BuildContext context,
+  Reader reader, {
+  required Cursor<model.MultiselectColumn> column,
+  required Cursor<CSet<model.TagID>> row,
+}) {
+  return SelectCell(
+    cellTags: (reader) => row
+        .read(reader)
+        .map((id) => column.tags[id].whenPresent.read(reader))
+        .toList(),
+    columnTags: (reader) => column.tags.keys
+        .read(reader)
+        .map((id) => column.tags[id].whenPresent.read(reader))
+        .toList(),
+    onDelete: (tag) => row.remove(tag.id),
+    onCreate: (tag) {
+      final id = column.addTag(tag);
+      row.add(id);
+    },
+    onSelect: (tag) => row.add(tag.id),
+  );
+}
+
+@reader_widget
+Widget _selectCell(
+  Reader reader,
+  BuildContext context, {
+  required List<model.Tag> Function(Reader) cellTags,
+  required List<model.Tag> Function(Reader) columnTags,
+  required void Function(model.Tag) onDelete,
+  required void Function(model.Tag) onCreate,
+  required void Function(model.Tag) onSelect,
+}) {
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
-  final tagID = row.read(reader).unwrap;
 
-  final tagChipBuilder = (model.TagID tagID, {bool deleteable = false}) => ReaderWidget(
-        builder: (_, reader) {
-          final tag = column.tags[tagID].whenPresent;
-          final chip = Chip(
-            onDeleted: !deleteable ? null : () => row.set(Optional.none()),
-            label: Text(tag.name.read(reader)),
-            backgroundColor: tag.color.read(reader),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity(horizontal: 0, vertical: -4),
-            deleteIcon: Icon(Icons.close, size: 16),
-          );
-          return chip;
-        },
+  final tagChipBuilder = (model.Tag tag, {bool deleteable = false}) => Chip(
+        onDeleted: !deleteable ? null : () => onDelete(tag),
+        label: Text(tag.name),
+        backgroundColor: tag.color,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity(horizontal: 0, vertical: -4),
+        deleteIcon: Icon(Icons.close, size: 16),
       );
 
   return ReplacerWidget(
@@ -40,19 +86,12 @@ Widget _selectField(
     offset: Offset(-1, -1),
     dropdownBuilder: (_, replacedSize) => ReaderWidget(
       builder: (_, reader) {
-        final text = useCursor('');
-        final colors = const [
-          Colors.amber,
-          Colors.blue,
-          Colors.cyan,
-          Colors.brown,
-          Colors.orange,
-          Colors.green,
-          Colors.indigo,
-          Colors.pink,
-          Colors.red
-        ].map((c) => c.shade200);
-        final color = useMemoized(() => colors.elementAt(math.Random().nextInt(colors.length)));
+        final tag = useCursor(model.Tag(
+          name: '',
+          color: _tagColors.elementAt(
+            math.Random().nextInt(_tagColors.length),
+          ),
+        ));
 
         return Container(
           constraints: BoxConstraints(
@@ -67,14 +106,17 @@ Widget _selectField(
             children: [
               Wrap(
                 children: [
-                  if (tagID != null) tagChipBuilder(tagID, deleteable: true),
+                  for (final tag in cellTags(reader))
+                    tagChipBuilder(tag, deleteable: true),
                   Container(
                     constraints: BoxConstraints(maxWidth: 100),
                     child: BoundTextFormField(
-                      text,
+                      tag.name,
                       focusNode: dropdownFocus,
                       style: Theme.of(context).textTheme.bodyText2,
-                      decoration: InputDecoration(focusedBorder: InputBorder.none),
+                      decoration: InputDecoration(
+                        focusedBorder: InputBorder.none,
+                      ),
                     ),
                   ),
                 ],
@@ -83,36 +125,28 @@ Widget _selectField(
                 child: ReaderWidget(
                   builder: (_, reader) => Column(
                     children: [
-                      if (text.read(reader).isNotEmpty)
+                      if (tag.name.read(reader).isNotEmpty)
                         TextButton(
                           onPressed: () {
-                            final tag = model.Tag(name: text.read(null), color: color);
-                            final newTagID = column.addTag(tag);
-                            row.set(Optional(newTagID));
+                            onCreate(tag.read(null));
                             isOpen.set(false);
                           },
                           child: Row(
                             children: [
                               Text('Create '),
-                              Chip(
-                                label: Text(text.read(reader)),
-                                backgroundColor: color,
-                                padding: EdgeInsets.zero,
-                                labelPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity.compact,
-                              ),
+                              tagChipBuilder(tag.read(reader)),
                             ],
                           ),
                         ),
                       ListView.builder(
                         shrinkWrap: true,
-                        itemCount: column.tags.length.read(reader),
+                        itemCount: columnTags(reader).length,
                         itemBuilder: (_, index) => ReaderWidget(
                           builder: (_, reader) {
-                            final tagID = column.tags.keys.read(reader).elementAt(index);
+                            final tag = columnTags(reader)[index];
                             return TextButton(
-                              onPressed: () => row.set(Optional(tagID)),
-                              child: Row(children: [tagChipBuilder(tagID)]),
+                              onPressed: () => onSelect(tag),
+                              child: Row(children: [tagChipBuilder(tag)]),
                             );
                           },
                         ),
@@ -127,8 +161,29 @@ Widget _selectField(
       },
     ),
     child: TextButton(
+      style: ButtonStyle(
+        padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
+        alignment: Alignment.topLeft
+      ),
       onPressed: () => isOpen.set(true),
-      child: Wrap(children: [if (tagID != null) tagChipBuilder(tagID)]),
+      child: Wrap(
+        runSpacing: 5,
+        spacing: 5,
+        alignment: WrapAlignment.start,
+        children: cellTags(reader).map(tagChipBuilder).toList(),
+      ),
     ),
   );
 }
+
+final _tagColors = const [
+  Colors.amber,
+  Colors.blue,
+  Colors.cyan,
+  Colors.brown,
+  Colors.orange,
+  Colors.green,
+  Colors.indigo,
+  Colors.pink,
+  Colors.red
+].map((c) => c.shade50);

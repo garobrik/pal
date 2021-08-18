@@ -1,7 +1,6 @@
 export 'src/app_widgets/page.dart';
 export 'src/app_widgets/scaffold.dart';
 export 'src/app_widgets/table.dart';
-export 'src/app_widgets/table_header.dart';
 export 'src/app_widgets/search.dart';
 export 'src/app_widgets/text.dart';
 export 'src/app_widgets/node.dart';

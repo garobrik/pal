@@ -57,7 +57,10 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
                   column: column,
                   row: column.values[rowID],
                 ),
-                multiselectColumn: (column) => Container(),
+                multiselectColumn: (column) => MultiselectField(
+                  column: column,
+                  row: column.values[rowID].orElse(CSet()),
+                ),
                 linkColumn: (column) => Container(),
                 dateColumn: (column) => Container(),
               ),

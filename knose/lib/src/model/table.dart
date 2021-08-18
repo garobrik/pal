@@ -201,6 +201,13 @@ extension SelectColumnMutations on Cursor<SelectColumn> {
   }
 }
 
+extension MultiselectColumnMutations on Cursor<MultiselectColumn> {
+  TagID addTag(Tag tag) {
+    tags[tag.id] = Optional(tag);
+    return tag.id;
+  }
+}
+
 @immutable
 @reify
 class Tag with _TagMixin {
