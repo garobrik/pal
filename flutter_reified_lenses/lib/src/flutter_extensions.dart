@@ -47,28 +47,22 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   }
 }
 
-class InheritCursor<T> extends StatelessWidget {
-  final Widget Function(BuildContext, Reader, Cursor<T>) builder;
-
-  const InheritCursor({Key? key, required this.builder}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final inherited = context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
-    assert(inherited != null, 'Inherited cursor which was never provided.');
-    return ReaderWidget(
-      builder: (ctx, reader) => builder(ctx, reader, inherited!.cursor),
-    );
-  }
-}
-
 class CursorProvider<T> extends InheritedWidget {
   final Cursor<T> cursor;
 
-  CursorProvider(this.cursor, {required Widget child, Key? key}) : super(key: key, child: child);
+  CursorProvider(this.cursor, {required Widget child, Key? key})
+      : super(key: key, child: child);
 
   @override
-  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) => cursor != oldWidget.cursor;
+  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) =>
+      cursor != oldWidget.cursor;
+
+  static Cursor<T> of<T>(BuildContext context) {
+    final inherited =
+        context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
+    assert(inherited != null, 'Inherited cursor which was never provided.');
+    return inherited!.cursor;
+  }
 }
 
 class ReaderWidget extends StatefulWidget {
@@ -124,7 +118,8 @@ class _CursorReaderHook extends Hook<Reader> {
   _CursorReaderHookState createState() => _CursorReaderHookState();
 }
 
-class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with Reader {
+class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook>
+    with Reader {
   List<void Function()> disposals = [];
 
   @override
@@ -154,4 +149,5 @@ class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with R
   }
 }
 
-Cursor<T> useCursor<T>(T initialValue) => useMemoized(() => Cursor(initialValue));
+Cursor<T> useCursor<T>(T initialValue) =>
+    useMemoized(() => Cursor(initialValue));
