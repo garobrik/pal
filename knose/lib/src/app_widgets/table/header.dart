@@ -99,9 +99,11 @@ Widget _tableHeaderDropdown(
         padding: MaterialStateProperty.all(padding),
         alignment: Alignment.centerLeft,
       ),
-      onPressed: () {
-        isOpen.mut((b) => !b);
-      },
+      onPressed: column.id.read(reader) == table.titleColumn.read(reader)
+          ? null
+          : () {
+              isOpen.mut((b) => !b);
+            },
       child: Text(
         column.title.read(reader),
         style: textStyle,
