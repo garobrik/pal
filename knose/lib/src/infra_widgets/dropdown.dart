@@ -12,7 +12,8 @@ part 'dropdown.g.dart';
 Widget _replacerDropdown(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize)
+      dropdownBuilder,
   required Cursor<bool> isOpen,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
@@ -129,7 +130,8 @@ Widget _followingModalRoute(
 Widget _replacerWidget(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize)
+      dropdownBuilder,
   required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
@@ -165,7 +167,8 @@ Widget _replacerWidget(
 }
 
 @reader_widget
-Widget _oldDropdown({
+Widget _oldDropdown(
+  BuildContext context, {
   required Widget child,
   required Widget dropdown,
   required Cursor<bool> isOpen,
@@ -188,7 +191,9 @@ Widget _oldDropdown({
 
   return DropdownChild(
     child: FollowingInheritedStackEntry(
-      isOpen: GetCursor.compute((reader) => isOpen.read(reader) || numChildren.read(reader) > 0),
+      isOpen: GetCursor.compute(
+        (reader) => isOpen.read(reader) || numChildren.read(reader) > 0,
+      ),
       childAnchor: childAnchor,
       overlayAnchor: dropdownAnchor,
       offset: offset,
@@ -210,6 +215,7 @@ Widget _oldDropdown({
                 boxShadow: [
                   BoxShadow(color: Colors.grey, blurRadius: 7),
                 ],
+                color: Theme.of(context).canvasColor,
               ),
               child: dropdown,
             ),
@@ -284,7 +290,8 @@ Widget _inheritedStackEntry(
 
 @reader_widget
 Widget _dropdownChild(BuildContext context, {required Widget child}) {
-  final inherited = context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
+  final inherited =
+      context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
   useEffect(
     () {
       inherited?.numChildren.mut((i) => i + 1);
@@ -299,8 +306,11 @@ Widget _dropdownChild(BuildContext context, {required Widget child}) {
 class _DropdownInheritedWidget extends InheritedWidget {
   final Cursor<int> numChildren;
 
-  _DropdownInheritedWidget({required this.numChildren, required Widget child, Key? key})
-      : super(child: child, key: key);
+  _DropdownInheritedWidget({
+    required this.numChildren,
+    required Widget child,
+    Key? key,
+  }) : super(child: child, key: key);
 
   @override
   bool updateShouldNotify(covariant _DropdownInheritedWidget oldWidget) =>
@@ -312,12 +322,16 @@ class InheritedStack extends StatefulWidget {
 
   const InheritedStack({Key? key, required this.child}) : super(key: key);
 
-  static _InheritedStackState _of(BuildContext context, {bool rootStack = false}) {
+  static _InheritedStackState _of(BuildContext context,
+      {bool rootStack = false}) {
     final result = rootStack
         ? context.findRootAncestorStateOfType<_InheritedStackState>()
         : context.findAncestorStateOfType<_InheritedStackState>();
 
-    assert(result != null, 'Tried to interact with non-existent InheritedStack.');
+    assert(
+      result != null,
+      'Tried to interact with non-existent InheritedStack.',
+    );
     return result!;
   }
 
