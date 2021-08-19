@@ -14,6 +14,7 @@ Widget _selectField(
   Reader reader, {
   required Cursor<model.SelectColumn> column,
   required Cursor<Optional<model.TagID>> row,
+  bool enabled = true,
 }) {
   return SelectCell(
     cellTags: (reader) => row.read(reader).cases(
@@ -30,6 +31,7 @@ Widget _selectField(
       row.set(Optional(id));
     },
     onSelect: (tag) => row.set(Optional(tag.id)),
+    enabled: enabled,
   );
 }
 
@@ -39,6 +41,7 @@ Widget _multiselectField(
   Reader reader, {
   required Cursor<model.MultiselectColumn> column,
   required Cursor<CSet<model.TagID>> row,
+  bool enabled = true,
 }) {
   return SelectCell(
     cellTags: (reader) => row
@@ -55,6 +58,7 @@ Widget _multiselectField(
       row.add(id);
     },
     onSelect: (tag) => row.add(tag.id),
+    enabled: enabled,
   );
 }
 
@@ -67,6 +71,7 @@ Widget _selectCell(
   required void Function(model.Tag) onDelete,
   required void Function(model.Tag) onCreate,
   required void Function(model.Tag) onSelect,
+  bool enabled = true,
 }) {
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
@@ -162,8 +167,9 @@ Widget _selectCell(
     ),
     child: TextButton(
       style: ButtonStyle(
-        padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
-        alignment: Alignment.topLeft
+        padding: MaterialStateProperty.all(
+            EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
+        alignment: Alignment.topLeft,
       ),
       onPressed: () => isOpen.set(true),
       child: Wrap(

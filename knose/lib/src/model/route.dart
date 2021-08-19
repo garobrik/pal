@@ -12,7 +12,7 @@ class Route with _RouteMixin {
 @reify
 class TableRoute extends Route with _TableRouteMixin {
   @override
-  final TableID id;
+  final NodeID<Table> id;
 
   const TableRoute(this.id);
 }

@@ -12,12 +12,14 @@ Widget _stringField(
   BuildContext context,
   Reader reader, {
   required Cursor<Optional<String>> string,
+  bool enabled = true,
 }) {
   return TableCellTextField(
     value: string,
     toText: (Optional<String> value) => value.orElse(''),
     parse: (text) => Optional(text),
     expands: true,
+    enabled: enabled,
   );
 }
 
@@ -26,29 +28,33 @@ Widget _numField(
   BuildContext context,
   Reader reader, {
   required Cursor<Optional<num>> number,
+  bool enabled = true,
 }) {
   return TableCellTextField(
     value: number,
     toText: (Optional<num> value) => value.unwrap?.toString() ?? '',
     parse: (text) => Optional.fromNullable(num.tryParse(text)),
     expands: false,
+    enabled: enabled,
   );
 }
 
 @reader_widget
-Widget _tableCellTextField<T>(
-  BuildContext context,
-  Reader reader, {
-  required Cursor<Optional<T>> value,
-  required String Function(Optional<T>) toText,
-  required Optional<T> Function(String) parse,
-  required bool expands,
-}) {
+Widget _tableCellTextField<T>(BuildContext context, Reader reader,
+    {required Cursor<Optional<T>> value,
+    required String Function(Optional<T>) toText,
+    required Optional<T> Function(String) parse,
+    required bool expands,
+    bool enabled = true}) {
   final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText2;
-  final padding = EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);
+  final padding =
+      EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);
   final padding2 = EdgeInsetsDirectional.only(
-      top: padding.top - 5 + 1, bottom: padding.bottom + 1, start: padding.start + 1, end: 0);
+      top: padding.top - 5 + 1,
+      bottom: padding.bottom + 1,
+      start: padding.start + 1,
+      end: 0);
   final maxWidth = 200.0;
   final dropdownFocus = useFocusNode();
 
@@ -96,7 +102,7 @@ Widget _tableCellTextField<T>(
       style: ButtonStyle(
         padding: MaterialStateProperty.all(padding),
       ),
-      onPressed: () => isOpen.set(true),
+      onPressed: !enabled ? null : () => isOpen.set(true),
       child: Container(
         alignment: Alignment.topLeft,
         child: Text(

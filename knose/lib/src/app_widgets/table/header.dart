@@ -9,7 +9,11 @@ import 'package:knose/model.dart' as model;
 part 'header.g.dart';
 
 @reader_widget
-Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> table) {
+Widget _tableHeader(
+  BuildContext context,
+  Reader reader,
+  Cursor<model.Table> table,
+) {
   final openColumns = useCursor(Dict<model.ColumnID, bool>());
 
   return Row(
@@ -23,7 +27,8 @@ Widget _tableHeader(BuildContext context, Reader reader, Cursor<model.Table> tab
           });
         },
         mainAxisSizes: [
-          for (final columnID in table.columnIDs.read(reader)) table.columns[columnID].whenPresent.width
+          for (final columnID in table.columnIDs.read(reader))
+            table.columns[columnID].whenPresent.width
         ],
         children: [
           for (final columnID in table.columnIDs.read(reader))
@@ -109,6 +114,7 @@ Widget _tableHeaderDropdown(
 
 @reader_widget
 Widget _columnConfigurationDropdown(
+  BuildContext context,
   Reader reader, {
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
@@ -144,13 +150,76 @@ Widget _columnConfigurationDropdown(
           ),
         ),
       ),
-      TextButton(
-        onPressed: () {},
-        child: Row(
-          children: [Icon(Icons.delete), Text('Delete column')],
+      ...columnSpecificConfiguration(reader, context, column),
+      if (column.id.read(reader) != table.titleColumn.read(reader))
+        TextButton(
+          onPressed: () {
+            table.columns.remove(column.id.read(null));
+            table.columnIDs.remove(
+              table.columnIDs
+                  .read(null)
+                  .indexWhere((id) => id == column.id.read(null))!,
+            );
+          },
+          child: Row(
+            children: [Icon(Icons.delete), Text('Delete column')],
+          ),
         ),
-      ),
     ],
+  );
+}
+
+Iterable<Widget> columnSpecificConfiguration(
+  Reader reader,
+  BuildContext context,
+  Cursor<model.Column> column,
+) {
+  return column.rows.cases(
+    reader,
+    stringColumn: (_) => [],
+    booleanColumn: (_) => [],
+    numColumn: (_) => [],
+    dateColumn: (_) => [],
+    selectColumn: (_) => [],
+    multiselectColumn: (_) => [],
+    linkColumn: (linkColumn) {
+      final state = CursorProvider.of<model.State>(context);
+      final tableID = linkColumn.table.read(reader);
+      final table = tableID == null ? null : state.getNode(tableID);
+      final tables = state.nodes.keys
+          .read(reader)
+          .whereType<model.NodeID<model.Table>>()
+          .map((id) => state.getNode(id));
+
+      return [
+        ReaderWidget(builder: (_, reader) {
+          final isOpen = useCursor(false);
+
+          return Dropdown(
+            isOpen: isOpen,
+            dropdown: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final table in tables)
+                  TextButton(
+                    onPressed: () {
+                      linkColumn.values.set(Dict());
+                      linkColumn.table.set(table.id.read(null));
+                    },
+                    child: Text(table.title.read(reader)),
+                  )
+              ],
+            ),
+            child: TextButton(
+              onPressed: () => isOpen.set(true),
+              child: Text(
+                  table == null ? 'Select table' : table.title.read(reader)),
+            ),
+          );
+        }),
+      ];
+    },
   );
 }
 

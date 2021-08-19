@@ -6,8 +6,6 @@ import 'package:knose/model.dart' hide List;
 
 part 'table.g.dart';
 
-class TableID extends UUID<TableID> {}
-
 class ColumnID extends UUID<ColumnID> {}
 
 class RowID extends UUID<RowID> {}
@@ -26,6 +24,8 @@ class Table with _TableMixin implements TitledNode {
   @override
   final Vec<ColumnID> columnIDs;
   @override
+  final ColumnID titleColumn;
+  @override
   final Vec<RowID> rowIDs;
   @override
   final Dict<RowID, NodeID<Page>> pages;
@@ -35,14 +35,18 @@ class Table with _TableMixin implements TitledNode {
     this.columns = const Dict(),
     this.title = '',
     this.columnIDs = const Vec(),
+    ColumnID? titleColumn,
     this.rowIDs = const Vec(),
     this.pages = const Dict(),
-  }) : this.id = id ?? NodeID<Table>();
+  })  : this.id = id ?? NodeID<Table>(),
+        this.titleColumn = titleColumn ?? ColumnID();
 
   static Table newDefault() {
+    final titleColumn = ColumnID();
+
     final columns = [
       Column(
-        id: ColumnID(),
+        id: titleColumn,
         rows: StringColumn(),
         title: 'Task',
       ),
@@ -56,6 +60,7 @@ class Table with _TableMixin implements TitledNode {
     return Table(
       columns: Dict({for (final column in columns) column.id: column}),
       columnIDs: Vec([for (final column in columns) column.id]),
+      titleColumn: titleColumn,
       title: 'Untitled table',
     );
   }
@@ -69,7 +74,8 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
+  void addRow([int? index]) =>
+      rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
@@ -77,7 +83,8 @@ extension TableMutations on Cursor<Table> {
       final column = Column(rows: StringColumn());
 
       table.columns[column.id] = Optional(column);
-      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
+      table.columnIDs
+          .insert(index ?? table.columnIDs.length.read(null), column.id);
 
       columnID = column.id;
     });
@@ -218,7 +225,8 @@ class Tag with _TagMixin {
   @override
   final flutter.Color color;
 
-  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
+  Tag({TagID? id, required this.name, required this.color})
+      : this.id = id ?? TagID();
 }
 
 @immutable
@@ -239,15 +247,12 @@ class MultiselectColumn extends ColumnRows with _MultiselectColumnMixin {
 @reify
 class LinkColumn extends ColumnRows with _LinkColumnMixin {
   @override
-  final TableID? table;
-  @override
-  final ColumnID? column;
+  final NodeID<Table>? table;
   @override
   final Dict<RowID, RowID> values;
 
   const LinkColumn({
     this.values = const Dict(),
     this.table,
-    this.column,
   });
 }

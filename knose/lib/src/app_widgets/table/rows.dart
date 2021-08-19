@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
+import 'package:knose/infra_widgets.dart';
 import 'package:reorderables/reorderables.dart';
 import 'package:knose/model.dart' as model;
 
@@ -31,7 +32,13 @@ Widget _tableRows(Reader reader, Cursor<model.Table> table) {
 }
 
 @reader_widget
-Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
+Widget _tableRow(
+  Reader reader,
+  Cursor<model.Table> table,
+  model.RowID rowID, {
+  bool enabled = true,
+  bool trailingNewColumnSpace = true,
+}) {
   return Container(
     decoration: BoxDecoration(border: Border(bottom: BorderSide())),
     child: IntrinsicHeight(
@@ -46,36 +53,134 @@ Widget _tableRow(Reader reader, Cursor<model.Table> table, model.RowID rowID) {
               decoration: BoxDecoration(border: Border(right: BorderSide())),
               child: table.columns[columnID].whenPresent.rows.cases(
                 reader,
-                stringColumn: (column) => StringField(string: column.values[rowID]),
-                numColumn: (column) => NumField(number: column.values[rowID]),
+                stringColumn: (column) => StringField(
+                  string: column.values[rowID],
+                  enabled: enabled,
+                ),
+                numColumn: (column) => NumField(
+                  number: column.values[rowID],
+                  enabled: enabled,
+                ),
                 booleanColumn: (column) => Checkbox(
-                  onChanged: (newValue) => column.values[rowID] =
-                      newValue! ? const Optional(true) : const Optional.none(),
+                  onChanged: !enabled
+                      ? null
+                      : (newValue) => column.values[rowID] = newValue!
+                          ? const Optional(true)
+                          : const Optional.none(),
                   value: column.values[rowID].orElse(false).read(reader),
                 ),
                 selectColumn: (column) => SelectField(
                   column: column,
                   row: column.values[rowID],
+                  enabled: enabled,
                 ),
                 multiselectColumn: (column) => MultiselectField(
                   column: column,
                   row: column.values[rowID].orElse(CSet()),
+                  enabled: enabled,
                 ),
-                linkColumn: (column) => Container(),
+                linkColumn: (column) => LinkField(
+                    column: column,
+                    rowCursor: column.values[rowID],
+                    enabled: enabled),
                 dateColumn: (column) => Container(),
               ),
             ),
-          FocusTraversalGroup(
-            descendantsAreFocusable: false,
-            child: const Visibility(
-              visible: false,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: NewColumnButton(),
+          if (trailingNewColumnSpace)
+            FocusTraversalGroup(
+              descendantsAreFocusable: false,
+              child: const Visibility(
+                visible: false,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: NewColumnButton(),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+@reader_widget
+Widget _linkField(
+  Reader reader,
+  BuildContext context, {
+  required Cursor<model.LinkColumn> column,
+  required Cursor<Optional<model.RowID>> rowCursor,
+  bool enabled = true,
+}) {
+  final state = CursorProvider.of<model.State>(context);
+  final isOpen = useCursor(false);
+  final dropdownFocus = useFocusNode();
+  final tableID = column.table.read(reader);
+  final title = (Reader reader) {
+    final row = rowCursor.read(reader).unwrap;
+    if (row == null || tableID == null) return null;
+    final table = state.getNode(tableID);
+    return table.columns[table.titleColumn.read(reader)].whenPresent.rows
+        .cast<model.StringColumn>()
+        .values[row]
+        .read(reader)
+        .unwrap;
+  };
+
+  return ReplacerWidget(
+    offset: Offset(-1, -1),
+    isOpen: isOpen,
+    dropdownFocus: dropdownFocus,
+    dropdownBuilder: (_, __) => ReaderWidget(
+      builder: (_, reader) {
+        final table = state.getNode(tableID!);
+        final width = table.columns.keys
+            .read(reader)
+            .map(
+              (colID) => table.columns[colID].whenPresent.width.read(reader),
+            )
+            .reduce((a, b) => a + b);
+
+        return Container(
+          constraints: BoxConstraints(maxWidth: width),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: table.rowIDs.length.read(reader),
+            itemBuilder: (_, index) => ReaderWidget(
+              builder: (_, reader) {
+                final rowID = table.rowIDs[index];
+                final selectedRowID = rowCursor.read(reader).unwrap;
+                return TextButton(
+                  focusNode: selectedRowID == null
+                      ? (index == 0 ? dropdownFocus : null)
+                      : (selectedRowID == rowID.read(reader)
+                          ? dropdownFocus
+                          : null),
+                  style: ButtonStyle(
+                      alignment: Alignment.centerLeft,
+                      padding: MaterialStateProperty.all(EdgeInsets.zero)),
+                  onPressed: () => rowCursor.set(
+                    Optional(rowID.read(null)),
+                  ),
+                  child: TableRow(
+                    table,
+                    rowID.read(reader),
+                    enabled: false,
+                    trailingNewColumnSpace: false,
+                    key: ValueKey(rowID.read(reader)),
+                  ),
+                );
+              },
             ),
           ),
-        ],
+        );
+      },
+    ),
+    child: TextButton(
+      style: ButtonStyle(alignment: Alignment.centerLeft),
+      onPressed: (tableID == null || !enabled) ? null : () => isOpen.set(true),
+      child: Text(
+        title(reader) ?? '',
+        style: TextStyle(decoration: TextDecoration.underline),
       ),
     ),
   );
