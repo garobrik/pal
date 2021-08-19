@@ -19,7 +19,8 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
 
   @reify
   Value operator [](int i) => _values[i];
-  Vec<Value> mut_array_op(int i, Value update) => Vec.from(this).._values[i] = update;
+  Vec<Value> mut_array_op(int i, Value update) =>
+      Vec.from(this).._values[i] = update;
 
   Vec<Value> insert(int index, Value v) {
     assert(0 <= index && index <= length);
@@ -62,6 +63,17 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
 
   @override
   int get hashCode => hash(this);
+}
+
+extension IterableExtension<V> on Iterable<V> {
+  int? indexWhere(bool Function(V) predicate) {
+    var index = 0;
+    for (final value in this) {
+      if (predicate(value)) return index;
+      index++;
+    }
+    return null;
+  }
 }
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
