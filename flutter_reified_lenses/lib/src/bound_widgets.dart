@@ -20,7 +20,12 @@ Widget _boundTextFormField(
   bool readOnly = false,
   bool expands = false,
 }) {
-  focusNode ??= useFocusNode(skipTraversal: readOnly);
+  focusNode = useMemoized(
+    () => focusNode == null
+        ? FocusNode(skipTraversal: readOnly)
+        : (focusNode..skipTraversal = readOnly),
+    [focusNode, readOnly],
+  );
   final textController = useTextEditingController(text: text.read(reader));
 
   useEffect(() {
