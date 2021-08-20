@@ -27,17 +27,19 @@ extension AddTextView on Cursor<model.State> {
 
 @reader_widget
 Widget _textWidget(
-  Reader reader,
-  Cursor<model.State> state,
-  Cursor<model.Text> text,
-) {
+  Reader reader, {
+  required Cursor<model.State> state,
+  required Cursor<model.Text> node,
+  FocusNode? defaultFocus,
+}) {
   return Shortcuts(
     shortcuts: {
       SingleActivator(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
     },
     child: BoundTextFormField(
-      text.elements[0].cast<model.PlainText>().text,
+      node.elements[0].cast<model.PlainText>().text,
       maxLines: null,
+      focusNode: defaultFocus,
     ),
   );
 }

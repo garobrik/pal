@@ -9,7 +9,8 @@ part 'table.g.dart';
 
 @immutable
 @reify
-class TableBuilder with model.TypedNodeBuilder<model.Table>, _TableBuilderMixin {
+class TableBuilder
+    with model.TypedNodeBuilder<model.Table>, _TableBuilderMixin {
   const TableBuilder();
 
   @override
@@ -17,7 +18,13 @@ class TableBuilder with model.TypedNodeBuilder<model.Table>, _TableBuilderMixin 
 }
 
 @reader_widget
-Widget _mainTableWidget(BuildContext context, Reader reader, Cursor<model.State> state, Cursor<model.Table> table) {
+Widget _mainTableWidget(
+  BuildContext context,
+  Reader reader, {
+  required Cursor<model.State> state,
+  required Cursor<model.Table> node,
+  FocusNode? defaultFocus,
+}) {
   return Scrollable2D(
     child: Container(
       padding: EdgeInsets.all(20),
@@ -31,12 +38,13 @@ Widget _mainTableWidget(BuildContext context, Reader reader, Cursor<model.State>
                   color: Theme.of(context).canvasColor,
                   boxShadow: [BoxShadow(blurRadius: 4)],
                 ),
-                child: TableHeader(table),
+                child: TableHeader(node),
               ),
             ),
-            TableRows(table),
+            TableRows(node),
             ElevatedButton(
-              onPressed: () => table.addRow(),
+              onPressed: () => node.addRow(),
+              focusNode: defaultFocus,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,

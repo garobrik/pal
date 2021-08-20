@@ -27,19 +27,26 @@ abstract class TitledNode extends Node with _TitledNodeMixin {
   TitledNode mut_title(String title);
 }
 
-typedef NodeBuilderFn<N> = flutter.Widget Function(Cursor<State> state, Cursor<N> node);
+typedef NodeBuilderFn<N> = flutter.Widget Function({
+  required Cursor<State> state,
+  required Cursor<N> node,
+  flutter.FocusNode? defaultFocus,
+});
 
 @immutable
-@reify
 abstract class NodeBuilder {
   NodeBuilderFn<Node> get build;
 }
 
 @immutable
-@reify
 abstract class TypedNodeBuilder<N extends Node> implements NodeBuilder {
   @override
-  NodeBuilderFn<Node> get build => (state, node) => buildTyped(state, node.cast<N>());
+  NodeBuilderFn<Node> get build =>
+      ({required state, required node, defaultFocus}) => buildTyped(
+            state: state,
+            node: node.cast<N>(),
+            defaultFocus: defaultFocus,
+          );
 
   NodeBuilderFn<N> get buildTyped;
 }
@@ -84,7 +91,8 @@ class Text with _TextMixin implements Node {
   @override
   final Vec<TextElement> elements;
 
-  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id]) : id = id ?? NodeID();
+  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id])
+      : id = id ?? NodeID();
 }
 
 @immutable

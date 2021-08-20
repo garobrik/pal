@@ -16,11 +16,14 @@ Route<Null> generateNodeRoute<T extends model.TitledNode>(
   final node = state.getNode(nodeView.nodeID.read(null));
 
   return MaterialPageRoute(
-    settings: RouteSettings(name: node.title.read(null), arguments: model.NodeRoute(nodeViewID)),
+    settings: RouteSettings(
+      name: node.title.read(null),
+      arguments: model.NodeRoute(nodeViewID),
+    ),
     builder: (_) => MainScaffold(
       title: EditableScaffoldTitle(node.title),
       state: state,
-      body: NodeViewWidget(state, Cursor(nodeViewID)),
+      body: NodeViewWidget(state: state, nodeViewID: Cursor(nodeViewID)),
       replaceRouteOnPush: false,
     ),
   );
@@ -28,10 +31,11 @@ Route<Null> generateNodeRoute<T extends model.TitledNode>(
 
 @reader_widget
 Widget _nodeViewWidget(
-  Reader reader,
-  Cursor<model.State> state,
-  Cursor<model.NodeID<model.NodeView>> nodeViewID,
-) {
+  Reader reader, {
+  required Cursor<model.State> state,
+  required Cursor<model.NodeID<model.NodeView>> nodeViewID,
+  FocusNode? defaultFocus,
+}) {
   final nodeView = state.getNode(nodeViewID.read(reader));
   final node = state.getNode(nodeView.nodeID.read(reader));
   final isOpen = useCursor(false);
@@ -44,7 +48,8 @@ Widget _nodeViewWidget(
     },
     child: Shortcuts(
       shortcuts: {
-        SingleActivator(LogicalKeyboardKey.keyS, control: true): const ConfigureNodeViewIntent(),
+        SingleActivator(LogicalKeyboardKey.keyS, control: true):
+            const ConfigureNodeViewIntent(),
       },
       child: Dropdown(
         isOpen: isOpen,
@@ -52,7 +57,11 @@ Widget _nodeViewWidget(
           state: state,
           view: nodeView,
         ),
-        child: nodeView.builder.read(reader).build(state, node),
+        child: nodeView.builder.read(reader).build(
+              state: state,
+              node: node,
+              defaultFocus: defaultFocus,
+            ),
       ),
     ),
   );

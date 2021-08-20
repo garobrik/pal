@@ -3,7 +3,6 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/model.dart' as model;
-import 'package:reorderables/reorderables.dart';
 
 part 'page.g.dart';
 
@@ -19,10 +18,21 @@ class PageBuilder with model.TypedNodeBuilder<model.Page> {
 @reader_widget
 Widget _pageWidget(
   Reader reader,
-  BuildContext context,
-  Cursor<model.State> state,
-  Cursor<model.Page> page,
-) {
+  BuildContext context, {
+  required Cursor<model.State> state,
+  required Cursor<model.Page> node,
+  FocusNode? defaultFocus,
+}) {
+  final focusForID = useMemoized(() {
+    final foci = <model.NodeID<model.NodeView>, FocusNode>{};
+    return (model.NodeID<model.NodeView> id) {
+      if (node.nodeViews[0].read(reader) == id) {
+        return defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
+      }
+      return foci.putIfAbsent(id, () => FocusNode());
+    };
+  });
+
   return Container(
     color: Theme.of(context).colorScheme.background,
     constraints: BoxConstraints.expand(),
@@ -41,9 +51,9 @@ Widget _pageWidget(
         //   });
         // },
         children: [
-          for (final index in range(page.nodeViews.length.read(reader)))
+          for (final index in range(node.nodeViews.length.read(reader)))
             Padding(
-              key: ValueKey(page.nodeViews[index].read(reader)),
+              key: ValueKey(node.nodeViews[index].read(reader)),
               padding: EdgeInsets.symmetric(vertical: 4),
               child: Material(
                 elevation: 6,
@@ -51,16 +61,19 @@ Widget _pageWidget(
                   actions: {
                     NewNodeBelowIntent: NewNodeBelowAction(
                       onInvoke: (_) {
-                        page.nodeViews.insert(
+                        late final model.NodeID<model.NodeView> id;
+                        node.nodeViews.insert(
                           index + 1,
-                          state.addTextView(),
+                          id = state.addTextView(),
                         );
+                        focusForID(id).requestFocus();
                       },
                     ),
                   },
                   child: NodeViewWidget(
-                    state,
-                    page.nodeViews[index],
+                    state: state,
+                    nodeViewID: node.nodeViews[index],
+                    defaultFocus: focusForID(node.nodeViews[index].read(reader)),
                   ),
                 ),
               ),
@@ -72,7 +85,8 @@ Widget _pageWidget(
 }
 
 @reader_widget
-Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> header) {
+Widget _pageHeader(
+    Reader reader, BuildContext context, Cursor<model.Header> header) {
   final textTheme = Theme.of(context).textTheme;
 
   return BoundTextFormField(

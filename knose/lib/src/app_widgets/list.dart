@@ -18,16 +18,27 @@ class ListBuilder with model.TypedNodeBuilder<model.List> {
 @reader_widget
 Widget _listWidget(
   Reader reader,
-  BuildContext context,
-  Cursor<model.State> state,
-  Cursor<model.List> list,
-) {
+  BuildContext context, {
+  required Cursor<model.State> state,
+  required Cursor<model.List> node,
+  FocusNode? defaultFocus,
+}) {
+  final focusForID = useMemoized(() {
+    final foci = <model.NodeID<model.NodeView>, FocusNode>{};
+    return (model.NodeID<model.NodeView> id) {
+      if (node.nodeViews[0].read(reader) == id) {
+        return defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
+      }
+      return foci.putIfAbsent(id, () => FocusNode());
+    };
+  });
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      for (final index in range(list.nodeViews.length.read(reader)))
+      for (final index in range(node.nodeViews.length.read(reader)))
         Padding(
-          key: ValueKey(list.nodeViews[index].read(reader)),
+          key: ValueKey(node.nodeViews[index].read(reader)),
           padding: index == 0
               ? EdgeInsetsDirectional.only(start: 4, end: 4, bottom: 4)
               : EdgeInsets.symmetric(vertical: 4, horizontal: 4),
@@ -45,16 +56,19 @@ Widget _listWidget(
                     actions: {
                       NewNodeBelowIntent: NewNodeBelowAction(
                         onInvoke: (_) {
-                          list.nodeViews.insert(
+                          late final model.NodeID<model.NodeView> id;
+                          node.nodeViews.insert(
                             index + 1,
-                            state.addTextView(),
+                            id = state.addTextView(),
                           );
+                          focusForID(id).requestFocus();
                         },
                       ),
                     },
                     child: NodeViewWidget(
-                      state,
-                      list.nodeViews[index],
+                      state: state,
+                      nodeViewID: node.nodeViews[index],
+                      defaultFocus: focusForID(node.nodeViews[index].read(reader)),
                     ),
                   ),
                 ),
