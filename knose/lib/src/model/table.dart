@@ -48,7 +48,7 @@ class Table with _TableMixin implements TitledNode {
       Column(
         id: titleColumn,
         rows: StringColumn(),
-        title: 'Task',
+        title: 'Title',
       ),
       Column(
         id: ColumnID(),
