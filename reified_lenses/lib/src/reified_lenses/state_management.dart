@@ -116,7 +116,7 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
     final result = transform(_state);
     _state = result.value;
     _listenables
-        .connectedValues(result.diff.changed)
+        .connectedValues(result.diff.changed.union(result.diff.added).union(result.diff.removed))
         .forEach((f) => f(origState, _state, result.diff));
     return result;
   }

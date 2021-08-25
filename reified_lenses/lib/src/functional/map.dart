@@ -31,7 +31,9 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
       if (!_values.containsKey(key)) {
         return Diff(
           added: PathSet.from({
-            [key]
+            [
+              Vec<dynamic>(<dynamic>['[]', key])
+            ]
           }),
           changed: PathSet.from({
             ['keys'],
@@ -41,7 +43,9 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
       } else {
         return Diff(
           changed: PathSet.from({
-            [key]
+            [
+              Vec<dynamic>(<dynamic>['[]', key])
+            ]
           }),
         );
       }
@@ -51,7 +55,9 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
       } else {
         return Diff(
           removed: PathSet.from({
-            [key]
+            [
+              Vec<dynamic>(<dynamic>['[]', key])
+            ]
           }),
           changed: PathSet.from({
             ['keys'],
