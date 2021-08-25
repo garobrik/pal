@@ -141,6 +141,30 @@ class TrieMap<K, V> extends Iterable<V> {
 
   @override
   Iterator<V> get iterator => children().iterator;
+
+  @override
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.writeln('TrieMap(');
+    if (_value != null) {
+      buffer.writeln('  $_value');
+    }
+    _writeString(buffer, 2);
+    buffer.writeln(')');
+    return buffer.toString();
+  }
+
+  void _writeString(StringBuffer buffer, [int indent = 0]) {
+    for (final child in _children.entries) {
+      buffer.write(' ' * indent);
+      buffer.write('${child.key}:');
+      if (child.value._value != null) {
+        buffer.write(' ${child.value._value}');
+      }
+      buffer.writeln();
+      child.value._writeString(buffer, indent + 2);
+    }
+  }
 }
 
 @immutable
@@ -277,4 +301,9 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
 
   @override
   Iterator<Iterable<K>> get iterator => values().iterator;
+
+  @override
+  String toString() {
+    return _wrapped.toString();
+  }
 }
