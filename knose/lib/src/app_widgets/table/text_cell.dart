@@ -90,8 +90,11 @@ Widget _tableCellTextField<T>(BuildContext context, Reader reader,
                 contentPadding: padding2,
               ),
               onChanged: (newText) {
-                if (newText.isEmpty) value.set(Optional.none());
-                parse(newText).ifPresent<T>((t) => value.set(Optional(t)));
+                if (newText.isEmpty) {
+                  value.set(Optional.none());
+                } else {
+                  parse(newText).ifPresent<T>((t) => value.set(Optional(t)));
+                }
               },
             ),
           ),
