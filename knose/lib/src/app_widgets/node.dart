@@ -48,7 +48,7 @@ Widget _nodeViewWidget(
     },
     child: Shortcuts(
       shortcuts: {
-        SingleActivator(LogicalKeyboardKey.keyS, control: true):
+        LogicalKeySet(LogicalKeyboardKey.keyS, LogicalKeyboardKey.control):
             const ConfigureNodeViewIntent(),
       },
       child: Dropdown(

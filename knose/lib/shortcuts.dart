@@ -5,10 +5,10 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'shortcuts.g.dart';
 
-final shortcuts = <ShortcutActivator, Intent>{
+final shortcuts = <LogicalKeySet, Intent>{
   ...WidgetsApp.defaultShortcuts,
-  SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): GoBackIntent(),
-  SingleActivator(LogicalKeyboardKey.escape):
+  LogicalKeySet(LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.alt): GoBackIntent(),
+  LogicalKeySet(LogicalKeyboardKey.escape):
       PrioritizedIntents(orderedIntents: [UnfocusFieldIntent(), DismissIntent()]),
 };
 
@@ -21,7 +21,7 @@ final actions = {
 @reader_widget
 Widget _knoseActions(BuildContext context, {required Widget child}) {
   return Shortcuts(
-    shortcuts: {SingleActivator(LogicalKeyboardKey.enter): NextFocusFieldIntent()},
+    shortcuts: {LogicalKeySet(LogicalKeyboardKey.enter): NextFocusFieldIntent()},
     child: Actions(
       actions: {GoBackIntent: GoBackAction()},
       child: child,

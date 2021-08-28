@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -69,6 +71,12 @@ Widget _pageWidget(
                         focusForID(id).requestFocus();
                       },
                     ),
+                    DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
+                      onInvoke: (_) {
+                        if (node.nodeViews.length.read(null) > 1) node.nodeViews.remove(index);
+                        focusForID(node.nodeViews[max(index - 1, 0)].read(null)).requestFocus();
+                      },
+                    ),
                   },
                   child: NodeViewWidget(
                     state: state,
@@ -85,8 +93,7 @@ Widget _pageWidget(
 }
 
 @reader_widget
-Widget _pageHeader(
-    Reader reader, BuildContext context, Cursor<model.Header> header) {
+Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> header) {
   final textTheme = Theme.of(context).textTheme;
 
   return BoundTextFormField(
