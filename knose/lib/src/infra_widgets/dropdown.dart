@@ -5,15 +5,106 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
+import 'package:knose/infra_widgets.dart';
 
 part 'dropdown.g.dart';
+
+@reader_widget
+Widget _deferredDropdown(
+  BuildContext context, {
+  required Widget child,
+  required Widget dropdown,
+  required Cursor<bool> isOpen,
+  FocusNode? dropdownFocus,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.bottomLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
+}) {
+  useEffect(() {
+    if (dropdownFocus == null) return null;
+
+    return isOpen.listen((wasOpen, isOpen, _) {
+      if (isOpen && !wasOpen) {
+        dropdownFocus.requestFocus();
+      }
+    });
+  }, [isOpen, dropdownFocus]);
+
+  return FocusTraversalGroup(
+    policy: WidgetOrderTraversalPolicy(),
+    child: FollowingDeferredPainter(
+      isOpen: isOpen,
+      childAnchor: childAnchor,
+      overlayAnchor: dropdownAnchor,
+      offset: offset,
+      deferee: Focus(
+        onKey: (node, key) {
+          if (key.logicalKey == LogicalKeyboardKey.escape) {
+            isOpen.set(false);
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        skipTraversal: true,
+        onFocusChange: isOpen.set,
+        child: Container(
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(color: Colors.grey, blurRadius: 7),
+            ],
+            color: Theme.of(context).canvasColor,
+          ),
+          child: dropdown,
+        ),
+      ),
+      child: child,
+    ),
+  );
+}
+
+@reader_widget
+Widget _followingDeferredPainter(
+  Reader reader,
+  BuildContext context, {
+  required Widget child,
+  required Widget deferee,
+  required GetCursor<bool> isOpen,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.topLeft,
+  Alignment overlayAnchor = Alignment.topLeft,
+}) {
+  final link = useRef(LayerLink()).value;
+
+  return Stack(
+    fit: StackFit.passthrough,
+    children: [
+      CompositedTransformTarget(link: link, child: child),
+      if (isOpen.read(reader))
+        Positioned.fill(
+          child: DeferredPainter(
+            child: CompositedTransformFollower(
+              link: link,
+              offset: offset,
+              targetAnchor: childAnchor,
+              followerAnchor: overlayAnchor,
+              child: OverflowBox(
+                maxWidth: double.infinity,
+                maxHeight: double.infinity,
+                alignment: overlayAnchor,
+                child: deferee,
+              ),
+            ),
+          ),
+        ),
+    ],
+  );
+}
 
 @reader_widget
 Widget _replacerDropdown(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize)
-      dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
   required Cursor<bool> isOpen,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
@@ -130,8 +221,7 @@ Widget _followingModalRoute(
 Widget _replacerWidget(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize)
-      dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
   required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
@@ -290,8 +380,7 @@ Widget _inheritedStackEntry(
 
 @reader_widget
 Widget _dropdownChild(BuildContext context, {required Widget child}) {
-  final inherited =
-      context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
+  final inherited = context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
   useEffect(
     () {
       inherited?.numChildren.mut((i) => i + 1);
@@ -322,8 +411,7 @@ class InheritedStack extends StatefulWidget {
 
   const InheritedStack({Key? key, required this.child}) : super(key: key);
 
-  static _InheritedStackState _of(BuildContext context,
-      {bool rootStack = false}) {
+  static _InheritedStackState _of(BuildContext context, {bool rootStack = false}) {
     final result = rootStack
         ? context.findRootAncestorStateOfType<_InheritedStackState>()
         : context.findAncestorStateOfType<_InheritedStackState>();
