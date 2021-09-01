@@ -43,7 +43,17 @@ Class maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
             initializer: '$casesClassName._(${caze.toString()})',
           ),
       ],
-      methods: [_generateTypeCases(clazz, cases), _generateEachCases(clazz, cases)],
+      methods: [
+        _generateTypeCases(clazz, cases),
+        _generateEachCases(clazz, cases),
+        Method(
+          'toString',
+          returnType: Type('String'),
+          annotations: ['@override'],
+          isExpression: true,
+          body: 'type.toString()',
+        ),
+      ],
     ).declare(output);
   }
 
