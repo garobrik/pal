@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -62,31 +62,27 @@ Widget _tableHeaderDropdown(
 }) {
   final textStyle = Theme.of(context).textTheme.bodyText1;
   final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
+  final dropdownFocus = useFocusNode();
 
-  return ReplacerDropdown(
+  return DeferredDropdown(
     isOpen: isOpen,
-    dropdownBuilder: (context, constraints) => IntrinsicWidth(
+    dropdownFocus: dropdownFocus,
+    childAnchor: Alignment.topLeft,
+    dropdown: IntrinsicWidth(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
             decoration: BoxDecoration(border: Border(bottom: BorderSide())),
-            child: Container(
-              constraints: BoxConstraints(
-                minWidth: constraints.width,
-                maxWidth: math.max(200, constraints.width),
-                minHeight: constraints.height,
-                maxHeight: constraints.height,
-              ),
-              child: BoundTextFormField(
-                column.title,
-                autofocus: true,
-                style: textStyle,
-                decoration: InputDecoration(
-                  focusedBorder: InputBorder.none,
-                  contentPadding: padding,
-                ),
+            child: BoundTextFormField(
+              column.title,
+              focusNode: dropdownFocus,
+              autofocus: true,
+              style: textStyle,
+              decoration: InputDecoration(
+                focusedBorder: InputBorder.none,
+                contentPadding: padding,
               ),
             ),
           ),
@@ -122,15 +118,17 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Column> column,
 }) {
   final columnTypeIsOpen = useCursor(false);
+  final caseFoci = useMemoized(() => {for (final caze in model.ColumnRowsCase.values) caze: FocusNode()});
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Dropdown(
+      DeferredDropdown(
         isOpen: columnTypeIsOpen,
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
+        dropdownFocus: caseFoci[column.rows.caze.read(reader)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -138,7 +136,8 @@ Widget _columnConfigurationDropdown(
             children: [
               for (final caze in model.ColumnRowsCase.values)
                 TextButton(
-                  autofocus: caze == column.rows.caze.read(reader),
+                  key: ValueKey(caze),
+                  focusNode: caseFoci[caze],
                   onPressed: () => column.setType(caze),
                   child: Row(children: [Text('${caze.type}')]),
                 ),
@@ -197,7 +196,7 @@ Iterable<Widget> columnSpecificConfiguration(
         ReaderWidget(builder: (_, reader) {
           final isOpen = useCursor(false);
 
-          return Dropdown(
+          return DeferredDropdown(
             isOpen: isOpen,
             dropdown: Column(
               mainAxisSize: MainAxisSize.min,

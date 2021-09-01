@@ -103,7 +103,7 @@ Widget _mainScaffold(
           ],
         ),
       ),
-      body: InheritedStack(child: body),
+      body: DeferredPaintTarget(child: InheritedStack(child: body)),
     ),
   );
 }
