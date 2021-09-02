@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -44,10 +44,8 @@ Widget _multiselectField(
   bool enabled = true,
 }) {
   return SelectCell(
-    cellTags: (reader) => row
-        .read(reader)
-        .map((id) => column.tags[id].whenPresent.read(reader))
-        .toList(),
+    cellTags: (reader) =>
+        row.read(reader).map((id) => column.tags[id].whenPresent.read(reader)).toList(),
     columnTags: (reader) => column.tags.keys
         .read(reader)
         .map((id) => column.tags[id].whenPresent.read(reader))
@@ -78,32 +76,33 @@ Widget _selectCell(
 
   final tagChipBuilder = (model.Tag tag, {bool deleteable = false}) => Chip(
         onDeleted: !deleteable ? null : () => onDelete(tag),
-        label: Text(tag.name),
+        label: Text(tag.name, softWrap: true, overflow: TextOverflow.ellipsis),
         backgroundColor: tag.color,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity(horizontal: 0, vertical: -4),
         deleteIcon: Icon(Icons.close, size: 16),
       );
 
-  return ReplacerWidget(
-    dropdownFocus: dropdownFocus,
+  return DeferredDropdown(
     isOpen: isOpen,
     offset: Offset(-1, -1),
-    dropdownBuilder: (_, replacedSize) => ReaderWidget(
+    modifyConstraints: (constraints) => BoxConstraints(
+      minWidth: constraints.maxWidth + 2,
+      maxWidth: max(200, constraints.maxWidth + 2),
+      minHeight: constraints.maxHeight + 2,
+    ),
+    childAnchor: Alignment.topLeft,
+    dropdownFocus: dropdownFocus,
+    dropdown: ReaderWidget(
       builder: (_, reader) {
         final tag = useCursor(model.Tag(
           name: '',
           color: _tagColors.elementAt(
-            math.Random().nextInt(_tagColors.length),
+            Random().nextInt(_tagColors.length),
           ),
         ));
 
         return Container(
-          constraints: BoxConstraints(
-            maxWidth: math.max(replacedSize.width, 200),
-            minWidth: replacedSize.width,
-            minHeight: replacedSize.height,
-          ),
           color: Theme.of(context).colorScheme.background,
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -111,8 +110,7 @@ Widget _selectCell(
             children: [
               Wrap(
                 children: [
-                  for (final tag in cellTags(reader))
-                    tagChipBuilder(tag, deleteable: true),
+                  for (final tag in cellTags(reader)) tagChipBuilder(tag, deleteable: true),
                   Container(
                     constraints: BoxConstraints(maxWidth: 100),
                     child: BoundTextFormField(
@@ -137,9 +135,15 @@ Widget _selectCell(
                             isOpen.set(false);
                           },
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
                               Text('Create '),
-                              tagChipBuilder(tag.read(reader)),
+                              Expanded(
+                                child: Container(
+                                  alignment: Alignment.centerLeft,
+                                  child: tagChipBuilder(tag.read(reader)),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -151,7 +155,10 @@ Widget _selectCell(
                             final tag = columnTags(reader)[index];
                             return TextButton(
                               onPressed: () => onSelect(tag),
-                              child: Row(children: [tagChipBuilder(tag)]),
+                              child: Container(
+                                alignment: Alignment.centerLeft,
+                                child: tagChipBuilder(tag),
+                              ),
                             );
                           },
                         ),
@@ -167,8 +174,7 @@ Widget _selectCell(
     ),
     child: TextButton(
       style: ButtonStyle(
-        padding: MaterialStateProperty.all(
-            EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
+        padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
         alignment: Alignment.topLeft,
       ),
       onPressed: () => isOpen.set(true),
