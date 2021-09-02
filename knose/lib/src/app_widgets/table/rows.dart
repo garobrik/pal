@@ -113,7 +113,6 @@ Widget _linkField(
 }) {
   final state = CursorProvider.of<model.State>(context);
   final isOpen = useCursor(false);
-  final dropdownFocus = useFocusNode();
   final tableID = column.table.read(reader);
   final title = (Reader reader) {
     final row = rowCursor.read(reader).unwrap;
@@ -126,11 +125,25 @@ Widget _linkField(
         .unwrap;
   };
 
-  return ReplacerWidget(
+  final focusForRow = useMemoized(() {
+    final map = <model.RowID, FocusNode>{};
+    return (model.RowID rowID) => map.putIfAbsent(rowID, () => FocusNode());
+  });
+  FocusNode? currentFocus;
+  if (tableID != null) {
+    final table = state.getNode(tableID);
+    final length = table.rowIDs.length.read(reader);
+    if (length > 0) {
+      currentFocus = focusForRow(table.rowIDs[0].read(reader));
+    }
+  }
+
+  return DeferredDropdown(
     offset: Offset(-1, -1),
     isOpen: isOpen,
-    dropdownFocus: dropdownFocus,
-    dropdownBuilder: (_, __) => ReaderWidget(
+    dropdownFocus: currentFocus,
+    childAnchor: Alignment.topLeft,
+    dropdown: ReaderWidget(
       builder: (_, reader) {
         final table = state.getNode(tableID!);
         final width = table.columns.keys
@@ -147,26 +160,20 @@ Widget _linkField(
             itemCount: table.rowIDs.length.read(reader),
             itemBuilder: (_, index) => ReaderWidget(
               builder: (_, reader) {
-                final rowID = table.rowIDs[index];
-                final selectedRowID = rowCursor.read(reader).unwrap;
+                final rowID = table.rowIDs[index].read(reader);
                 return TextButton(
-                  focusNode: selectedRowID == null
-                      ? (index == 0 ? dropdownFocus : null)
-                      : (selectedRowID == rowID.read(reader)
-                          ? dropdownFocus
-                          : null),
+                  focusNode: focusForRow(rowID),
                   style: ButtonStyle(
-                      alignment: Alignment.centerLeft,
-                      padding: MaterialStateProperty.all(EdgeInsets.zero)),
-                  onPressed: () => rowCursor.set(
-                    Optional(rowID.read(null)),
+                    alignment: Alignment.centerLeft,
+                    padding: MaterialStateProperty.all(EdgeInsets.zero),
                   ),
+                  onPressed: () => rowCursor.set(Optional(rowID)),
                   child: TableRow(
                     table,
-                    rowID.read(reader),
+                    rowID,
                     enabled: false,
                     trailingNewColumnSpace: false,
-                    key: ValueKey(rowID.read(reader)),
+                    key: ValueKey(rowID),
                   ),
                 );
               },

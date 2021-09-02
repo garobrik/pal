@@ -177,7 +177,7 @@ Widget _selectCell(
         padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 15, horizontal: 5)),
         alignment: Alignment.topLeft,
       ),
-      onPressed: () => isOpen.set(true),
+      onPressed: enabled ? () => isOpen.set(true) : null,
       child: Wrap(
         runSpacing: 5,
         spacing: 5,
