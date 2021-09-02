@@ -63,6 +63,8 @@ class DeferredPaintLink extends ChangeNotifier {
     }
   }
 
+  void markNeedsPaint() => notifyListeners();
+
   DeferredPaintLink();
 }
 
@@ -140,6 +142,12 @@ class RenderDeferredPainter extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {}
+
+  @override
+  void markNeedsPaint() {
+    super.markNeedsPaint();
+    link.markNeedsPaint();
+  }
 }
 
 class DeferredPaintTargetRenderObject extends SingleChildRenderObjectWidget {
