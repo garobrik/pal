@@ -23,6 +23,8 @@ Widget _deferredDropdown(
   bool constrainWidth = false,
   BoxConstraints Function(BoxConstraints)? modifyConstraints,
 }) {
+  final previousPolicy = FocusTraversalGroup.maybeOf(context);
+
   useEffect(() {
     if (dropdownFocus == null) return null;
 
@@ -43,27 +45,33 @@ Widget _deferredDropdown(
       constrainHeight: constrainHeight,
       constrainWidth: constrainWidth,
       modifyConstraints: modifyConstraints,
-      deferee: Focus(
-        onKey: (node, key) {
-          if (key.logicalKey == LogicalKeyboardKey.escape) {
-            isOpen.set(false);
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-        skipTraversal: true,
-        onFocusChange: isOpen.set,
-        child: Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(color: Colors.grey, blurRadius: 7),
-            ],
-            color: Theme.of(context).canvasColor,
+      deferee: FocusTraversalGroup(
+        policy: previousPolicy,
+        child: Focus(
+          onKey: (node, key) {
+            if (key.logicalKey == LogicalKeyboardKey.escape) {
+              isOpen.set(false);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          skipTraversal: true,
+          onFocusChange: isOpen.set,
+          child: Container(
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(color: Colors.grey, blurRadius: 7),
+              ],
+              color: Theme.of(context).canvasColor,
+            ),
+            child: dropdown,
           ),
-          child: dropdown,
         ),
       ),
-      child: child,
+      child: FocusTraversalGroup(
+        policy: previousPolicy,
+        child: child,
+      ),
     ),
   );
 }
