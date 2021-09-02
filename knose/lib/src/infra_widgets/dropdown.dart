@@ -19,6 +19,9 @@ Widget _deferredDropdown(
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.bottomLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
+  bool constrainHeight = false,
+  bool constrainWidth = false,
+  BoxConstraints Function(BoxConstraints)? modifyConstraints,
 }) {
   useEffect(() {
     if (dropdownFocus == null) return null;
@@ -37,6 +40,9 @@ Widget _deferredDropdown(
       childAnchor: childAnchor,
       overlayAnchor: dropdownAnchor,
       offset: offset,
+      constrainHeight: constrainHeight,
+      constrainWidth: constrainWidth,
+      modifyConstraints: modifyConstraints,
       deferee: Focus(
         onKey: (node, key) {
           if (key.logicalKey == LogicalKeyboardKey.escape) {
@@ -72,8 +78,38 @@ Widget _followingDeferredPainter(
   Offset offset = Offset.zero,
   Alignment childAnchor = Alignment.topLeft,
   Alignment overlayAnchor = Alignment.topLeft,
+  bool constrainHeight = false,
+  bool constrainWidth = false,
+  BoxConstraints Function(BoxConstraints)? modifyConstraints,
 }) {
   final link = useRef(LayerLink()).value;
+  final overflowPart = useMemoized(
+    () => ({required Widget child}) {
+      if (modifyConstraints != null) {
+        return LayoutBuilder(
+          builder: (_, constraints) {
+            constraints = modifyConstraints(constraints);
+            return OverflowBox(
+              maxHeight: constraints.maxHeight,
+              maxWidth: constraints.maxWidth,
+              minHeight: constraints.minHeight,
+              minWidth: constraints.minWidth,
+              alignment: overlayAnchor,
+              child: child,
+            );
+          },
+        );
+      } else {
+        return OverflowBox(
+          maxHeight: constrainHeight ? null : double.infinity,
+          maxWidth: constrainWidth ? null : double.infinity,
+          alignment: overlayAnchor,
+          child: child,
+        );
+      }
+    },
+    [overlayAnchor, constrainHeight, constrainWidth, modifyConstraints],
+  );
 
   return Stack(
     fit: StackFit.passthrough,
@@ -81,16 +117,13 @@ Widget _followingDeferredPainter(
       CompositedTransformTarget(link: link, child: child),
       if (isOpen.read(reader))
         Positioned.fill(
-          child: DeferredPainter(
-            child: CompositedTransformFollower(
-              link: link,
-              offset: offset,
-              targetAnchor: childAnchor,
-              followerAnchor: overlayAnchor,
-              child: OverflowBox(
-                maxWidth: double.infinity,
-                maxHeight: double.infinity,
-                alignment: overlayAnchor,
+          child: overflowPart(
+            child: DeferredPainter(
+              child: CompositedTransformFollower(
+                link: link,
+                offset: offset,
+                targetAnchor: childAnchor,
+                followerAnchor: overlayAnchor,
                 child: deferee,
               ),
             ),
