@@ -14,32 +14,33 @@ Class equalityGenerator(StringBuffer output, Class clazz) {
     clazz.isPrivate ? '${clazz.name}Mixin' : '_${clazz.name}Mixin',
     isAbstract: true,
     params: clazz.params,
-    accessors: cases.isNotEmpty
-        ? []
-        : [
-            for (final field in clazz.fields)
-              AccessorPair(field.name, getter: Getter(field.name, field.type)),
-            AccessorPair(
-              'hashCode',
-              getter: Getter(
-                'hashCode',
-                clazz.intType,
-                isExpression: false,
-                annotations: ['@override'],
-                body: statements([
-                  'int hash = 0',
-                  for (final field in clazz.fields) ...[
-                    'hash = 0x1fffffff & (hash + ${field.name}.hashCode)',
-                    'hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10))',
-                    'hash = hash ^ (hash >> 6)',
-                  ],
-                  'hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3))',
-                  'hash = hash ^ (hash >> 11)',
-                  'return 0x1fffffff & (hash + ((0x00003fff & hash) << 15))',
-                ]),
-              ),
-            ),
-          ],
+    accessors: [
+      if (cases.isEmpty)
+        for (final field in clazz.fields)
+          if (!field.isStatic) AccessorPair(field.name, getter: Getter(field.name, field.type)),
+      if (cases.isEmpty)
+        AccessorPair(
+          'hashCode',
+          getter: Getter(
+            'hashCode',
+            clazz.intType,
+            isExpression: false,
+            annotations: ['@override'],
+            body: statements([
+              'int hash = 0',
+              for (final field in clazz.fields)
+                if (!field.isStatic) ...[
+                  'hash = 0x1fffffff & (hash + ${field.name}.hashCode)',
+                  'hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10))',
+                  'hash = hash ^ (hash >> 6)',
+                ],
+              'hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3))',
+              'hash = hash ^ (hash >> 11)',
+              'return 0x1fffffff & (hash + ((0x00003fff & hash) << 15))',
+            ]),
+          ),
+        ),
+    ],
     methods: [
       if (cases.isEmpty)
         Method(
@@ -52,7 +53,8 @@ Class equalityGenerator(StringBuffer output, Class clazz) {
           ],
           body: [
             'other is ${clazz.name}',
-            for (final field in clazz.fields) '${field.name} == other.${field.name}',
+            for (final field in clazz.fields)
+              if (!field.isStatic) '${field.name} == other.${field.name}',
           ].join(' && '),
         ),
     ],
