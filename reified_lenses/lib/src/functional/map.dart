@@ -26,6 +26,8 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
         none: () => Dict(Map.of(_values)).._values.remove(key),
       );
 
+  Dict<Key, Value> put(Key key, Value value) => mut_array_op(key, Optional(value));
+
   Diff _mut_array_op_mutated(Key key, Optional<Value> update) {
     return update.cases(some: (update) {
       if (!_values.containsKey(key)) {
