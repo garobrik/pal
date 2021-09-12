@@ -12,6 +12,8 @@ class RowID extends UUID<RowID> {}
 
 class TagID extends UUID<TagID> {}
 
+class RowViewID extends UUID<RowViewID> {}
+
 @immutable
 @reify
 class Table with _TableMixin implements TitledNode {
@@ -29,6 +31,10 @@ class Table with _TableMixin implements TitledNode {
   final Vec<RowID> rowIDs;
   @override
   final Dict<RowID, NodeID<Page>> pages;
+  @override
+  final Dict<RowViewID, RowView> rowViews;
+  @override
+  final Vec<RowViewID> rowViewIDs;
 
   Table({
     NodeID<Table>? id,
@@ -38,6 +44,8 @@ class Table with _TableMixin implements TitledNode {
     ColumnID? titleColumn,
     this.rowIDs = const Vec(),
     this.pages = const Dict(),
+    this.rowViews = const Dict(),
+    this.rowViewIDs = const Vec(),
   })  : this.id = id ?? NodeID<Table>(),
         this.titleColumn = titleColumn ?? ColumnID();
 
@@ -74,8 +82,7 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) =>
-      rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
@@ -83,8 +90,7 @@ extension TableMutations on Cursor<Table> {
       final column = Column(rows: StringColumn());
 
       table.columns[column.id] = Optional(column);
-      table.columnIDs
-          .insert(index ?? table.columnIDs.length.read(null), column.id);
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
 
       columnID = column.id;
     });
@@ -126,6 +132,7 @@ extension ColumnMutations on Cursor<Column> {
   void setType(ColumnRowsCase caze) {
     rows.set(
       caze.cases(
+        pageColumn: () => PageColumn(),
         linkColumn: () => LinkColumn(),
         selectColumn: () => SelectColumn(),
         multiselectColumn: () => MultiselectColumn(),
@@ -145,7 +152,8 @@ extension ColumnMutations on Cursor<Column> {
   DateColumn,
   SelectColumn,
   MultiselectColumn,
-  LinkColumn
+  LinkColumn,
+  PageColumn,
 ])
 abstract class ColumnRows {
   const ColumnRows();
@@ -225,8 +233,7 @@ class Tag with _TagMixin {
   @override
   final flutter.Color color;
 
-  Tag({TagID? id, required this.name, required this.color})
-      : this.id = id ?? TagID();
+  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
 }
 
 @immutable
@@ -256,3 +263,29 @@ class LinkColumn extends ColumnRows with _LinkColumnMixin {
     this.table,
   });
 }
+
+@immutable
+@reify
+class PageColumn extends ColumnRows with _PageColumnMixin {
+  @override
+  final Dict<RowID, NodeID<Page>> values;
+
+  const PageColumn({this.values = const Dict()});
+}
+
+@immutable
+@reify
+class RowView with _RowViewMixin {
+  @override
+  final RowViewID id;
+
+  RowView(this.id);
+}
+
+// class _RowViewCtx {}
+
+// extension RowViewCtx on Ctx {
+//   Ctx withRowView(Cursor<Table> table) => withElement(_RowViewCtx, table);
+//   Cursor<Table> getRowView(Cursor<Table> table) => get(_RowViewCtx) as Cursor<Table>;
+//   bool hasRowView(Cursor<Table> table) => get(_RowViewCtx) != null;
+// }

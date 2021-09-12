@@ -64,9 +64,8 @@ Widget _tableRow(
                 booleanColumn: (column) => Checkbox(
                   onChanged: !enabled
                       ? null
-                      : (newValue) => column.values[rowID] = newValue!
-                          ? const Optional(true)
-                          : const Optional.none(),
+                      : (newValue) => column.values[rowID] =
+                          newValue! ? const Optional(true) : const Optional.none(),
                   value: column.values[rowID].orElse(false).read(reader),
                 ),
                 selectColumn: (column) => SelectField(
@@ -80,10 +79,12 @@ Widget _tableRow(
                   enabled: enabled,
                 ),
                 linkColumn: (column) => LinkField(
-                    column: column,
-                    rowCursor: column.values[rowID],
-                    enabled: enabled),
+                  column: column,
+                  rowCursor: column.values[rowID],
+                  enabled: enabled,
+                ),
                 dateColumn: (column) => Container(),
+                pageColumn: (column) => Container(),
               ),
             ),
           if (trailingNewColumnSpace)

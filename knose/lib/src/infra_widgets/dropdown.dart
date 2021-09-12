@@ -111,6 +111,8 @@ Widget _followingDeferredPainter(
         return OverflowBox(
           maxHeight: constrainHeight ? null : double.infinity,
           maxWidth: constrainWidth ? null : double.infinity,
+          minWidth: 0,
+          minHeight: 0,
           alignment: overlayAnchor,
           child: child,
         );
@@ -145,7 +147,8 @@ Widget _followingDeferredPainter(
 Widget _replacerDropdown(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize)
+      dropdownBuilder,
   required Cursor<bool> isOpen,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
@@ -262,7 +265,8 @@ Widget _followingModalRoute(
 Widget _replacerWidget(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize)
+      dropdownBuilder,
   required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
@@ -421,7 +425,8 @@ Widget _inheritedStackEntry(
 
 @reader_widget
 Widget _dropdownChild(BuildContext context, {required Widget child}) {
-  final inherited = context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
+  final inherited =
+      context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
   useEffect(
     () {
       inherited?.numChildren.mut((i) => i + 1);
@@ -452,7 +457,8 @@ class InheritedStack extends StatefulWidget {
 
   const InheritedStack({Key? key, required this.child}) : super(key: key);
 
-  static _InheritedStackState _of(BuildContext context, {bool rootStack = false}) {
+  static _InheritedStackState _of(BuildContext context,
+      {bool rootStack = false}) {
     final result = rootStack
         ? context.findRootAncestorStateOfType<_InheritedStackState>()
         : context.findAncestorStateOfType<_InheritedStackState>();

@@ -8,12 +8,12 @@ part 'list.g.dart';
 @reify
 class List with _ListMixin implements Node {
   @override
-  final NodeID<Page> id;
+  final NodeID<List> id;
   @override
   final Vec<NodeID<NodeView>> nodeViews;
 
   List({
-    NodeID<Page>? id,
+    NodeID<List>? id,
     this.nodeViews = const Vec(),
-  }) : this.id = id ?? NodeID<Page>();
+  }) : this.id = id ?? NodeID<List>();
 }

@@ -8,26 +8,41 @@ import 'package:knose/infra_widgets.dart';
 part 'table.g.dart';
 
 @immutable
-@reify
-class TableBuilder
-    with model.TypedNodeBuilder<model.Table>, _TableBuilderMixin {
+class TableBuilder extends model.TopLevelNodeBuilder {
   const TableBuilder();
 
   @override
-  model.NodeBuilderFn<model.Table> get buildTyped => MainTableWidget.tearoff;
+  model.NodeBuilderFn get build => MainTableWidget.tearoff;
+
+  @override
+  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
+    return Dict({'table': model.Literal<model.Table>(model.Table.newDefault())});
+  }
+
+  @override
+  Cursor<String> title({
+    required model.Ctx ctx,
+    required Cursor<model.State> state,
+    required Dict<String, Cursor<Object>> fields,
+  }) {
+    return fields['table'].unwrap!.cast<model.Table>().title;
+  }
 }
 
 @reader_widget
 Widget _mainTableWidget(
   BuildContext context,
   Reader reader, {
+  required model.Ctx ctx,
   required Cursor<model.State> state,
-  required Cursor<model.Table> node,
+  required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
+  final table = fields['table'].unwrap!.cast<model.Table>();
+
   return Scrollable2D(
     child: Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       child: IntrinsicWidth(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,19 +51,19 @@ Widget _mainTableWidget(
               child: Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).canvasColor,
-                  boxShadow: [BoxShadow(blurRadius: 4)],
+                  boxShadow: const [BoxShadow(blurRadius: 4)],
                 ),
-                child: TableHeader(node),
+                child: TableHeader(table),
               ),
             ),
-            TableRows(node),
+            TableRows(table),
             ElevatedButton(
-              onPressed: () => node.addRow(),
+              onPressed: () => table.addRow(),
               focusNode: defaultFocus,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.start,
-                children: [Icon(Icons.add), Text('New row')],
+                children: const [Icon(Icons.add), Text('New row')],
               ),
             )
           ],

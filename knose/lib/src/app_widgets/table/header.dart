@@ -157,9 +157,7 @@ Widget _columnConfigurationDropdown(
           onPressed: () {
             table.columns.remove(column.id.read(null));
             table.columnIDs.remove(
-              table.columnIDs
-                  .read(null)
-                  .indexWhere((id) => id == column.id.read(null))!,
+              table.columnIDs.read(null).indexWhere((id) => id == column.id.read(null))!,
             );
           },
           child: Row(
@@ -183,6 +181,7 @@ Iterable<Widget> columnSpecificConfiguration(
     dateColumn: (_) => [],
     selectColumn: (_) => [],
     multiselectColumn: (_) => [],
+    pageColumn: (_) => [],
     linkColumn: (linkColumn) {
       final state = CursorProvider.of<model.State>(context);
       final tableID = linkColumn.table.read(reader);
@@ -214,8 +213,7 @@ Iterable<Widget> columnSpecificConfiguration(
             ),
             child: TextButton(
               onPressed: () => isOpen.set(true),
-              child: Text(
-                  table == null ? 'Select table' : table.title.read(reader)),
+              child: Text(table == null ? 'Select table' : table.title.read(reader)),
             ),
           );
         }),

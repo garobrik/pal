@@ -7,21 +7,15 @@ import 'package:knose/model.dart' as model;
 
 part 'text.g.dart';
 
-class TextBuilder with model.TypedNodeBuilder<model.Text> {
+class TextBuilder extends model.NodeBuilder {
   const TextBuilder();
 
   @override
-  model.NodeBuilderFn<model.Text> get buildTyped => TextWidget.tearoff;
-}
+  model.NodeBuilderFn get build => TextWidget.tearoff;
 
-extension AddTextView on Cursor<model.State> {
-  model.NodeID<model.NodeView<model.Text>> addTextView() {
-    return addNode(
-      model.NodeView.from(
-        builder: const TextBuilder(),
-        nodeID: addNode(model.Text()),
-      ),
-    );
+  @override
+  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
+    return Dict({'text': model.Literal(model.Text())});
   }
 }
 
@@ -29,17 +23,21 @@ extension AddTextView on Cursor<model.State> {
 Widget _textWidget(
   Reader reader,
   BuildContext context, {
+  required model.Ctx ctx,
   required Cursor<model.State> state,
-  required Cursor<model.Text> node,
+  required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
+  final text = fields['text'].unwrap!.cast<model.Text>();
+
   return Shortcuts(
-    shortcuts: {
-      LogicalKeySet(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
-      LogicalKeySet(LogicalKeyboardKey.backspace, LogicalKeyboardKey.control): DeleteNodeIntent(),
+    shortcuts: const {
+      SingleActivator(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
+      SingleActivator(LogicalKeyboardKey.backspace, control: true):
+          DeleteNodeIntent(),
     },
     child: BoundTextFormField(
-      node.elements[0].cast<model.PlainText>().text,
+      text.elements[0].cast<model.PlainText>().text,
       maxLines: null,
       focusNode: defaultFocus,
     ),

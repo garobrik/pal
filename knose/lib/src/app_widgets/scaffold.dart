@@ -23,12 +23,12 @@ Widget _mainScaffold(
       appBar: title == null
           ? null
           : AppBar(
-              automaticallyImplyLeading: false,
+              // automaticallyImplyLeading: false,
               title: title,
             ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
+          boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black38)],
           color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
         ),
         child: Row(
@@ -38,45 +38,7 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final nodeViewID = state.addNode(
-                  model.NodeView.from(
-                    builder: const PageBuilder(),
-                    nodeID: state.addNode(
-                      model.Page(
-                        title: 'Untitled page',
-                        nodeViews: Vec([
-                          state.addNode(
-                            model.NodeView.from(
-                              builder: const TextBuilder(),
-                              nodeID: state.addNode(
-                                model.Text(),
-                              ),
-                            ),
-                          )
-                        ]),
-                      ),
-                    ),
-                  ),
-                );
-
-                if (replaceRouteOnPush) {
-                  Navigator.pushReplacementNamed(context, '',
-                      arguments: model.NodeRoute(nodeViewID));
-                } else {
-                  Navigator.pushNamed(context, '', arguments: model.NodeRoute(nodeViewID));
-                }
-              },
-            ),
-            BottomButton(
-              text: 'New table',
-              icon: Icons.playlist_add,
-              onPressed: () {
-                final nodeViewID = state.addNode(
-                  model.NodeView.from(
-                    builder: const TableBuilder(),
-                    nodeID: state.addNode(model.Table.newDefault()),
-                  ),
-                );
+                final nodeViewID = const PageBuilder().addView(state);
 
                 if (replaceRouteOnPush) {
                   Navigator.pushReplacementNamed(
@@ -85,7 +47,32 @@ Widget _mainScaffold(
                     arguments: model.NodeRoute(nodeViewID),
                   );
                 } else {
-                  Navigator.pushNamed(context, '', arguments: model.NodeRoute(nodeViewID));
+                  Navigator.pushNamed(
+                    context,
+                    '',
+                    arguments: model.NodeRoute(nodeViewID),
+                  );
+                }
+              },
+            ),
+            BottomButton(
+              text: 'New table',
+              icon: Icons.playlist_add,
+              onPressed: () {
+                final nodeViewID = const TableBuilder().addView(state);
+
+                if (replaceRouteOnPush) {
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '',
+                    arguments: model.NodeRoute(nodeViewID),
+                  );
+                } else {
+                  Navigator.pushNamed(
+                    context,
+                    '',
+                    arguments: model.NodeRoute(nodeViewID),
+                  );
                 }
               },
             ),
@@ -94,9 +81,17 @@ Widget _mainScaffold(
               icon: Icons.search,
               onPressed: () {
                 if (replaceRouteOnPush) {
-                  Navigator.pushReplacementNamed(context, '', arguments: model.SearchRoute());
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '',
+                    arguments: const model.SearchRoute(),
+                  );
                 } else {
-                  Navigator.pushNamed(context, '', arguments: model.SearchRoute());
+                  Navigator.pushNamed(
+                    context,
+                    '',
+                    arguments: const model.SearchRoute(),
+                  );
                 }
               },
             ),
@@ -114,13 +109,14 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
     child: BoundTextFormField(
       title,
       style: Theme.of(context).textTheme.headline6,
-      decoration: InputDecoration(hintText: 'table title'),
+      decoration: const InputDecoration(hintText: 'title'),
     ),
   );
 }
 
 @reader_widget
-Widget _scaffoldTitle(Reader reader, BuildContext context, GetCursor<String> title) {
+Widget _scaffoldTitle(
+    Reader reader, BuildContext context, GetCursor<String> title) {
   return Text(
     title.read(reader),
     style: Theme.of(context).textTheme.headline6,

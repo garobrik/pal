@@ -10,13 +10,13 @@ import 'package:knose/shortcuts.dart';
 part 'main.g.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 @reader_widget
 Widget myApp() {
   return CursorWidget(
-    create: () => model.State(),
+    create: () => const model.State(),
     builder: (_, reader, Cursor<model.State> state) => KeyPressedProvider(
       child: MaterialApp(
         title: 'knose',

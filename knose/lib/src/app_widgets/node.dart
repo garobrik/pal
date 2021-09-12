@@ -8,22 +8,21 @@ import 'package:knose/model.dart' as model;
 
 part 'node.g.dart';
 
-Route<Null> generateNodeRoute<T extends model.TitledNode>(
+Route generateNodeRoute(
   Cursor<model.State> state,
-  model.NodeID<model.NodeView<T>> nodeViewID,
+  model.NodeID<model.NodeView> nodeViewID,
 ) {
-  final nodeView = state.getNode(nodeViewID);
-  final node = state.getNode(nodeView.nodeID.read(null));
-
-  return MaterialPageRoute(
+  return MaterialPageRoute<void>(
     settings: RouteSettings(
-      name: node.title.read(null),
       arguments: model.NodeRoute(nodeViewID),
     ),
     builder: (_) => MainScaffold(
-      title: EditableScaffoldTitle(node.title),
       state: state,
-      body: NodeViewWidget(state: state, nodeViewID: Cursor(nodeViewID)),
+      body: NodeViewWidget(
+        ctx: const model.Ctx(),
+        state: state,
+        nodeViewID: Cursor(nodeViewID),
+      ),
       replaceRouteOnPush: false,
     ),
   );
@@ -32,13 +31,18 @@ Route<Null> generateNodeRoute<T extends model.TitledNode>(
 @reader_widget
 Widget _nodeViewWidget(
   Reader reader, {
+  required model.Ctx ctx,
   required Cursor<model.State> state,
   required Cursor<model.NodeID<model.NodeView>> nodeViewID,
   FocusNode? defaultFocus,
 }) {
   final nodeView = state.getNode(nodeViewID.read(reader));
-  final node = state.getNode(nodeView.nodeID.read(reader));
+  final fields = Dict({
+    for (final field in nodeView.fields.keys.read(reader))
+      field: nodeView.fields[field].whenPresent.build(reader)
+  });
   final isOpen = useCursor(false);
+  final dropdownFocus = useFocusNode();
 
   return Actions(
     actions: {
@@ -51,15 +55,19 @@ Widget _nodeViewWidget(
         LogicalKeySet(LogicalKeyboardKey.keyS, LogicalKeyboardKey.control):
             const ConfigureNodeViewIntent(),
       },
-      child: Dropdown(
+      child: DeferredDropdown(
+        dropdownFocus: dropdownFocus,
         isOpen: isOpen,
+        childAnchor: Alignment.bottomLeft,
         dropdown: NodeViewConfigWidget(
+          ctx: ctx,
           state: state,
           view: nodeView,
         ),
-        child: nodeView.builder.read(reader).build(
+        child: nodeView.nodeBuilder.read(reader).build(
+              ctx: ctx,
               state: state,
-              node: node,
+              fields: fields,
               defaultFocus: defaultFocus,
             ),
       ),
@@ -67,47 +75,35 @@ Widget _nodeViewWidget(
   );
 }
 
+const builders = [
+  TableBuilder(),
+  ListBuilder(),
+  TextBuilder(),
+  PageBuilder(),
+];
+
 @reader_widget
 Widget _nodeViewConfigWidget({
+  required model.Ctx ctx,
   required Cursor<model.State> state,
   required Cursor<model.NodeView> view,
 }) {
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      TextButton(
-        autofocus: true,
-        onPressed: () {
-          if (view.read(null) is! model.NodeView<model.Text>) {
-            view.set(
-              model.NodeView.from(
-                id: view.id.read(null),
-                builder: TextBuilder(),
-                nodeID: state.addNode(model.Text()),
-              ),
-            );
-          }
-        },
-        child: Text('Text node'),
-      ),
-      TextButton(
-        onPressed: () {
-          if (view.read(null) is! model.NodeView<model.List>) {
-            view.set(
-              model.NodeView.from(
-                id: view.id.read(null),
-                builder: ListBuilder(),
-                nodeID: state.addNode(
-                  model.List(
-                    nodeViews: Vec([state.addTextView()]),
-                  ),
-                ),
-              ),
-            );
-          }
-        },
-        child: Text('List node'),
-      ),
-    ],
+  return IntrinsicWidth(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final builder in builders)
+          TextButton(
+            onPressed: () {
+              if (view.nodeBuilder.read(null) != builder) {
+                view.fields.set(builder.makeFields(state));
+                view.nodeBuilder.set(builder);
+              }
+            },
+            child: Row(children: [Text('${builder.runtimeType}')]),
+          ),
+      ],
+    ),
   );
 }

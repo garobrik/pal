@@ -5,11 +5,11 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'shortcuts.g.dart';
 
-final shortcuts = <LogicalKeySet, Intent>{
+final shortcuts = <ShortcutActivator, Intent>{
   ...WidgetsApp.defaultShortcuts,
-  LogicalKeySet(LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.alt): GoBackIntent(),
-  LogicalKeySet(LogicalKeyboardKey.escape):
-      PrioritizedIntents(orderedIntents: [UnfocusFieldIntent(), DismissIntent()]),
+  const SingleActivator(LogicalKeyboardKey.arrowLeft, alt: true): const GoBackIntent(),
+  const SingleActivator(LogicalKeyboardKey.escape):
+      const PrioritizedIntents(orderedIntents: [UnfocusFieldIntent(), DismissIntent()]),
 };
 
 final actions = {
@@ -44,7 +44,9 @@ class GoBackAction extends ContextAction<GoBackIntent> {
   }
 }
 
-class UnfocusFieldIntent extends Intent {}
+class UnfocusFieldIntent extends Intent {
+  const UnfocusFieldIntent();
+}
 
 class UnfocusFieldAction extends TextEditingAction<UnfocusFieldIntent> {
   @override

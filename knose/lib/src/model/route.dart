@@ -34,7 +34,7 @@ class SearchRoute extends Route with _SearchRouteMixin {
 @reify
 class NodeRoute extends Route with _NodeRouteMixin {
   @override
-  final NodeID<NodeView<TitledNode>> id;
+  final NodeID<NodeView> id;
 
   const NodeRoute(this.id);
 }

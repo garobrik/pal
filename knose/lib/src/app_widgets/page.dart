@@ -10,25 +10,51 @@ part 'page.g.dart';
 
 @immutable
 @reify
-class PageBuilder with model.TypedNodeBuilder<model.Page> {
+class PageBuilder extends model.TopLevelNodeBuilder {
   const PageBuilder();
 
   @override
-  model.NodeBuilderFn<model.Page> get buildTyped => PageWidget.tearoff;
+  model.NodeBuilderFn get build => PageWidget.tearoff;
+
+  @override
+  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
+    return Dict({
+      'page': model.Literal<model.Page>(
+        model.Page(
+          title: 'Untitled page',
+          nodeViews: Vec([
+            const TextBuilder().addView(state),
+          ]),
+        ),
+      )
+    });
+  }
+
+  @override
+  Cursor<String> title({
+    required model.Ctx ctx,
+    required Cursor<model.State> state,
+    required Dict<String, Cursor<Object>> fields,
+  }) {
+    return fields['page'].unwrap!.cast<model.Page>().title;
+  }
 }
 
 @reader_widget
 Widget _pageWidget(
   Reader reader,
   BuildContext context, {
+  required model.Ctx ctx,
   required Cursor<model.State> state,
-  required Cursor<model.Page> node,
+  required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
+  final page = fields['page'].unwrap!.cast<model.Page>();
+
   final focusForID = useMemoized(() {
     final foci = <model.NodeID<model.NodeView>, FocusNode>{};
     return (model.NodeID<model.NodeView> id) {
-      if (node.nodeViews[0].read(reader) == id) {
+      if (page.nodeViews[0].read(reader) == id) {
         return defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
       }
       return foci.putIfAbsent(id, () => FocusNode());
@@ -37,13 +63,13 @@ Widget _pageWidget(
 
   return Container(
     color: Theme.of(context).colorScheme.background,
-    constraints: BoxConstraints.expand(),
+    // constraints: const BoxConstraints.expand(),
     child: Container(
       // margin: EdgeInsets.all(15),
-      padding: EdgeInsets.all(10),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black38)],
+        boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black38)],
       ),
       child: Column(
         // onReorder: (old, nu) {
@@ -53,10 +79,10 @@ Widget _pageWidget(
         //   });
         // },
         children: [
-          for (final index in range(node.nodeViews.length.read(reader)))
+          for (final index in range(page.nodeViews.length.read(reader)))
             Padding(
-              key: ValueKey(node.nodeViews[index].read(reader)),
-              padding: EdgeInsets.symmetric(vertical: 4),
+              key: ValueKey(page.nodeViews[index].read(reader)),
+              padding: const EdgeInsets.symmetric(vertical: 4),
               child: Material(
                 elevation: 6,
                 child: Actions(
@@ -64,24 +90,29 @@ Widget _pageWidget(
                     NewNodeBelowIntent: NewNodeBelowAction(
                       onInvoke: (_) {
                         late final model.NodeID<model.NodeView> id;
-                        node.nodeViews.insert(
+                        page.nodeViews.insert(
                           index + 1,
-                          id = state.addTextView(),
+                          id = const TextBuilder().addView(state),
                         );
                         focusForID(id).requestFocus();
                       },
                     ),
                     DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
                       onInvoke: (_) {
-                        if (node.nodeViews.length.read(null) > 1) node.nodeViews.remove(index);
-                        focusForID(node.nodeViews[max(index - 1, 0)].read(null)).requestFocus();
+                        if (page.nodeViews.length.read(null) > 1) {
+                          page.nodeViews.remove(index);
+                        }
+                        focusForID(page.nodeViews[max(index - 1, 0)].read(null))
+                            .requestFocus();
                       },
                     ),
                   },
                   child: NodeViewWidget(
+                    ctx: ctx,
                     state: state,
-                    nodeViewID: node.nodeViews[index],
-                    defaultFocus: focusForID(node.nodeViews[index].read(reader)),
+                    nodeViewID: page.nodeViews[index],
+                    defaultFocus:
+                        focusForID(page.nodeViews[index].read(reader)),
                   ),
                 ),
               ),
@@ -93,7 +124,8 @@ Widget _pageWidget(
 }
 
 @reader_widget
-Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> header) {
+Widget _pageHeader(
+    Reader reader, BuildContext context, Cursor<model.Header> header) {
   final textTheme = Theme.of(context).textTheme;
 
   return BoundTextFormField(
