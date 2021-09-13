@@ -33,7 +33,7 @@ dev_dependencies:
   reified_lenses_builder:
     path:
       ../reified_lenses_builder
-  pedantic: ^1.10.0-nullsafety.3
+  flutter_lints: ^1.0.4
 
 flutter:
   # The following line ensures that the Material Icons font is

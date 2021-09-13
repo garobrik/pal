@@ -43,8 +43,7 @@ abstract class NodeBuilder {
   bool canBuild(Ctx ctx) => true;
   Dict<String, Datum> makeFields(Cursor<State> state);
   NodeID<NodeView> addView(Cursor<State> state) {
-    return state
-        .addNode(NodeView(nodeBuilder: this, fields: makeFields(state)));
+    return state.addNode(NodeView(nodeBuilder: this, fields: makeFields(state)));
   }
 }
 
@@ -134,8 +133,7 @@ class _LiteralBuilder extends DataBuilder {
   _LiteralBuilder();
 
   @override
-  Cursor<Object> build(Cursor<Datum> datum) =>
-      datum.cast<Literal<Object>>().data;
+  Cursor<Object> build(Cursor<Datum> datum) => datum.cast<Literal<Object>>().data;
 
   @override
   GetCursor<String> name(Cursor<Datum> datum) => const GetCursor('Literal');
@@ -150,8 +148,7 @@ class Text with _TextMixin implements Node {
   @override
   final Vec<TextElement> elements;
 
-  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id])
-      : id = id ?? NodeID();
+  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id]) : id = id ?? NodeID();
 }
 
 @immutable

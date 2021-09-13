@@ -14,8 +14,7 @@ class ConfigureNodeViewIntent extends Intent {
   const ConfigureNodeViewIntent();
 }
 
-abstract class CallbackContextAction<T extends Intent>
-    extends ContextAction<T> {
+abstract class CallbackContextAction<T extends Intent> extends ContextAction<T> {
   factory CallbackContextAction({
     required Object? Function(T intent, BuildContext? context) onInvoke,
     bool Function(T intent)? onConsumesKey,
@@ -32,36 +31,30 @@ abstract class CallbackContextAction<T extends Intent>
             );
 }
 
-class _CallbackContextNotTextEditingAction<T extends Intent>
-    extends ContextAction<T> implements CallbackContextAction<T> {
+class _CallbackContextNotTextEditingAction<T extends Intent> extends ContextAction<T>
+    implements CallbackContextAction<T> {
   final Object? Function(T intent, BuildContext? context) onInvoke;
   final bool Function(T intent)? onConsumesKey;
 
-  _CallbackContextNotTextEditingAction(
-      {required this.onInvoke, this.onConsumesKey});
+  _CallbackContextNotTextEditingAction({required this.onInvoke, this.onConsumesKey});
 
   @override
-  Object? invoke(covariant T intent, [BuildContext? context]) =>
-      onInvoke(intent, context);
+  Object? invoke(covariant T intent, [BuildContext? context]) => onInvoke(intent, context);
 
   @override
-  bool consumesKey(covariant T intent) =>
-      onConsumesKey == null ? true : onConsumesKey!(intent);
+  bool consumesKey(covariant T intent) => onConsumesKey == null ? true : onConsumesKey!(intent);
 }
 
-class _CallbackContextTextEditingAction<T extends Intent>
-    extends TextEditingAction<T> implements CallbackContextAction<T> {
+class _CallbackContextTextEditingAction<T extends Intent> extends TextEditingAction<T>
+    implements CallbackContextAction<T> {
   final Object? Function(T intent, BuildContext? context) onInvoke;
   final bool Function(T intent)? onConsumesKey;
 
-  _CallbackContextTextEditingAction(
-      {required this.onInvoke, this.onConsumesKey});
+  _CallbackContextTextEditingAction({required this.onInvoke, this.onConsumesKey});
 
   @override
-  Object? invoke(covariant T intent, [BuildContext? context]) =>
-      onInvoke(intent, context);
+  Object? invoke(covariant T intent, [BuildContext? context]) => onInvoke(intent, context);
 
   @override
-  bool consumesKey(covariant T intent) =>
-      onConsumesKey == null ? true : onConsumesKey!(intent);
+  bool consumesKey(covariant T intent) => onConsumesKey == null ? true : onConsumesKey!(intent);
 }

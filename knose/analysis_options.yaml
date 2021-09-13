@@ -1,4 +1,4 @@
-include: package:pedantic/analysis_options.yaml
+include: package:flutter_lints/flutter.yaml
 
 analyzer:
   enable-experiment:
@@ -12,3 +12,4 @@ linter:
   rules:
     omit_local_variable_types: false
     unnecessary_this: false
+    non_constant_identifier_names: false

@@ -9,7 +9,7 @@ environment:
   sdk: ">=2.13.0-0 <3.0.0"
 
 dependencies:
-  meta: ^1.4.0
+  meta: ^1.3.0
 
 dev_dependencies:
   reified_lenses_builder:
@@ -17,3 +17,4 @@ dev_dependencies:
       ../reified_lenses_builder
   build_runner: ^2.1.1
   analyzer: ^1.7.0
+  lints: ^1.0.1

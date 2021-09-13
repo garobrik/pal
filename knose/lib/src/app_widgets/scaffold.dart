@@ -115,8 +115,7 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
 }
 
 @reader_widget
-Widget _scaffoldTitle(
-    Reader reader, BuildContext context, GetCursor<String> title) {
+Widget _scaffoldTitle(Reader reader, BuildContext context, GetCursor<String> title) {
   return Text(
     title.read(reader),
     style: Theme.of(context).textTheme.headline6,

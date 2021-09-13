@@ -19,7 +19,7 @@ Widget _reorderResizeable(
   final widgetIdentifier = useRef(Object()).value;
   final grabbedPosition = useState<int?>(null);
   final grabbedChild = useState<int?>(null);
-  final animations = useCursor(Dict<int, AnimationController>({}));
+  final animations = useCursor(Dict<int, AnimationController>(const {}));
   useEffect(
     () => () => animations.read(null).forEach((entry) => entry.value.dispose()),
     [0],

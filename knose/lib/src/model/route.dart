@@ -30,7 +30,6 @@ class SearchRoute extends Route with _SearchRouteMixin {
   const SearchRoute();
 }
 
-
 @reify
 class NodeRoute extends Route with _NodeRouteMixin {
   @override

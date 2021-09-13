@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -14,7 +12,7 @@ Widget _tableHeader(
   Reader reader,
   Cursor<model.Table> table,
 ) {
-  final openColumns = useCursor(Dict<model.ColumnID, bool>());
+  final openColumns = useCursor(const Dict<model.ColumnID, bool>());
 
   return Row(
     children: [
@@ -32,7 +30,7 @@ Widget _tableHeader(
         ],
         children: [
           for (final columnID in table.columnIDs.read(reader))
-            Container(
+            SizedBox(
               key: ValueKey(columnID),
               width: table.columns[columnID].whenPresent.width.read(reader),
               child: TableHeaderDropdown(
@@ -61,7 +59,7 @@ Widget _tableHeaderDropdown(
   required Cursor<bool> isOpen,
 }) {
   final textStyle = Theme.of(context).textTheme.bodyText1;
-  final padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
+  const padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
   final dropdownFocus = useFocusNode();
 
   return DeferredDropdown(
@@ -74,13 +72,13 @@ Widget _tableHeaderDropdown(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            decoration: BoxDecoration(border: Border(bottom: BorderSide())),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
             child: BoundTextFormField(
               column.title,
               focusNode: dropdownFocus,
               autofocus: true,
               style: textStyle,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 focusedBorder: InputBorder.none,
                 contentPadding: padding,
               ),
@@ -118,7 +116,8 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Column> column,
 }) {
   final columnTypeIsOpen = useCursor(false);
-  final caseFoci = useMemoized(() => {for (final caze in model.ColumnRowsCase.values) caze: FocusNode()});
+  final caseFoci =
+      useMemoized(() => {for (final caze in model.ColumnRowsCase.values) caze: FocusNode()});
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,7 +146,7 @@ Widget _columnConfigurationDropdown(
         child: TextButton(
           onPressed: () => columnTypeIsOpen.mut((b) => !b),
           child: Row(
-            children: [Icon(Icons.list), Text('Column type')],
+            children: const [Icon(Icons.list), Text('Column type')],
           ),
         ),
       ),
@@ -161,7 +160,7 @@ Widget _columnConfigurationDropdown(
             );
           },
           child: Row(
-            children: [Icon(Icons.delete), Text('Delete column')],
+            children: const [Icon(Icons.delete), Text('Delete column')],
           ),
         ),
     ],
@@ -204,7 +203,7 @@ Iterable<Widget> columnSpecificConfiguration(
                 for (final table in tables)
                   TextButton(
                     onPressed: () {
-                      linkColumn.values.set(Dict());
+                      linkColumn.values.set(const Dict());
                       linkColumn.table.set(table.id.read(null));
                     },
                     child: Text(table.title.read(reader)),
@@ -231,14 +230,12 @@ Widget _newColumnButton({
     onPressed: () {
       final columnID = table?.addColumn();
       if (columnID != null) {
-        openColumns?[columnID] = Optional(true);
+        openColumns?[columnID] = const Optional(true);
       }
     },
-    child: Container(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(Icons.add), Text('New column')],
-      ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: const [Icon(Icons.add), Text('New column')],
     ),
   );
 }

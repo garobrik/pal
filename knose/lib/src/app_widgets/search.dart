@@ -8,8 +8,7 @@ part 'search.g.dart';
 
 Route<void> generateSearchRoute(Cursor<model.State> state) {
   return MaterialPageRoute(
-    settings:
-        const RouteSettings(name: 'search', arguments: model.SearchRoute()),
+    settings: const RouteSettings(name: 'search', arguments: model.SearchRoute()),
     builder: (_) => MainScaffold(
       state: state,
       replaceRouteOnPush: false,
@@ -68,9 +67,8 @@ Widget _searchPage(
           for (final field in nodeView.fields.keys.read(reader))
             field: nodeView.fields[field].whenPresent.build(reader)
         });
-        final title = builder
-            .title(ctx: const model.Ctx(), state: state, fields: fields)
-            .read(reader);
+        final title =
+            builder.title(ctx: const model.Ctx(), state: state, fields: fields).read(reader);
         return [
           if (title.toLowerCase().startsWith(searchText.read(reader)))
             TextButton(

@@ -69,7 +69,7 @@ class DeferredPaintLink extends ChangeNotifier {
 }
 
 class DeferredPainterRenderObject extends SingleChildRenderObjectWidget {
-  DeferredPainterRenderObject({required this.link, Widget? child, Key? key})
+  const DeferredPainterRenderObject({required this.link, Widget? child, Key? key})
       : super(child: child, key: key);
 
   final DeferredPaintLink link;
@@ -151,7 +151,7 @@ class RenderDeferredPainter extends RenderProxyBox {
 }
 
 class DeferredPaintTargetRenderObject extends SingleChildRenderObjectWidget {
-  DeferredPaintTargetRenderObject({required this.link, Widget? child, Key? key})
+  const DeferredPaintTargetRenderObject({required this.link, Widget? child, Key? key})
       : super(child: child, key: key);
 
   final DeferredPaintLink link;

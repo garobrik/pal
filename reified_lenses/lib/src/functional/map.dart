@@ -7,6 +7,7 @@ part 'map.g.dart';
 @ReifiedLens(type: ReifiedKind.Map)
 class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
     with _DictMixin<Key, Value> {
+  @override
   @skip
   final Map<Key, Value> _values;
 

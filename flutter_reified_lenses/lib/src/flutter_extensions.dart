@@ -50,16 +50,13 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
 class CursorProvider<T> extends InheritedWidget {
   final Cursor<T> cursor;
 
-  CursorProvider(this.cursor, {required Widget child, Key? key})
-      : super(key: key, child: child);
+  CursorProvider(this.cursor, {required Widget child, Key? key}) : super(key: key, child: child);
 
   @override
-  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) =>
-      cursor != oldWidget.cursor;
+  bool updateShouldNotify(covariant CursorProvider<T> oldWidget) => cursor != oldWidget.cursor;
 
   static Cursor<T> of<T>(BuildContext context) {
-    final inherited =
-        context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
+    final inherited = context.dependOnInheritedWidgetOfExactType<CursorProvider<T>>();
     assert(inherited != null, 'Inherited cursor which was never provided.');
     return inherited!.cursor;
   }
@@ -118,8 +115,7 @@ class _CursorReaderHook extends Hook<Reader> {
   _CursorReaderHookState createState() => _CursorReaderHookState();
 }
 
-class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook>
-    with Reader {
+class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with Reader {
   List<void Function()> disposals = [];
 
   @override
@@ -149,5 +145,4 @@ class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook>
   }
 }
 
-Cursor<T> useCursor<T>(T initialValue) =>
-    useMemoized(() => Cursor(initialValue));
+Cursor<T> useCursor<T>(T initialValue) => useMemoized(() => Cursor(initialValue));

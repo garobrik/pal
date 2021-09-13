@@ -100,8 +100,7 @@ Widget _listWidget(
                       ctx: ctx,
                       state: state,
                       nodeViewID: list.nodeViews[index],
-                      defaultFocus:
-                          focusForID(list.nodeViews[index].read(reader)),
+                      defaultFocus: focusForID(list.nodeViews[index].read(reader)),
                     ),
                   ),
                 ),

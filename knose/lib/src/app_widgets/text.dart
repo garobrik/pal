@@ -33,8 +33,7 @@ Widget _textWidget(
   return Shortcuts(
     shortcuts: const {
       SingleActivator(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
-      SingleActivator(LogicalKeyboardKey.backspace, control: true):
-          DeleteNodeIntent(),
+      SingleActivator(LogicalKeyboardKey.backspace, control: true): DeleteNodeIntent(),
     },
     child: BoundTextFormField(
       text.elements[0].cast<model.PlainText>().text,

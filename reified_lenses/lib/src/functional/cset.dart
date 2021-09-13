@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
@@ -8,6 +6,7 @@ part 'cset.g.dart';
 @immutable
 @ReifiedLens(type: ReifiedKind.List)
 class CSet<Value> extends Iterable<Value> with _CSetMixin<Value> {
+  @override
   @skip
   final Set<Value> _values;
   const CSet([this._values = const {}]);

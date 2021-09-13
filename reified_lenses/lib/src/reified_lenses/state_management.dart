@@ -150,6 +150,9 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
   bool operator ==(Object? other) {
     return other is StateCursorBase<T, S> && state == other.state && lens.path == other.lens.path;
   }
+
+  @override
+  int get hashCode => Object.hashAll([state, ...lens.path]);
 }
 
 class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
@@ -192,7 +195,7 @@ class _ValueCursor<S> with GetCursor<S> {
 
   @override
   void Function() listen(void Function(S old, S nu, Diff diff) f) {
-    return () => null;
+    return () {};
   }
 
   @override
@@ -244,7 +247,9 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
     return () {
       dispose();
       if (_state._listenables.isEmpty) {
-        disposals.forEach((f) => f());
+        for (final f in disposals) {
+          f();
+        }
         disposals.clear();
         dirty = true;
       }
@@ -258,7 +263,9 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
 
   @override
   void onChanged() {
-    disposals.forEach((f) => f());
+    for (final f in disposals) {
+      f();
+    }
     disposals.clear();
     _state.transformAndNotify(
       (_) => DiffResult(computation(this), const Diff.allChanged()),

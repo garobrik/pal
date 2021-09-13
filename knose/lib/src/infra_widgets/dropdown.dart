@@ -59,7 +59,7 @@ Widget _deferredDropdown(
           onFocusChange: isOpen.set,
           child: Container(
             decoration: BoxDecoration(
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(color: Colors.grey, blurRadius: 7),
               ],
               color: Theme.of(context).canvasColor,
@@ -147,8 +147,7 @@ Widget _followingDeferredPainter(
 Widget _replacerDropdown(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize)
-      dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
   required Cursor<bool> isOpen,
   Alignment childAnchor = Alignment.topLeft,
   Alignment dropdownAnchor = Alignment.topLeft,
@@ -192,7 +191,7 @@ Widget _dropdown({
     offset: offset,
     overlayBuilder: (_) => Container(
       decoration: BoxDecoration(
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(color: Colors.grey, blurRadius: 7),
         ],
       ),
@@ -220,7 +219,7 @@ Widget _followingModalRoute(
   final showDropdown = useMemoized(() {
     return () {
       if (!currentlyOpen.read(null)) {
-        showDialog<Null>(
+        showDialog<void>(
           context: context,
           builder: (_) => Center(
             child: CompositedTransformFollower(
@@ -265,8 +264,7 @@ Widget _followingModalRoute(
 Widget _replacerWidget(
   Reader reader, {
   required Widget child,
-  required Widget Function(BuildContext context, Size replacedSize)
-      dropdownBuilder,
+  required Widget Function(BuildContext context, Size replacedSize) dropdownBuilder,
   required Cursor<bool> isOpen,
   FocusNode? dropdownFocus,
   Alignment childAnchor = Alignment.topLeft,
@@ -347,7 +345,7 @@ Widget _oldDropdown(
             onFocusChange: isOpen.set,
             child: Container(
               decoration: BoxDecoration(
-                boxShadow: [
+                boxShadow: const [
                   BoxShadow(color: Colors.grey, blurRadius: 7),
                 ],
                 color: Theme.of(context).canvasColor,
@@ -425,8 +423,7 @@ Widget _inheritedStackEntry(
 
 @reader_widget
 Widget _dropdownChild(BuildContext context, {required Widget child}) {
-  final inherited =
-      context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
+  final inherited = context.dependOnInheritedWidgetOfExactType<_DropdownInheritedWidget>();
   useEffect(
     () {
       inherited?.numChildren.mut((i) => i + 1);
@@ -441,7 +438,7 @@ Widget _dropdownChild(BuildContext context, {required Widget child}) {
 class _DropdownInheritedWidget extends InheritedWidget {
   final Cursor<int> numChildren;
 
-  _DropdownInheritedWidget({
+  const _DropdownInheritedWidget({
     required this.numChildren,
     required Widget child,
     Key? key,
@@ -457,8 +454,7 @@ class InheritedStack extends StatefulWidget {
 
   const InheritedStack({Key? key, required this.child}) : super(key: key);
 
-  static _InheritedStackState _of(BuildContext context,
-      {bool rootStack = false}) {
+  static _InheritedStackState _of(BuildContext context, {bool rootStack = false}) {
     final result = rootStack
         ? context.findRootAncestorStateOfType<_InheritedStackState>()
         : context.findAncestorStateOfType<_InheritedStackState>();

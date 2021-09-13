@@ -46,7 +46,8 @@ String? qualifiedNameIn(Element element, LibraryElement usageContext) {
   if (!element.library!.topLevelElements.contains(element)) return element.name;
   final potentialImports = usageContext.imports.where(
     (import) {
-      return import.prefix != null && import.namespace.getPrefixed(import.prefix!.name, element.name!) == element;
+      return import.prefix != null &&
+          import.namespace.getPrefixed(import.prefix!.name, element.name!) == element;
     },
   );
   if (potentialImports.isNotEmpty) {

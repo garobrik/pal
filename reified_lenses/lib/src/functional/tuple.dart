@@ -18,6 +18,7 @@ Iterable<Pair<A, B>> zip<A, B>(
 ) sync* {
   final aIterator = aIterable.iterator;
   final bIterator = bIterable.iterator;
-  while (aIterator.moveNext() && bIterator.moveNext())
+  while (aIterator.moveNext() && bIterator.moveNext()) {
     yield Pair(aIterator.current, bIterator.current);
+  }
 }
