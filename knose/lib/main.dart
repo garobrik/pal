@@ -25,16 +25,16 @@ Widget myApp() {
         theme: theme(Colors.grey, Brightness.light),
         onGenerateRoute: (settings) {
           if (settings.name == '/') {
-            return generateSearchRoute(state);
+            return generateSearchRoute(model.Ctx(state));
           }
 
           final arguments = settings.arguments;
           if (arguments is model.Route) {
             return arguments.cases(
-              nodeRoute: (node) => generateNodeRoute(state, node.id),
+              nodeRoute: (node) => generateNodeRoute(model.Ctx(state), node.id),
               tableRoute: (_) => null,
               pageRoute: (_) => null,
-              searchRoute: (_) => generateSearchRoute(state),
+              searchRoute: (_) => generateSearchRoute(model.Ctx(state)),
             );
           }
         },

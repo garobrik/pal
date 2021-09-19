@@ -17,12 +17,19 @@ class ListBuilder extends model.NodeBuilder {
   model.NodeBuilderFn get build => ListWidget.tearoff;
 
   @override
-  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
+  Dict<String, model.Datum> makeFields(
+    Cursor<model.State> state,
+    model.NodeID<model.NodeView> nodeView,
+  ) {
     return Dict({
-      'list': model.Literal<model.List>(
-        model.List(
-          nodeViews: Vec([const TextBuilder().addView(state)]),
+      'list': model.Literal(
+        data: Optional(
+          model.List(
+            nodeViews: Vec([const TextBuilder().addView(state)]),
+          ),
         ),
+        nodeView: nodeView,
+        fieldName: 'list',
       )
     });
   }
@@ -33,11 +40,10 @@ Widget _listWidget(
   Reader reader,
   BuildContext context, {
   required model.Ctx ctx,
-  required Cursor<model.State> state,
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final list = fields['list'].unwrap!.cast<model.List>();
+  final list = fields['list'].unwrap!.cast<Optional<model.List>>().whenPresent;
 
   final focusForID = useMemoized(() {
     final foci = <model.NodeID<model.NodeView>, FocusNode>{};
@@ -75,7 +81,7 @@ Widget _listWidget(
                           late final model.NodeID<model.NodeView> id;
                           list.nodeViews.insert(
                             index + 1,
-                            id = const TextBuilder().addView(state),
+                            id = const TextBuilder().addView(ctx.state),
                           );
                           focusForID(id).requestFocus();
                         },
@@ -98,9 +104,9 @@ Widget _listWidget(
                     },
                     child: NodeViewWidget(
                       ctx: ctx,
-                      state: state,
                       nodeViewID: list.nodeViews[index],
-                      defaultFocus: focusForID(list.nodeViews[index].read(reader)),
+                      defaultFocus:
+                          focusForID(list.nodeViews[index].read(reader)),
                     ),
                   ),
                 ),

@@ -13,7 +13,7 @@ part 'scaffold.g.dart';
 Widget _mainScaffold(
   BuildContext context,
   Reader reader, {
-  required Cursor<model.State> state,
+  required model.Ctx ctx,
   required Widget body,
   required bool replaceRouteOnPush,
   Widget? title,
@@ -38,7 +38,7 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final nodeViewID = const PageBuilder().addView(state);
+                final nodeViewID = const PageBuilder().addView(ctx.state);
 
                 if (replaceRouteOnPush) {
                   Navigator.pushReplacementNamed(
@@ -59,7 +59,7 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final nodeViewID = const TableBuilder().addView(state);
+                final nodeViewID = const TableBuilder().addView(ctx.state);
 
                 if (replaceRouteOnPush) {
                   Navigator.pushReplacementNamed(

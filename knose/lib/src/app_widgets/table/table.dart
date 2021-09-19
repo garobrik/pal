@@ -15,17 +15,29 @@ class TableBuilder extends model.TopLevelNodeBuilder {
   model.NodeBuilderFn get build => MainTableWidget.tearoff;
 
   @override
-  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
-    return Dict({'table': model.Literal<model.Table>(model.Table.newDefault())});
+  Dict<String, model.Datum> makeFields(
+    Cursor<model.State> state,
+    model.NodeID<model.NodeView> nodeView,
+  ) {
+    return Dict({
+      'table': model.Literal(
+        data: Optional(model.Table.newDefault()),
+        nodeView: nodeView,
+        fieldName: 'table',
+      )
+    });
   }
 
   @override
   Cursor<String> title({
     required model.Ctx ctx,
-    required Cursor<model.State> state,
-    required Dict<String, Cursor<Object>> fields,
+    required Dict<String, Cursor<Optional<Object>>> fields,
   }) {
-    return fields['table'].unwrap!.cast<model.Table>().title;
+    return fields['table']
+        .unwrap!
+        .cast<Optional<model.Table>>()
+        .whenPresent
+        .title;
   }
 }
 
@@ -34,11 +46,11 @@ Widget _mainTableWidget(
   BuildContext context,
   Reader reader, {
   required model.Ctx ctx,
-  required Cursor<model.State> state,
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final table = fields['table'].unwrap!.cast<model.Table>();
+  final table =
+      fields['table'].unwrap!.cast<Optional<model.Table>>().whenPresent;
 
   return Scrollable2D(
     child: Container(

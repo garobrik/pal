@@ -30,11 +30,7 @@ class Table with _TableMixin implements TitledNode {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Dict<RowID, NodeID<Page>> pages;
-  @override
-  final Dict<RowViewID, RowView> rowViews;
-  @override
-  final Vec<RowViewID> rowViewIDs;
+  final Vec<NodeID<NodeView>> rowViews;
 
   Table({
     NodeID<Table>? id,
@@ -43,9 +39,7 @@ class Table with _TableMixin implements TitledNode {
     this.columnIDs = const Vec(),
     ColumnID? titleColumn,
     this.rowIDs = const Vec(),
-    this.pages = const Dict(),
-    this.rowViews = const Dict(),
-    this.rowViewIDs = const Vec(),
+    this.rowViews = const Vec(),
   })  : this.id = id ?? NodeID<Table>(),
         this.titleColumn = titleColumn ?? ColumnID();
 
@@ -55,12 +49,12 @@ class Table with _TableMixin implements TitledNode {
     final columns = [
       Column(
         id: titleColumn,
-        rows: StringColumn(),
+        rows: const StringColumn(),
         title: 'Title',
       ),
       Column(
         id: ColumnID(),
-        rows: BooleanColumn(),
+        rows: const BooleanColumn(),
         title: 'Done',
       ),
     ];
@@ -82,15 +76,17 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
+  void addRow([int? index]) =>
+      rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
     atomically((table) {
-      final column = Column(rows: StringColumn());
+      final column = Column(rows: const StringColumn());
 
       table.columns[column.id] = Optional(column);
-      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
+      table.columnIDs
+          .insert(index ?? table.columnIDs.length.read(null), column.id);
 
       columnID = column.id;
     });
@@ -132,14 +128,14 @@ extension ColumnMutations on Cursor<Column> {
   void setType(ColumnRowsCase caze) {
     rows.set(
       caze.cases(
-        pageColumn: () => PageColumn(),
-        linkColumn: () => LinkColumn(),
-        selectColumn: () => SelectColumn(),
-        multiselectColumn: () => MultiselectColumn(),
-        dateColumn: () => DateColumn(),
-        booleanColumn: () => BooleanColumn(),
-        numColumn: () => NumColumn(),
-        stringColumn: () => StringColumn(),
+        pageColumn: () => const PageColumn(),
+        linkColumn: () => const LinkColumn(),
+        selectColumn: () => const SelectColumn(),
+        multiselectColumn: () => const MultiselectColumn(),
+        dateColumn: () => const DateColumn(),
+        booleanColumn: () => const BooleanColumn(),
+        numColumn: () => const NumColumn(),
+        stringColumn: () => const StringColumn(),
       ),
     );
   }
@@ -233,7 +229,8 @@ class Tag with _TagMixin {
   @override
   final flutter.Color color;
 
-  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
+  Tag({TagID? id, required this.name, required this.color})
+      : this.id = id ?? TagID();
 }
 
 @immutable
@@ -274,18 +271,64 @@ class PageColumn extends ColumnRows with _PageColumnMixin {
 }
 
 @immutable
-@reify
-class RowView with _RowViewMixin {
-  @override
-  final RowViewID id;
+class _TableDataSource extends DataSource {
+  final Cursor<Table> table;
 
-  RowView(this.id);
+  _TableDataSource(this.table);
+
+  @override
+  late final GetCursor<Vec<Datum>> data = GetCursor.compute((reader) {
+    final columns = table.columnIDs.read(reader);
+    return Vec([
+      for (final column in columns) _TableDatum(table.id.read(reader), column)
+    ]);
+  });
 }
 
-// class _RowViewCtx {}
+extension TableCtxExtension on Ctx {
+  Ctx withTable(Cursor<Table> table) => withElement(_TableDataSource(table));
+  Ctx withRow(RowID rowID) => withElement(_RowCtx(rowID));
+}
 
-// extension RowViewCtx on Ctx {
-//   Ctx withRowView(Cursor<Table> table) => withElement(_RowViewCtx, table);
-//   Cursor<Table> getRowView(Cursor<Table> table) => get(_RowViewCtx) as Cursor<Table>;
-//   bool hasRowView(Cursor<Table> table) => get(_RowViewCtx) != null;
-// }
+class _RowCtx extends CtxElement {
+  final RowID rowID;
+
+  _RowCtx(this.rowID);
+}
+
+@immutable
+@reify
+class _TableDatum extends Datum with _TableDatumMixin {
+  @override
+  final NodeID<Table> tableID;
+  @override
+  final ColumnID columnID;
+
+  _TableDatum(this.tableID, this.columnID);
+
+  @override
+  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx) {
+    final rowCtx = ctx.get<_RowCtx>();
+    if (rowCtx == null) return null;
+    final rowID = rowCtx.rowID;
+    final table = ctx.state.getNode(tableID);
+    final column = table.columns[columnID].whenPresent;
+    return column.rows.cases(
+      reader,
+      booleanColumn: (column) => column.values[rowID],
+      dateColumn: (column) => column.values[rowID],
+      linkColumn: (column) => column.values[rowID],
+      multiselectColumn: (column) => column.values[rowID],
+      numColumn: (column) => column.values[rowID],
+      pageColumn: (column) => column.values[rowID],
+      selectColumn: (column) => column.values[rowID],
+      stringColumn: (column) => column.values[rowID],
+    );
+  }
+
+  @override
+  GetCursor<String> name(Reader reader, Ctx ctx) {
+    final table = ctx.state.getNode(tableID);
+    return table.columns[columnID].whenPresent.title;
+  }
+}

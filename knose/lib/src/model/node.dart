@@ -30,7 +30,6 @@ abstract class TitledNode extends Node with _TitledNodeMixin {
 
 typedef NodeBuilderFn = flutter.Widget Function({
   required Ctx ctx,
-  required Cursor<State> state,
   required Dict<String, Cursor<Object>> fields,
   flutter.FocusNode? defaultFocus,
 });
@@ -41,9 +40,17 @@ abstract class NodeBuilder {
 
   NodeBuilderFn get build;
   bool canBuild(Ctx ctx) => true;
-  Dict<String, Datum> makeFields(Cursor<State> state);
+  Dict<String, Datum> makeFields(
+    Cursor<State> state,
+    NodeID<NodeView> nodeView,
+  );
   NodeID<NodeView> addView(Cursor<State> state) {
-    return state.addNode(NodeView(nodeBuilder: this, fields: makeFields(state)));
+    final nodeView = NodeID<NodeView>();
+    return state.addNode(NodeView(
+      id: nodeView,
+      nodeBuilder: this,
+      fields: makeFields(state, nodeView),
+    ));
   }
 }
 
@@ -53,8 +60,7 @@ abstract class TopLevelNodeBuilder extends NodeBuilder {
 
   Cursor<String> title({
     required Ctx ctx,
-    required Cursor<State> state,
-    required Dict<String, Cursor<Object>> fields,
+    required Dict<String, Cursor<Optional<Object>>> fields,
   });
 }
 
@@ -102,53 +108,50 @@ abstract class Datum {
   const Datum();
 
   @reify
-  DataBuilder get dataBuilder;
-}
+  GetCursor<String> name(Reader reader, Ctx ctx);
 
-extension DatumImpl on Cursor<Datum> {
-  GetCursor<String> name(Reader reader) => dataBuilder.read(reader).name(this);
-  Cursor<Object> build(Reader reader) => dataBuilder.read(reader).build(this);
-}
-
-abstract class DataBuilder {
-  const DataBuilder();
-
-  GetCursor<String> name(Cursor<Datum> datum);
-  Cursor<Object> build(Cursor<Datum> datum);
+  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx);
 }
 
 @immutable
 @reify
-class Literal<T> extends Datum with _LiteralMixin<T> {
-  const Literal(this.data);
+class Literal<T extends Optional<Object>> extends Datum with _LiteralMixin<T> {
+  const Literal({
+    required this.data,
+    required this.fieldName,
+    required this.nodeView,
+  });
+
+  @override
+  final String fieldName;
+
+  @override
+  final NodeID<NodeView> nodeView;
 
   @override
   final T data;
 
   @override
-  DataBuilder get dataBuilder => _LiteralBuilder();
-}
-
-class _LiteralBuilder extends DataBuilder {
-  _LiteralBuilder();
+  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx) {
+    return ctx.state
+        .getNode(nodeView)
+        .fields[fieldName]
+        .whenPresent
+        .cast<Literal>()
+        .data;
+  }
 
   @override
-  Cursor<Object> build(Cursor<Datum> datum) => datum.cast<Literal<Object>>().data;
-
-  @override
-  GetCursor<String> name(Cursor<Datum> datum) => const GetCursor('Literal');
+  GetCursor<String> name(Reader reader, Ctx ctx) => const GetCursor('Literal');
 }
 
 @immutable
 @reify
-class Text with _TextMixin implements Node {
-  @override
-  final NodeID<Text> id;
-
+class Text with _TextMixin {
   @override
   final Vec<TextElement> elements;
 
-  Text([this.elements = const Vec([PlainText('')]), NodeID<Text>? id]) : id = id ?? NodeID();
+  Text([this.elements = const Vec([PlainText('')])]);
 }
 
 @immutable

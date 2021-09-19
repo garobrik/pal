@@ -6,13 +6,13 @@ import 'package:knose/model.dart' as model;
 
 part 'search.g.dart';
 
-Route<void> generateSearchRoute(Cursor<model.State> state) {
+Route<void> generateSearchRoute(model.Ctx ctx) {
   return MaterialPageRoute(
     settings: const RouteSettings(name: 'search', arguments: model.SearchRoute()),
     builder: (_) => MainScaffold(
-      state: state,
+      ctx: ctx,
       replaceRouteOnPush: false,
-      body: SearchPage(state),
+      body: SearchPage(ctx),
     ),
   );
 }
@@ -21,7 +21,7 @@ Route<void> generateSearchRoute(Cursor<model.State> state) {
 Widget _searchPage(
   BuildContext context,
   Reader reader,
-  Cursor<model.State> state,
+  model.Ctx ctx,
 ) {
   final searchText = useCursor('');
 
@@ -54,21 +54,21 @@ Widget _searchPage(
           ),
         ),
       ),
-      ...state.nodes.keys.read(reader).expand((nodeID) {
+      ...ctx.state.nodes.keys.read(reader).expand((nodeID) {
         if (nodeID is! model.NodeID<model.NodeView>) {
           return [];
         }
-        final nodeView = state.getNode(nodeID);
+        final nodeView = ctx.state.getNode(nodeID);
         final builder = nodeView.nodeBuilder.read(reader);
         if (builder is! model.TopLevelNodeBuilder) {
           return [];
         }
         final fields = Dict({
           for (final field in nodeView.fields.keys.read(reader))
-            field: nodeView.fields[field].whenPresent.build(reader)
+          field: nodeView.fields[field].whenPresent.read(reader).build(reader, ctx)!
         });
         final title =
-            builder.title(ctx: const model.Ctx(), state: state, fields: fields).read(reader);
+            builder.title(ctx: ctx, fields: fields).read(reader);
         return [
           if (title.toLowerCase().startsWith(searchText.read(reader)))
             TextButton(

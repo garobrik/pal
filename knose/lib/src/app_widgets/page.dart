@@ -17,15 +17,22 @@ class PageBuilder extends model.TopLevelNodeBuilder {
   model.NodeBuilderFn get build => PageWidget.tearoff;
 
   @override
-  Dict<String, model.Datum> makeFields(Cursor<model.State> state) {
+  Dict<String, model.Datum> makeFields(
+    Cursor<model.State> state,
+    model.NodeID<model.NodeView> nodeView,
+  ) {
     return Dict({
-      'page': model.Literal<model.Page>(
-        model.Page(
-          title: 'Untitled page',
-          nodeViews: Vec([
-            const TextBuilder().addView(state),
-          ]),
+      'page': model.Literal(
+        data: Optional(
+          model.Page(
+            title: 'Untitled page',
+            nodeViews: Vec([
+              const TextBuilder().addView(state),
+            ]),
+          ),
         ),
+        nodeView: nodeView,
+        fieldName: 'page',
       )
     });
   }
@@ -33,10 +40,9 @@ class PageBuilder extends model.TopLevelNodeBuilder {
   @override
   Cursor<String> title({
     required model.Ctx ctx,
-    required Cursor<model.State> state,
-    required Dict<String, Cursor<Object>> fields,
+    required Dict<String, Cursor<Optional<Object>>> fields,
   }) {
-    return fields['page'].unwrap!.cast<model.Page>().title;
+    return fields['page'].unwrap!.cast<Optional<model.Page>>().whenPresent.title;
   }
 }
 
@@ -45,11 +51,10 @@ Widget _pageWidget(
   Reader reader,
   BuildContext context, {
   required model.Ctx ctx,
-  required Cursor<model.State> state,
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final page = fields['page'].unwrap!.cast<model.Page>();
+  final page = fields['page'].unwrap!.cast<Optional<model.Page>>().whenPresent;
 
   final focusForID = useMemoized(() {
     final foci = <model.NodeID<model.NodeView>, FocusNode>{};
@@ -92,7 +97,7 @@ Widget _pageWidget(
                         late final model.NodeID<model.NodeView> id;
                         page.nodeViews.insert(
                           index + 1,
-                          id = const TextBuilder().addView(state),
+                          id = const TextBuilder().addView(ctx.state),
                         );
                         focusForID(id).requestFocus();
                       },
@@ -102,15 +107,16 @@ Widget _pageWidget(
                         if (page.nodeViews.length.read(null) > 1) {
                           page.nodeViews.remove(index);
                         }
-                        focusForID(page.nodeViews[max(index - 1, 0)].read(null)).requestFocus();
+                        focusForID(page.nodeViews[max(index - 1, 0)].read(null))
+                            .requestFocus();
                       },
                     ),
                   },
                   child: NodeViewWidget(
                     ctx: ctx,
-                    state: state,
                     nodeViewID: page.nodeViews[index],
-                    defaultFocus: focusForID(page.nodeViews[index].read(reader)),
+                    defaultFocus:
+                        focusForID(page.nodeViews[index].read(reader)),
                   ),
                 ),
               ),
@@ -122,7 +128,8 @@ Widget _pageWidget(
 }
 
 @reader_widget
-Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> header) {
+Widget _pageHeader(
+    Reader reader, BuildContext context, Cursor<model.Header> header) {
   final textTheme = Theme.of(context).textTheme;
 
   return BoundTextFormField(

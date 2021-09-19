@@ -9,7 +9,7 @@ import 'package:knose/model.dart' as model;
 part 'node.g.dart';
 
 Route generateNodeRoute(
-  Cursor<model.State> state,
+  model.Ctx ctx,
   model.NodeID<model.NodeView> nodeViewID,
 ) {
   return MaterialPageRoute<void>(
@@ -17,10 +17,9 @@ Route generateNodeRoute(
       arguments: model.NodeRoute(nodeViewID),
     ),
     builder: (_) => MainScaffold(
-      state: state,
+      ctx: ctx,
       body: NodeViewWidget(
-        ctx: const model.Ctx(),
-        state: state,
+        ctx: ctx,
         nodeViewID: Cursor(nodeViewID),
       ),
       replaceRouteOnPush: false,
@@ -32,15 +31,29 @@ Route generateNodeRoute(
 Widget _nodeViewWidget(
   Reader reader, {
   required model.Ctx ctx,
-  required Cursor<model.State> state,
   required Cursor<model.NodeID<model.NodeView>> nodeViewID,
   FocusNode? defaultFocus,
 }) {
-  final nodeView = state.getNode(nodeViewID.read(reader));
+  final nodeView = ctx.state.getNode(nodeViewID.read(reader));
   final fields = Dict({
     for (final field in nodeView.fields.keys.read(reader))
-      field: nodeView.fields[field].whenPresent.build(reader)
+      field: nodeView.fields[field].whenPresent.read(reader).build(reader, ctx)
   });
+  late final Widget child;
+  if (fields.every((entry) => entry.value != null)) {
+    final nonnullFields = Dict(
+      {for (final field in fields) field.key: field.value!},
+    );
+
+    child = nodeView.nodeBuilder.read(reader).build(
+          ctx: ctx,
+          fields: nonnullFields,
+          defaultFocus: defaultFocus,
+        );
+  } else {
+    child = const Text('null fields :(');
+  }
+
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
 
@@ -61,15 +74,9 @@ Widget _nodeViewWidget(
         childAnchor: Alignment.bottomLeft,
         dropdown: NodeViewConfigWidget(
           ctx: ctx,
-          state: state,
           view: nodeView,
         ),
-        child: nodeView.nodeBuilder.read(reader).build(
-              ctx: ctx,
-              state: state,
-              fields: fields,
-              defaultFocus: defaultFocus,
-            ),
+        child: child,
       ),
     ),
   );
@@ -85,7 +92,6 @@ const builders = [
 @reader_widget
 Widget _nodeViewConfigWidget({
   required model.Ctx ctx,
-  required Cursor<model.State> state,
   required Cursor<model.NodeView> view,
 }) {
   return IntrinsicWidth(
@@ -97,7 +103,7 @@ Widget _nodeViewConfigWidget({
           TextButton(
             onPressed: () {
               if (view.nodeBuilder.read(null) != builder) {
-                view.fields.set(builder.makeFields(state));
+                view.fields.set(builder.makeFields(ctx.state, view.id.read(null)));
                 view.nodeBuilder.set(builder);
               }
             },
