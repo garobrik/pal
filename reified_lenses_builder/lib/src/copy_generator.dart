@@ -3,24 +3,22 @@ import 'package:reified_lenses/annotations.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
-Iterable<Param> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
+Pair<Class?, Iterable<Param>> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
-  if (cases.isNotEmpty) return const [];
+  if (cases.isNotEmpty) return const Pair(null, []);
 
-  late final Pair<Getter, Iterable<Param>> copyWithMethod;
   final ctor = _findCopyConstructor(clazz);
 
-  if (ctor == null) return [];
-  copyWithMethod = _generateConcreteCopyWithFunction(ctor);
-
-  Extension(
-    '${clazz.name}CopyWithExtension',
-    clazz.type,
+  if (ctor == null) return const Pair(null, []);
+  final Pair<Getter, Iterable<Param>> copyWithMethod = _generateConcreteCopyWithFunction(ctor);
+  final ext = Class(
+    clazz.isPrivate ? '${clazz.name}Mixin' : '_${clazz.name}Mixin',
+    isAbstract: true,
     params: clazz.params,
     accessors: [AccessorPair(copyWithMethod.first.name, getter: copyWithMethod.first)],
-  ).declare(output);
+  );
 
-  return copyWithMethod.second;
+  return Pair(ext, copyWithMethod.second);
 }
 
 // the nifty undefined trick used here for capturing the difference between explicitly passing null

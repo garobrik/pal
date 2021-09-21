@@ -38,7 +38,8 @@ class ReifiedLensesGenerator extends Generator {
     });
 
     for (final clazz in reifiedClasses) {
-      final copyWithParams = maybeGenerateCopyWithExtension(output, clazz);
+      final copyWithExtAndParams = maybeGenerateCopyWithExtension(output, clazz);
+      final copyWithParams = copyWithExtAndParams.second;
       final optics = [
         ...generateFieldOptics(clazz, copyWithParams),
         ...generateAccessorOptics(clazz),
@@ -52,6 +53,7 @@ class ReifiedLensesGenerator extends Generator {
       generateMutations(output, clazz);
 
       final mixins = <Class>[
+        if (copyWithExtAndParams.first != null) copyWithExtAndParams.first!,
         maybeGenerateSerialization(output, clazz, copyWithParams),
         equalityGenerator(output, clazz),
         maybeGenerateCasesExtension(output, clazz),

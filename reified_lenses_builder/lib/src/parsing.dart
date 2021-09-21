@@ -828,7 +828,7 @@ class Pair<A, B> {
   final A first;
   final B second;
 
-  Pair(this.first, this.second);
+  const Pair(this.first, this.second);
 }
 
 Iterable<Pair<A, B>> zip<A, B>(
