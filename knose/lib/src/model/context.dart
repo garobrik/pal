@@ -8,8 +8,7 @@ class Ctx {
   const Ctx(this.state) : this._elements = const Dict();
   const Ctx._(this.state, this._elements);
 
-  Ctx withElement<T extends CtxElement>(T element) =>
-      Ctx._(state, _elements.put(T, element));
+  Ctx withElement<T extends CtxElement>(T element) => Ctx._(state, _elements.put(T, element));
   Ctx removeElement<T extends CtxElement>() => Ctx._(state, _elements.remove(T));
   T? get<T extends CtxElement>() => _elements[T].unwrap as T?;
   Iterable<T> ofType<T extends CtxElement>() sync* {

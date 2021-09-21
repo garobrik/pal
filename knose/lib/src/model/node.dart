@@ -60,39 +60,81 @@ abstract class TopLevelNodeBuilder extends NodeBuilder {
 
   Cursor<String> title({
     required Ctx ctx,
-    required Dict<String, Cursor<Optional<Object>>> fields,
+    required Dict<String, Cursor<Object>> fields,
   });
+
+  @override
+  NodeID<NodeView<TopLevelNodeBuilder>> addView(Cursor<State> state) {
+    final nodeView = NodeID<NodeView<TopLevelNodeBuilder>>();
+    return state.addNode(NodeView(
+      id: nodeView,
+      nodeBuilder: this,
+      fields: makeFields(state, nodeView),
+    ));
+  }
 }
 
 @immutable
 @reify
-class NodeView with _NodeViewMixin implements Node {
+class NodeView<T extends NodeBuilder> with _NodeViewMixin<T> implements Node {
   @override
-  final NodeID<NodeView> id;
+  final NodeID<NodeView<T>> id;
 
   @override
   final Dict<String, Datum> fields;
 
   @override
-  final NodeBuilder nodeBuilder;
+  final T nodeBuilder;
 
   NodeView({
-    NodeID<NodeView>? id,
+    NodeID<NodeView<T>>? id,
     required this.nodeBuilder,
     required this.fields,
-  }) : id = id ?? NodeID<NodeView>();
+  }) : id = id ?? NodeID<NodeView<T>>();
 }
 
-@immutable
-@reify
-class Field<T extends Object> with _FieldMixin {
-  @override
-  final String name;
+extension NodeViewExtension on Cursor<NodeView> {
+  flutter.Widget? build({
+    required Ctx ctx,
+    required Reader reader,
+    flutter.FocusNode? defaultFocus,
+  }) {
+    final builder = nodeBuilder.read(reader);
+    final fields = this.fields.read(reader);
+    final fieldCursors = <String, Cursor<Object>>{};
+    for (final entry in fields) {
+      final cursor = entry.value.build(reader, ctx);
+      if (cursor == null) return null;
+      fieldCursors[entry.key] = cursor;
+    }
 
-  @override
-  final Datum data;
+    return builder.build(
+      ctx: ctx,
+      fields: Dict(fieldCursors),
+      defaultFocus: defaultFocus,
+    );
+  }
+}
 
-  Field({required this.name, required this.data});
+extension TopLevelNodeViewExtension on Cursor<NodeView<TopLevelNodeBuilder>> {
+  Cursor<String>? title({
+    required Ctx ctx,
+    required Reader reader,
+  }) {
+    final builder = nodeBuilder.read(reader);
+    final fields = this.fields.read(reader);
+    final fieldCursors = <String, Cursor<Object>>{};
+    for (final entry in fields) {
+      final cursor = entry.value.build(reader, ctx);
+      if (cursor == null) return null;
+      fieldCursors[entry.key] = cursor;
+    }
+
+    return builder.title(
+      ctx: ctx,
+      fields: Dict(fieldCursors),
+    );
+  }
 }
 
 @immutable
@@ -110,12 +152,12 @@ abstract class Datum {
   @reify
   GetCursor<String> name(Reader reader, Ctx ctx);
 
-  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx);
+  Cursor<Object>? build(Reader reader, Ctx ctx);
 }
 
 @immutable
 @reify
-class Literal<T extends Optional<Object>> extends Datum with _LiteralMixin<T> {
+class Literal<T extends Object> extends Datum with _LiteralMixin<T> {
   const Literal({
     required this.data,
     required this.fieldName,
@@ -132,13 +174,8 @@ class Literal<T extends Optional<Object>> extends Datum with _LiteralMixin<T> {
   final T data;
 
   @override
-  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx) {
-    return ctx.state
-        .getNode(nodeView)
-        .fields[fieldName]
-        .whenPresent
-        .cast<Literal>()
-        .data;
+  Cursor<Object>? build(Reader reader, Ctx ctx) {
+    return ctx.state.getNode(nodeView).fields[fieldName].whenPresent.cast<Literal>().data;
   }
 
   @override

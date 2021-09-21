@@ -55,20 +55,11 @@ Widget _searchPage(
         ),
       ),
       ...ctx.state.nodes.keys.read(reader).expand((nodeID) {
-        if (nodeID is! model.NodeID<model.NodeView>) {
+        if (nodeID is! model.NodeID<model.NodeView<model.TopLevelNodeBuilder>>) {
           return [];
         }
         final nodeView = ctx.state.getNode(nodeID);
-        final builder = nodeView.nodeBuilder.read(reader);
-        if (builder is! model.TopLevelNodeBuilder) {
-          return [];
-        }
-        final fields = Dict({
-          for (final field in nodeView.fields.keys.read(reader))
-          field: nodeView.fields[field].whenPresent.read(reader).build(reader, ctx)!
-        });
-        final title =
-            builder.title(ctx: ctx, fields: fields).read(reader);
+        final title = nodeView.title(ctx: ctx, reader: reader)!.read(reader);
         return [
           if (title.toLowerCase().startsWith(searchText.read(reader)))
             TextButton(

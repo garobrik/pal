@@ -105,8 +105,7 @@ Widget _listWidget(
                     child: NodeViewWidget(
                       ctx: ctx,
                       nodeViewID: list.nodeViews[index],
-                      defaultFocus:
-                          focusForID(list.nodeViews[index].read(reader)),
+                      defaultFocus: focusForID(list.nodeViews[index].read(reader)),
                     ),
                   ),
                 ),

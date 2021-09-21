@@ -31,7 +31,7 @@ Widget myApp() {
           final arguments = settings.arguments;
           if (arguments is model.Route) {
             return arguments.cases(
-              nodeRoute: (node) => generateNodeRoute(model.Ctx(state), node.id),
+              nodeRoute: (node) => generateNodeRoute(node.ctx ?? model.Ctx(state), node.id),
               tableRoute: (_) => null,
               pageRoute: (_) => null,
               searchRoute: (_) => generateSearchRoute(model.Ctx(state)),

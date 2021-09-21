@@ -21,7 +21,7 @@ class TableBuilder extends model.TopLevelNodeBuilder {
   ) {
     return Dict({
       'table': model.Literal(
-        data: Optional(model.Table.newDefault()),
+        data: model.Table.newDefault(),
         nodeView: nodeView,
         fieldName: 'table',
       )
@@ -31,13 +31,9 @@ class TableBuilder extends model.TopLevelNodeBuilder {
   @override
   Cursor<String> title({
     required model.Ctx ctx,
-    required Dict<String, Cursor<Optional<Object>>> fields,
+    required Dict<String, Cursor<Object>> fields,
   }) {
-    return fields['table']
-        .unwrap!
-        .cast<Optional<model.Table>>()
-        .whenPresent
-        .title;
+    return fields['table'].unwrap!.cast<model.Table>().title;
   }
 }
 
@@ -49,38 +45,55 @@ Widget _mainTableWidget(
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final table =
-      fields['table'].unwrap!.cast<Optional<model.Table>>().whenPresent;
+  final table = fields['table'].unwrap!.cast<model.Table>();
 
-  return Scrollable2D(
-    child: Container(
-      padding: const EdgeInsets.all(20),
-      child: IntrinsicWidth(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRectNotBottom(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).canvasColor,
-                  boxShadow: const [BoxShadow(blurRadius: 4)],
-                ),
-                child: TableHeader(table),
+  return Container(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsetsDirectional.only(bottom: 20),
+          child: IntrinsicWidth(
+            child: BoundTextFormField(
+              table.title,
+              style: Theme.of(context).textTheme.headline6,
+            ),
+          ),
+        ),
+        TableConfig(ctx: ctx, table: table),
+        Expanded(
+          child: Scrollable2D(
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRectNotBottom(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).canvasColor,
+                        boxShadow: const [BoxShadow(blurRadius: 4)],
+                        border: const Border(top: BorderSide()),
+                      ),
+                      child: TableHeader(table),
+                    ),
+                  ),
+                  TableRows(table),
+                  ElevatedButton(
+                    onPressed: () => table.addRow(),
+                    focusNode: defaultFocus,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: const [Icon(Icons.add), Text('New row')],
+                    ),
+                  )
+                ],
               ),
             ),
-            TableRows(table),
-            ElevatedButton(
-              onPressed: () => table.addRow(),
-              focusNode: defaultFocus,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: const [Icon(Icons.add), Text('New row')],
-              ),
-            )
-          ],
+          ),
         ),
-      ),
+      ],
     ),
   );
 }

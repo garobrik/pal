@@ -30,7 +30,7 @@ class Table with _TableMixin implements TitledNode {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Vec<NodeID<NodeView>> rowViews;
+  final Vec<NodeID<NodeView<TopLevelNodeBuilder>>> rowViews;
 
   Table({
     NodeID<Table>? id,
@@ -76,8 +76,7 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) =>
-      rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
 
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
@@ -85,8 +84,7 @@ extension TableMutations on Cursor<Table> {
       final column = Column(rows: const StringColumn());
 
       table.columns[column.id] = Optional(column);
-      table.columnIDs
-          .insert(index ?? table.columnIDs.length.read(null), column.id);
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
 
       columnID = column.id;
     });
@@ -229,8 +227,7 @@ class Tag with _TagMixin {
   @override
   final flutter.Color color;
 
-  Tag({TagID? id, required this.name, required this.color})
-      : this.id = id ?? TagID();
+  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
 }
 
 @immutable
@@ -279,9 +276,7 @@ class _TableDataSource extends DataSource {
   @override
   late final GetCursor<Vec<Datum>> data = GetCursor.compute((reader) {
     final columns = table.columnIDs.read(reader);
-    return Vec([
-      for (final column in columns) _TableDatum(table.id.read(reader), column)
-    ]);
+    return Vec([for (final column in columns) _TableDatum(table.id.read(reader), column)]);
   });
 }
 

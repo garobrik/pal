@@ -14,7 +14,7 @@ Route generateNodeRoute(
 ) {
   return MaterialPageRoute<void>(
     settings: RouteSettings(
-      arguments: model.NodeRoute(nodeViewID),
+      arguments: model.NodeRoute(nodeViewID, ctx: ctx),
     ),
     builder: (_) => MainScaffold(
       ctx: ctx,
@@ -35,24 +35,12 @@ Widget _nodeViewWidget(
   FocusNode? defaultFocus,
 }) {
   final nodeView = ctx.state.getNode(nodeViewID.read(reader));
-  final fields = Dict({
-    for (final field in nodeView.fields.keys.read(reader))
-      field: nodeView.fields[field].whenPresent.read(reader).build(reader, ctx)
-  });
-  late final Widget child;
-  if (fields.every((entry) => entry.value != null)) {
-    final nonnullFields = Dict(
-      {for (final field in fields) field.key: field.value!},
-    );
-
-    child = nodeView.nodeBuilder.read(reader).build(
-          ctx: ctx,
-          fields: nonnullFields,
-          defaultFocus: defaultFocus,
-        );
-  } else {
-    child = const Text('null fields :(');
-  }
+  final child = nodeView.build(
+        ctx: ctx,
+        defaultFocus: defaultFocus,
+        reader: reader,
+      ) ??
+      const Text('null fields :(');
 
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();

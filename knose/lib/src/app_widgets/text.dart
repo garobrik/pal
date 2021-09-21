@@ -14,7 +14,8 @@ class TextBuilder extends model.NodeBuilder {
   model.NodeBuilderFn get build => TextWidget.tearoff;
 
   @override
-  Dict<String, model.Datum> makeFields(Cursor<model.State> state, model.NodeID<model.NodeView> nodeView) {
+  Dict<String, model.Datum> makeFields(
+      Cursor<model.State> state, model.NodeID<model.NodeView> nodeView) {
     return Dict({
       'text': model.Literal(
         data: const Optional<model.Text>.none(),
@@ -38,8 +39,7 @@ Widget _textWidget(
   return Shortcuts(
     shortcuts: const {
       SingleActivator(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
-      SingleActivator(LogicalKeyboardKey.backspace, control: true):
-          DeleteNodeIntent(),
+      SingleActivator(LogicalKeyboardKey.backspace, control: true): DeleteNodeIntent(),
     },
     child: BoundTextFormField(
       text.elements[0].cast<model.PlainText>().text,
