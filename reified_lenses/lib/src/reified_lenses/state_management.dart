@@ -11,7 +11,10 @@ abstract class GetCursor<S> {
 
   GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
 
-  GetCursor<S1> cast<S1>() => thenGet(Getter<S, S1>.mkCast());
+  GetCursor<S1> cast<S1>() {
+    assert(read(null) is S1);
+    return thenGet(Getter<S, S1>.mkCast());
+  }
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
@@ -62,7 +65,10 @@ abstract class Cursor<S> implements GetCursor<S> {
   void mutResult(DiffResult<S> Function(S) f);
 
   @override
-  Cursor<S1> cast<S1>() => then(Lens<S, S1>.mkCast());
+  Cursor<S1> cast<S1>() {
+    assert(read(null) is S1);
+    return then(Lens<S, S1>.mkCast());
+  }
 
   V atomically<V>(V Function(Cursor<S> p1) f) {
     // TODO: implement
