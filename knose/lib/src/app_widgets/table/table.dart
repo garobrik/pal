@@ -52,41 +52,61 @@ Widget _mainTableWidget(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsetsDirectional.only(bottom: 20),
-          child: IntrinsicWidth(
-            child: BoundTextFormField(
-              table.title,
-              style: Theme.of(context).textTheme.headline6,
+        Row(
+          children: [
+            const OpenRowButton(),
+            Container(
+              padding: const EdgeInsetsDirectional.only(bottom: 20),
+              child: IntrinsicWidth(
+                child: BoundTextFormField(
+                  table.title,
+                  style: Theme.of(context).textTheme.headline6,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        TableConfig(ctx: ctx, table: table),
+        Row(
+          children: [
+            const OpenRowButton(),
+            TableConfig(ctx: ctx, table: table),
+          ],
+        ),
         Expanded(
           child: Scrollable2D(
             child: IntrinsicWidth(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRectNotBottom(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).canvasColor,
-                        boxShadow: const [BoxShadow(blurRadius: 4)],
-                        border: const Border(top: BorderSide()),
+                  Row(
+                    children: [
+                      const OpenRowButton(),
+                      ClipRectNotBottom(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).canvasColor,
+                            boxShadow: const [BoxShadow(blurRadius: 4)],
+                            border: const Border(top: BorderSide()),
+                          ),
+                          child: TableHeader(table),
+                        ),
                       ),
-                      child: TableHeader(table),
-                    ),
+                    ],
                   ),
-                  TableRows(table),
-                  ElevatedButton(
-                    onPressed: () => table.addRow(),
-                    focusNode: defaultFocus,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: const [Icon(Icons.add), Text('New row')],
-                    ),
+                  TableRows(ctx: ctx, table: table),
+                  Row(
+                    children: [
+                      const OpenRowButton(),
+                      ElevatedButton(
+                        onPressed: () => table.addRow(),
+                        focusNode: defaultFocus,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: const [Icon(Icons.add), Text('New row')],
+                        ),
+                      ),
+                    ],
                   )
                 ],
               ),

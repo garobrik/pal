@@ -9,7 +9,11 @@ import 'package:knose/model.dart' as model;
 part 'rows.g.dart';
 
 @reader_widget
-Widget _tableRows(Reader reader, Cursor<model.Table> table) {
+Widget _tableRows(
+  Reader reader, {
+  required Cursor<model.Table> table,
+  required model.Ctx ctx,
+}) {
   final scrollController = useScrollController();
 
   return ReorderableColumn(
@@ -23,8 +27,9 @@ Widget _tableRows(Reader reader, Cursor<model.Table> table) {
     children: [
       for (final rowID in table.rowIDs.read(reader))
         TableRow(
-          table,
-          rowID,
+          ctx: ctx,
+          table: table,
+          rowID: rowID,
           key: ValueKey(rowID),
         ),
     ],
@@ -33,71 +38,138 @@ Widget _tableRows(Reader reader, Cursor<model.Table> table) {
 
 @reader_widget
 Widget _tableRow(
-  Reader reader,
-  Cursor<model.Table> table,
-  model.RowID rowID, {
+  BuildContext context,
+  Reader reader, {
+  required model.Ctx ctx,
+  required Cursor<model.Table> table,
+  required model.RowID rowID,
   bool enabled = true,
   bool trailingNewColumnSpace = true,
 }) {
-  return Container(
-    decoration: BoxDecoration(border: Border(bottom: BorderSide())),
-    child: IntrinsicHeight(
+  final isHovered = useCursor(false);
+
+  return MouseRegion(
+    opaque: false,
+    onEnter: (_) => isHovered.set(true),
+    onHover: (_) => isHovered.set(true),
+    onExit: (_) => isHovered.set(false),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ReaderWidget(
+          builder: (_, reader) =>
+              isHovered.read(reader) && table.rowViews.length.read(reader) > 0
+                  ? OpenRowButton(
+                      nodeID: table.rowViews[0].read(reader),
+                      ctx: ctx.withTable(table).withRow(rowID),
+                    )
+                  : const OpenRowButton(),
+        ),
+        Container(
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
+          child: IntrinsicHeight(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final columnID in table.columnIDs.read(reader))
+                  Container(
+                    key: ValueKey(columnID),
+                    width:
+                        table.columns[columnID].whenPresent.width.read(reader),
+                    decoration: const BoxDecoration(
+                        border: Border(right: BorderSide())),
+                    child: table.columns[columnID].whenPresent.rows.cases(
+                      reader,
+                      stringColumn: (column) => StringField(
+                        string: column.values[rowID],
+                        enabled: enabled,
+                      ),
+                      numColumn: (column) => NumField(
+                        number: column.values[rowID],
+                        enabled: enabled,
+                      ),
+                      booleanColumn: (column) => Checkbox(
+                        onChanged: !enabled
+                            ? null
+                            : (newValue) => column.values[rowID] = newValue!
+                                ? const Optional(true)
+                                : const Optional.none(),
+                        value: column.values[rowID].orElse(false).read(reader),
+                      ),
+                      selectColumn: (column) => SelectField(
+                        column: column,
+                        row: column.values[rowID],
+                        enabled: enabled,
+                      ),
+                      multiselectColumn: (column) => MultiselectField(
+                        column: column,
+                        row: column.values[rowID].orElse(const CSet()),
+                        enabled: enabled,
+                      ),
+                      linkColumn: (column) => LinkField(
+                        ctx: ctx,
+                        column: column,
+                        rowCursor: column.values[rowID],
+                        enabled: enabled,
+                      ),
+                      dateColumn: (column) => Container(),
+                      pageColumn: (column) => Container(),
+                    ),
+                  ),
+                if (trailingNewColumnSpace)
+                  FocusTraversalGroup(
+                    descendantsAreFocusable: false,
+                    child: const Visibility(
+                      visible: false,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: NewColumnButton(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// TODO: make work with tab nav
+@reader_widget
+Widget _openRowButton(
+  BuildContext context, {
+  model.NodeID<model.NodeView>? nodeID,
+  model.Ctx? ctx,
+}) {
+  return AnimatedOpacity(
+    opacity: nodeID != null && ctx != null ? 1 : 0,
+    duration: const Duration(milliseconds: 300),
+    child: TextButton(
+      style: ButtonStyle(padding: MaterialStateProperty.all(EdgeInsets.zero)),
+      onPressed: (nodeID == null || ctx == null)
+          ? null
+          : () {
+              Navigator.pushNamed(
+                context,
+                '',
+                arguments: model.NodeRoute(
+                  nodeID,
+                  ctx: ctx,
+                ),
+              );
+            },
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final columnID in table.columnIDs.read(reader))
-            Container(
-              key: ValueKey(columnID),
-              width: table.columns[columnID].whenPresent.width.read(reader),
-              decoration: BoxDecoration(border: Border(right: BorderSide())),
-              child: table.columns[columnID].whenPresent.rows.cases(
-                reader,
-                stringColumn: (column) => StringField(
-                  string: column.values[rowID],
-                  enabled: enabled,
-                ),
-                numColumn: (column) => NumField(
-                  number: column.values[rowID],
-                  enabled: enabled,
-                ),
-                booleanColumn: (column) => Checkbox(
-                  onChanged: !enabled
-                      ? null
-                      : (newValue) => column.values[rowID] =
-                          newValue! ? const Optional(true) : const Optional.none(),
-                  value: column.values[rowID].orElse(false).read(reader),
-                ),
-                selectColumn: (column) => SelectField(
-                  column: column,
-                  row: column.values[rowID],
-                  enabled: enabled,
-                ),
-                multiselectColumn: (column) => MultiselectField(
-                  column: column,
-                  row: column.values[rowID].orElse(CSet()),
-                  enabled: enabled,
-                ),
-                linkColumn: (column) => LinkField(
-                  column: column,
-                  rowCursor: column.values[rowID],
-                  enabled: enabled,
-                ),
-                dateColumn: (column) => Container(),
-                pageColumn: (column) => Container(),
-              ),
-            ),
-          if (trailingNewColumnSpace)
-            FocusTraversalGroup(
-              descendantsAreFocusable: false,
-              child: const Visibility(
-                visible: false,
-                maintainSize: true,
-                maintainAnimation: true,
-                maintainState: true,
-                child: NewColumnButton(),
-              ),
-            ),
+        children: const [
+          Icon(
+            Icons.open_in_full,
+            size: 16,
+          ),
+          // Text('Open'),
         ],
       ),
     ),
@@ -108,6 +180,7 @@ Widget _tableRow(
 Widget _linkField(
   Reader reader,
   BuildContext context, {
+  required model.Ctx ctx,
   required Cursor<model.LinkColumn> column,
   required Cursor<Optional<model.RowID>> rowCursor,
   bool enabled = true,
@@ -115,7 +188,7 @@ Widget _linkField(
   final state = CursorProvider.of<model.State>(context);
   final isOpen = useCursor(false);
   final tableID = column.table.read(reader);
-  final title = (Reader reader) {
+  String? title(Reader reader) {
     final row = rowCursor.read(reader).unwrap;
     if (row == null || tableID == null) return null;
     final table = state.getNode(tableID);
@@ -124,7 +197,7 @@ Widget _linkField(
         .values[row]
         .read(reader)
         .unwrap;
-  };
+  }
 
   final focusForRow = useMemoized(() {
     final map = <model.RowID, FocusNode>{};
@@ -140,7 +213,7 @@ Widget _linkField(
   }
 
   return DeferredDropdown(
-    offset: Offset(-1, -1),
+    offset: const Offset(-1, -1),
     isOpen: isOpen,
     dropdownFocus: currentFocus,
     childAnchor: Alignment.topLeft,
@@ -170,8 +243,9 @@ Widget _linkField(
                   ),
                   onPressed: () => rowCursor.set(Optional(rowID)),
                   child: TableRow(
-                    table,
-                    rowID,
+                    ctx: ctx,
+                    table: table,
+                    rowID: rowID,
                     enabled: false,
                     trailingNewColumnSpace: false,
                     key: ValueKey(rowID),
@@ -184,11 +258,11 @@ Widget _linkField(
       },
     ),
     child: TextButton(
-      style: ButtonStyle(alignment: Alignment.centerLeft),
+      style: const ButtonStyle(alignment: Alignment.centerLeft),
       onPressed: (tableID == null || !enabled) ? null : () => isOpen.set(true),
       child: Text(
         title(reader) ?? '',
-        style: TextStyle(decoration: TextDecoration.underline),
+        style: const TextStyle(decoration: TextDecoration.underline),
       ),
     ),
   );
