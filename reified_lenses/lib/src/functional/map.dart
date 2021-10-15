@@ -100,6 +100,17 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
   Iterable<MapEntry<Key, Value>> get entries => this;
 
   @override
+  String toString() {
+    final buffer = StringBuffer();
+    buffer.write('{');
+    for (final entry in entries) {
+      buffer.write('${entry.key}: ${entry.value}, ');
+    }
+    buffer.write('}');
+    return buffer.toString();
+  }
+
+  @override
   bool operator ==(Object other) {
     if (other is! Dict<Key, Value>) return false;
     if (other.length != length) return false;

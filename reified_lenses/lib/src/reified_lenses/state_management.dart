@@ -4,17 +4,12 @@ import 'reified_lenses.dart';
 
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor;
-  factory GetCursor.compute(S Function(Reader) reader) =>
-      StateCursor(_ComputedState(reader), Getter.identity());
+  factory GetCursor.compute(S Function(Reader) reader, {bool compare = false}) =>
+      StateCursor(_ComputedState(reader, compare: compare), Getter.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
   GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
-
-  GetCursor<S1> cast<S1>() {
-    assert(read(null) is S1);
-    return thenGet(Getter<S, S1>.mkCast());
-  }
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
@@ -22,6 +17,13 @@ abstract class GetCursor<S> {
 
   @override
   String toString() => 'GetCursor(${read(null)})';
+}
+
+extension GetCursorHelpers<S> on GetCursor<S> {
+  Type type(Reader reader) => GetCursor.compute(
+        (reader) => this.read(reader).runtimeType,
+        compare: true,
+      ).read(reader);
 }
 
 abstract class Reader {
@@ -62,13 +64,8 @@ abstract class Cursor<S> implements GetCursor<S> {
 
   void set(S s) => mut((_) => s);
   void mut(S Function(S) f) => mutResult((s) => DiffResult.allChanged(f(s)));
+  void setResult(DiffResult<S> diff) => mutResult((_) => diff);
   void mutResult(DiffResult<S> Function(S) f);
-
-  @override
-  Cursor<S1> cast<S1>() {
-    assert(read(null) is S1);
-    return then(Lens<S, S1>.mkCast());
-  }
 
   V atomically<V>(V Function(Cursor<S> p1) f) {
     // TODO: implement
@@ -79,15 +76,47 @@ abstract class Cursor<S> implements GetCursor<S> {
   String toString() => 'Cursor(${read(null)})';
 }
 
+extension GetCursorPartial<S> on GetCursor<S> {
+  GetCursor<S1> partial<S1>(
+          {required S1? Function(S) to, DiffResult<S1?> Function(S old, S nu, Diff)? update}) =>
+      StateCursor(
+        _PartialViewState(viewed: this, to: to, update: update),
+        Getter.identity(),
+      );
+
+  GetCursor<S1> cast<S1 extends S>() {
+    assert(
+      this.read(null) is S1,
+      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+    );
+    return partial(
+      to: (s) => s is S1 ? s : null,
+      update: (_, nu, diff) => DiffResult(nu is S1 ? nu : null, diff),
+    );
+  }
+}
+
 extension CursorPartial<S> on Cursor<S> {
   Cursor<S1> partial<S1>(
           {required S1? Function(S) to,
           required DiffResult<S> Function(DiffResult<S1>) from,
           DiffResult<S1?> Function(S old, S nu, Diff)? update}) =>
       MutableStateCursor(
-        _PartialViewState(viewed: this, to: to, from: from, update: update),
+        _MutablePartialViewState(viewed: this, to: to, from: from, update: update),
         Lens.identity(),
       );
+
+  Cursor<S1> cast<S1 extends S>() {
+    assert(
+      this.read(null) is S1,
+      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+    );
+    return partial(
+      to: (s) => s is S1 ? s : null,
+      from: (s1) => s1,
+      update: (_, nu, diff) => DiffResult(nu is S1 ? nu : null, diff),
+    );
+  }
 }
 
 abstract class ListenableState<T> {
@@ -126,6 +155,11 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
         .forEach((f) => f(origState, _state, result.diff));
     return result;
   }
+
+  @override
+  String toString() {
+    return 'ListenableStatebase<$T>';
+  }
 }
 
 abstract class StateCursorBase<T, S> implements GetCursor<S> {
@@ -140,8 +174,9 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
 
   @override
   S read(Reader? r) {
+    final currentState = lens.get(state.currentState);
     r?.handleDispose(listen((_, __, ___) => r.onChanged()));
-    return lens.get(state.currentState);
+    return currentState;
   }
 
   @override
@@ -170,6 +205,26 @@ class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
   StateCursor(this.state, this.lens);
 }
 
+class CallbackStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
+  @override
+  final ListenableState<T> state;
+  @override
+  final Lens<T, S> lens;
+  final void Function(DiffResult<T> diff) callback;
+
+  CallbackStateCursor(this.state, this.lens, this.callback);
+
+  @override
+  void mutResult(DiffResult<S> Function(S p1) f) {
+    callback(lens.mutDiff(state.currentState, f));
+  }
+
+  @override
+  Cursor<S2> then<S2>(Lens<S, S2> lens) {
+    return CallbackStateCursor(state, this.lens.then(lens), callback);
+  }
+}
+
 @immutable
 class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
   @override
@@ -187,6 +242,11 @@ class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
   @override
   void mutResult(DiffResult<S> Function(S) f) {
     state.transformAndNotify((t) => lens.mutDiff(t, f));
+  }
+
+  @override
+  String toString() {
+    return 'MutableStateCursor(${this.read(null)}, ${lens.path}, $state)';
   }
 }
 
@@ -209,11 +269,14 @@ class _ValueCursor<S> with GetCursor<S> {
 }
 
 extension CursorOptional<T> on Cursor<Optional<T>> {
-  Cursor<T> get whenPresent => partial(
-        to: (t) => t.unwrap,
-        from: (diff) => DiffResult(Optional(diff.value), diff.diff),
-        update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
-      );
+  Cursor<T> get whenPresent {
+    assert(this.read(null).unwrap != null);
+    return partial(
+      to: (t) => t.unwrap,
+      from: (diff) => DiffResult(Optional(diff.value), diff.diff),
+      update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
+    );
+  }
 
   Cursor<T> orElse(T defaultValue) => then(Lens(
         Path.empty(),
@@ -233,19 +296,19 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
   }
 
   bool dirty = false;
+  final bool compare;
 
   @override
   T get currentState {
     if (dirty) {
-      _state.transformAndNotify(
-        (_) => DiffResult(computation(this), const Diff.allChanged()),
-      );
+      print(_state._listenables.isEmpty);
+      onChanged();
       dirty = false;
     }
     return _state.currentState;
   }
 
-  _ComputedState(this.computation);
+  _ComputedState(this.computation, {this.compare = false});
 
   @override
   void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
@@ -273,32 +336,29 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
       f();
     }
     disposals.clear();
+
+    final newState = computation(this);
+    late final Diff diff;
+    if (compare && newState == _state.currentState) {
+      diff = const Diff();
+    } else {
+      diff = const Diff.allChanged();
+    }
+
     _state.transformAndNotify(
-      (_) => DiffResult(computation(this), const Diff.allChanged()),
+      (_) => DiffResult(newState, diff),
     );
   }
 }
 
-class _PartialViewState<T, S> implements MutableListenableState<S> {
-  final Cursor<T> viewed;
-  final S? Function(T) to;
-  final DiffResult<T> Function(DiffResult<S>) from;
-  final DiffResult<S?> Function(T old, T nu, Diff)? update;
-  void Function()? disposeListener;
+abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
+  GetCursor<T> get viewed;
+  S? Function(T) get to;
+  DiffResult<S?> Function(T old, T nu, Diff)? get update;
+  void Function()? get disposeListener;
+  set disposeListener(void Function()? disposeListener);
 
-  ListenableStateBase<S>? _stateVar;
-
-  _PartialViewState({
-    required this.viewed,
-    required this.to,
-    required this.from,
-    this.update,
-  });
-
-  ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
-    return _stateVar!;
-  }
+  ListenableStateBase<S> get _state;
 
   @override
   S get currentState => _state.currentState;
@@ -329,11 +389,70 @@ class _PartialViewState<T, S> implements MutableListenableState<S> {
       }
     };
   }
+}
+
+class _PartialViewState<T, S> with _PartialViewStateBase<T, S> {
+  @override
+  final GetCursor<T> viewed;
+  @override
+  final S? Function(T) to;
+  @override
+  final DiffResult<S?> Function(T old, T nu, Diff)? update;
+  @override
+  void Function()? disposeListener;
+
+  ListenableStateBase<S>? _stateVar;
+
+  _PartialViewState({
+    required this.viewed,
+    required this.to,
+    this.update,
+  });
+
+  @override
+  ListenableStateBase<S> get _state {
+    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
+    return _stateVar!;
+  }
+}
+
+class _MutablePartialViewState<T, S>
+    with _PartialViewStateBase<T, S>
+    implements MutableListenableState<S> {
+  @override
+  final Cursor<T> viewed;
+  @override
+  final S? Function(T) to;
+  final DiffResult<T> Function(DiffResult<S>) from;
+  @override
+  final DiffResult<S?> Function(T old, T nu, Diff)? update;
+  @override
+  void Function()? disposeListener;
+
+  ListenableStateBase<S>? _stateVar;
+
+  _MutablePartialViewState({
+    required this.viewed,
+    required this.to,
+    required this.from,
+    this.update,
+  });
+
+  @override
+  ListenableStateBase<S> get _state {
+    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
+    return _stateVar!;
+  }
 
   @override
   DiffResult<S> transformAndNotify(DiffResult<S> Function(S p1) transform) {
     final result = transform(_state.currentState);
-    viewed.mutResult((_) => from(result));
+    viewed.setResult(from(result));
     return result;
+  }
+
+  @override
+  String toString() {
+    return 'MutablePartialViewState<$S>($viewed)';
   }
 }

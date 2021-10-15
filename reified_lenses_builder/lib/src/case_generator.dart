@@ -134,8 +134,7 @@ Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
       [],
       named: {
         for (final caseParam in zip(cases, params))
-          '${_caseArgName(caseParam.first)}':
-              '() => ${caseParam.second.name}(this.partial(to: ReifiedHelpers.caseTo, from: ReifiedHelpers.caseFrom, update: ReifiedHelpers.caseUpdate,))'
+          '${_caseArgName(caseParam.first)}': '() => ${caseParam.second.name}(this.cast())'
       },
     ),
   );
