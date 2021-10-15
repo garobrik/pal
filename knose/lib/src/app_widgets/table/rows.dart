@@ -58,13 +58,12 @@ Widget _tableRow(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         ReaderWidget(
-          builder: (_, reader) =>
-              isHovered.read(reader) && table.rowViews.length.read(reader) > 0
-                  ? OpenRowButton(
-                      nodeID: table.rowViews[0].read(reader),
-                      ctx: ctx.withTable(table).withRow(rowID),
-                    )
-                  : const OpenRowButton(),
+          builder: (_, reader) => isHovered.read(reader) && table.rowViews.length.read(reader) > 0
+              ? OpenRowButton(
+                  nodeID: table.rowViews[0].read(reader),
+                  ctx: ctx.withTable(table).withRow(rowID),
+                )
+              : const OpenRowButton(),
         ),
         Container(
           decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
@@ -76,10 +75,8 @@ Widget _tableRow(
                 for (final columnID in table.columnIDs.read(reader))
                   Container(
                     key: ValueKey(columnID),
-                    width:
-                        table.columns[columnID].whenPresent.width.read(reader),
-                    decoration: const BoxDecoration(
-                        border: Border(right: BorderSide())),
+                    width: table.columns[columnID].whenPresent.width.read(reader),
+                    decoration: const BoxDecoration(border: Border(right: BorderSide())),
                     child: table.columns[columnID].whenPresent.rows.cases(
                       reader,
                       stringColumn: (column) => StringField(
@@ -93,9 +90,8 @@ Widget _tableRow(
                       booleanColumn: (column) => Checkbox(
                         onChanged: !enabled
                             ? null
-                            : (newValue) => column.values[rowID] = newValue!
-                                ? const Optional(true)
-                                : const Optional.none(),
+                            : (newValue) => column.values[rowID] =
+                                newValue! ? const Optional(true) : const Optional.none(),
                         value: column.values[rowID].orElse(false).read(reader),
                       ),
                       selectColumn: (column) => SelectField(

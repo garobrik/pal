@@ -169,6 +169,11 @@ class StringColumn extends ColumnRows with _StringColumnMixin {
   final Dict<RowID, String> values;
 
   const StringColumn({this.values = const Dict()});
+
+  @override
+  String toString() {
+    return 'StringColumn($values)';
+  }
 }
 
 @immutable
@@ -302,7 +307,7 @@ class _TableDatum extends Datum with _TableDatumMixin {
   _TableDatum(this.tableID, this.columnID);
 
   @override
-  Cursor<Optional<Object>>? build(Reader reader, Ctx ctx) {
+  Cursor<Object>? build(Reader reader, Ctx ctx) {
     final rowCtx = ctx.get<_RowCtx>();
     if (rowCtx == null) return null;
     final rowID = rowCtx.rowID;
@@ -317,7 +322,7 @@ class _TableDatum extends Datum with _TableDatumMixin {
       numColumn: (column) => column.values[rowID],
       pageColumn: (column) => column.values[rowID],
       selectColumn: (column) => column.values[rowID],
-      stringColumn: (column) => column.values[rowID],
+      stringColumn: (column) => column.values[rowID].orElse(''),
     );
   }
 

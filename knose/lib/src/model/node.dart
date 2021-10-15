@@ -58,9 +58,10 @@ abstract class NodeBuilder {
 abstract class TopLevelNodeBuilder extends NodeBuilder {
   const TopLevelNodeBuilder();
 
-  Cursor<String> title({
+  String title({
     required Ctx ctx,
     required Dict<String, Cursor<Object>> fields,
+    required Reader reader,
   });
 
   @override
@@ -117,7 +118,7 @@ extension NodeViewExtension on Cursor<NodeView> {
 }
 
 extension TopLevelNodeViewExtension on Cursor<NodeView<TopLevelNodeBuilder>> {
-  Cursor<String>? title({
+  String? title({
     required Ctx ctx,
     required Reader reader,
   }) {
@@ -133,6 +134,7 @@ extension TopLevelNodeViewExtension on Cursor<NodeView<TopLevelNodeBuilder>> {
     return builder.title(
       ctx: ctx,
       fields: Dict(fieldCursors),
+      reader: reader,
     );
   }
 }
@@ -149,7 +151,6 @@ abstract class DataSource implements CtxElement {
 abstract class Datum {
   const Datum();
 
-  @reify
   GetCursor<String> name(Reader reader, Ctx ctx);
 
   Cursor<Object>? build(Reader reader, Ctx ctx);

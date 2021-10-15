@@ -19,9 +19,11 @@ class TableBuilder extends model.TopLevelNodeBuilder {
     Cursor<model.State> state,
     model.NodeID<model.NodeView> nodeView,
   ) {
+    final table = model.Table.newDefault();
+    state.addNode(table);
     return Dict({
       'table': model.Literal(
-        data: model.Table.newDefault(),
+        data: table.id,
         nodeView: nodeView,
         fieldName: 'table',
       )
@@ -29,11 +31,13 @@ class TableBuilder extends model.TopLevelNodeBuilder {
   }
 
   @override
-  Cursor<String> title({
+  String title({
     required model.Ctx ctx,
     required Dict<String, Cursor<Object>> fields,
+    required Reader reader,
   }) {
-    return fields['table'].unwrap!.cast<model.Table>().title;
+    final tableID = fields['table'].unwrap!.cast<model.NodeID<model.Table>>().read(reader);
+    return ctx.state.getNode(tableID).title.read(reader);
   }
 }
 
@@ -45,7 +49,8 @@ Widget _mainTableWidget(
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final table = fields['table'].unwrap!.cast<model.Table>();
+  final tableID = fields['table'].unwrap!.cast<model.NodeID<model.Table>>().read(reader);
+  final table = ctx.state.getNode(tableID);
 
   return Container(
     padding: const EdgeInsets.all(20),

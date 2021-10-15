@@ -39,7 +39,7 @@ Widget _tableConfig(
                         ctx: ctx.withTable(table),
                       ),
                     ),
-                    child: Text(title.read(reader)),
+                    child: Text(title),
                   );
                 },
               ),

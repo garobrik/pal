@@ -15,7 +15,9 @@ class TextBuilder extends model.NodeBuilder {
 
   @override
   Dict<String, model.Datum> makeFields(
-      Cursor<model.State> state, model.NodeID<model.NodeView> nodeView) {
+    Cursor<model.State> state,
+    model.NodeID<model.NodeView> nodeView,
+  ) {
     return Dict({
       'text': model.Literal(
         data: const Optional<model.Text>.none(),
@@ -34,7 +36,19 @@ Widget _textWidget(
   required Dict<String, Cursor<Object>> fields,
   FocusNode? defaultFocus,
 }) {
-  final text = fields['text'].unwrap!.cast<Optional<model.Text>>().orElse(model.Text());
+  final text = fields['text'].unwrap!;
+  final type = text.type(reader);
+  late final Cursor<String> stringCursor;
+  if (type == String) {
+    stringCursor = text.cast<String>();
+  } else {
+    stringCursor = text
+        .cast<Optional<model.Text>>()
+        .orElse(model.Text())
+        .elements[0]
+        .cast<model.PlainText>()
+        .text;
+  }
 
   return Shortcuts(
     shortcuts: const {
@@ -42,7 +56,7 @@ Widget _textWidget(
       SingleActivator(LogicalKeyboardKey.backspace, control: true): DeleteNodeIntent(),
     },
     child: BoundTextFormField(
-      text.elements[0].cast<model.PlainText>().text,
+      stringCursor,
       maxLines: null,
       focusNode: defaultFocus,
     ),

@@ -36,11 +36,12 @@ class PageBuilder extends model.TopLevelNodeBuilder {
   }
 
   @override
-  Cursor<String> title({
+  String title({
     required model.Ctx ctx,
     required Dict<String, Cursor<Object>> fields,
+    required Reader reader,
   }) {
-    return fields['page'].unwrap!.cast<model.Page>().title;
+    return fields['page'].unwrap!.cast<model.Page>().title.read(reader);
   }
 }
 

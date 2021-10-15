@@ -59,7 +59,7 @@ Widget _searchPage(
           return [];
         }
         final nodeView = ctx.state.getNode(nodeID);
-        final title = nodeView.title(ctx: ctx, reader: reader)!.read(reader);
+        final title = nodeView.title(ctx: ctx, reader: reader)!;
         return [
           if (title.toLowerCase().startsWith(searchText.read(reader)))
             TextButton(

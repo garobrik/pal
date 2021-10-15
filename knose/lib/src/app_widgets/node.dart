@@ -78,25 +78,75 @@ const builders = [
 ];
 
 @reader_widget
-Widget _nodeViewConfigWidget({
+Widget _nodeViewConfigWidget(
+  Reader reader, {
   required model.Ctx ctx,
   required Cursor<model.NodeView> view,
 }) {
+  final isOpen = useCursor(false);
+
   return IntrinsicWidth(
     child: Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final builder in builders)
-          TextButton(
-            onPressed: () {
-              if (view.nodeBuilder.read(null) != builder) {
-                view.fields.set(builder.makeFields(ctx.state, view.id.read(null)));
-                view.nodeBuilder.set(builder);
-              }
+        for (final fieldName in view.fields.keys.read(reader))
+          ReaderWidget(
+            builder: (_, reader) {
+              final fieldIsOpen = useCursor(false);
+              return DeferredDropdown(
+                isOpen: fieldIsOpen,
+                dropdown: IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final dataSource in ctx.ofType<model.DataSource>())
+                        for (final datum in dataSource.data.read(reader))
+                          TextButton(
+                            onPressed: () => view.fields[fieldName] = Optional(datum),
+                            child: Text(datum.name(reader, ctx).read(reader)),
+                          ),
+                    ],
+                  ),
+                ),
+                child: TextButton(
+                  onPressed: () => fieldIsOpen.set(!fieldIsOpen.read(null)),
+                  child: Text(
+                    '$fieldName: ' +
+                        view.fields[fieldName].whenPresent
+                            .read(reader)
+                            .name(reader, ctx)
+                            .read(reader),
+                  ),
+                ),
+              );
             },
-            child: Row(children: [Text('${builder.runtimeType}')]),
           ),
+        DeferredDropdown(
+          isOpen: isOpen,
+          childAnchor: Alignment.topRight,
+          dropdown: IntrinsicWidth(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final builder in builders)
+                  TextButton(
+                    onPressed: () {
+                      if (view.nodeBuilder.read(null) != builder) {
+                        view.fields.set(builder.makeFields(ctx.state, view.id.read(null)));
+                        view.nodeBuilder.set(builder);
+                      }
+                    },
+                    child: Row(children: [Text('${builder.runtimeType}')]),
+                  ),
+              ],
+            ),
+          ),
+          child: TextButton(
+            onPressed: () => isOpen.set(!isOpen.read(null)),
+            child: const Text('View type'),
+          ),
+        ),
       ],
     ),
   );
