@@ -301,7 +301,6 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
   @override
   T get currentState {
     if (dirty) {
-      print(_state._listenables.isEmpty);
       onChanged();
       dirty = false;
     }
