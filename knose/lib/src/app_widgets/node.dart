@@ -103,7 +103,7 @@ Widget _nodeViewConfigWidget(
                         for (final datum in dataSource.data.read(reader))
                           TextButton(
                             onPressed: () => view.fields[fieldName] = Optional(datum),
-                            child: Text(datum.name(reader, ctx).read(reader)),
+                            child: Text(datum.name(reader, ctx)),
                           ),
                     ],
                   ),
@@ -112,10 +112,7 @@ Widget _nodeViewConfigWidget(
                   onPressed: () => fieldIsOpen.set(!fieldIsOpen.read(null)),
                   child: Text(
                     '$fieldName: ' +
-                        view.fields[fieldName].whenPresent
-                            .read(reader)
-                            .name(reader, ctx)
-                            .read(reader),
+                        view.fields[fieldName].whenPresent.read(reader).name(reader, ctx),
                   ),
                 ),
               );

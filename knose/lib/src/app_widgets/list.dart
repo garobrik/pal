@@ -23,6 +23,8 @@ class ListBuilder extends model.NodeBuilder {
   ) {
     return Dict({
       'list': model.Literal(
+        // TODO: fix type
+        typeData: const model.ListType(model.booleanType),
         data: Optional(
           model.List(
             nodeViews: Vec([const TextBuilder().addView(state)]),

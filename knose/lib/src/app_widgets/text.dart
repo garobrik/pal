@@ -20,6 +20,8 @@ class TextBuilder extends model.NodeBuilder {
   ) {
     return Dict({
       'text': model.Literal(
+        // TODO: fix type
+        typeData: model.UnionType({model.plainTextType, model.booleanType}),
         data: const Optional<model.Text>.none(),
         nodeView: nodeView,
         fieldName: 'text',

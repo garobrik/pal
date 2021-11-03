@@ -151,15 +151,18 @@ abstract class DataSource implements CtxElement {
 abstract class Datum {
   const Datum();
 
-  GetCursor<String> name(Reader reader, Ctx ctx);
+  String name(Reader reader, Ctx ctx);
+
+  TypeEnum type(Reader reader, Ctx ctx);
 
   Cursor<Object>? build(Reader reader, Ctx ctx);
 }
 
 @immutable
 @reify
-class Literal<T extends Object> extends Datum with _LiteralMixin<T> {
+class Literal extends Datum with _LiteralMixin {
   const Literal({
+    required this.typeData,
     required this.data,
     required this.fieldName,
     required this.nodeView,
@@ -172,7 +175,13 @@ class Literal<T extends Object> extends Datum with _LiteralMixin<T> {
   final NodeID<NodeView> nodeView;
 
   @override
-  final T data;
+  final Object data;
+
+  @override
+  final TypeEnum typeData;
+
+  @override
+  TypeEnum type(Reader reader, Ctx ctx) => typeData;
 
   @override
   Cursor<Object>? build(Reader reader, Ctx ctx) {
@@ -180,7 +189,7 @@ class Literal<T extends Object> extends Datum with _LiteralMixin<T> {
   }
 
   @override
-  GetCursor<String> name(Reader reader, Ctx ctx) => const GetCursor('Literal');
+  String name(Reader reader, Ctx ctx) => 'Literal';
 }
 
 @immutable

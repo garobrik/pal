@@ -23,6 +23,8 @@ class PageBuilder extends model.TopLevelNodeBuilder {
   ) {
     return Dict({
       'page': model.Literal(
+        // TODO: fix type
+        typeData: model.booleanType,
         data: model.Page(
           title: 'Untitled page',
           nodeViews: Vec([

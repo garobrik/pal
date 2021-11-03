@@ -6,3 +6,4 @@ export 'src/model/node.dart';
 export 'src/model/state.dart';
 export 'src/model/list.dart';
 export 'src/model/context.dart';
+export 'src/model/types.dart';

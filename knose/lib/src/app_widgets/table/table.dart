@@ -23,6 +23,8 @@ class TableBuilder extends model.TopLevelNodeBuilder {
     state.addNode(table);
     return Dict({
       'table': model.Literal(
+        // TODO: fix type
+        typeData: model.booleanType,
         data: table.id,
         nodeView: nodeView,
         fieldName: 'table',

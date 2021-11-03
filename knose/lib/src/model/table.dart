@@ -108,6 +108,10 @@ class Column with _ColumnMixin {
   @override
   final ColumnID id;
   @override
+  final TypeEnum type;
+  @override
+  final Dict<RowID, Object> values;
+  @override
   final ColumnRows rows;
   @override
   final double width;
@@ -117,6 +121,9 @@ class Column with _ColumnMixin {
   Column({
     ColumnID? id,
     required this.rows,
+    // TODO: fix type
+    this.type = booleanType,
+    this.values = const Dict(),
     this.width = 100,
     this.title = '',
   }) : this.id = id ?? ColumnID();
@@ -327,8 +334,14 @@ class _TableDatum extends Datum with _TableDatumMixin {
   }
 
   @override
-  GetCursor<String> name(Reader reader, Ctx ctx) {
+  String name(Reader reader, Ctx ctx) {
     final table = ctx.state.getNode(tableID);
-    return table.columns[columnID].whenPresent.title;
+    return table.columns[columnID].whenPresent.title.read(reader);
+  }
+
+  @override
+  TypeEnum type(Reader reader, Ctx ctx) {
+    final table = ctx.state.getNode(tableID);
+    return table.columns[columnID].whenPresent.type.read(reader);
   }
 }
