@@ -21,46 +21,49 @@ Widget _tableConfig(
     children: [
       DeferredDropdown(
         isOpen: isOpen,
-        dropdown: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final rowView in table.rowViews.values(reader))
-              ReaderWidget(
-                builder: (_, reader) {
-                  final nodeView = ctx.state.getNode(rowView.read(reader));
-                  final title = nodeView.title(ctx: ctx, reader: reader)!;
+        dropdown: IntrinsicWidth(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final rowView in table.rowViews.values(reader))
+                ReaderWidget(
+                  builder: (_, reader) {
+                    final nodeView = ctx.state.getNode(rowView.read(reader));
+                    final title = nodeView.title(ctx: ctx, reader: reader)!;
 
-                  return TextButton(
-                    onPressed: () => Navigator.pushNamed(
-                      context,
-                      '',
-                      arguments: model.NodeRoute(
-                        rowView.read(reader),
-                        ctx: ctx.withTable(table),
+                    return TextButton(
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        '',
+                        arguments: model.NodeRoute(
+                          rowView.read(reader),
+                          ctx: ctx.withTable(table),
+                        ),
                       ),
+                      child: Row(children: [Text(title)]),
+                    );
+                  },
+                ),
+              TextButton(
+                onPressed: () {
+                  final nodeViewID = const PageBuilder().addView(ctx.state);
+                  table.rowViews.add(nodeViewID);
+                  Navigator.pushNamed(
+                    context,
+                    '',
+                    arguments: model.NodeRoute(
+                      nodeViewID,
+                      ctx: ctx.withTable(table),
                     ),
-                    child: Text(title),
                   );
                 },
-              ),
-            TextButton(
-              onPressed: () {
-                final nodeViewID = const PageBuilder().addView(ctx.state);
-                table.rowViews.add(nodeViewID);
-                Navigator.pushNamed(
-                  context,
-                  '',
-                  arguments: model.NodeRoute(
-                    nodeViewID,
-                    ctx: ctx.withTable(table),
-                  ),
-                );
-              },
-              child: Row(
-                children: const [Icon(Icons.add), Text('New row view')],
-              ),
-            )
-          ],
+                child: Row(
+                  children: const [Icon(Icons.add), Text('New row view')],
+                ),
+              )
+            ],
+          ),
         ),
         child: TextButton(
           onPressed: () => isOpen.set(!isOpen.read(null)),
