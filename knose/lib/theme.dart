@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 ThemeData theme(MaterialColor swatch, Brightness brightness) {
   final colorScheme = ColorScheme.fromSwatch(primarySwatch: swatch, brightness: brightness);
@@ -12,6 +13,9 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(
         foregroundColor: MaterialStateProperty.all(colorScheme.onSurface),
+        mouseCursor: MaterialStateProperty.resolveWith(
+          (states) => states.contains(MaterialState.disabled) ? SystemMouseCursors.basic : null,
+        ),
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
@@ -33,7 +37,7 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
       filled: true,
       isDense: true,
       isCollapsed: true,
-      contentPadding: EdgeInsets.all(10),
+      contentPadding: const EdgeInsets.all(10),
       fillColor: colorScheme.background,
       border: InputBorder.none,
       focusedBorder: OutlineInputBorder(
@@ -55,7 +59,7 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(4),
           ),
-          labelPadding: EdgeInsets.symmetric(horizontal: 2),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 2),
           padding: EdgeInsets.zero,
         ),
   );
