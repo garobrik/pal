@@ -49,12 +49,12 @@ class Table with _TableMixin implements TitledNode {
     final columns = [
       Column(
         id: titleColumn,
-        rows: const StringColumn(),
+        type: plainTextType,
         title: 'Title',
       ),
       Column(
         id: ColumnID(),
-        rows: const BooleanColumn(),
+        type: booleanType,
         title: 'Done',
       ),
     ];
@@ -81,7 +81,7 @@ extension TableMutations on Cursor<Table> {
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
     atomically((table) {
-      final column = Column(rows: const StringColumn());
+      final column = Column(type: plainTextType);
 
       table.columns[column.id] = Optional(column);
       table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
@@ -112,7 +112,7 @@ class Column with _ColumnMixin {
   @override
   final Dict<RowID, Object> values;
   @override
-  final ColumnRows rows;
+  final Object? columnConfig;
   @override
   final double width;
   @override
@@ -120,85 +120,30 @@ class Column with _ColumnMixin {
 
   Column({
     ColumnID? id,
-    required this.rows,
-    // TODO: fix type
-    this.type = booleanType,
+    required this.type,
     this.values = const Dict(),
     this.width = 100,
     this.title = '',
+    this.columnConfig,
   }) : this.id = id ?? ColumnID();
 }
 
 extension ColumnMutations on Cursor<Column> {
-  void setType(ColumnRowsCase caze) {
-    rows.set(
-      caze.cases(
-        pageColumn: () => const PageColumn(),
-        linkColumn: () => const LinkColumn(),
-        selectColumn: () => const SelectColumn(),
-        multiselectColumn: () => const MultiselectColumn(),
-        dateColumn: () => const DateColumn(),
-        booleanColumn: () => const BooleanColumn(),
-        numColumn: () => const NumColumn(),
-        stringColumn: () => const StringColumn(),
-      ),
-    );
+  void setType(TypeEnum type) {
+    if (type != this.type.read(null)) {
+      this.values.set(const Dict());
+      this.type.set(type);
+    }
   }
 }
 
 @ReifiedLens(cases: [
-  StringColumn,
-  BooleanColumn,
-  NumColumn,
-  DateColumn,
   SelectColumn,
   MultiselectColumn,
   LinkColumn,
-  PageColumn,
 ])
 abstract class ColumnRows {
   const ColumnRows();
-}
-
-@immutable
-@reify
-class BooleanColumn extends ColumnRows with _BooleanColumnMixin {
-  @override
-  final Dict<RowID, bool> values;
-
-  const BooleanColumn({this.values = const Dict()});
-}
-
-@immutable
-@reify
-class StringColumn extends ColumnRows with _StringColumnMixin {
-  @override
-  final Dict<RowID, String> values;
-
-  const StringColumn({this.values = const Dict()});
-
-  @override
-  String toString() {
-    return 'StringColumn($values)';
-  }
-}
-
-@immutable
-@reify
-class NumColumn extends ColumnRows with _NumColumnMixin {
-  @override
-  final Dict<RowID, num> values;
-
-  const NumColumn({this.values = const Dict()});
-}
-
-@immutable
-@reify
-class DateColumn extends ColumnRows with _DateColumnMixin {
-  @override
-  final Dict<RowID, DateTime> values;
-
-  const DateColumn({this.values = const Dict()});
 }
 
 @immutable
@@ -271,15 +216,6 @@ class LinkColumn extends ColumnRows with _LinkColumnMixin {
 }
 
 @immutable
-@reify
-class PageColumn extends ColumnRows with _PageColumnMixin {
-  @override
-  final Dict<RowID, NodeID<Page>> values;
-
-  const PageColumn({this.values = const Dict()});
-}
-
-@immutable
 class _TableDataSource extends DataSource {
   final Cursor<Table> table;
 
@@ -320,17 +256,7 @@ class _TableDatum extends Datum with _TableDatumMixin {
     final rowID = rowCtx.rowID;
     final table = ctx.state.getNode(tableID);
     final column = table.columns[columnID].whenPresent;
-    return column.rows.cases(
-      reader,
-      booleanColumn: (column) => column.values[rowID],
-      dateColumn: (column) => column.values[rowID],
-      linkColumn: (column) => column.values[rowID],
-      multiselectColumn: (column) => column.values[rowID],
-      numColumn: (column) => column.values[rowID],
-      pageColumn: (column) => column.values[rowID],
-      selectColumn: (column) => column.values[rowID],
-      stringColumn: (column) => column.values[rowID].orElse(''),
-    );
+    return column.values[rowID];
   }
 
   @override

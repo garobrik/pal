@@ -77,42 +77,55 @@ Widget _tableRow(
                     key: ValueKey(columnID),
                     width: table.columns[columnID].whenPresent.width.read(reader),
                     decoration: const BoxDecoration(border: Border(right: BorderSide())),
-                    child: table.columns[columnID].whenPresent.rows.cases(
-                      reader,
-                      stringColumn: (column) => StringField(
-                        string: column.values[rowID],
-                        enabled: enabled,
-                      ),
-                      numColumn: (column) => NumField(
-                        number: column.values[rowID],
-                        enabled: enabled,
-                      ),
-                      booleanColumn: (column) => Checkbox(
-                        onChanged: !enabled
-                            ? null
-                            : (newValue) => column.values[rowID] =
-                                newValue! ? const Optional(true) : const Optional.none(),
-                        value: column.values[rowID].orElse(false).read(reader),
-                      ),
-                      selectColumn: (column) => SelectField(
-                        column: column,
-                        row: column.values[rowID],
-                        enabled: enabled,
-                      ),
-                      multiselectColumn: (column) => MultiselectField(
-                        column: column,
-                        row: column.values[rowID].orElse(const CSet()),
-                        enabled: enabled,
-                      ),
-                      linkColumn: (column) => LinkField(
-                        ctx: ctx,
-                        column: column,
-                        rowCursor: column.values[rowID],
-                        enabled: enabled,
-                      ),
-                      dateColumn: (column) => Container(),
-                      pageColumn: (column) => Container(),
-                    ),
+                    child: ReaderWidget(builder: (_, reader) {
+                      final column = table.columns[columnID].whenPresent;
+                      final type = column.type.read(reader);
+                      if (type is model.PlainTextType) {
+                        return StringField(
+                          string: column.values[rowID].optionalCast<String>(),
+                          enabled: enabled,
+                        );
+                      } else if (type is model.BooleanType) {
+                        return Checkbox(
+                          onChanged: !enabled
+                              ? null
+                              : (newValue) => column.values[rowID] =
+                                  newValue! ? const Optional(true) : const Optional.none(),
+                          value: column.values[rowID]
+                              .optionalCast<bool>()
+                              .orElse(false)
+                              .read(reader),
+                        );
+                      } else if (type is model.NumberType) {
+                        return NumField(
+                          number: column.values[rowID].optionalCast<num>(),
+                          enabled: enabled,
+                        );
+                      } else {
+                        return Container();
+                      }
+                      // return table.columns[columnID].whenPresent.type.cases(
+                      //   reader,
+                      //   selectColumn: (column) => SelectField(
+                      //     column: column,
+                      //     row: column.values[rowID],
+                      //     enabled: enabled,
+                      //   ),
+                      //   multiselectColumn: (column) => MultiselectField(
+                      //     column: column,
+                      //     row: column.values[rowID].orElse(const CSet()),
+                      //     enabled: enabled,
+                      //   ),
+                      //   linkColumn: (column) => LinkField(
+                      //     ctx: ctx,
+                      //     column: column,
+                      //     rowCursor: column.values[rowID],
+                      //     enabled: enabled,
+                      //   ),
+                      //   dateColumn: (column) => Container(),
+                      //   pageColumn: (column) => Container(),
+                      // );
+                    }),
                   ),
                 if (trailingNewColumnSpace)
                   FocusTraversalGroup(
@@ -188,11 +201,8 @@ Widget _linkField(
     final row = rowCursor.read(reader).unwrap;
     if (row == null || tableID == null) return null;
     final table = state.getNode(tableID);
-    return table.columns[table.titleColumn.read(reader)].whenPresent.rows
-        .cast<model.StringColumn>()
-        .values[row]
-        .read(reader)
-        .unwrap;
+    return table.columns[table.titleColumn.read(reader)].whenPresent.values[row].read(reader).unwrap
+        as String?;
   }
 
   final focusForRow = useMemoized(() {

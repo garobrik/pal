@@ -6,6 +6,8 @@ import 'package:knose/model.dart' as model;
 
 part 'header.g.dart';
 
+const columnTypes = [model.booleanType, model.plainTextType, model.numberType];
+
 @reader_widget
 Widget _tableHeader(
   BuildContext context,
@@ -116,8 +118,7 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Column> column,
 }) {
   final columnTypeIsOpen = useCursor(false);
-  final caseFoci =
-      useMemoized(() => {for (final caze in model.ColumnRowsCase.values) caze: FocusNode()});
+  final caseFoci = useMemoized(() => {for (final type in columnTypes) type: FocusNode()});
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,18 +128,18 @@ Widget _columnConfigurationDropdown(
         isOpen: columnTypeIsOpen,
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.rows.caze.read(reader)],
+        dropdownFocus: caseFoci[column.type.read(reader)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final caze in model.ColumnRowsCase.values)
+              for (final type in columnTypes)
                 TextButton(
-                  key: ValueKey(caze),
-                  focusNode: caseFoci[caze],
-                  onPressed: () => column.setType(caze),
-                  child: Row(children: [Text('${caze.type}')]),
+                  key: ValueKey(type),
+                  focusNode: caseFoci[type],
+                  onPressed: () => column.setType(type),
+                  child: Row(children: [Text('$type')]),
                 ),
             ],
           ),
@@ -172,53 +173,53 @@ Iterable<Widget> columnSpecificConfiguration(
   BuildContext context,
   Cursor<model.Column> column,
 ) {
-  return column.rows.cases(
-    reader,
-    stringColumn: (_) => [],
-    booleanColumn: (_) => [],
-    numColumn: (_) => [],
-    dateColumn: (_) => [],
-    selectColumn: (_) => [],
-    multiselectColumn: (_) => [],
-    pageColumn: (_) => [],
-    linkColumn: (linkColumn) {
-      final state = CursorProvider.of<model.State>(context);
-      final tableID = linkColumn.table.read(reader);
-      final table = tableID == null ? null : state.getNode(tableID);
-      final tables = state.nodes.keys
-          .read(reader)
-          .whereType<model.NodeID<model.Table>>()
-          .map((id) => state.getNode(id));
+  final type = column.type.read(reader);
+  if (type is model.PlainTextType) {
+    return [];
+  } else if (type is model.BooleanType) {
+    return [];
+  } else if (type is model.NumberType) {
+    return [];
+  } else {
+    return [];
+  }
+  (model.Column linkColumn) {
+    final state = CursorProvider.of<model.State>(context);
+    final tableID = column.columnConfig.read(reader) as model.NodeID<model.Table>?;
+    final table = tableID == null ? null : state.getNode(tableID);
+    final tables = state.nodes.keys
+        .read(reader)
+        .whereType<model.NodeID<model.Table>>()
+        .map((id) => state.getNode(id));
 
-      return [
-        ReaderWidget(builder: (_, reader) {
-          final isOpen = useCursor(false);
+    return [
+      ReaderWidget(builder: (_, reader) {
+        final isOpen = useCursor(false);
 
-          return DeferredDropdown(
-            isOpen: isOpen,
-            dropdown: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final table in tables)
-                  TextButton(
-                    onPressed: () {
-                      linkColumn.values.set(const Dict());
-                      linkColumn.table.set(table.id.read(null));
-                    },
-                    child: Text(table.title.read(reader)),
-                  )
-              ],
-            ),
-            child: TextButton(
-              onPressed: () => isOpen.set(true),
-              child: Text(table == null ? 'Select table' : table.title.read(reader)),
-            ),
-          );
-        }),
-      ];
-    },
-  );
+        return DeferredDropdown(
+          isOpen: isOpen,
+          dropdown: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final table in tables)
+                TextButton(
+                  onPressed: () {
+                    column.values.set(const Dict());
+                    // column.columnConfig.table.set(table.id.read(null));
+                  },
+                  child: Text(table.title.read(reader)),
+                )
+            ],
+          ),
+          child: TextButton(
+            onPressed: () => isOpen.set(true),
+            child: Text(table == null ? 'Select table' : table.title.read(reader)),
+          ),
+        );
+      }),
+    ];
+  };
 }
 
 @reader_widget
