@@ -96,6 +96,20 @@ extension GetCursorPartial<S> on GetCursor<S> {
   }
 }
 
+extension OptionalCast<S> on Cursor<Optional<S>> {
+  Cursor<Optional<S1>> optionalCast<S1 extends S>() {
+    assert(
+      this.read(null).unwrap is S1?,
+      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+    );
+    return partial(
+      to: (s) => s.unwrap is S1? ? Optional.fromNullable(s.unwrap as S1?) : null,
+      from: (s1) => s1,
+      update: (_, nu, diff) => DiffResult(nu.unwrap is S1? ? Optional.fromNullable(nu.unwrap as S1?) : null, diff),
+    );
+  }
+}
+
 extension CursorPartial<S> on Cursor<S> {
   Cursor<S1> partial<S1>(
           {required S1? Function(S) to,
