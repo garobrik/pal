@@ -1,16 +1,19 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 class CursorWidget<T> extends StatefulWidget {
   final T Function() create;
-  final Widget Function(BuildContext, Reader, Cursor<T>) builder;
+  final Widget Function(BuildContext, Ctx, Cursor<T>) builder;
   final void Function(T old, T nu, Diff diff)? onChanged;
+  final Ctx ctx;
 
   const CursorWidget({
     Key? key,
     required this.create,
     required this.builder,
+    required this.ctx,
     this.onChanged,
   }) : super(key: key);
 
@@ -36,7 +39,8 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
   Widget build(BuildContext context) => CursorProvider(
         cursor,
         child: ReaderWidget(
-          builder: (context, reader) => widget.builder(context, reader, cursor),
+          builder: (context, ctx) => widget.builder(context, ctx, cursor),
+          ctx: widget.ctx,
         ),
       );
 
@@ -50,7 +54,8 @@ class _CursorWidgetState<T> extends State<CursorWidget<T>> {
 class CursorProvider<T> extends InheritedWidget {
   final Cursor<T> cursor;
 
-  CursorProvider(this.cursor, {required Widget child, Key? key}) : super(key: key, child: child);
+  const CursorProvider(this.cursor, {required Widget child, Key? key})
+      : super(key: key, child: child);
 
   @override
   bool updateShouldNotify(covariant CursorProvider<T> oldWidget) => cursor != oldWidget.cursor;
@@ -63,15 +68,16 @@ class CursorProvider<T> extends InheritedWidget {
 }
 
 class ReaderWidget extends StatefulWidget {
-  final Widget Function(BuildContext, Reader) builder;
+  final Widget Function(BuildContext, Ctx) builder;
+  final Ctx ctx;
 
-  const ReaderWidget({required this.builder, Key? key}) : super(key: key);
+  const ReaderWidget({required this.builder, required this.ctx, Key? key}) : super(key: key);
 
   @override
   _ReaderWidgetState createState() => _ReaderWidgetState();
 }
 
-class _ReaderWidgetState extends State<ReaderWidget> with Reader {
+class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
   List<void Function()> disposals = [];
 
   @override
@@ -84,7 +90,7 @@ class _ReaderWidgetState extends State<ReaderWidget> with Reader {
     return HookBuilder(
       builder: (context) => widget.builder(
         context,
-        this,
+        widget.ctx.withReader(this),
       ),
     );
   }
@@ -106,26 +112,28 @@ class _ReaderWidgetState extends State<ReaderWidget> with Reader {
   }
 }
 
-Reader useCursorReader() => use(const _CursorReaderHook());
+Ctx useCursorReader(Ctx ctx) => use(_CursorReaderHook(ctx));
 
-class _CursorReaderHook extends Hook<Reader> {
-  const _CursorReaderHook();
+class _CursorReaderHook extends Hook<Ctx> {
+  final Ctx ctx;
+
+  const _CursorReaderHook(this.ctx);
 
   @override
   _CursorReaderHookState createState() => _CursorReaderHookState();
 }
 
-class _CursorReaderHookState extends HookState<Reader, _CursorReaderHook> with Reader {
+class _CursorReaderHookState extends HookState<Ctx, _CursorReaderHook> implements Reader {
   List<void Function()> disposals = [];
 
   @override
-  Reader build(BuildContext context) {
+  Ctx build(BuildContext context) {
     for (final dispose in disposals) {
       dispose();
     }
     disposals.clear();
 
-    return this;
+    return hook.ctx.withReader(this);
   }
 
   @override

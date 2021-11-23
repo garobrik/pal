@@ -1,11 +1,13 @@
+import 'package:ctx/ctx.dart';
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 import 'reified_lenses.dart';
 
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor;
-  factory GetCursor.compute(S Function(Reader) reader, {bool compare = false}) =>
-      StateCursor(_ComputedState(reader, compare: compare), Getter.identity());
+  factory GetCursor.compute(S Function(Ctx) computation,
+          {required Ctx ctx, bool compare = false}) =>
+      StateCursor(_ComputedState(computation, ctx: ctx, compare: compare), Getter.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
@@ -13,20 +15,21 @@ abstract class GetCursor<S> {
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
-  S read(Reader? r);
+  S read(Ctx ctx);
 
   @override
-  String toString() => 'GetCursor(${read(null)})';
+  String toString() => 'GetCursor(${read(Ctx.empty)})';
 }
 
 extension GetCursorHelpers<S> on GetCursor<S> {
-  Type type(Reader reader) => GetCursor.compute(
-        (reader) => this.read(reader).runtimeType,
+  Type type(Ctx ctx) => GetCursor.compute(
+        (ctx) => this.read(ctx).runtimeType,
+        ctx: ctx,
         compare: true,
-      ).read(reader);
+      ).read(ctx);
 }
 
-abstract class Reader {
+abstract class Reader extends CtxElement {
   const factory Reader({
     required void Function() onChanged,
     required void Function(void Function()) handleDispose,
@@ -34,6 +37,11 @@ abstract class Reader {
 
   void onChanged();
   void handleDispose(void Function() dispose);
+}
+
+extension ReaderCtxExtension on Ctx {
+  Ctx withReader(Reader reader) => withElement(reader);
+  Reader? get reader => get<Reader>();
 }
 
 class _CallbackReader implements Reader {
@@ -73,7 +81,7 @@ abstract class Cursor<S> implements GetCursor<S> {
   }
 
   @override
-  String toString() => 'Cursor(${read(null)})';
+  String toString() => 'Cursor(${read(Ctx.empty)})';
 }
 
 extension GetCursorPartial<S> on GetCursor<S> {
@@ -86,8 +94,8 @@ extension GetCursorPartial<S> on GetCursor<S> {
 
   GetCursor<S1> cast<S1 extends S>() {
     assert(
-      this.read(null) is S1,
-      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+      this.read(Ctx.empty) is S1,
+      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
     );
     return partial(
       to: (s) => s is S1 ? s : null,
@@ -99,13 +107,14 @@ extension GetCursorPartial<S> on GetCursor<S> {
 extension OptionalCast<S> on Cursor<Optional<S>> {
   Cursor<Optional<S1>> optionalCast<S1 extends S>() {
     assert(
-      this.read(null).unwrap is S1?,
-      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+      this.read(Ctx.empty).unwrap is S1?,
+      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
     );
     return partial(
       to: (s) => s.unwrap is S1? ? Optional.fromNullable(s.unwrap as S1?) : null,
       from: (s1) => s1,
-      update: (_, nu, diff) => DiffResult(nu.unwrap is S1? ? Optional.fromNullable(nu.unwrap as S1?) : null, diff),
+      update: (_, nu, diff) =>
+          DiffResult(nu.unwrap is S1? ? Optional.fromNullable(nu.unwrap as S1?) : null, diff),
     );
   }
 }
@@ -122,8 +131,8 @@ extension CursorPartial<S> on Cursor<S> {
 
   Cursor<S1> cast<S1 extends S>() {
     assert(
-      this.read(null) is S1,
-      'Tried to cast cursor of current type ${this.read(null).runtimeType} to $S1',
+      this.read(Ctx.empty) is S1,
+      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
     );
     return partial(
       to: (s) => s is S1 ? s : null,
@@ -187,9 +196,9 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
       );
 
   @override
-  S read(Reader? r) {
+  S read(Ctx ctx) {
     final currentState = lens.get(state.currentState);
-    r?.handleDispose(listen((_, __, ___) => r.onChanged()));
+    ctx.reader?.handleDispose(listen((_, __, ___) => ctx.reader!.onChanged()));
     return currentState;
   }
 
@@ -260,7 +269,7 @@ class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
 
   @override
   String toString() {
-    return 'MutableStateCursor(${this.read(null)}, ${lens.path}, $state)';
+    return 'MutableStateCursor(${this.read(Ctx.empty)}, ${lens.path}, $state)';
   }
 }
 
@@ -279,12 +288,12 @@ class _ValueCursor<S> with GetCursor<S> {
   }
 
   @override
-  S read(Reader? r) => state;
+  S read(Ctx ctx) => state;
 }
 
 extension CursorOptional<T> on Cursor<Optional<T>> {
   Cursor<T> get whenPresent {
-    assert(this.read(null).unwrap != null);
+    assert(this.read(Ctx.empty).unwrap != null);
     return partial(
       to: (t) => t.unwrap,
       from: (diff) => DiffResult(Optional(diff.value), diff.diff),
@@ -300,12 +309,13 @@ extension CursorOptional<T> on Cursor<Optional<T>> {
 }
 
 class _ComputedState<T> implements Reader, ListenableState<T> {
-  final T Function(Reader) computation;
+  final T Function(Ctx) computation;
+  final Ctx ctx;
   final List<void Function()> disposals = [];
 
   ListenableStateBase<T>? _stateVar;
   ListenableStateBase<T> get _state {
-    _stateVar ??= ListenableStateBase(computation(this));
+    _stateVar ??= ListenableStateBase(computation(ctx.withReader(this)));
     return _stateVar!;
   }
 
@@ -321,7 +331,7 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
     return _state.currentState;
   }
 
-  _ComputedState(this.computation, {this.compare = false});
+  _ComputedState(this.computation, {required this.ctx, this.compare = false});
 
   @override
   void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
@@ -350,7 +360,7 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
     }
     disposals.clear();
 
-    final newState = computation(this);
+    final newState = computation(ctx.withReader(this));
     late final Diff diff;
     if (compare && newState == _state.currentState) {
       diff = const Diff();
@@ -424,7 +434,7 @@ class _PartialViewState<T, S> with _PartialViewStateBase<T, S> {
 
   @override
   ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
+    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty))!);
     return _stateVar!;
   }
 }
@@ -453,7 +463,7 @@ class _MutablePartialViewState<T, S>
 
   @override
   ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(null))!);
+    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty))!);
     return _stateVar!;
   }
 

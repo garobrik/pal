@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
@@ -77,7 +78,7 @@ extension IterableExtension<V> on Iterable<V> {
 
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
   void add(Value v) {
-    insert(length.read(null), v);
+    insert(length.read(Ctx.empty), v);
   }
 }
 
@@ -95,15 +96,15 @@ class IndexedValue<T> {
 }
 
 extension VecForEach<T> on Cursor<Vec<T>> {
-  Iterable<Cursor<T>> values(Reader reader) sync* {
-    final length = this.length.read(reader);
+  Iterable<Cursor<T>> values(Ctx ctx) sync* {
+    final length = this.length.read(ctx);
     for (final index in range(length)) {
       yield this[index];
     }
   }
 
-  Iterable<IndexedValue<Cursor<T>>> indexedValues(Reader? reader) sync* {
-    final length = this.length.read(reader);
+  Iterable<IndexedValue<Cursor<T>>> indexedValues(Ctx ctx) sync* {
+    final length = this.length.read(ctx);
     for (final index in range(length)) {
       yield IndexedValue(index, this[index]);
     }
@@ -111,15 +112,15 @@ extension VecForEach<T> on Cursor<Vec<T>> {
 }
 
 extension VecGetForEach<T> on GetCursor<Vec<T>> {
-  Iterable<GetCursor<T>> values(Reader reader) sync* {
-    final length = this.length.read(reader);
+  Iterable<GetCursor<T>> values(Ctx ctx) sync* {
+    final length = this.length.read(ctx);
     for (final index in range(length)) {
       yield this[index];
     }
   }
 
-  Iterable<IndexedValue<GetCursor<T>>> indexedValues(Reader reader) sync* {
-    final length = this.length.read(reader);
+  Iterable<IndexedValue<GetCursor<T>>> indexedValues(Ctx ctx) sync* {
+    final length = this.length.read(ctx);
     for (final index in range(length)) {
       yield IndexedValue(index, this[index]);
     }

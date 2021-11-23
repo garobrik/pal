@@ -23,16 +23,16 @@ Class maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
     final casesClassName = '${clazz.name}Case';
     Class(
       casesClassName,
-      annotations: ['@immutable'],
+      annotations: const ['@immutable'],
       constructors: (clazz) => [
         Constructor(
             parent: clazz,
             name: '_',
             isConst: true,
-            params: [Param(Type.type, 'type', isInitializingFormal: true)])
+            params: const [Param(Type.type, 'type', isInitializingFormal: true)])
       ],
       fields: [
-        Field('type', type: Type.type, isFinal: true),
+        const Field('type', type: Type.type, isFinal: true),
         _generateValues(clazz, cases),
         for (final caze in cases)
           Field(
@@ -48,8 +48,8 @@ Class maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
         _generateEachCases(clazz, cases),
         Method(
           'toString',
-          returnType: Type('String'),
-          annotations: ['@override'],
+          returnType: const Type('String'),
+          annotations: const ['@override'],
           isExpression: true,
           body: 'type.toString()',
         ),
@@ -104,7 +104,7 @@ AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
       'caze',
       Type('GetCursor', args: [Type('${clazz.name}Case')]),
       body: '''
-        thenGet<${clazz.name}Case>(${OpticKind.Getter.fieldCtor}([\'case\'], ($param) { $ifElsePart }))
+        thenGet<${clazz.name}Case>(${OpticKind.Getter.fieldCtor}(['case'], ($param) { $ifElsePart }))
     ''',
     ),
   );
@@ -127,14 +127,14 @@ Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
     'cases',
     typeParams: [typeParam],
     returnType: typeParam.type,
-    params: [Param(Type('Reader'), 'reader'), ...params],
+    params: [const Param(Type('Ctx'), 'ctx'), ...params],
     isExpression: true,
     body: call(
-      'caze.read(reader).cases',
+      'caze.read(ctx).cases',
       [],
       named: {
         for (final caseParam in zip(cases, params))
-          '${_caseArgName(caseParam.first)}': '() => ${caseParam.second.name}(this.cast())'
+          _caseArgName(caseParam.first): '() => ${caseParam.second.name}(this.cast())'
       },
     ),
   );

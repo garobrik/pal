@@ -18,7 +18,7 @@ class FlutterReifiedLensesGenerator extends Generator {
     final output = StringBuffer();
 
     final boundWidgetElements =
-        library.annotatedWith(TypeChecker.fromRuntime(ReaderWidgetAnnotation)).where((elem) {
+        library.annotatedWith(const TypeChecker.fromRuntime(ReaderWidgetAnnotation)).where((elem) {
       if (elem.element is FunctionElement) return true;
       log.warning(
           '@reader_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.');
@@ -27,7 +27,7 @@ class FlutterReifiedLensesGenerator extends Generator {
 
     if (boundWidgetElements.isEmpty) return output.toString();
 
-    final resolveType = (String uri, String name) async {
+    Future<Type> resolveType(String uri, String name) async {
       final libraryElement = await buildStep.resolver.libraryFor(
         AssetId.resolve(Uri.parse(uri), from: buildStep.inputId),
       );
@@ -36,13 +36,13 @@ class FlutterReifiedLensesGenerator extends Generator {
         throw UnresolvableTypeException(uri, name);
       }
       return Type.fromDartType(library.element, element.thisType);
-    };
+    }
 
     final resolvedTypes = _ResolvedTypes(
       buildContext: await resolveType('package:flutter/widgets.dart', 'BuildContext'),
       key: await resolveType('package:flutter/widgets.dart', 'Key'),
       getCursor: await resolveType('package:reified_lenses/reified_lenses.dart', 'GetCursor'),
-      reader: await resolveType('package:reified_lenses/reified_lenses.dart', 'Reader'),
+      ctx: await resolveType('package:ctx/ctx.dart', 'Ctx'),
     );
 
     for (final annotated in boundWidgetElements) {
@@ -61,13 +61,13 @@ class _ResolvedTypes {
   final Type buildContext;
   final Type key;
   final Type getCursor;
-  final Type reader;
+  final Type ctx;
 
   _ResolvedTypes({
     required this.buildContext,
     required this.key,
     required this.getCursor,
-    required this.reader,
+    required this.ctx,
   });
 }
 
@@ -79,12 +79,12 @@ void generateBoundWidget(
   final buildContextParam =
       firstOfNameAndType(function.params, 'context', resolvedTypes.buildContext);
   final keyParam = firstOfNameAndType(function.params, 'key', resolvedTypes.key);
-  final readerParam = firstOfNameAndType(function.params, 'reader', resolvedTypes.reader);
+  final ctxParam = firstOfNameAndType(function.params, 'ctx', resolvedTypes.ctx);
   final nonSpecialParams =
-      function.params.where((p) => p != buildContextParam && p != keyParam && p != readerParam);
+      function.params.where((p) => p != buildContextParam && p != keyParam);
   final buildBody = StringBuffer();
-  if (readerParam != null) {
-    buildBody.writeln('final ${readerParam.name} = useCursorReader();');
+  if (ctxParam != null) {
+    buildBody.writeln('final ${ctxParam.name} = useCursorReader(this.${ctxParam.name});');
   }
   final returnValue = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
   buildBody.writeln('return $returnValue;');
@@ -98,7 +98,7 @@ void generateBoundWidget(
   Class(
     name,
     params: function.typeParams,
-    extendedType: Type('HookWidget'),
+    extendedType: const Type('HookWidget'),
     constructors: (clazz) => [
       Constructor(
         parent: clazz,
@@ -111,9 +111,9 @@ void generateBoundWidget(
     methods: [
       Method(
         'build',
-        annotations: ['@override'],
-        returnType: Type('Widget'),
-        params: [buildContextParam ?? Param(Type('BuildContext'), 'context')],
+        annotations: const ['@override'],
+        returnType: const Type('Widget'),
+        params: [buildContextParam ?? const Param(Type('BuildContext'), 'context')],
         body: buildBody.toString(),
       ),
       Method(
@@ -121,7 +121,7 @@ void generateBoundWidget(
         isStatic: true,
         params: tearoffParams,
         typeParams: function.typeParams,
-        returnType: Type('Widget'),
+        returnType: const Type('Widget'),
         isExpression: true,
         body: callString(
           name,
