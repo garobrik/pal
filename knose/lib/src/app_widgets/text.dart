@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -7,49 +8,46 @@ import 'package:knose/model.dart' as model;
 
 part 'text.g.dart';
 
-class TextBuilder extends model.NodeBuilder {
-  const TextBuilder();
+final textWidget = model.PalValue(
+  model.widgetDef.asType(),
+  Dict({
+    'name': 'Text',
+    'fields': Dict({
+      'text': model.UnionType({
+        model.textType,
+        model.richTextDef.asType(),
+        textOption,
+      }),
+    }),
+    'defaultFields': ({required Ctx ctx}) =>
+        const Dict({'text': model.PalValue(model.textType, '')}),
+    'build': TextWidget.tearoff,
+  }),
+);
 
-  @override
-  model.NodeBuilderFn get build => TextWidget.tearoff;
-
-  @override
-  Dict<String, model.Datum> makeFields(
-    Cursor<model.State> state,
-    model.NodeID<model.NodeView> nodeView,
-  ) {
-    return Dict({
-      'text': model.Literal(
-        // TODO: fix type
-        typeData: model.UnionType({model.plainTextType, model.booleanType}),
-        data: const Optional<model.Text>.none(),
-        nodeView: nodeView,
-        fieldName: 'text',
-      )
-    });
-  }
-}
+final textOption = model.optionDef.asType(
+  {model.optionMemberID: const model.PalValue(model.typeType, model.textType)},
+);
 
 @reader_widget
 Widget _textWidget(
-  Reader reader,
-  BuildContext context, {
-  required model.Ctx ctx,
-  required Dict<String, Cursor<Object>> fields,
-  FocusNode? defaultFocus,
+  BuildContext context,
+  Dict<String, Cursor<model.PalValue>> fields, {
+  required Ctx ctx,
 }) {
   final text = fields['text'].unwrap!;
-  final type = text.type(reader);
+  final type = text.type.read(ctx);
   late final Cursor<String> stringCursor;
-  if (type == String) {
-    stringCursor = text.cast<String>();
+  if (type == model.textType) {
+    stringCursor = text.value.cast<String>();
+  } else if (type.assignableTo(ctx, textOption)) {
+    stringCursor = text.value
+        .cast<Optional<model.PalValue>>()
+        .orElse(const model.PalValue(model.textType, ''))
+        .value
+        .cast<String>(); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
   } else {
-    stringCursor = text
-        .cast<Optional<model.Text>>()
-        .orElse(model.Text())
-        .elements[0]
-        .cast<model.PlainText>()
-        .text;
+    print(type);
   }
 
   return Shortcuts(
@@ -59,8 +57,9 @@ Widget _textWidget(
     },
     child: BoundTextFormField(
       stringCursor,
+      ctx: ctx,
       maxLines: null,
-      focusNode: defaultFocus,
+      focusNode: ctx.defaultFocus,
     ),
   );
 }

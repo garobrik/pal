@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -6,36 +7,38 @@ import 'package:knose/model.dart' as model;
 
 part 'header.g.dart';
 
-const columnTypes = [model.booleanType, model.plainTextType, model.numberType];
+const columnTypes = [model.booleanType, model.textType, model.numberType];
 
 @reader_widget
 Widget _tableHeader(
   BuildContext context,
-  Reader reader,
-  Cursor<model.Table> table,
-) {
+  Cursor<model.Table> table, {
+  required Ctx ctx,
+}) {
   final openColumns = useCursor(const Dict<model.ColumnID, bool>());
 
   return Row(
     children: [
       ReorderResizeable(
+        ctx: ctx,
         direction: Axis.horizontal,
         onReorder: (old, nu) {
           table.columnIDs.atomically((columnIDs) {
-            columnIDs.insert(nu < old ? nu : nu + 1, columnIDs[old].read(null));
+            columnIDs.insert(nu < old ? nu : nu + 1, columnIDs[old].read(Ctx.empty));
             columnIDs.remove(nu < old ? old + 1 : old);
           });
         },
         mainAxisSizes: [
-          for (final columnID in table.columnIDs.read(reader))
+          for (final columnID in table.columnIDs.read(ctx))
             table.columns[columnID].whenPresent.width
         ],
         children: [
-          for (final columnID in table.columnIDs.read(reader))
+          for (final columnID in table.columnIDs.read(ctx))
             SizedBox(
               key: ValueKey(columnID),
-              width: table.columns[columnID].whenPresent.width.read(reader),
+              width: table.columns[columnID].whenPresent.width.read(ctx),
               child: TableHeaderDropdown(
+                ctx: ctx,
                 table: table,
                 column: table.columns[columnID].whenPresent,
                 isOpen: openColumns[columnID].orElse(false),
@@ -54,8 +57,8 @@ Widget _tableHeader(
 
 @reader_widget
 Widget _tableHeaderDropdown(
-  BuildContext context,
-  Reader reader, {
+  BuildContext context, {
+  required Ctx ctx,
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
   required Cursor<bool> isOpen,
@@ -77,6 +80,7 @@ Widget _tableHeaderDropdown(
             decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
             child: BoundTextFormField(
               column.title,
+              ctx: ctx,
               focusNode: dropdownFocus,
               autofocus: true,
               style: textStyle,
@@ -86,7 +90,7 @@ Widget _tableHeaderDropdown(
               ),
             ),
           ),
-          ColumnConfigurationDropdown(table: table, column: column),
+          ColumnConfigurationDropdown(ctx: ctx, table: table, column: column),
         ],
       ),
     ),
@@ -95,13 +99,13 @@ Widget _tableHeaderDropdown(
         padding: MaterialStateProperty.all(padding),
         alignment: Alignment.centerLeft,
       ),
-      onPressed: column.id.read(reader) == table.titleColumn.read(reader)
+      onPressed: column.id.read(ctx) == table.titleColumn.read(ctx)
           ? null
           : () {
               isOpen.mut((b) => !b);
             },
       child: Text(
-        column.title.read(reader),
+        column.title.read(ctx),
         style: textStyle,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -112,8 +116,8 @@ Widget _tableHeaderDropdown(
 
 @reader_widget
 Widget _columnConfigurationDropdown(
-  BuildContext context,
-  Reader reader, {
+  BuildContext context, {
+  required Ctx ctx,
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
@@ -128,7 +132,7 @@ Widget _columnConfigurationDropdown(
         isOpen: columnTypeIsOpen,
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.type.read(reader)],
+        dropdownFocus: caseFoci[column.type.read(ctx)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -151,13 +155,13 @@ Widget _columnConfigurationDropdown(
           ),
         ),
       ),
-      ...columnSpecificConfiguration(reader, context, column),
-      if (column.id.read(reader) != table.titleColumn.read(reader))
+      ...columnSpecificConfiguration(context, column, ctx: ctx),
+      if (column.id.read(ctx) != table.titleColumn.read(ctx))
         TextButton(
           onPressed: () {
-            table.columns.remove(column.id.read(null));
+            table.columns.remove(column.id.read(Ctx.empty));
             table.columnIDs.remove(
-              table.columnIDs.read(null).indexWhere((id) => id == column.id.read(null))!,
+              table.columnIDs.read(Ctx.empty).indexWhere((id) => id == column.id.read(Ctx.empty))!,
             );
           },
           child: Row(
@@ -169,12 +173,12 @@ Widget _columnConfigurationDropdown(
 }
 
 Iterable<Widget> columnSpecificConfiguration(
-  Reader reader,
   BuildContext context,
-  Cursor<model.Column> column,
-) {
-  final type = column.type.read(reader);
-  if (type is model.PlainTextType) {
+  Cursor<model.Column> column, {
+  required Ctx ctx,
+}) {
+  final type = column.type.read(ctx);
+  if (type is model.TextType) {
     return [];
   } else if (type is model.BooleanType) {
     return [];
@@ -183,43 +187,43 @@ Iterable<Widget> columnSpecificConfiguration(
   } else {
     return [];
   }
-  (model.Column linkColumn) {
-    final state = CursorProvider.of<model.State>(context);
-    final tableID = column.columnConfig.read(reader) as model.NodeID<model.Table>?;
-    final table = tableID == null ? null : state.getNode(tableID);
-    final tables = state.nodes.keys
-        .read(reader)
-        .whereType<model.NodeID<model.Table>>()
-        .map((id) => state.getNode(id));
+  // (model.Column linkColumn) {
+  //   final state = CursorProvider.of<model.State>(context);
+  //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;
+  //   final table = tableID == null ? null : state.getNode(tableID);
+  //   final tables = state.nodes.keys
+  //       .read(ctx)
+  //       .whereType<model.NodeID<model.Table>>()
+  //       .map((id) => state.getNode(id));
 
-    return [
-      ReaderWidget(builder: (_, reader) {
-        final isOpen = useCursor(false);
+  //   return [
+  //     ReaderWidget(builder: (_, reader) {
+  //       final isOpen = useCursor(false);
 
-        return DeferredDropdown(
-          isOpen: isOpen,
-          dropdown: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final table in tables)
-                TextButton(
-                  onPressed: () {
-                    column.values.set(const Dict());
-                    // column.columnConfig.table.set(table.id.read(null));
-                  },
-                  child: Text(table.title.read(reader)),
-                )
-            ],
-          ),
-          child: TextButton(
-            onPressed: () => isOpen.set(true),
-            child: Text(table == null ? 'Select table' : table.title.read(reader)),
-          ),
-        );
-      }),
-    ];
-  };
+  //       return DeferredDropdown(
+  //         isOpen: isOpen,
+  //         dropdown: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           crossAxisAlignment: CrossAxisAlignment.start,
+  //           children: [
+  //             for (final table in tables)
+  //               TextButton(
+  //                 onPressed: () {
+  //                   column.values.set(const Dict());
+  //                   // column.columnConfig.table.set(table.id.read(Ctx.empty));
+  //                 },
+  //                 child: Text(table.title.read(ctx)),
+  //               )
+  //           ],
+  //         ),
+  //         child: TextButton(
+  //           onPressed: () => isOpen.set(true),
+  //           child: Text(table == null ? 'Select table' : table.title.read(ctx)),
+  //         ),
+  //       );
+  //     }),
+  //   ];
+  // };
 }
 
 @reader_widget

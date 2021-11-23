@@ -1,28 +1,13 @@
-import 'package:knose/model.dart' hide List;
+import 'package:ctx/ctx.dart';
+import 'package:knose/model.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
 part 'route.g.dart';
 
-@ReifiedLens(cases: [TableRoute, PageRoute, SearchRoute, NodeRoute])
+@ReifiedLens(cases: [SearchRoute, WidgetRoute])
 class Route with _RouteMixin {
   const Route();
-}
-
-@reify
-class TableRoute extends Route with _TableRouteMixin {
-  @override
-  final NodeID<Table> id;
-
-  const TableRoute(this.id);
-}
-
-@reify
-class PageRoute extends Route with _PageRouteMixin {
-  @override
-  final NodeID<Page> id;
-
-  const PageRoute(this.id);
 }
 
 @reify
@@ -31,11 +16,11 @@ class SearchRoute extends Route with _SearchRouteMixin {
 }
 
 @reify
-class NodeRoute extends Route with _NodeRouteMixin {
+class WidgetRoute extends Route with _WidgetRouteMixin {
   @override
-  final NodeID<NodeView> id;
+  final PalID id;
   @override
   final Ctx? ctx;
 
-  const NodeRoute(this.id, {this.ctx});
+  const WidgetRoute(this.id, {this.ctx});
 }

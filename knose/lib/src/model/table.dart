@@ -1,10 +1,17 @@
-import 'package:flutter/widgets.dart' as flutter;
+import 'package:ctx/ctx.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
 import 'package:knose/model.dart' hide List;
 
 part 'table.g.dart';
+
+class TableID extends PalID<Table> {
+  static const namespace = 'table';
+
+  TableID.create() : super.create(namespace: namespace);
+  TableID.from(String key) : super.from(namespace, key);
+}
 
 class ColumnID extends UUID<ColumnID> {}
 
@@ -16,9 +23,9 @@ class RowViewID extends UUID<RowViewID> {}
 
 @immutable
 @reify
-class Table with _TableMixin implements TitledNode {
+class Table with _TableMixin {
   @override
-  final NodeID<Table> id;
+  final TableID id;
   @override
   final String title;
   @override
@@ -30,17 +37,17 @@ class Table with _TableMixin implements TitledNode {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Vec<NodeID<NodeView<TopLevelNodeBuilder>>> rowViews;
+  final Vec<WidgetID> rowViews;
 
   Table({
-    NodeID<Table>? id,
+    TableID? id,
     this.columns = const Dict(),
     this.title = '',
     this.columnIDs = const Vec(),
     ColumnID? titleColumn,
     this.rowIDs = const Vec(),
     this.rowViews = const Vec(),
-  })  : this.id = id ?? NodeID<Table>(),
+  })  : this.id = id ?? TableID.create(),
         this.titleColumn = titleColumn ?? ColumnID();
 
   static Table newDefault() {
@@ -49,7 +56,7 @@ class Table with _TableMixin implements TitledNode {
     final columns = [
       Column(
         id: titleColumn,
-        type: plainTextType,
+        type: textType,
         title: 'Title',
       ),
       Column(
@@ -66,9 +73,6 @@ class Table with _TableMixin implements TitledNode {
       title: 'Untitled table',
     );
   }
-
-  @override
-  Table mut_title(String title) => copyWith(title: title);
 }
 
 extension TableComputations on GetCursor<Table> {
@@ -76,15 +80,15 @@ extension TableComputations on GetCursor<Table> {
 }
 
 extension TableMutations on Cursor<Table> {
-  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(null), RowID());
+  void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(Ctx.empty), RowID());
 
   ColumnID addColumn([int? index]) {
     late final ColumnID columnID;
     atomically((table) {
-      final column = Column(type: plainTextType);
+      final column = Column(type: textType);
 
       table.columns[column.id] = Optional(column);
-      table.columnIDs.insert(index ?? table.columnIDs.length.read(null), column.id);
+      table.columnIDs.insert(index ?? table.columnIDs.length.read(Ctx.empty), column.id);
 
       columnID = column.id;
     });
@@ -93,8 +97,8 @@ extension TableMutations on Cursor<Table> {
 
   void removeColumn(ColumnID id) {
     columns.remove(id);
-    for (final indexedValue in columnIDs.indexedValues(null)) {
-      if (indexedValue.value.read(null) == id) {
+    for (final indexedValue in columnIDs.indexedValues(Ctx.empty)) {
+      if (indexedValue.value.read(Ctx.empty) == id) {
         columnIDs.remove(indexedValue.index);
         return;
       }
@@ -108,9 +112,9 @@ class Column with _ColumnMixin {
   @override
   final ColumnID id;
   @override
-  final TypeEnum type;
+  final PalType type;
   @override
-  final Dict<RowID, Object> values;
+  final Dict<RowID, PalValue> values;
   @override
   final Object? columnConfig;
   @override
@@ -129,91 +133,91 @@ class Column with _ColumnMixin {
 }
 
 extension ColumnMutations on Cursor<Column> {
-  void setType(TypeEnum type) {
-    if (type != this.type.read(null)) {
+  void setType(PalType type) {
+    if (type != this.type.read(Ctx.empty)) {
       this.values.set(const Dict());
       this.type.set(type);
     }
   }
 }
 
-@ReifiedLens(cases: [
-  SelectColumn,
-  MultiselectColumn,
-  LinkColumn,
-])
-abstract class ColumnRows {
-  const ColumnRows();
-}
+// @ReifiedLens(cases: [
+//   SelectColumn,
+//   MultiselectColumn,
+//   LinkColumn,
+// ])
+// abstract class ColumnRows {
+//   const ColumnRows();
+// }
 
-@immutable
-@reify
-class SelectColumn extends ColumnRows with _SelectColumnMixin {
-  @override
-  final Dict<TagID, Tag> tags;
-  @override
-  final Dict<RowID, TagID> values;
+// @immutable
+// @reify
+// class SelectColumn extends ColumnRows with _SelectColumnMixin {
+//   @override
+//   final Dict<TagID, Tag> tags;
+//   @override
+//   final Dict<RowID, TagID> values;
 
-  const SelectColumn({
-    this.tags = const Dict(),
-    this.values = const Dict(),
-  });
-}
+//   const SelectColumn({
+//     this.tags = const Dict(),
+//     this.values = const Dict(),
+//   });
+// }
 
-extension SelectColumnMutations on Cursor<SelectColumn> {
-  TagID addTag(Tag tag) {
-    tags[tag.id] = Optional(tag);
-    return tag.id;
-  }
-}
+// extension SelectColumnMutations on Cursor<SelectColumn> {
+//   TagID addTag(Tag tag) {
+//     tags[tag.id] = Optional(tag);
+//     return tag.id;
+//   }
+// }
 
-extension MultiselectColumnMutations on Cursor<MultiselectColumn> {
-  TagID addTag(Tag tag) {
-    tags[tag.id] = Optional(tag);
-    return tag.id;
-  }
-}
+// extension MultiselectColumnMutations on Cursor<MultiselectColumn> {
+//   TagID addTag(Tag tag) {
+//     tags[tag.id] = Optional(tag);
+//     return tag.id;
+//   }
+// }
 
-@immutable
-@reify
-class Tag with _TagMixin {
-  @override
-  final TagID id;
-  @override
-  final String name;
-  @override
-  final flutter.Color color;
+// @immutable
+// @reify
+// class Tag with _TagMixin {
+//   @override
+//   final TagID id;
+//   @override
+//   final String name;
+//   @override
+//   final flutter.Color color;
 
-  Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
-}
+//   Tag({TagID? id, required this.name, required this.color}) : this.id = id ?? TagID();
+// }
 
-@immutable
-@reify
-class MultiselectColumn extends ColumnRows with _MultiselectColumnMixin {
-  @override
-  final Dict<TagID, Tag> tags;
-  @override
-  final Dict<RowID, CSet<TagID>> values;
+// @immutable
+// @reify
+// class MultiselectColumn extends ColumnRows with _MultiselectColumnMixin {
+//   @override
+//   final Dict<TagID, Tag> tags;
+//   @override
+//   final Dict<RowID, CSet<TagID>> values;
 
-  const MultiselectColumn({
-    this.tags = const Dict(),
-    this.values = const Dict(),
-  });
-}
+//   const MultiselectColumn({
+//     this.tags = const Dict(),
+//     this.values = const Dict(),
+//   });
+// }
 
-@immutable
-@reify
-class LinkColumn extends ColumnRows with _LinkColumnMixin {
-  @override
-  final NodeID<Table>? table;
-  @override
-  final Dict<RowID, RowID> values;
+// @immutable
+// @reify
+// class LinkColumn extends ColumnRows with _LinkColumnMixin {
+//   @override
+//   final NodeID<Table>? table;
+//   @override
+//   final Dict<RowID, RowID> values;
 
-  const LinkColumn({
-    this.values = const Dict(),
-    this.table,
-  });
-}
+//   const LinkColumn({
+//     this.values = const Dict(),
+//     this.table,
+//   });
+// }
 
 @immutable
 class _TableDataSource extends DataSource {
@@ -222,10 +226,10 @@ class _TableDataSource extends DataSource {
   _TableDataSource(this.table);
 
   @override
-  late final GetCursor<Vec<Datum>> data = GetCursor.compute((reader) {
-    final columns = table.columnIDs.read(reader);
-    return Vec([for (final column in columns) _TableDatum(table.id.read(reader), column)]);
-  });
+  late final GetCursor<Vec<Datum>> data = GetCursor.compute((ctx) {
+    final columns = table.columnIDs.read(ctx);
+    return Vec([for (final column in columns) _TableDatum(table.id.read(ctx), column)]);
+  }, ctx: Ctx.empty);
 }
 
 extension TableCtxExtension on Ctx {
@@ -243,31 +247,35 @@ class _RowCtx extends CtxElement {
 @reify
 class _TableDatum extends Datum with _TableDatumMixin {
   @override
-  final NodeID<Table> tableID;
+  final TableID tableID;
   @override
   final ColumnID columnID;
 
   _TableDatum(this.tableID, this.columnID);
 
   @override
-  Cursor<Object>? build(Reader reader, Ctx ctx) {
+  Cursor<PalValue>? build(Ctx ctx) {
     final rowCtx = ctx.get<_RowCtx>();
     if (rowCtx == null) return null;
     final rowID = rowCtx.rowID;
-    final table = ctx.state.getNode(tableID);
-    final column = table.columns[columnID].whenPresent;
-    return column.values[rowID];
+    final table = ctx.db.get(tableID);
+    final column = table.whenPresent.columns[columnID].whenPresent;
+    return column.values[rowID].partial(
+      to: (opt) => PalValue(type(ctx), opt),
+      from: (diff) => DiffResult(diff.value.value as Optional<PalValue>, diff.diff),
+    );
   }
 
   @override
-  String name(Reader reader, Ctx ctx) {
-    final table = ctx.state.getNode(tableID);
-    return table.columns[columnID].whenPresent.title.read(reader);
+  String name(Ctx ctx) {
+    final table = ctx.db.get(tableID);
+    return table.whenPresent.columns[columnID].whenPresent.title.read(ctx);
   }
 
   @override
-  TypeEnum type(Reader reader, Ctx ctx) {
-    final table = ctx.state.getNode(tableID);
-    return table.columns[columnID].whenPresent.type.read(reader);
+  PalType type(Ctx ctx) {
+    final table = ctx.db.get(tableID);
+    final colType = table.whenPresent.columns[columnID].whenPresent.type.read(ctx);
+    return optionDef.asType({optionMemberID: PalValue(typeType, colType)});
   }
 }

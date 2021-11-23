@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -6,23 +7,22 @@ import 'package:knose/model.dart' as model;
 
 part 'search.g.dart';
 
-Route<void> generateSearchRoute(model.Ctx ctx) {
+Route<void> generateSearchRoute(Ctx ctx) {
   return MaterialPageRoute(
     settings: const RouteSettings(name: 'search', arguments: model.SearchRoute()),
     builder: (_) => MainScaffold(
       ctx: ctx,
       replaceRouteOnPush: false,
-      body: SearchPage(ctx),
+      body: SearchPage(ctx: ctx),
     ),
   );
 }
 
 @reader_widget
 Widget _searchPage(
-  BuildContext context,
-  Reader reader,
-  model.Ctx ctx,
-) {
+  BuildContext context, {
+  required Ctx ctx,
+}) {
   final searchText = useCursor('');
 
   return Column(
@@ -42,6 +42,7 @@ Widget _searchPage(
               Expanded(
                 child: BoundTextFormField(
                   searchText,
+                  ctx: ctx,
                   autofocus: true,
                   decoration: const InputDecoration(
                     filled: false,
@@ -54,31 +55,31 @@ Widget _searchPage(
           ),
         ),
       ),
-      ...ctx.state.nodes.keys.read(reader).expand((nodeID) {
-        if (nodeID is! model.NodeID<model.NodeView<model.TopLevelNodeBuilder>>) {
-          return [];
-        }
-        final nodeView = ctx.state.getNode(nodeID);
-        final title = nodeView.title(ctx: ctx, reader: reader)!;
-        return [
-          if (title.toLowerCase().startsWith(searchText.read(reader)))
-            TextButton(
-              key: ValueKey(nodeID),
-              onPressed: () {
-                Navigator.pushNamed(
-                  context,
-                  '',
-                  arguments: model.NodeRoute(nodeID),
-                );
-              },
-              child: Row(
-                children: [
-                  const Icon(Icons.menu),
-                  Text(title),
-                ],
-              ),
-            )
-        ];
+      ...ctx.db
+          .where<model.PalValue>(
+        ctx: ctx,
+        namespace: model.WidgetID.namespace,
+        predicate: (_) => true,
+      )
+          .map((widget) {
+        final title = 'temp';
+        final widgetID = widget.recordAccess<model.WidgetID>('id').read(ctx);
+        return TextButton(
+          key: ValueKey(widgetID),
+          onPressed: () {
+            Navigator.pushNamed(
+              context,
+              '',
+              arguments: model.WidgetRoute(widgetID),
+            );
+          },
+          child: Row(
+            children: [
+              const Icon(Icons.menu),
+              Text(title),
+            ],
+          ),
+        );
       }),
     ],
   );

@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
@@ -9,10 +10,9 @@ part 'config.g.dart';
 
 @reader_widget
 Widget _tableConfig(
-  BuildContext context,
-  Reader reader, {
+  BuildContext context, {
   required Cursor<model.Table> table,
-  required model.Ctx ctx,
+  required Ctx ctx,
 }) {
   final isOpen = useCursor(false);
 
@@ -26,18 +26,23 @@ Widget _tableConfig(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final rowView in table.rowViews.values(reader))
+              for (final rowView in table.rowViews.values(ctx))
                 ReaderWidget(
-                  builder: (_, reader) {
-                    final nodeView = ctx.state.getNode(rowView.read(reader));
-                    final title = nodeView.title(ctx: ctx, reader: reader)!;
+                  ctx: ctx,
+                  builder: (_, ctx) {
+                    final widget = ctx.db.get(rowView.read(ctx)).whenPresent;
+                    final title = widget
+                        .recordAccess<Dict<String, model.PalValue>>('fields')['title']
+                        .whenPresent
+                        .value
+                        .read(ctx) as String;
 
                     return TextButton(
                       onPressed: () => Navigator.pushNamed(
                         context,
                         '',
-                        arguments: model.NodeRoute(
-                          rowView.read(reader),
+                        arguments: model.WidgetRoute(
+                          rowView.read(ctx),
                           ctx: ctx.withTable(table),
                         ),
                       ),
@@ -47,13 +52,16 @@ Widget _tableConfig(
                 ),
               TextButton(
                 onPressed: () {
-                  final nodeViewID = const PageBuilder().addView(ctx.state);
-                  table.rowViews.add(nodeViewID);
+                  final newPage = model.defaultInstance(ctx, pageWidget);
+                  final widgetID = newPage.recordAccess<model.WidgetID>('id');
+                  ctx.db.update(widgetID, newPage);
+
+                  table.rowViews.add(widgetID);
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.NodeRoute(
-                      nodeViewID,
+                    arguments: model.WidgetRoute(
+                      widgetID,
                       ctx: ctx.withTable(table),
                     ),
                   );
@@ -66,7 +74,7 @@ Widget _tableConfig(
           ),
         ),
         child: TextButton(
-          onPressed: () => isOpen.set(!isOpen.read(null)),
+          onPressed: () => isOpen.set(!isOpen.read(Ctx.empty)),
           child: Row(
             children: const [
               Text('Row views'),

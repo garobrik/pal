@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -8,60 +9,49 @@ import 'package:knose/model.dart' as model;
 
 part 'page.g.dart';
 
-@immutable
-@reify
-class PageBuilder extends model.TopLevelNodeBuilder {
-  const PageBuilder();
+final _widgetList = model.ListType(
+  model.UnionType({model.widgetInstanceDef.asType(), model.widgetIDDef.asType()}),
+);
 
-  @override
-  model.NodeBuilderFn get build => PageWidget.tearoff;
-
-  @override
-  Dict<String, model.Datum> makeFields(
-    Cursor<model.State> state,
-    model.NodeID<model.NodeView> nodeView,
-  ) {
-    return Dict({
-      'page': model.Literal(
-        // TODO: fix type
-        typeData: model.booleanType,
-        data: model.Page(
-          title: 'Untitled page',
-          nodeViews: Vec([
-            const TextBuilder().addView(state),
-          ]),
-        ),
-        nodeView: nodeView,
-        fieldName: 'page',
-      )
-    });
-  }
-
-  @override
-  String title({
-    required model.Ctx ctx,
-    required Dict<String, Cursor<Object>> fields,
-    required Reader reader,
-  }) {
-    return fields['page'].unwrap!.cast<model.Page>().title.read(reader);
-  }
-}
+final pageWidget = model.PalValue(
+  model.widgetDef.asType(),
+  Dict({
+    'name': 'Page',
+    'fields': Dict({
+      'widgets': _widgetList,
+      'title': model.textType,
+    }),
+    'defaultFields': ({required Ctx ctx}) => Dict({
+          'widgets': model.PalValue(
+            _widgetList,
+            Vec([model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget)]),
+          ),
+          'title': const model.PalValue(model.textType, 'Untitled page'),
+      }),
+    'build': PageWidget.tearoff,
+  }),
+);
 
 @reader_widget
 Widget _pageWidget(
-  Reader reader,
-  BuildContext context, {
-  required model.Ctx ctx,
-  required Dict<String, Cursor<Object>> fields,
-  FocusNode? defaultFocus,
+  BuildContext context,
+  Dict<String, Cursor<model.PalValue>> fields, {
+  required Ctx ctx,
 }) {
-  final page = fields['page'].unwrap!.cast<model.Page>();
+  final widgetsValue = fields['widgets'].unwrap!;
+  assert(
+    widgetsValue.type.read(ctx).assignableTo(
+        ctx, pageWidget.recordAccess<Dict<String, model.PalType>>('fields')['widgets'].unwrap!),
+  );
+  final widgets = widgetsValue.value.cast<Vec<model.PalValue>>();
+  Cursor<model.WidgetID> widgetID(Cursor<model.PalValue> widget) =>
+      widget.value.cast<Dict<String, dynamic>>()['id'].whenPresent.cast<model.WidgetID>();
 
   final focusForID = useMemoized(() {
-    final foci = <model.NodeID<model.NodeView>, FocusNode>{};
-    return (model.NodeID<model.NodeView> id) {
-      if (page.nodeViews[0].read(reader) == id) {
-        return defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
+    final foci = <model.PalID, FocusNode>{};
+    return (model.PalID id) {
+      if (widgetID(widgets[0]).read(ctx) == id) {
+        return ctx.defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
       }
       return foci.putIfAbsent(id, () => FocusNode());
     };
@@ -85,9 +75,9 @@ Widget _pageWidget(
         //   });
         // },
         children: [
-          for (final index in range(page.nodeViews.length.read(reader)))
+          for (final index in range(widgets.length.read(ctx)))
             Padding(
-              key: ValueKey(page.nodeViews[index].read(reader)),
+              key: ValueKey(widgetID(widgets[index]).read(ctx)),
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Material(
                 elevation: 6,
@@ -95,27 +85,27 @@ Widget _pageWidget(
                   actions: {
                     NewNodeBelowIntent: NewNodeBelowAction(
                       onInvoke: (_) {
-                        late final model.NodeID<model.NodeView> id;
-                        page.nodeViews.insert(
+                        final instance = model.defaultInstance(ctx, textWidget);
+                        widgets.insert(
                           index + 1,
-                          id = const TextBuilder().addView(ctx.state),
+                          instance,
                         );
-                        focusForID(id).requestFocus();
+                        focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
                       },
                     ),
                     DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
                       onInvoke: (_) {
-                        if (page.nodeViews.length.read(null) > 1) {
-                          page.nodeViews.remove(index);
+                        if (widgets.length.read(Ctx.empty) > 1) {
+                          widgets.remove(index);
                         }
-                        focusForID(page.nodeViews[max(index - 1, 0)].read(null)).requestFocus();
+                        focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty))
+                            .requestFocus();
                       },
                     ),
                   },
-                  child: NodeViewWidget(
-                    ctx: ctx,
-                    nodeViewID: page.nodeViews[index],
-                    defaultFocus: focusForID(page.nodeViews[index].read(reader)),
+                  child: WidgetRenderer(
+                    ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
+                    instance: widgets[index],
                   ),
                 ),
               ),
@@ -123,27 +113,5 @@ Widget _pageWidget(
         ],
       ),
     ),
-  );
-}
-
-@reader_widget
-Widget _pageHeader(Reader reader, BuildContext context, Cursor<model.Header> header) {
-  final textTheme = Theme.of(context).textTheme;
-
-  return BoundTextFormField(
-    header.text,
-    style: () {
-      switch (header.level.read(reader)) {
-        case 1:
-          return textTheme.headline1!;
-        case 2:
-          return textTheme.headline2!;
-        case 3:
-          return textTheme.headline3!;
-        default:
-          return textTheme.headline4!;
-      }
-    }()
-        .copyWith(decoration: TextDecoration.underline),
   );
 }

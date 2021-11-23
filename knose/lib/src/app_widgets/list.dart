@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -8,50 +9,48 @@ import 'package:knose/model.dart' as model;
 
 part 'list.g.dart';
 
-@immutable
-@reify
-class ListBuilder extends model.NodeBuilder {
-  const ListBuilder();
+final _widgetList = model.ListType(
+  model.UnionType({model.widgetInstanceDef.asType(), model.widgetIDDef.asType()}),
+);
 
-  @override
-  model.NodeBuilderFn get build => ListWidget.tearoff;
-
-  @override
-  Dict<String, model.Datum> makeFields(
-    Cursor<model.State> state,
-    model.NodeID<model.NodeView> nodeView,
-  ) {
-    return Dict({
-      'list': model.Literal(
-        // TODO: fix type
-        typeData: const model.ListType(model.booleanType),
-        data: Optional(
-          model.List(
-            nodeViews: Vec([const TextBuilder().addView(state)]),
+final listWidget = model.PalValue(
+  model.widgetDef.asType(),
+  Dict({
+    'name': 'Bullet List',
+    'fields': Dict({
+      'widgets': _widgetList,
+    }),
+    'defaultFields': ({required Ctx ctx}) => Dict({
+          'widgets': model.PalValue(
+            _widgetList,
+            Vec([model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget)]),
           ),
-        ),
-        nodeView: nodeView,
-        fieldName: 'list',
-      )
-    });
-  }
-}
+        }),
+    'build': ListWidget.tearoff,
+  }),
+);
 
 @reader_widget
 Widget _listWidget(
-  Reader reader,
-  BuildContext context, {
-  required model.Ctx ctx,
-  required Dict<String, Cursor<Object>> fields,
-  FocusNode? defaultFocus,
+  BuildContext context,
+  Dict<String, Cursor<model.PalValue>> fields, {
+  required Ctx ctx,
 }) {
-  final list = fields['list'].unwrap!.cast<Optional<model.List>>().whenPresent;
+  final widgetsValue = fields['widgets'].unwrap!;
+  assert(
+    widgetsValue.type.read(ctx).assignableTo(
+        ctx, listWidget.recordAccess<Dict<String, model.PalType>>('fields')['widgets'].unwrap!),
+  );
+  final widgets = widgetsValue.value.cast<Vec<model.PalValue>>();
+
+  Cursor<model.WidgetID> widgetID(Cursor<model.PalValue> widget) =>
+      widget.value.cast<Dict<String, dynamic>>()['id'].whenPresent.cast<model.WidgetID>();
 
   final focusForID = useMemoized(() {
-    final foci = <model.NodeID<model.NodeView>, FocusNode>{};
-    return (model.NodeID<model.NodeView> id) {
-      if (list.nodeViews[0].read(reader) == id) {
-        return defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
+    final foci = <model.PalID, FocusNode>{};
+    return (model.PalID id) {
+      if (widgetID(widgets[0]).read(ctx) == id) {
+        return ctx.defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
       }
       return foci.putIfAbsent(id, () => FocusNode());
     };
@@ -60,9 +59,9 @@ Widget _listWidget(
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      for (final index in range(list.nodeViews.length.read(reader)))
+      for (final index in range(widgets.length.read(ctx)))
         Padding(
-          key: ValueKey(list.nodeViews[index].read(reader)),
+          key: ValueKey(widgetID(widgets[index]).read(ctx)),
           padding: index == 0
               ? const EdgeInsetsDirectional.only(start: 4, end: 4, bottom: 4)
               : const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
@@ -80,21 +79,20 @@ Widget _listWidget(
                     actions: {
                       NewNodeBelowIntent: NewNodeBelowAction(
                         onInvoke: (_) {
-                          late final model.NodeID<model.NodeView> id;
-                          list.nodeViews.insert(
+                          final instance = model.defaultInstance(ctx, textWidget);
+                          widgets.insert(
                             index + 1,
-                            id = const TextBuilder().addView(ctx.state),
+                            instance,
                           );
-                          focusForID(id).requestFocus();
+                          focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
                         },
                       ),
                       DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
                         onInvoke: (_) {
-                          if (list.nodeViews.length.read(null) > 1) {
-                            list.nodeViews.remove(index);
-                            focusForID(
-                              list.nodeViews[max(index - 1, 0)].read(null),
-                            ).requestFocus();
+                          if (widgets.length.read(Ctx.empty) > 1) {
+                            widgets.remove(index);
+                            focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty))
+                                .requestFocus();
                           } else {
                             Actions.invoke(
                               context,
@@ -104,10 +102,9 @@ Widget _listWidget(
                         },
                       ),
                     },
-                    child: NodeViewWidget(
-                      ctx: ctx,
-                      nodeViewID: list.nodeViews[index],
-                      defaultFocus: focusForID(list.nodeViews[index].read(reader)),
+                    child: WidgetRenderer(
+                      ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
+                      instance: widgets[index],
                     ),
                   ),
                 ),

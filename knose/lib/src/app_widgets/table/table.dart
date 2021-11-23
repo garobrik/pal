@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -7,52 +8,35 @@ import 'package:knose/infra_widgets.dart';
 
 part 'table.g.dart';
 
-@immutable
-class TableBuilder extends model.TopLevelNodeBuilder {
-  const TableBuilder();
+final tableWidget = model.PalValue(
+  model.widgetDef.asType(),
+  Dict({
+    'name': 'Table',
+    'fields': Dict({
+      'table': model.tableIDDef.asType(),
+      'title': model.textType,
+    }),
+    'defaultFields': ({required Ctx ctx}) {
+      final table = model.Table.newDefault();
+      ctx.db.update(table.id, table);
 
-  @override
-  model.NodeBuilderFn get build => MainTableWidget.tearoff;
-
-  @override
-  Dict<String, model.Datum> makeFields(
-    Cursor<model.State> state,
-    model.NodeID<model.NodeView> nodeView,
-  ) {
-    final table = model.Table.newDefault();
-    state.addNode(table);
-    return Dict({
-      'table': model.Literal(
-        // TODO: fix type
-        typeData: model.booleanType,
-        data: table.id,
-        nodeView: nodeView,
-        fieldName: 'table',
-      )
-    });
-  }
-
-  @override
-  String title({
-    required model.Ctx ctx,
-    required Dict<String, Cursor<Object>> fields,
-    required Reader reader,
-  }) {
-    final tableID = fields['table'].unwrap!.cast<model.NodeID<model.Table>>().read(reader);
-    return ctx.state.getNode(tableID).title.read(reader);
-  }
-}
+      return Dict({
+        'table': model.PalValue(model.tableIDDef.asType(), table.id),
+        'title': const model.PalValue(model.textType, 'Untitled page'),
+      });
+    },
+    'build': MainTableWidget.tearoff,
+  }),
+);
 
 @reader_widget
 Widget _mainTableWidget(
   BuildContext context,
-  Reader reader, {
-  required model.Ctx ctx,
-  required Dict<String, Cursor<Object>> fields,
-  FocusNode? defaultFocus,
+  Dict<String, Cursor<model.PalValue>> fields, {
+  required Ctx ctx,
 }) {
-  final tableID = fields['table'].unwrap!.cast<model.NodeID<model.Table>>().read(reader);
-  final table = ctx.state.getNode(tableID);
+  final tableID = fields['table'].unwrap!.value.cast<model.TableID>().read(ctx);
+  final table = ctx.db.get(tableID).whenPresent;
 
   return Container(
     padding: const EdgeInsets.all(20),
@@ -67,6 +51,7 @@ Widget _mainTableWidget(
               child: IntrinsicWidth(
                 child: BoundTextFormField(
                   table.title,
+                  ctx: ctx,
                   style: Theme.of(context).textTheme.headline6,
                 ),
               ),
@@ -95,7 +80,7 @@ Widget _mainTableWidget(
                             boxShadow: const [BoxShadow(blurRadius: 4)],
                             border: const Border(top: BorderSide()),
                           ),
-                          child: TableHeader(table),
+                          child: TableHeader(table, ctx: ctx),
                         ),
                       ),
                     ],
@@ -106,7 +91,7 @@ Widget _mainTableWidget(
                       const OpenRowButton(),
                       ElevatedButton(
                         onPressed: () => table.addRow(),
-                        focusNode: defaultFocus,
+                        focusNode: ctx.defaultFocus,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.start,

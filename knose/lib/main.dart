@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -16,8 +17,9 @@ void main() {
 @reader_widget
 Widget myApp() {
   return CursorWidget(
-    create: () => const model.State(),
-    builder: (_, reader, Cursor<model.State> state) => KeyPressedProvider(
+    ctx: Ctx.empty,
+    create: () => model.coreDB,
+    builder: (_, ctx, Cursor<model.PalDB> db) => KeyPressedProvider(
       child: MaterialApp(
         title: 'knose',
         shortcuts: shortcuts,
@@ -25,16 +27,14 @@ Widget myApp() {
         theme: theme(Colors.grey, Brightness.light),
         onGenerateRoute: (settings) {
           if (settings.name == '/') {
-            return generateSearchRoute(model.Ctx(state));
+            return generateSearchRoute(ctx.withDB(db));
           }
 
           final arguments = settings.arguments;
           if (arguments is model.Route) {
             return arguments.cases(
-              nodeRoute: (node) => generateNodeRoute(node.ctx ?? model.Ctx(state), node.id),
-              tableRoute: (_) => null,
-              pageRoute: (_) => null,
-              searchRoute: (_) => generateSearchRoute(model.Ctx(state)),
+              widgetRoute: (widget) => generateWidgetRoute(widget.ctx ?? ctx.withDB(db), widget.id),
+              searchRoute: (_) => generateSearchRoute(ctx.withDB(db)),
             );
           }
         },

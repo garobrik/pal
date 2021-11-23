@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -5,15 +6,13 @@ import 'package:knose/model.dart' as model;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/shortcuts.dart';
-import 'package:knose/src/infra_widgets/dropdown.dart';
 
 part 'scaffold.g.dart';
 
 @reader_widget
 Widget _mainScaffold(
-  BuildContext context,
-  Reader reader, {
-  required model.Ctx ctx,
+  BuildContext context, {
+  required Ctx ctx,
   required Widget body,
   required bool replaceRouteOnPush,
   Widget? title,
@@ -38,19 +37,21 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final nodeViewID = const PageBuilder().addView(ctx.state);
+                final newPage = model.defaultInstance(ctx, pageWidget);
+                final widgetID = newPage.recordAccess<model.WidgetID>('id');
+                ctx.db.update(widgetID, newPage);
 
                 if (replaceRouteOnPush) {
                   Navigator.pushReplacementNamed(
                     context,
                     '',
-                    arguments: model.NodeRoute(nodeViewID),
+                    arguments: model.WidgetRoute(widgetID, ctx: ctx),
                   );
                 } else {
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.NodeRoute(nodeViewID),
+                    arguments: model.WidgetRoute(widgetID, ctx: ctx),
                   );
                 }
               },
@@ -59,19 +60,21 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final nodeViewID = const TableBuilder().addView(ctx.state);
+                final newTable = model.defaultInstance(ctx, tableWidget);
+                final widgetID = newTable.recordAccess<model.WidgetID>('id');
+                ctx.db.update(widgetID, newTable);
 
                 if (replaceRouteOnPush) {
                   Navigator.pushReplacementNamed(
                     context,
                     '',
-                    arguments: model.NodeRoute(nodeViewID),
+                    arguments: model.WidgetRoute(widgetID),
                   );
                 } else {
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.NodeRoute(nodeViewID),
+                    arguments: model.WidgetRoute(widgetID),
                   );
                 }
               },
@@ -98,7 +101,7 @@ Widget _mainScaffold(
           ],
         ),
       ),
-      body: DeferredPaintTarget(child: InheritedStack(child: body)),
+      body: DeferredPaintTarget(child: body),
     ),
   );
 }
@@ -108,6 +111,7 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
   return IntrinsicWidth(
     child: BoundTextFormField(
       title,
+      ctx: Ctx.empty,
       style: Theme.of(context).textTheme.headline6,
       decoration: const InputDecoration(hintText: 'title'),
     ),
@@ -115,9 +119,9 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
 }
 
 @reader_widget
-Widget _scaffoldTitle(Reader reader, BuildContext context, GetCursor<String> title) {
+Widget _scaffoldTitle(Ctx ctx, BuildContext context, GetCursor<String> title) {
   return Text(
-    title.read(reader),
+    title.read(ctx),
     style: Theme.of(context).textTheme.headline6,
   );
 }

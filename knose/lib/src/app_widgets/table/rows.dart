@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
@@ -9,10 +10,9 @@ import 'package:knose/model.dart' as model;
 part 'rows.g.dart';
 
 @reader_widget
-Widget _tableRows(
-  Reader reader, {
+Widget _tableRows({
+  required Ctx ctx,
   required Cursor<model.Table> table,
-  required model.Ctx ctx,
 }) {
   final scrollController = useScrollController();
 
@@ -20,12 +20,12 @@ Widget _tableRows(
     scrollController: scrollController,
     onReorder: (old, nu) {
       table.rowIDs.atomically((rowIDs) {
-        rowIDs.insert(nu < old ? nu : nu + 1, rowIDs[old].read(null));
+        rowIDs.insert(nu < old ? nu : nu + 1, rowIDs[old].read(Ctx.empty));
         rowIDs.remove(nu < old ? old + 1 : old);
       });
     },
     children: [
-      for (final rowID in table.rowIDs.read(reader))
+      for (final rowID in table.rowIDs.read(ctx))
         TableRow(
           ctx: ctx,
           table: table,
@@ -38,9 +38,8 @@ Widget _tableRows(
 
 @reader_widget
 Widget _tableRow(
-  BuildContext context,
-  Reader reader, {
-  required model.Ctx ctx,
+  BuildContext context, {
+  required Ctx ctx,
   required Cursor<model.Table> table,
   required model.RowID rowID,
   bool enabled = true,
@@ -58,9 +57,10 @@ Widget _tableRow(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         ReaderWidget(
-          builder: (_, reader) => isHovered.read(reader) && table.rowViews.length.read(reader) > 0
+          ctx: ctx,
+          builder: (_, ctx) => isHovered.read(ctx) && table.rowViews.length.read(ctx) > 0
               ? OpenRowButton(
-                  nodeID: table.rowViews[0].read(reader),
+                  widgetID: table.rowViews[0].read(ctx),
                   ctx: ctx.withTable(table).withRow(rowID),
                 )
               : const OpenRowButton(),
@@ -72,60 +72,66 @@ Widget _tableRow(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final columnID in table.columnIDs.read(reader))
+                for (final columnID in table.columnIDs.read(ctx))
                   Container(
                     key: ValueKey(columnID),
-                    width: table.columns[columnID].whenPresent.width.read(reader),
+                    width: table.columns[columnID].whenPresent.width.read(ctx),
                     decoration: const BoxDecoration(border: Border(right: BorderSide())),
-                    child: ReaderWidget(builder: (_, reader) {
-                      final column = table.columns[columnID].whenPresent;
-                      final type = column.type.read(reader);
-                      if (type is model.PlainTextType) {
-                        return StringField(
-                          string: column.values[rowID].optionalCast<String>(),
-                          enabled: enabled,
-                        );
-                      } else if (type is model.BooleanType) {
-                        return Checkbox(
-                          onChanged: !enabled
-                              ? null
-                              : (newValue) => column.values[rowID] =
-                                  newValue! ? const Optional(true) : const Optional.none(),
-                          value: column.values[rowID]
-                              .optionalCast<bool>()
-                              .orElse(false)
-                              .read(reader),
-                        );
-                      } else if (type is model.NumberType) {
-                        return NumField(
-                          number: column.values[rowID].optionalCast<num>(),
-                          enabled: enabled,
-                        );
-                      } else {
-                        return Container();
-                      }
-                      // return table.columns[columnID].whenPresent.type.cases(
-                      //   reader,
-                      //   selectColumn: (column) => SelectField(
-                      //     column: column,
-                      //     row: column.values[rowID],
-                      //     enabled: enabled,
-                      //   ),
-                      //   multiselectColumn: (column) => MultiselectField(
-                      //     column: column,
-                      //     row: column.values[rowID].orElse(const CSet()),
-                      //     enabled: enabled,
-                      //   ),
-                      //   linkColumn: (column) => LinkField(
-                      //     ctx: ctx,
-                      //     column: column,
-                      //     rowCursor: column.values[rowID],
-                      //     enabled: enabled,
-                      //   ),
-                      //   dateColumn: (column) => Container(),
-                      //   pageColumn: (column) => Container(),
-                      // );
-                    }),
+                    child: ReaderWidget(
+                      ctx: ctx,
+                      builder: (_, ctx) {
+                        final column = table.columns[columnID].whenPresent;
+                        final type = column.type.read(ctx);
+                        if (type is model.TextType) {
+                          return StringField(
+                            ctx: ctx,
+                            string: column.values[rowID],
+                            enabled: enabled,
+                          );
+                        } else if (type is model.BooleanType) {
+                          return Checkbox(
+                            onChanged: !enabled
+                                ? null
+                                : (newValue) => column.values[rowID] = newValue!
+                                    ? const Optional(model.PalValue(model.booleanType, true))
+                                    : const Optional.none(),
+                            value: column.values[rowID]
+                                .read(ctx)
+                                .map<dynamic>((p0) => p0.value)
+                                .orElse(false) as bool,
+                          );
+                        } else if (type is model.NumberType) {
+                          return NumField(
+                            ctx: ctx,
+                            number: column.values[rowID],
+                            enabled: enabled,
+                          );
+                        } else {
+                          return Container();
+                        }
+                        // return table.columns[columnID].whenPresent.type.cases(
+                        //   reader,
+                        //   selectColumn: (column) => SelectField(
+                        //     column: column,
+                        //     row: column.values[rowID],
+                        //     enabled: enabled,
+                        //   ),
+                        //   multiselectColumn: (column) => MultiselectField(
+                        //     column: column,
+                        //     row: column.values[rowID].orElse(const CSet()),
+                        //     enabled: enabled,
+                        //   ),
+                        //   linkColumn: (column) => LinkField(
+                        //     ctx: ctx,
+                        //     column: column,
+                        //     rowCursor: column.values[rowID],
+                        //     enabled: enabled,
+                        //   ),
+                        //   dateColumn: (column) => Container(),
+                        //   pageColumn: (column) => Container(),
+                        // );
+                      },
+                    ),
                   ),
                 if (trailingNewColumnSpace)
                   FocusTraversalGroup(
@@ -151,22 +157,22 @@ Widget _tableRow(
 @reader_widget
 Widget _openRowButton(
   BuildContext context, {
-  model.NodeID<model.NodeView>? nodeID,
-  model.Ctx? ctx,
+  model.WidgetID? widgetID,
+  Ctx ctx = Ctx.empty,
 }) {
   return AnimatedOpacity(
-    opacity: nodeID != null && ctx != null ? 1 : 0,
+    opacity: widgetID != null ? 1 : 0,
     duration: const Duration(milliseconds: 300),
     child: TextButton(
       style: ButtonStyle(padding: MaterialStateProperty.all(EdgeInsets.zero)),
-      onPressed: (nodeID == null || ctx == null)
+      onPressed: (widgetID == null)
           ? null
           : () {
               Navigator.pushNamed(
                 context,
                 '',
-                arguments: model.NodeRoute(
-                  nodeID,
+                arguments: model.WidgetRoute(
+                  widgetID,
                   ctx: ctx,
                 ),
               );
@@ -189,19 +195,18 @@ Widget _openRowButton(
 Widget _linkField(
   Reader reader,
   BuildContext context, {
-  required model.Ctx ctx,
-  required Cursor<model.LinkColumn> column,
+  required Ctx ctx,
+  required Cursor<model.Column> column,
   required Cursor<Optional<model.RowID>> rowCursor,
   bool enabled = true,
 }) {
-  final state = CursorProvider.of<model.State>(context);
   final isOpen = useCursor(false);
-  final tableID = column.table.read(reader);
+  const model.TableID? tableID = null; //column.table.read(ctx) as model.TableID?;
   String? title(Reader reader) {
-    final row = rowCursor.read(reader).unwrap;
+    final row = rowCursor.read(ctx).unwrap;
     if (row == null || tableID == null) return null;
-    final table = state.getNode(tableID);
-    return table.columns[table.titleColumn.read(reader)].whenPresent.values[row].read(reader).unwrap
+    final table = ctx.db.get(tableID).whenPresent;
+    return table.columns[table.titleColumn.read(ctx)].whenPresent.values[row].read(ctx).unwrap
         as String?;
   }
 
@@ -211,10 +216,10 @@ Widget _linkField(
   });
   FocusNode? currentFocus;
   if (tableID != null) {
-    final table = state.getNode(tableID);
-    final length = table.rowIDs.length.read(reader);
+    final table = ctx.db.get(tableID).whenPresent;
+    final length = table.rowIDs.length.read(ctx);
     if (length > 0) {
-      currentFocus = focusForRow(table.rowIDs[0].read(reader));
+      currentFocus = focusForRow(table.rowIDs[0].read(ctx));
     }
   }
 
@@ -224,12 +229,13 @@ Widget _linkField(
     dropdownFocus: currentFocus,
     childAnchor: Alignment.topLeft,
     dropdown: ReaderWidget(
-      builder: (_, reader) {
-        final table = state.getNode(tableID!);
+      ctx: ctx,
+      builder: (_, ctx) {
+        final table = ctx.db.get(tableID!).whenPresent;
         final width = table.columns.keys
-            .read(reader)
+            .read(ctx)
             .map(
-              (colID) => table.columns[colID].whenPresent.width.read(reader),
+              (colID) => table.columns[colID].whenPresent.width.read(ctx),
             )
             .reduce((a, b) => a + b);
 
@@ -237,10 +243,11 @@ Widget _linkField(
           constraints: BoxConstraints(maxWidth: width),
           child: ListView.builder(
             shrinkWrap: true,
-            itemCount: table.rowIDs.length.read(reader),
+            itemCount: table.rowIDs.length.read(ctx),
             itemBuilder: (_, index) => ReaderWidget(
-              builder: (_, reader) {
-                final rowID = table.rowIDs[index].read(reader);
+              ctx: ctx,
+              builder: (_, ctx) {
+                final rowID = table.rowIDs[index].read(ctx);
                 return TextButton(
                   focusNode: focusForRow(rowID),
                   style: ButtonStyle(
