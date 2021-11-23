@@ -45,8 +45,8 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
                   '(_t) => _t.${a.name}',
                   if (parentKind == OpticKind.Lens)
                     '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',
-                ])
-              ]),
+                  ], typeArgs: a.getter!.returnType.typeEquals(Type.dynamic) ? [clazz.type, a.getter!.returnType] : [])
+              ], typeArgs: [if (a.getter!.returnType.typeEquals(Type.dynamic)) a.getter!.returnType]),
             ),
             setter: true //parentKind == OpticKind.Getter
                 ? null

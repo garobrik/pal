@@ -26,14 +26,18 @@ Iterable<Optic> generateFieldOptics(
             getter: Getter(
               f.name,
               wrapper(f.type),
-              body: call(parentKind.thenMethod, [
-                call(parentKind.fieldCtor, [
-                  "const ['${f.name}']",
-                  '(_t) => _t.${f.name}',
-                  if (parentKind == OpticKind.Lens)
-                    '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
-                ])
-              ]),
+              body: call(
+                parentKind.thenMethod,
+                [
+                  call(parentKind.fieldCtor, [
+                    "const ['${f.name}']",
+                    '(_t) => _t.${f.name}',
+                    if (parentKind == OpticKind.Lens)
+                      '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
+                  ], typeArgs: f.type.typeEquals(Type.dynamic) ? [clazz.type, f.type] : [])
+                ],
+                typeArgs: [if (f.type.typeEquals(Type.dynamic)) f.type],
+              ),
             ),
             setter: true //parentKind == OpticKind.Getter
                 ? null
