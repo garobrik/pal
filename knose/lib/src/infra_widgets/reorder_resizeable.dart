@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -8,8 +9,8 @@ import 'package:knose/infra_widgets.dart';
 part 'reorder_resizeable.g.dart';
 
 @reader_widget
-Widget _reorderResizeable(
-  Reader reader, {
+Widget _reorderResizeable({
+  required Ctx ctx,
   required Axis direction,
   required ReorderCallback onReorder,
   required List<Cursor<double>> mainAxisSizes,
@@ -19,9 +20,9 @@ Widget _reorderResizeable(
   final widgetIdentifier = useRef(Object()).value;
   final grabbedPosition = useState<int?>(null);
   final grabbedChild = useState<int?>(null);
-  final animations = useCursor(Dict<int, AnimationController>(const {}));
+  final animations = useCursor(const Dict<int, AnimationController>({}));
   useEffect(
-    () => () => animations.read(null).forEach((entry) => entry.value.dispose()),
+    () => () => animations.read(Ctx.empty).forEach((entry) => entry.value.dispose()),
     [0],
   );
 
@@ -29,17 +30,18 @@ Widget _reorderResizeable(
 
   AnimationController _makeAnimation() => AnimationController(
         vsync: tickerProvider,
-        duration: Duration(milliseconds: 0),
+        duration: const Duration(milliseconds: 0),
       );
 
   final wrappedChildren = [
     for (int i = 0; i < children.length; i++)
       ReaderWidget(
         key: _ReorderableChildGlobalKey(children[i].key!, widgetIdentifier),
-        builder: (_, reader) => Container(
+        ctx: ctx,
+        builder: (_, ctx) => Container(
             constraints: BoxConstraints.tightFor(
-              width: direction == Axis.horizontal ? mainAxisSizes[i].read(reader) : null,
-              height: direction == Axis.vertical ? mainAxisSizes[i].read(reader) : null,
+              width: direction == Axis.horizontal ? mainAxisSizes[i].read(ctx) : null,
+              height: direction == Axis.vertical ? mainAxisSizes[i].read(ctx) : null,
             ),
             child: children[i]),
       ),
@@ -72,9 +74,9 @@ Widget _reorderResizeable(
           animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
           animations[i]
               .whenPresent
-              .read(null)
-              .reverse(from: animations[grabbedChild.value!].read(null).unwrap!.value);
-          animations[grabbedChild.value!].read(null).unwrap!.forward(from: 0);
+              .read(Ctx.empty)
+              .reverse(from: animations[grabbedChild.value!].read(Ctx.empty).unwrap!.value);
+          animations[grabbedChild.value!].read(Ctx.empty).unwrap!.forward(from: 0);
 
           return true;
         },
@@ -84,7 +86,7 @@ Widget _reorderResizeable(
             grabbedChild.value = i;
             grabbedPosition.value = i;
             animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
-            animations[i].read(null).unwrap!.value = 1.0;
+            animations[i].read(Ctx.empty).unwrap!.value = 1.0;
           },
           onDraggableCanceled: (_, __) {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -92,7 +94,7 @@ Widget _reorderResizeable(
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(null).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
           },
           onDragCompleted: () {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -100,7 +102,7 @@ Widget _reorderResizeable(
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(null).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
           },
           onDragEnd: (_) {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -108,12 +110,12 @@ Widget _reorderResizeable(
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(null).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
           },
           data: i,
           axis: direction,
           affinity: direction,
-          childWhenDragging: SizedBox.shrink(),
+          childWhenDragging: const SizedBox.shrink(),
           feedback: Material(elevation: 5, child: wrappedChildren[i]),
           feedbackOffset:
               Offset(direction == Axis.horizontal ? 0 : 5, direction == Axis.vertical ? 0 : 5),
@@ -123,14 +125,15 @@ Widget _reorderResizeable(
   ];
 
   Widget _makeTransition(int index) => ReaderWidget(
-        builder: (_, reader) {
-          final animation = animations[index].read(reader);
+        ctx: ctx,
+        builder: (_, ctx) {
+          final animation = animations[index].read(ctx);
           return animation.cases(
-            none: () => SizedBox.shrink(),
+            none: () => const SizedBox.shrink(),
             some: (animation) => SizeTransition(
               axis: direction,
               sizeFactor: animation,
-              child: Container(width: mainAxisSizes[grabbedChild.value!].read(reader)),
+              child: Container(width: mainAxisSizes[grabbedChild.value!].read(ctx)),
             ),
           );
         },
@@ -172,7 +175,7 @@ Widget _reorderResizeable(
   final dragHandles = <Widget>[];
   double totalSize = 0;
   for (final size in mainAxisSizes) {
-    totalSize += size.read(reader);
+    totalSize += size.read(ctx);
     dragHandles.add(
       PositionedDirectional(
         start: direction == Axis.horizontal ? totalSize - dragHandlePadding : 0,
@@ -184,7 +187,7 @@ Widget _reorderResizeable(
           maxSimultaneousDrags: 1,
           onDragUpdate: (details) {
             final delta = direction == Axis.horizontal ? details.delta.dx : details.delta.dy;
-            size.set(math.max(size.read(null) + delta, 50));
+            size.set(math.max(size.read(Ctx.empty) + delta, 50));
           },
           feedback: MyDivider(direction: direction, padding: dragHandlePadding),
           child: MyDivider(direction: direction, padding: dragHandlePadding),
