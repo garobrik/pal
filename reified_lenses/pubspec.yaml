@@ -2,7 +2,6 @@ name: reified_lenses
 version: 0.1.0
 description: >-
   Highly opinionated granular reactive state management for immutable state objects. (Words!)
-repository: https://gitlab.com/arrow/reified_lenses
 publish_to: none
 
 environment:
