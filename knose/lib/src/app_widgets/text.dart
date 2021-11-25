@@ -25,9 +25,7 @@ final textWidget = model.PalValue(
   }),
 );
 
-final textOption = model.optionDef.asType(
-  {model.optionMemberID: const model.PalValue(model.typeType, model.textType)},
-);
+final textOption = model.optionDef.asType({model.optionMemberID: model.textType});
 
 @reader_widget
 Widget _textWidget(

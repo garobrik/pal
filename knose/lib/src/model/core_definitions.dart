@@ -101,7 +101,7 @@ final widgetDef = InterfaceDef(
       name: 'build',
       type: FunctionType(
         returnType: flutterWidgetDef.asType(),
-        target: PalValue(typeType, MapType(textType, cursorDef.asType())),
+        target: MapType(textType, cursorDef.asType()),
       ),
     ),
   ],

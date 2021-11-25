@@ -238,7 +238,7 @@ class FunctionType extends PalType {
 
 class InterfaceType extends PalType {
   final TypeID id;
-  final Map<MemberID, PalExpr> assignments;
+  final Map<MemberID, PalType> assignments;
 
   InterfaceType({required this.id, this.assignments = const {}});
 
@@ -260,7 +260,7 @@ class InterfaceDef {
   })  : this.id = id ?? TypeID.create(),
         members = {for (final member in members) member.id: member};
 
-  InterfaceType asType([Map<MemberID, PalExpr> assignments = const {}]) =>
+  InterfaceType asType([Map<MemberID, PalType> assignments = const {}]) =>
       InterfaceType(id: id, assignments: assignments);
 }
 

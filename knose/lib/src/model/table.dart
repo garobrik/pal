@@ -2,7 +2,7 @@ import 'package:ctx/ctx.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
-import 'package:knose/model.dart' hide List;
+import 'package:knose/model.dart';
 
 part 'table.g.dart';
 
@@ -276,6 +276,6 @@ class _TableDatum extends Datum with _TableDatumMixin {
   PalType type(Ctx ctx) {
     final table = ctx.db.get(tableID);
     final colType = table.whenPresent.columns[columnID].whenPresent.type.read(ctx);
-    return optionDef.asType({optionMemberID: PalValue(typeType, colType)});
+    return optionDef.asType({optionMemberID: colType});
   }
 }
