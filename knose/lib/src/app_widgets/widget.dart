@@ -54,14 +54,24 @@ Widget _widgetRenderer({
     }
   }
 
-  if (nullFields.isNotEmpty) {
-    return Text('Fields are null: ${nullFields.join(", ")}.');
-  }
-
-  final child = build(Dict(evaluatedFields), ctx: ctx);
-
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
+
+  late final Widget child;
+  if (nullFields.isNotEmpty) {
+    child = Row(
+      children: [
+        Expanded(
+          child: TextButton(
+            onPressed: () => isOpen.set(true),
+            child: Text('Fields are null: ${nullFields.join(", ")}.'),
+          ),
+        ),
+      ],
+    );
+  } else {
+    child = build(Dict(evaluatedFields), ctx: ctx);
+  }
 
   return Actions(
     actions: {
