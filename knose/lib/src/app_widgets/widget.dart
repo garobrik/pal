@@ -29,7 +29,8 @@ Route generateWidgetRoute(
 }
 
 @reader_widget
-Widget _widgetRenderer({
+Widget _widgetRenderer(
+  BuildContext context, {
   required Ctx ctx,
   required Cursor<model.PalValue> instance,
 }) {
@@ -63,7 +64,7 @@ Widget _widgetRenderer({
       children: [
         Expanded(
           child: TextButton(
-            onPressed: () => isOpen.set(true),
+            onPressed: () => Actions.invoke(context, const NewNodeBelowIntent()),
             child: Text('Fields are null: ${nullFields.join(", ")}.'),
           ),
         ),
@@ -89,7 +90,7 @@ Widget _widgetRenderer({
         isOpen: isOpen,
         childAnchor: Alignment.bottomLeft,
         dropdown: WidgetConfigWidget(
-          ctx: ctx,
+          ctx: ctx.withDefaultFocus(dropdownFocus),
           instance: instance,
         ),
         child: child,
@@ -117,6 +118,7 @@ Widget _widgetConfigWidget({
   final fields = instance.recordAccess<Dict<String, model.PalValue>>('fields');
   final thisWidget = instance.recordAccess<model.PalValue>('widget');
   final fieldTypes = thisWidget.recordAccess<Dict<String, model.PalType>>('fields');
+  final firstFieldName = fields.keys.read(ctx).isNotEmpty ? fields.keys.read(ctx).first : null;
 
   return IntrinsicWidth(
     child: Column(
@@ -139,17 +141,18 @@ Widget _widgetConfigWidget({
                               .type(ctx)
                               .assignableTo(ctx, fieldTypes[fieldName].whenPresent.read(ctx)))
                             TextButton(
-                              onPressed: () => fields[fieldName] = Optional(model.PalValue(model.datumDef.asType(), datum)),
+                              onPressed: () => fields[fieldName] =
+                                  Optional(model.PalValue(model.datumDef.asType(), datum)),
                               child: Text(datum.name(ctx)),
                             ),
                     ],
                   ),
                 ),
                 child: TextButton(
+                  focusNode: firstFieldName == fieldName ? ctx.defaultFocus : null,
                   onPressed: () => fieldIsOpen.set(!fieldIsOpen.read(Ctx.empty)),
-                  child: Text(
-                    '$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
-                  ),
+                  child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
+                      ),
                 ),
               );
             },
@@ -175,6 +178,7 @@ Widget _widgetConfigWidget({
             ),
           ),
           child: TextButton(
+            focusNode: firstFieldName == null ? ctx.defaultFocus : null,
             onPressed: () => isOpen.set(!isOpen.read(Ctx.empty)),
             child: const Text('View type'),
           ),
