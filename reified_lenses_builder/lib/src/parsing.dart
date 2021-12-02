@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:core' as core;
 import 'dart:core';
 
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/nullability_suffix.dart';
@@ -22,6 +23,7 @@ abstract class ElementAnalogue<T extends Element> {
   const ElementAnalogue({required this.name, required this.annotations}) : element = null;
 
   ElementAnalogue.fromElement(LibraryElement usageContext, T element)
+      // ignore: prefer_initializing_formals
       : element = element,
         annotations = const [],
         name = qualifiedNameIn(element, usageContext) ?? '';
@@ -65,6 +67,7 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
   late final Iterable<Method> methods;
   late final Iterable<AccessorPair> accessors;
 
+  // ignore: prefer_const_constructors_in_immutables
   DefinitionHolder({
     required String name,
     required this.params,
@@ -228,7 +231,7 @@ class Constructor extends ElementAnalogue<ConstructorElement> {
         super.fromElement(usageContext, element);
 
   bool get isDefault => name.isEmpty;
-  String get call => '${parent.name}' + (name.isEmpty ? '' : '.$name');
+  String get call => parent.name + (name.isEmpty ? '' : '.$name');
 }
 
 @meta.immutable
@@ -372,7 +375,7 @@ class FunctionDefinition extends ElementAnalogue<FunctionElement> {
   final bool isExpression;
   final String? body;
 
-  FunctionDefinition(
+  const FunctionDefinition(
     String name, {
     this.typeParams = const [],
     this.params = const [],
@@ -516,6 +519,9 @@ class TypeParam extends ElementAnalogue<TypeParameterElement> {
       name == other.name &&
       ((extendz == null) == (other.extendz == null)) &&
       (extendz?.typeEquals(other.extendz!) ?? true);
+
+  @override
+  int get hashCode => Object.hash(name, extendz);
 }
 
 @meta.immutable
@@ -539,7 +545,11 @@ abstract class Type {
     String name,
   ) async {
     log.info(' importURI: $importURI');
-    final resolvedLibrary = await usageContext.session.getLibraryByUri(importURI);
+    final libraryResult = await usageContext.session.getLibraryByUri(importURI);
+    if (libraryResult is! LibraryElementResult) {
+      throw UnresolvableTypeException(importURI, name);
+    }
+    final resolvedLibrary = libraryResult.element;
     log.info(' resolvedLibrary.name: ${resolvedLibrary.name}');
     log.info(' resolvedLibrary: ${resolvedLibrary.source.uri}');
     final resolvedClass = resolvedLibrary.getType(name);

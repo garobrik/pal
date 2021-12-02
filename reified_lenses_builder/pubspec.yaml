@@ -17,7 +17,7 @@ dependencies:
       ../flutter_reified_lenses
   build: ^2.0.1
   source_gen: ^1.0.0
-  analyzer: ^1.0.0
+  analyzer: ^2.4.0
 
 dev_dependencies:
   build_runner: ^2.0.1
