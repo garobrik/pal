@@ -8,6 +8,14 @@ typedef PathMapSet<V> = TrieMapSet<Object, V>;
 typedef PathSet = TrieSet<Object>;
 typedef Path = Iterable<Object>;
 
+PathSet atPrefixWithParent(PathSet pathSet, Path prefix) {
+  for (final pathElem in prefix) {
+    if (pathSet.containsRoot) return PathSet.root();
+    pathSet = pathSet.atPrefix([pathElem]);
+  }
+  return pathSet;
+}
+
 @immutable
 @reify
 class Diff with _DiffMixin {
@@ -45,10 +53,12 @@ class Diff with _DiffMixin {
       );
 
   Diff atPrefix(Path path) => Diff(
-        added: added.atPrefix(path),
-        changed: changed.atPrefix(path),
-        removed: removed.atPrefix(path),
+        added: atPrefixWithParent(added, path),
+        changed: atPrefixWithParent(changed, path),
+        removed: atPrefixWithParent(removed, path),
       );
+
+  PathSet allPaths() => added.union(changed).union(removed);
 }
 
 @immutable

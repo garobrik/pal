@@ -5,8 +5,10 @@ part 'tuple.g.dart';
 
 @immutable
 @reify
-class Pair<A, B> {
+class Pair<A, B> with _PairMixin<A, B> {
+  @override
   final A first;
+  @override
   final B second;
 
   Pair(this.first, this.second);

@@ -174,14 +174,14 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
     final result = transform(_state);
     _state = result.value;
     _listenables
-        .connectedValues(result.diff.changed.union(result.diff.added).union(result.diff.removed))
+        .connectedValues(result.diff.allPaths())
         .forEach((f) => f(origState, _state, result.diff));
     return result;
   }
 
   @override
   String toString() {
-    return 'ListenableStatebase<$T>';
+    return 'ListenableStateBase<$T>';
   }
 }
 
@@ -226,26 +226,6 @@ class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
   final Getter<T, S> lens;
 
   StateCursor(this.state, this.lens);
-}
-
-class CallbackStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
-  @override
-  final ListenableState<T> state;
-  @override
-  final Lens<T, S> lens;
-  final void Function(DiffResult<T> diff) callback;
-
-  CallbackStateCursor(this.state, this.lens, this.callback);
-
-  @override
-  void mutResult(DiffResult<S> Function(S p1) f) {
-    callback(lens.mutDiff(state.currentState, f));
-  }
-
-  @override
-  Cursor<S2> then<S2>(Lens<S, S2> lens) {
-    return CallbackStateCursor(state, this.lens.then(lens), callback);
-  }
 }
 
 @immutable

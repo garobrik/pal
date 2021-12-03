@@ -299,6 +299,8 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
     yield* TrieMap(_wrapped._value, _wrapped._children).keys(key);
   }
 
+  bool get containsRoot => _wrapped._value == true;
+
   @override
   Iterator<Iterable<K>> get iterator => values().iterator;
 
