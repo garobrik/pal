@@ -67,6 +67,9 @@ abstract class Cursor<S> implements GetCursor<S> {
         Lens.identity(),
       );
 
+  factory Cursor.compute(Cursor<S> Function(Ctx) computation, {required Ctx ctx}) =>
+      FlattenedCursor(GetCursor.compute(computation, ctx: ctx), Lens.identity());
+
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
@@ -426,4 +429,64 @@ class _MutablePartialViewState<T, S>
   String toString() {
     return 'MutablePartialViewState<$S>($viewed)';
   }
+}
+
+abstract class FlattenedCursorBase<T, S> implements GetCursor<S> {
+  GetCursor<GetCursor<T>> get cursor;
+  Getter<T, S> get lens;
+
+  @override
+  void Function() listen(void Function(S old, S nu, Diff diff) f) {
+    void listener(T old, T nu, Diff diff) =>
+        f(lens.get(old), lens.get(nu), diff.atPrefix(lens.path));
+    void Function() dispose = cursor.read(Ctx.empty).listen(listener);
+
+    cursor.listen((old, nu, diff) {
+      dispose();
+      dispose = nu.listen(listener);
+      f(lens.get(old.read(Ctx.empty)), lens.get(nu.read(Ctx.empty)), Diff.allChanged());
+    });
+
+    return () => dispose();
+  }
+
+  @override
+  S read(Ctx ctx) => lens.get(cursor.read(ctx).read(ctx));
+
+  @override
+  GetCursor<S2> then<S2>(Lens<S, S2> lens) => FlattenedGetCursor(cursor, this.lens.then(lens));
+
+  @override
+  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
+    return FlattenedGetCursor(cursor, this.lens.thenGet(getter));
+  }
+}
+
+class FlattenedGetCursor<T, S> with FlattenedCursorBase<T, S> {
+  @override
+  final GetCursor<GetCursor<T>> cursor;
+  @override
+  final Getter<T, S> lens;
+
+  FlattenedGetCursor(this.cursor, this.lens);
+}
+
+class FlattenedCursor<T, S> with FlattenedCursorBase<T, S>, Cursor<S> {
+  @override
+  final GetCursor<Cursor<T>> cursor;
+  @override
+  final Lens<T, S> lens;
+
+  FlattenedCursor(this.cursor, this.lens);
+
+  @override
+  void mutResult(DiffResult<S> Function(S p1) f) =>
+      cursor.read(Ctx.empty).mutResult((t) => lens.mutDiff(t, f));
+
+  @override
+  Cursor<S2> then<S2>(Lens<S, S2> lens) => FlattenedCursor(cursor, this.lens.then(lens));
+}
+
+extension FlattenedCursorExtension<T> on GetCursor<Cursor<T>> {
+  Cursor<T> get flatten => FlattenedCursor(this, Lens.identity());
 }
