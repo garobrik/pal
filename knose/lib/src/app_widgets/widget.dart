@@ -42,16 +42,19 @@ Widget _widgetRenderer(
   final evaluatedFields = <String, Cursor<model.PalValue>>{};
   final nullFields = <String>[];
   for (final fieldName in fields.keys.read(ctx)) {
-    if (fields[fieldName].whenPresent.type.read(ctx).assignableTo(ctx, model.datumDef.asType())) {
-      final evaluatedField =
-          fields[fieldName].whenPresent.value.cast<model.Datum>().read(ctx).build(ctx);
-      if (evaluatedField == null) {
-        nullFields.add(fieldName);
+    final optCursor = GetCursor.compute((ctx) {
+      if (fields[fieldName].whenPresent.type.read(ctx).assignableTo(ctx, model.datumDef.asType())) {
+        final evaluatedField =
+            fields[fieldName].whenPresent.value.cast<model.Datum>().read(ctx).build(ctx);
+        return Optional.fromNullable(evaluatedField);
       } else {
-        evaluatedFields[fieldName] = evaluatedField;
+        return Optional(fields[fieldName].whenPresent.cast<model.PalValue>());
       }
+    }, ctx: ctx);
+    if (optCursor.isPresent.read(ctx)) {
+      evaluatedFields[fieldName] = optCursor.whenPresent.flatten;
     } else {
-      evaluatedFields[fieldName] = fields[fieldName].whenPresent.cast<model.PalValue>();
+      nullFields.add(fieldName);
     }
   }
 

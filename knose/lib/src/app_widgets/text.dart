@@ -34,19 +34,21 @@ Widget _textWidget(
   required Ctx ctx,
 }) {
   final text = fields['text'].unwrap!;
-  final type = text.type.read(ctx);
-  late final Cursor<String> stringCursor;
-  if (type == model.textType) {
-    stringCursor = text.value.cast<String>();
-  } else if (type.assignableTo(ctx, textOption)) {
-    stringCursor = text.value
-        .cast<Optional<model.PalValue>>()
-        .orElse(const model.PalValue(model.textType, ''))
-        .value
-        .cast<String>(); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
-  } else {
-    print(type);
-  }
+  final stringCursor = Cursor.compute((ctx) {
+    final type = text.type.read(ctx);
+    if (type == model.textType) {
+      return text.value.cast<String>();
+    } else if (type.assignableTo(ctx, textOption)) {
+      return text.value
+          .cast<Optional<model.PalValue>>()
+          .orElse(const model.PalValue(model.textType, ''))
+          .value
+          .cast<String>(); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
+    } else {
+      print('whoops');
+      return Cursor('whoops');
+    }
+  }, ctx: ctx);
 
   return Shortcuts(
     shortcuts: const {
