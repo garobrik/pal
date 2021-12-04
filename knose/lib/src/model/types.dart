@@ -33,6 +33,9 @@ class PalValue extends PalType with _PalValueMixin implements PalExpr {
   final Object value;
 
   const PalValue(this.type, this.value);
+
+  @override
+  String toString() => 'PalValue($value: $type)';
 }
 
 extension Assignable on PalType {
