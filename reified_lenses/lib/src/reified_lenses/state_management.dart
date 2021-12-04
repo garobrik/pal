@@ -104,21 +104,6 @@ extension GetCursorPartial<S> on GetCursor<S> {
   }
 }
 
-extension OptionalCast<S> on Cursor<Optional<S>> {
-  Cursor<Optional<S1>> optionalCast<S1 extends S>() {
-    assert(
-      this.read(Ctx.empty).unwrap is S1?,
-      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
-    );
-    return partial(
-      to: (s) => s.unwrap is S1? ? Optional.fromNullable(s.unwrap as S1?) : null,
-      from: (s1) => s1,
-      update: (_, nu, diff) =>
-          DiffResult(nu.unwrap is S1? ? Optional.fromNullable(nu.unwrap as S1?) : null, diff),
-    );
-  }
-}
-
 extension CursorPartial<S> on Cursor<S> {
   Cursor<S1> partial<S1>(
           {required S1? Function(S) to,
@@ -269,23 +254,6 @@ class _ValueCursor<S> with GetCursor<S> {
 
   @override
   S read(Ctx ctx) => state;
-}
-
-extension CursorOptional<T> on Cursor<Optional<T>> {
-  Cursor<T> get whenPresent {
-    assert(this.read(Ctx.empty).unwrap != null);
-    return partial(
-      to: (t) => t.unwrap,
-      from: (diff) => DiffResult(Optional(diff.value), diff.diff),
-      update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
-    );
-  }
-
-  Cursor<T> orElse(T defaultValue) => then(Lens(
-        Path.empty(),
-        (t) => t.orElse(defaultValue),
-        (t, f) => Optional(f(t.orElse(defaultValue))),
-      ));
 }
 
 class _ComputedState<T> implements Reader, ListenableState<T> {
