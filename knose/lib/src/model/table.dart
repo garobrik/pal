@@ -1,5 +1,7 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
+import 'package:knose/app_widgets.dart';
 import 'package:meta/meta.dart';
 
 import 'package:knose/model.dart';
@@ -56,12 +58,11 @@ class Table with _TableMixin {
     final columns = [
       Column(
         id: titleColumn,
-        type: textType,
+        columnType: textColumn,
         title: 'Title',
       ),
       Column(
-        id: ColumnID(),
-        type: booleanType,
+        columnType: booleanColumn,
         title: 'Done',
       ),
     ];
@@ -82,10 +83,10 @@ extension TableComputations on GetCursor<Table> {
 extension TableMutations on Cursor<Table> {
   void addRow([int? index]) => rowIDs.insert(index ?? rowIDs.length.read(Ctx.empty), RowID());
 
-  ColumnID addColumn([int? index]) {
+  ColumnID addColumn(PalValue columnType, [int? index]) {
     late final ColumnID columnID;
     atomically((table) {
-      final column = Column(type: textType);
+      final column = Column(columnType: columnType);
 
       table.columns[column.id] = Optional(column);
       table.columnIDs.insert(index ?? table.columnIDs.length.read(Ctx.empty), column.id);
@@ -112,11 +113,9 @@ class Column with _ColumnMixin {
   @override
   final ColumnID id;
   @override
-  final PalType type;
+  final PalValue columnType;
   @override
-  final Dict<RowID, PalValue> values;
-  @override
-  final Object? columnConfig;
+  final PalValue config;
   @override
   final double width;
   @override
@@ -124,19 +123,19 @@ class Column with _ColumnMixin {
 
   Column({
     ColumnID? id,
-    required this.type,
-    this.values = const Dict(),
+    required this.columnType,
+    PalValue? config,
     this.width = 100,
     this.title = '',
-    this.columnConfig,
-  }) : this.id = id ?? ColumnID();
+  })  : this.id = id ?? ColumnID(),
+        this.config = config ?? columnType.recordAccess<PalValue>('defaultConfig');
 }
 
 extension ColumnMutations on Cursor<Column> {
-  void setType(PalType type) {
-    if (type != this.type.read(Ctx.empty)) {
-      this.values.set(const Dict());
-      this.type.set(type);
+  void setType(PalValue newColumnType) {
+    if (newColumnType != columnType.read(Ctx.empty)) {
+      this.config.set(newColumnType.recordAccess<PalValue>('defaultConfig'));
+      this.columnType.set(newColumnType);
     }
   }
 }
@@ -260,10 +259,10 @@ class _TableDatum extends Datum with _TableDatumMixin {
     final rowID = rowCtx.rowID;
     final table = ctx.db.get(tableID);
     final column = table.whenPresent.columns[columnID].whenPresent;
-    return column.values[rowID].partial(
-      to: (opt) => PalValue(type(ctx), opt),
-      from: (diff) => DiffResult(diff.value.value as Optional<PalValue>, diff.diff),
-    );
+    final getData = column.columnType
+        .recordAccess<ColumnGetDataFn>('getData')
+        .read(ctx);
+    return getData(Dict({'rowID': rowID, 'config': column.config}), ctx: ctx);
   }
 
   @override
@@ -274,8 +273,39 @@ class _TableDatum extends Datum with _TableDatumMixin {
 
   @override
   PalType type(Ctx ctx) {
-    final table = ctx.db.get(tableID);
-    final colType = table.whenPresent.columns[columnID].whenPresent.type.read(ctx);
-    return optionDef.asType({optionMemberID: colType});
+    return ctx.db
+        .get(tableID)
+        .whenPresent
+        .columns[columnID]
+        .whenPresent
+        .columnType
+        .recordAccess<PalType>('dataType')
+        .read(ctx);
   }
 }
+
+PalValue valueColumn(
+  PalType valueType,
+  Widget Function(Cursor<PalValue> rowData, {required Ctx ctx}) getWidget,
+) {
+  return PalValue(
+    columnTypeDef.asType(),
+    Dict({
+      'dataType': valueType,
+      'configType': MapType(rowIDDef.asType(), valueType),
+      'defaultConfig': PalValue(MapType(rowIDDef.asType(), valueType), const Dict<RowID, PalValue>()),
+      'getData': (Dict<String, Object> dict, {required Ctx ctx}) {
+        final config = dict['config'].unwrap! as Cursor<PalValue>;
+        final rowID = dict['rowID'].unwrap! as RowID;
+        final valueMap = config.value.cast<Dict<RowID, PalValue>>();
+        return valueMap[rowID].asPalOption(valueType);
+      },
+      'getWidget': (Dict<String, Cursor<PalValue>> args, {required Ctx ctx}) =>
+          getWidget(args['rowData'].unwrap!, ctx: ctx)
+    }),
+  );
+}
+
+final textColumn = valueColumn(textType, StringField.tearoff);
+final numberColumn = valueColumn(numberType, NumField.tearoff);
+final booleanColumn = valueColumn(booleanType, BoolCell.tearoff);

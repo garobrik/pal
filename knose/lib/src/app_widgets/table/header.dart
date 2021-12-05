@@ -7,7 +7,7 @@ import 'package:knose/model.dart' as model;
 
 part 'header.g.dart';
 
-const columnTypes = [model.booleanType, model.textType, model.numberType];
+final columnTypes = [model.textColumn, model.booleanColumn, model.numberColumn];
 
 @reader_widget
 Widget _tableHeader(
@@ -132,7 +132,7 @@ Widget _columnConfigurationDropdown(
         isOpen: columnTypeIsOpen,
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.type.read(ctx)],
+        dropdownFocus: caseFoci[column.columnType.read(ctx)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -177,7 +177,7 @@ Iterable<Widget> columnSpecificConfiguration(
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  final type = column.type.read(ctx);
+  final type = column.columnType.read(ctx);
   if (type is model.TextType) {
     return [];
   } else if (type is model.BooleanType) {
@@ -233,7 +233,7 @@ Widget _newColumnButton({
 }) {
   return ElevatedButton(
     onPressed: () {
-      final columnID = table?.addColumn();
+      final columnID = table?.addColumn(model.textColumn);
       if (columnID != null) {
         openColumns?[columnID] = const Optional(true);
       }

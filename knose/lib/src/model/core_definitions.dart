@@ -30,11 +30,18 @@ final optionDef = InterfaceDef(
   members: [PalMember(id: optionMemberID, name: 'type', type: typeType)],
 );
 
+PalValue mkPalOption(PalValue? value, PalType type) =>
+    PalValue(optionDef.asType({optionMemberID: type}), Optional.fromNullable(value));
+
 extension OptionalPalValueCursorExtension on Cursor<Optional<PalValue>> {
   Cursor<PalValue> asPalOption(PalType type) => partial(
-        to: (opt) => PalValue(type, opt),
+        to: (opt) => PalValue(optionDef.asType({optionMemberID: type}), opt),
         from: (diff) => DiffResult(diff.value.value as Optional<PalValue>, diff.diff),
       );
+}
+
+extension OptionalPalValueExtension on Optional<PalValue> {
+  PalValue asPalOption(PalType type) => PalValue(optionDef.asType({optionMemberID: type}), this);
 }
 
 TypeID addStructType(Cursor<PalDB> db, String name, dart.List<PalMember> members) {
@@ -142,3 +149,54 @@ PalValue defaultInstance(Ctx ctx, PalValue widget) {
     Dict({'id': WidgetID.create(), 'widget': widget, 'fields': defaultFields(ctx: ctx)}),
   );
 }
+
+final tableDef = InterfaceDef(name: 'Table', members: []);
+final columnIDDef = InterfaceDef(name: 'ColumnID', members: []);
+final rowIDDef = InterfaceDef(name: 'RowID', members: []);
+
+final columnTypeDataID = MemberID();
+final columnTypeConfigID = MemberID();
+final columnTypeDef = InterfaceDef(
+  name: 'ColumnType',
+  members: [
+    PalMember(id: columnTypeDataID, name: 'dataType', type: typeType),
+    PalMember(id: columnTypeConfigID, name: 'configType', type: typeType),
+    PalMember(name: 'defaultConfig', type: MemberAccess(columnTypeConfigID)),
+    PalMember(
+      name: 'getData',
+      type: FunctionType(
+        returnType: cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeDataID)}),
+        target: PalValue(
+          const MapType(textType, typeType),
+          Dict({
+            'rowID': rowIDDef.asType(),
+            'config': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeConfigID)}),
+          }),
+        ),
+      ),
+    ),
+    PalMember(
+      name: 'getWidget',
+      type: FunctionType(
+        returnType: flutterWidgetDef.asType(),
+        target: PalValue(
+          const MapType(textType, typeType),
+          Dict({
+            'rowData': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeDataID)}),
+            'config': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeConfigID)}),
+          }),
+        ),
+      ),
+    )
+  ],
+);
+
+typedef ColumnGetDataFn = Cursor<PalValue> Function(
+  Dict<String, Object>, {
+  required Ctx ctx,
+});
+
+typedef ColumnGetWidgetFn = flutter.Widget Function(
+  Dict<String, Cursor<PalValue>>, {
+  required Ctx ctx,
+});

@@ -11,16 +11,18 @@ part 'text_cell.g.dart';
 
 @reader_widget
 Widget _stringField(
-  BuildContext context, {
+  BuildContext context,
+  Cursor<model.PalValue> string, {
   required Ctx ctx,
-  required Cursor<Optional<model.PalValue>> string,
   bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
     value: string,
-    toText: (Optional<model.PalValue> value) => (value.unwrap?.value ?? '') as String,
-    parse: (text) => Optional(model.PalValue(model.textType, text)),
+    toText: (model.PalValue value) =>
+        ((value.value as Optional<model.PalValue>).unwrap?.value ?? '') as String,
+    parse: (text) =>
+        Optional(model.mkPalOption(model.PalValue(model.textType, text), model.textType)),
     expands: true,
     enabled: enabled,
   );
@@ -28,16 +30,19 @@ Widget _stringField(
 
 @reader_widget
 Widget _numField(
-  BuildContext context, {
+  BuildContext context,
+  Cursor<model.PalValue> number, {
   required Ctx ctx,
-  required Cursor<Optional<model.PalValue>> number,
   bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
     value: number,
-    toText: (Optional<model.PalValue> value) => value.unwrap?.value.toString() ?? '',
-    parse: (text) => Optional.fromNullable(num.tryParse(text)).map((n) => model.PalValue(model.numberType, n)),
+    toText: (model.PalValue value) =>
+        (value.value as Optional<model.PalValue>).unwrap?.value.toString() ?? '',
+    parse: (text) => Optional(Optional.fromNullable(text.isEmpty ? null : num.tryParse(text))
+        .map((n) => model.PalValue(model.numberType, n))
+        .asPalOption(model.numberType)),
     expands: false,
     enabled: enabled,
   );
@@ -47,8 +52,8 @@ Widget _numField(
 Widget _tableCellTextField<T>(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<Optional<T>> value,
-  required String Function(Optional<T>) toText,
+  required Cursor<T> value,
+  required String Function(T) toText,
   required Optional<T> Function(String) parse,
   required bool expands,
   bool enabled = true,
@@ -94,11 +99,7 @@ Widget _tableCellTextField<T>(
               contentPadding: padding2,
             ),
             onChanged: (newText) {
-              if (newText.isEmpty) {
-                value.set(const Optional.none());
-              } else {
-                parse(newText).ifPresent<T>((t) => value.set(Optional(t)));
-              }
+              parse(newText).ifPresent<T>((t) => value.set(t));
             },
           ),
         ),
