@@ -2,7 +2,6 @@ import 'package:ctx/ctx.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
-import 'package:meta/meta.dart';
 
 import 'package:knose/model.dart';
 
