@@ -1,16 +1,16 @@
 library annotation;
 
 enum OpticKind {
-  Lens,
-  Getter,
+  lens,
+  getter,
 }
 
 enum ReifiedKind {
-  Primitive,
-  Map,
-  List,
-  Struct,
-  Union,
+  primitive,
+  map,
+  list,
+  struct,
+  union,
 }
 
 class ReifiedLens {
@@ -20,7 +20,7 @@ class ReifiedLens {
   const ReifiedLens({
     this.allFields = true,
     this.cases = const [],
-    this.type = ReifiedKind.Struct,
+    this.type = ReifiedKind.struct,
   });
 }
 
@@ -36,13 +36,13 @@ class CopyConstructor {
   const CopyConstructor();
 }
 
-const copy_constructor = CopyConstructor();
+const copyConstructor = CopyConstructor();
 
 class CopyWith {
   const CopyWith();
 }
 
-const copy_with = CopyWith();
+const copyWith = CopyWith();
 
 class Undefined {
   const Undefined._();

@@ -29,7 +29,7 @@ final tableWidget = model.PalValue(
   }),
 );
 
-@reader_widget
+@reader
 Widget _mainTableWidget(
   BuildContext context,
   Dict<String, Cursor<model.PalValue>> fields, {

@@ -6,7 +6,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'bool_cell.g.dart';
 
-@reader_widget
+@reader
 Widget _boolCell(Cursor<model.PalValue> rowData, {required Ctx ctx, bool enabled = true}) {
   final boolCursor =
       rowData.value.cast<Optional<model.PalValue>>().orElse(falseValue).value.cast<bool>();

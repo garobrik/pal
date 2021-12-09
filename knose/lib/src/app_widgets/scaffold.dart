@@ -9,7 +9,7 @@ import 'package:knose/shortcuts.dart';
 
 part 'scaffold.g.dart';
 
-@reader_widget
+@reader
 Widget _mainScaffold(
   BuildContext context, {
   required Ctx ctx,
@@ -106,7 +106,7 @@ Widget _mainScaffold(
   );
 }
 
-@reader_widget
+@reader
 Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
   return IntrinsicWidth(
     child: BoundTextFormField(
@@ -118,7 +118,7 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
   );
 }
 
-@reader_widget
+@reader
 Widget _scaffoldTitle(Ctx ctx, BuildContext context, GetCursor<String> title) {
   return Text(
     title.read(ctx),
@@ -126,7 +126,7 @@ Widget _scaffoldTitle(Ctx ctx, BuildContext context, GetCursor<String> title) {
   );
 }
 
-@reader_widget
+@reader
 Widget _bottomButton({
   required void Function() onPressed,
   required IconData icon,

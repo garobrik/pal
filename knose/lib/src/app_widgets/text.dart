@@ -27,7 +27,7 @@ final textWidget = model.PalValue(
 
 final textOption = model.optionDef.asType({model.optionMemberID: model.textType});
 
-@reader_widget
+@reader
 Widget _textWidget(
   BuildContext context,
   Dict<String, Cursor<model.PalValue>> fields, {
@@ -45,7 +45,6 @@ Widget _textWidget(
           .value
           .cast<String>(); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
     } else {
-      print('whoops');
       return Cursor('whoops');
     }
   }, ctx: ctx);

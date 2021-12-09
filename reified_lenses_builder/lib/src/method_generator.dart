@@ -33,10 +33,10 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
       updateParam = null;
     }
 
-    final kind = mutater == null ? OpticKind.Getter : OpticKind.Lens;
+    final kind = mutater == null ? OpticKind.getter : OpticKind.lens;
     final isFunctionalUpdate = updateParam != null && updateParam.type is FunctionType;
-    final stateArg = '_t';
-    final updateArg = '_s';
+    const stateArg = '_t';
+    const updateArg = '_s';
     final getBody = m.invokeFromParams(stateArg, typeArgs: m.typeParams.map((tp) => tp.type));
     // TODO: this isFunctionalUpdate case can fail when a generic type has its argument cast upwards
     final mutBody = mutater?.invokeFromParams(
@@ -68,13 +68,13 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
             body = call(parentKind.fieldCtor, [
               pathExpression,
               '($stateArg) => $getBody',
-              if (parentKind == OpticKind.Lens) '($stateArg, $updateArg) => $mutBody',
+              if (parentKind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
             ]);
           } else {
             body = call(parentKind.ctor, [
               pathExpression,
               '($stateArg) => $getBody',
-              if (parentKind == OpticKind.Lens) '($stateArg, $updateArg) => $mutBody',
+              if (parentKind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
             ]);
           }
 
@@ -87,7 +87,7 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
               params: m.params,
               typeParams: m.typeParams,
             ),
-            if (isArrayOp && !isFunctionalUpdate && parentKind == OpticKind.Lens)
+            if (isArrayOp && !isFunctionalUpdate && parentKind == OpticKind.lens)
               Method(
                 '[]=',
                 typeParams: m.typeParams,

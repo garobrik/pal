@@ -30,7 +30,7 @@ final listWidget = model.PalValue(
   }),
 );
 
-@reader_widget
+@reader
 Widget _listWidget(
   BuildContext context,
   Dict<String, Cursor<model.PalValue>> fields, {

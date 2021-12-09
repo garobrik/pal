@@ -14,7 +14,7 @@ void main() {
   runApp(const MyApp());
 }
 
-@reader_widget
+@reader
 Widget myApp() {
   return CursorWidget(
     ctx: Ctx.empty,

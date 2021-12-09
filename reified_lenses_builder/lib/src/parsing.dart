@@ -413,7 +413,7 @@ class Method extends ElementAnalogue<MethodElement> {
     this.isExpression = false,
     this.body,
     Iterable<String> annotations = const [],
-  })  : isOperator = overridable_operators.contains(name),
+  })  : isOperator = overridableOperators.contains(name),
         super(name: name, annotations: annotations);
 
   Method.fromElement(LibraryElement usageContext, MethodElement element)
@@ -593,7 +593,8 @@ class FunctionType implements Type {
     this.optionalArgs = const [],
     this.namedArgs = const {},
     this.isNullable = false,
-  }) : dartType = null;
+    this.dartType,
+  });
 
   FunctionType.fromParams({
     this.returnType,

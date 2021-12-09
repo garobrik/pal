@@ -175,7 +175,7 @@ extension FunctionGenerating on FunctionDefinition {
       );
     }
 
-    return call(target == '' ? '$name' : '$target.$name', positional, named: named);
+    return call(target == '' ? name : '$target.$name', positional, named: named);
   }
 
   String invokeFromParams({
@@ -230,12 +230,12 @@ extension MethodGenerating on Method {
         return '$target[${positional.first}] = ${positional.skip(1).first}';
       } else if (name == '~') {
         return '~$target';
-      } else if (binary_operators.contains(name)) {
+      } else if (binaryOperators.contains(name)) {
         return '$target $name ${positional.first}';
       }
     }
 
-    return call(target == '' ? '$name' : '$target.$name', positional, named: named);
+    return call(target == '' ? name : '$target.$name', positional, named: named);
   }
 
   String invokeFromParams(String target,
@@ -252,7 +252,7 @@ extension MethodGenerating on Method {
         return '$target[$arg1] = $arg2';
       } else if (name == '~') {
         return '~$target';
-      } else if (binary_operators.contains(name)) {
+      } else if (binaryOperators.contains(name)) {
         final arg = genArg(params.positional.first);
         assert(arg != null);
         return '$target $name ($arg)';

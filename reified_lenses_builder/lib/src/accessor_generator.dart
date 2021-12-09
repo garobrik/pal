@@ -29,34 +29,39 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
         ),
       );
     }
-    final kind = mutater == null ? OpticKind.Getter : OpticKind.Lens;
+    final kind = mutater == null ? OpticKind.getter : OpticKind.lens;
     return [
       Optic(
         kind: kind,
         generateAccessors: (wrapper, parentKind) => [
-          AccessorPair(
-            a.name,
-            getter: Getter(
-              a.name,
-              wrapper(getter.returnType),
-              body: call(parentKind.thenMethod, [
-                call(parentKind.fieldCtor, [
-                  "const ['${a.name}']",
-                  '(_t) => _t.${a.name}',
-                  if (parentKind == OpticKind.Lens)
-                    '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',
-                  ], typeArgs: a.getter!.returnType.typeEquals(Type.dynamic) ? [clazz.type, a.getter!.returnType] : [])
-              ], typeArgs: [if (a.getter!.returnType.typeEquals(Type.dynamic)) a.getter!.returnType]),
-            ),
-            setter: true //parentKind == OpticKind.Getter
-                ? null
-                : Setter(
-                    a.name,
-                    mutater!.params.first,
-                    isExpression: true,
-                    body: '${a.name}.set(${mutater.params.first.name})',
-                  ),
-          ),
+          AccessorPair(a.name,
+              getter: Getter(
+                a.name,
+                wrapper(getter.returnType),
+                body: call(parentKind.thenMethod, [
+                  call(
+                      parentKind.fieldCtor,
+                      [
+                        "const ['${a.name}']",
+                        '(_t) => _t.${a.name}',
+                        if (parentKind == OpticKind.lens)
+                          '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',
+                      ],
+                      typeArgs: a.getter!.returnType.typeEquals(Type.dynamic)
+                          ? [clazz.type, a.getter!.returnType]
+                          : [])
+                ], typeArgs: [
+                  if (a.getter!.returnType.typeEquals(Type.dynamic)) a.getter!.returnType
+                ]),
+              ),
+              setter: null
+              // : Setter(
+              //     a.name,
+              //     mutater!.params.first,
+              //     isExpression: true,
+              //     body: '${a.name}.set(${mutater.params.first.name})',
+              //   ),
+              ),
         ],
       )
     ];

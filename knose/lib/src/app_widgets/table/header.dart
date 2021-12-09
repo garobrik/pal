@@ -9,7 +9,7 @@ part 'header.g.dart';
 
 final columnTypes = [model.textColumn, model.booleanColumn, model.numberColumn];
 
-@reader_widget
+@reader
 Widget _tableHeader(
   BuildContext context,
   Cursor<model.Table> table, {
@@ -55,7 +55,7 @@ Widget _tableHeader(
   );
 }
 
-@reader_widget
+@reader
 Widget _tableHeaderDropdown(
   BuildContext context, {
   required Ctx ctx,
@@ -114,7 +114,7 @@ Widget _tableHeaderDropdown(
   );
 }
 
-@reader_widget
+@reader
 Widget _columnConfigurationDropdown(
   BuildContext context, {
   required Ctx ctx,
@@ -226,7 +226,7 @@ Iterable<Widget> columnSpecificConfiguration(
   // };
 }
 
-@reader_widget
+@reader
 Widget _newColumnButton({
   Cursor<model.Table>? table,
   Cursor<Dict<model.ColumnID, bool>>? openColumns,

@@ -27,12 +27,12 @@ final pageWidget = model.PalValue(
             Vec([model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget)]),
           ),
           'title': const model.PalValue(model.textType, 'Untitled page'),
-      }),
+        }),
     'build': PageWidget.tearoff,
   }),
 );
 
-@reader_widget
+@reader
 Widget _pageWidget(
   BuildContext context,
   Dict<String, Cursor<model.PalValue>> fields, {

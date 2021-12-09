@@ -3,14 +3,15 @@ import 'package:reified_lenses/annotations.dart';
 import 'parsing.dart';
 import 'generating.dart';
 
-Pair<Class?, Iterable<Param>> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
+Pair<Class?, Iterable<Field>> maybeGenerateCopyWithExtension(StringBuffer output, Class clazz) {
   final cases = clazz.getAnnotation(ReifiedLens)!.read('cases').listValue;
   if (cases.isNotEmpty) return const Pair(null, []);
 
   final ctor = _findCopyConstructor(clazz);
 
   if (ctor == null) return const Pair(null, []);
-  final Pair<Getter, Iterable<Param>> copyWithMethod = _generateConcreteCopyWithFunction(ctor);
+  final copyWithMethod = _generateConcreteCopyWithFunction(clazz, ctor);
+  if (copyWithMethod.second.isEmpty) return const Pair(null, []);
   final ext = Class(
     clazz.isPrivate ? '${clazz.name}Mixin' : '_${clazz.name}Mixin',
     isAbstract: true,
@@ -23,7 +24,8 @@ Pair<Class?, Iterable<Param>> maybeGenerateCopyWithExtension(StringBuffer output
 
 // the nifty undefined trick used here for capturing the difference between explicitly passing null
 // vs omitting an argument is copied from https://github.com/rrousselGit/freezed, thanks remi!
-Pair<Getter, Iterable<Param>> _generateConcreteCopyWithFunction(Constructor constructor) {
+Pair<Getter, Iterable<Field>> _generateConcreteCopyWithFunction(
+    Class clazz, Constructor constructor) {
   final params = constructor.params
       .map((p) => Param(p.type.withNullable(true), p.name, isNamed: true, isRequired: false));
   final paramsAsObject = constructor.params.map(
@@ -49,7 +51,10 @@ Pair<Getter, Iterable<Param>> _generateConcreteCopyWithFunction(Constructor cons
     body: '(${paramsAsObject.asDeclaration}) => ${constructor.call}(${constructorArgs.join()})',
   );
 
-  return Pair(getter, params);
+  return Pair(
+    getter,
+    constructor.params.map((p) => clazz.fields.firstWhere((f) => f.name == p.name)),
+  );
 }
 
 Constructor? _findCopyConstructor(Class clazz) {

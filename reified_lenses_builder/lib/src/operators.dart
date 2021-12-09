@@ -1,4 +1,4 @@
-const overridable_operators = {
+const overridableOperators = {
   '<',
   '+',
   '|',
@@ -20,7 +20,7 @@ const overridable_operators = {
   '>>',
 };
 
-const binary_operators = {
+const binaryOperators = {
   '<',
   '+',
   '|',
@@ -39,6 +39,6 @@ const binary_operators = {
   '>>',
 };
 
-const unary_prefix_operators = {
+const unaryPrefixOperators = {
   '~',
 };

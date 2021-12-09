@@ -3,17 +3,12 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 import 'package:knose/model.dart';
 
-part 'datum.g.dart';
-
 @immutable
-@reify
 abstract class DataSource implements CtxElement {
-  @reify
   GetCursor<Vec<Datum>> get data;
 }
 
 @immutable
-@reify
 abstract class Datum {
   const Datum();
 

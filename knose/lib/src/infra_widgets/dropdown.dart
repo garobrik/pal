@@ -8,7 +8,7 @@ import 'package:knose/infra_widgets.dart';
 
 part 'dropdown.g.dart';
 
-@reader_widget
+@reader
 Widget _deferredDropdown(
   BuildContext context, {
   required Widget child,
@@ -76,7 +76,7 @@ Widget _deferredDropdown(
   );
 }
 
-@reader_widget
+@reader
 Widget _followingDeferredPainter(
   BuildContext context, {
   required Ctx ctx,

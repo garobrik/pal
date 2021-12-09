@@ -8,7 +8,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
 part 'reorder_resizeable.g.dart';
 
-@reader_widget
+@reader
 Widget _reorderResizeable({
   required Ctx ctx,
   required Axis direction,

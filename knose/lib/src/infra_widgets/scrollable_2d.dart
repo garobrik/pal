@@ -9,7 +9,7 @@ import 'package:knose/infra_widgets.dart';
 
 part 'scrollable_2d.g.dart';
 
-@reader_widget
+@reader
 Widget _scrollable2D(BuildContext context, {required Widget child}) {
   final transformationController = useTransformationController();
 

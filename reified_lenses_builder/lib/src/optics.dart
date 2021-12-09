@@ -23,9 +23,9 @@ extension OpticKindGeneration on OpticKind {
     required A getter,
   }) {
     switch (this) {
-      case OpticKind.Lens:
+      case OpticKind.lens:
         return lens;
-      case OpticKind.Getter:
+      case OpticKind.getter:
         return getter;
     }
   }
@@ -34,6 +34,6 @@ extension OpticKindGeneration on OpticKind {
 
   String get opticName => this.cases(lens: 'Lens', getter: 'Getter');
 
-  String get fieldCtor => '$opticName';
-  String get ctor => '$opticName';
+  String get fieldCtor => opticName;
+  String get ctor => opticName;
 }

@@ -25,7 +25,7 @@ Class equalityGenerator(StringBuffer output, Class clazz) {
             'hashCode',
             clazz.intType,
             isExpression: false,
-            annotations: ['@override'],
+            annotations: const ['@override'],
             body: statements([
               'int hash = 0',
               for (final field in clazz.fields)
@@ -45,7 +45,7 @@ Class equalityGenerator(StringBuffer output, Class clazz) {
       if (cases.isEmpty)
         Method(
           '==',
-          annotations: ['@override'],
+          annotations: const ['@override'],
           isExpression: true,
           returnType: clazz.boolType,
           params: [

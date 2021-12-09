@@ -18,7 +18,7 @@ Route<void> generateSearchRoute(Ctx ctx) {
   );
 }
 
-@reader_widget
+@reader
 Widget _searchPage(
   BuildContext context, {
   required Ctx ctx,
@@ -62,7 +62,7 @@ Widget _searchPage(
         predicate: (_) => true,
       )
           .map((widget) {
-        final title = 'temp';
+        const title = 'temp';
         final widgetID = widget.recordAccess<model.WidgetID>('id').read(ctx);
         return TextButton(
           key: ValueKey(widgetID),
@@ -74,8 +74,8 @@ Widget _searchPage(
             );
           },
           child: Row(
-            children: [
-              const Icon(Icons.menu),
+            children: const [
+              Icon(Icons.menu),
               Text(title),
             ],
           ),

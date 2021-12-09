@@ -8,7 +8,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'config.g.dart';
 
-@reader_widget
+@reader
 Widget _tableConfig(
   BuildContext context, {
   required Cursor<model.Table> table,

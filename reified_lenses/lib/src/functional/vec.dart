@@ -5,7 +5,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'vec.g.dart';
 
 @immutable
-@ReifiedLens(type: ReifiedKind.List)
+@ReifiedLens(type: ReifiedKind.list)
 class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
   @override
   @skip

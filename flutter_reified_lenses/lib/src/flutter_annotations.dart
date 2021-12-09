@@ -2,4 +2,4 @@ class ReaderWidgetAnnotation {
   const ReaderWidgetAnnotation._();
 }
 
-const reader_widget = ReaderWidgetAnnotation._();
+const reader = ReaderWidgetAnnotation._();

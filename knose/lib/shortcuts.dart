@@ -18,7 +18,7 @@ final actions = {
   NextFocusFieldIntent: NextFocusFieldAction(),
 };
 
-@reader_widget
+@reader
 Widget _knoseActions(BuildContext context, {required Widget child}) {
   return Shortcuts(
     shortcuts: {LogicalKeySet(LogicalKeyboardKey.enter): NextFocusFieldIntent()},

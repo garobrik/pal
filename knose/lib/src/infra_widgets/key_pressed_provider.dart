@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 part 'key_pressed_provider.g.dart';
 
-@reader_widget
+@reader
 Widget keyPressedProvider({required Widget child}) {
   final lastEvent = useRef<RawKeyEvent?>(null);
 

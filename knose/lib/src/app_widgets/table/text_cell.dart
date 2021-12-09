@@ -9,7 +9,7 @@ import 'package:knose/model.dart' as model;
 
 part 'text_cell.g.dart';
 
-@reader_widget
+@reader
 Widget _stringField(
   BuildContext context,
   Cursor<model.PalValue> string, {
@@ -28,7 +28,7 @@ Widget _stringField(
   );
 }
 
-@reader_widget
+@reader
 Widget _numField(
   BuildContext context,
   Cursor<model.PalValue> number, {
@@ -48,7 +48,7 @@ Widget _numField(
   );
 }
 
-@reader_widget
+@reader
 Widget _tableCellTextField<T>(
   BuildContext context, {
   required Ctx ctx,

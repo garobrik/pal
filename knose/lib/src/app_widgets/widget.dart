@@ -28,7 +28,7 @@ Route generateWidgetRoute(
   );
 }
 
-@reader_widget
+@reader
 Widget _widgetRenderer(
   BuildContext context, {
   required Ctx ctx,
@@ -109,7 +109,7 @@ final widgets = <model.PalValue>[
   pageWidget,
 ];
 
-@reader_widget
+@reader
 Widget _widgetConfigWidget({
   required Ctx ctx,
   required Cursor<model.PalValue> instance,

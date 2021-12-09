@@ -80,8 +80,8 @@ class DeferredPainterRenderObject extends SingleChildRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(BuildContext context, RenderDeferredPainter object) {
-    object.link = link;
+  void updateRenderObject(BuildContext context, RenderDeferredPainter renderObject) {
+    renderObject.link = link;
   }
 }
 
@@ -162,8 +162,8 @@ class DeferredPaintTargetRenderObject extends SingleChildRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(BuildContext context, RenderDeferredPaintTarget object) {
-    object.link = link;
+  void updateRenderObject(BuildContext context, RenderDeferredPaintTarget renderObject) {
+    renderObject.link = link;
   }
 }
 

@@ -8,7 +8,7 @@ import 'package:knose/model.dart' as model;
 
 part 'link_cell.g.dart';
 
-@reader_widget
+@reader
 Widget _linkField(
   BuildContext context, {
   required Ctx ctx,
@@ -22,8 +22,11 @@ Widget _linkField(
     final row = rowCursor.read(ctx).unwrap;
     if (row == null || tableID == null) return null;
     final table = ctx.db.get(tableID).whenPresent;
-    return table.columns[table.titleColumn.read(ctx)].whenPresent.values[row].read(ctx).unwrap
-        as String?;
+    return table.columns[table.titleColumn.read(ctx)].whenPresent.config.value
+        .cast<Dict<model.RowID, model.PalValue>>()[row]
+        .read(ctx)
+        .unwrap
+        ?.value as String?;
   }
 
   final focusForRow = useMemoized(() {

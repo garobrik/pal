@@ -6,15 +6,15 @@ import 'optics.dart';
 
 Iterable<Optic> generateFieldOptics(
   Class clazz,
-  Iterable<Param> copyWithParams,
+  Iterable<Field> copyWithParams,
 ) {
   return clazz.fields.expand((f) {
     if (f.isStatic || f.hasAnnotation(Skip)) return [];
     late final OpticKind kind;
     if (copyWithParams.any((p) => p.name == f.name)) {
-      kind = OpticKind.Lens;
+      kind = OpticKind.lens;
     } else {
-      kind = OpticKind.Getter;
+      kind = OpticKind.getter;
     }
 
     return [
@@ -29,24 +29,27 @@ Iterable<Optic> generateFieldOptics(
               body: call(
                 parentKind.thenMethod,
                 [
-                  call(parentKind.fieldCtor, [
-                    "const ['${f.name}']",
-                    '(_t) => _t.${f.name}',
-                    if (parentKind == OpticKind.Lens)
-                      '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
-                  ], typeArgs: f.type.typeEquals(Type.dynamic) ? [clazz.type, f.type] : [])
+                  call(
+                      parentKind.fieldCtor,
+                      [
+                        "const ['${f.name}']",
+                        '(_t) => _t.${f.name}',
+                        if (parentKind == OpticKind.lens)
+                          '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
+                      ],
+                      typeArgs: f.type.typeEquals(Type.dynamic) ? [clazz.type, f.type] : [])
                 ],
                 typeArgs: [if (f.type.typeEquals(Type.dynamic)) f.type],
               ),
             ),
-            setter: true //parentKind == OpticKind.Getter
-                ? null
-                : Setter(
-                    f.name,
-                    Param(f.type, f.name),
-                    isExpression: true,
-                    body: 'this.${f.name}.set(${f.name})',
-                  ),
+            setter: null
+            // : Setter(
+            //     f.name,
+            //     Param(f.type, f.name),
+            //     isExpression: true,
+            //     body: 'this.${f.name}.set(${f.name})',
+            //   )
+            ,
           )
         ],
       ),

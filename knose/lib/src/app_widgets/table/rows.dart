@@ -8,7 +8,7 @@ import 'package:knose/model.dart' as model;
 
 part 'rows.g.dart';
 
-@reader_widget
+@reader
 Widget _tableRows({
   required Ctx ctx,
   required Cursor<model.Table> table,
@@ -35,7 +35,7 @@ Widget _tableRows({
   );
 }
 
-@reader_widget
+@reader
 Widget _tableRow(
   BuildContext context, {
   required Ctx ctx,
@@ -114,7 +114,7 @@ Widget _tableRow(
 }
 
 // TODO: make work with tab nav
-@reader_widget
+@reader
 Widget _openRowButton(
   BuildContext context, {
   model.WidgetID? widgetID,

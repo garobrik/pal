@@ -243,14 +243,11 @@ class _RowCtx extends CtxElement {
 }
 
 @immutable
-@reify
-class _TableDatum extends Datum with _TableDatumMixin {
-  @override
+class _TableDatum extends Datum {
   final TableID tableID;
-  @override
   final ColumnID columnID;
 
-  _TableDatum(this.tableID, this.columnID);
+  const _TableDatum(this.tableID, this.columnID);
 
   @override
   Cursor<PalValue>? build(Ctx ctx) {
@@ -259,9 +256,7 @@ class _TableDatum extends Datum with _TableDatumMixin {
     final rowID = rowCtx.rowID;
     final table = ctx.db.get(tableID);
     final column = table.whenPresent.columns[columnID].whenPresent;
-    final getData = column.columnType
-        .recordAccess<ColumnGetDataFn>('getData')
-        .read(ctx);
+    final getData = column.columnType.recordAccess<ColumnGetDataFn>('getData').read(ctx);
     return getData(Dict({'rowID': rowID, 'config': column.config}), ctx: ctx);
   }
 
@@ -293,7 +288,8 @@ PalValue valueColumn(
     Dict({
       'dataType': valueType,
       'configType': MapType(rowIDDef.asType(), valueType),
-      'defaultConfig': PalValue(MapType(rowIDDef.asType(), valueType), const Dict<RowID, PalValue>()),
+      'defaultConfig':
+          PalValue(MapType(rowIDDef.asType(), valueType), const Dict<RowID, PalValue>()),
       'getData': (Dict<String, Object> dict, {required Ctx ctx}) {
         final config = dict['config'].unwrap! as Cursor<PalValue>;
         final rowID = dict['rowID'].unwrap! as RowID;

@@ -4,7 +4,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 part 'map.g.dart';
 
 @immutable
-@ReifiedLens(type: ReifiedKind.Map)
+@ReifiedLens(type: ReifiedKind.map)
 class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
     with _DictMixin<Key, Value> {
   @override

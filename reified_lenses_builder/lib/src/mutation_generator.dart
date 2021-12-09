@@ -10,7 +10,7 @@ void generateMutations(StringBuffer output, Class clazz) {
     if (potentialPairs.isEmpty) return [];
     final potentialPair = potentialPairs.first;
     assert(potentialPair.params.iterableEqual(mutation.params));
-    assert(potentialPair.returnType!.typeEquals(Type('PathSet')));
+    assert(potentialPair.returnType!.typeEquals(const Type('PathSet')));
     return [Pair(mutation, potentialPair)];
   });
   if (mutationMutateds.isEmpty) return;

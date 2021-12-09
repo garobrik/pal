@@ -33,7 +33,7 @@ class ReifiedLensesGenerator extends Generator {
     final reifiedClasses = reifiedClassesWithCases.where((clazz) {
       final parentAnnotation = clazz.extendedType?.dartType!.element?.getAnnotation(ReifiedKind);
       if (parentAnnotation == null) return true;
-      return ReifiedKind.Union.index !=
+      return ReifiedKind.union.index !=
           parentAnnotation.read('type').objectValue.getField('index')!.toIntValue();
     });
 
@@ -45,11 +45,11 @@ class ReifiedLensesGenerator extends Generator {
         ...generateAccessorOptics(clazz),
         ...generateMethodOptics(clazz),
       ];
-      composers.forEach((composer) {
-        OpticKind.values.forEach((kind) {
+      for (final composer in composers) {
+        for (final kind in OpticKind.values) {
           composer.extension(clazz, kind, optics)?.declare(output);
-        });
-      });
+        }
+      }
       generateMutations(output, clazz);
 
       final mixins = <Class>[
@@ -84,15 +84,14 @@ class OpticComposer {
 
   Extension? extension(Class clazz, OpticKind kind, Iterable<Optic> optics) {
     final opticsOfKind = optics.where(
-      (o) => o.kind == kind || kind == OpticKind.Getter,
+      (o) => o.kind == kind || kind == OpticKind.getter,
     );
     if (opticsOfKind.isEmpty) return null;
 
     final name = '${clazz.name}${typeOf(kind)}Extension';
     final newParams = clazz.newTypeParams(numParams);
     final params = [...newParams, ...clazz.params];
-    final wrapper =
-        (Type type) => Type(typeOf(kind), args: [...newParams.map((tp) => tp.type), type]);
+    Type wrapper(Type type) => Type(typeOf(kind), args: [...newParams.map((tp) => tp.type), type]);
 
     return Extension(
       name,

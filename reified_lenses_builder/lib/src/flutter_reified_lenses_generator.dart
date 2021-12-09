@@ -80,8 +80,7 @@ void generateBoundWidget(
       firstOfNameAndType(function.params, 'context', resolvedTypes.buildContext);
   final keyParam = firstOfNameAndType(function.params, 'key', resolvedTypes.key);
   final ctxParam = firstOfNameAndType(function.params, 'ctx', resolvedTypes.ctx);
-  final nonSpecialParams =
-      function.params.where((p) => p != buildContextParam && p != keyParam);
+  final nonSpecialParams = function.params.where((p) => p != buildContextParam && p != keyParam);
   final buildBody = StringBuffer();
   if (ctxParam != null) {
     buildBody.writeln('final ${ctxParam.name} = useCursorReader(this.${ctxParam.name});');

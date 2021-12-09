@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 
 part 'bound_widgets.g.dart';
 
-@reader_widget
+@reader
 Widget _boundTextFormField(
   BuildContext context,
   Cursor<String> text, {

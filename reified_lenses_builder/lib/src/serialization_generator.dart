@@ -6,7 +6,7 @@ import 'generating.dart';
 Class maybeGenerateSerialization(
   StringBuffer output,
   Class clazz,
-  Iterable<Param> copyWithParams,
+  Iterable<Field> copyWithParams,
 ) {
   final kind = ReifiedKind.values.elementAt(
     clazz.getAnnotation(ReifiedLens)!.read('type').objectValue.getField('index')!.toIntValue()!,
@@ -23,15 +23,15 @@ Class maybeGenerateSerialization(
         isExpression: false,
         body: () {
           switch (kind) {
-            case ReifiedKind.Primitive:
+            case ReifiedKind.primitive:
               return 'return toString();';
-            case ReifiedKind.Map:
+            case ReifiedKind.map:
               return '''
                 bool allString = true;
                 final toJsonEntries = this.entries.map(
                   (entry) {
-                  dynamic key = ${checkedToJsonCall('entry.key')};
-                  dynamic value = ${checkedToJsonCall('entry.value')};
+                  dynamic key = ${checkedToJsonCall(clazz.params.first.extendz, 'entry.key')};
+                  dynamic value = ${checkedToJsonCall(clazz.params.elementAt(1).extendz, 'entry.value')};
                   if (key is num) {
                     key = key.toString();
                   }
@@ -54,24 +54,24 @@ Class maybeGenerateSerialization(
                   );
                 }
               ''';
-            case ReifiedKind.List:
+            case ReifiedKind.list:
               return '''
                 return List<dynamic>.from(
-                  this.map<dynamic>((entry) => ${checkedToJsonCall('entry')}),
+                  this.map<dynamic>((entry) => ${checkedToJsonCall(clazz.params.first.extendz, 'entry')}),
                 );
               ''';
-            case ReifiedKind.Struct:
+            case ReifiedKind.struct:
               final generatedMap = map({
                 for (final param in copyWithParams)
-                  "'${param.name}'": checkedToJsonCall('this.${param.name}'),
+                  "'${param.name}'": checkedToJsonCall(param.type, 'this.${param.name}'),
               });
               return 'return <String, dynamic>$generatedMap;';
-            case ReifiedKind.Union:
+            case ReifiedKind.union:
               return null;
           }
         }(),
       ),
-      if (kind == ReifiedKind.List)
+      if (kind == ReifiedKind.list)
         Method(
           'map',
           returnType: Type('Iterable', args: [clazz.newTypeParams(1).first.type]),
@@ -88,7 +88,7 @@ Class maybeGenerateSerialization(
         ),
     ],
     accessors: [
-      if (kind == ReifiedKind.Map)
+      if (kind == ReifiedKind.map)
         AccessorPair(
           'entries',
           getter: Getter(
@@ -103,8 +103,38 @@ Class maybeGenerateSerialization(
   );
 }
 
-String checkedToJsonCall(String arg) => '''
+String checkedToJsonCall(Type? type, String arg) {
+  late final fullDynamicCheck = '''
       ($arg is num || $arg is String || $arg is bool || $arg == null || $arg is List || $arg is Map<String, dynamic>)
         ? $arg
         : ($arg as dynamic).toJson()
     ''';
+  if (type == null || type.dartType == null) {
+    return fullDynamicCheck;
+  }
+  final dartType = type.dartType!;
+  if (dartType.isDartCoreBool ||
+      dartType.isDartCoreNum ||
+      dartType.isDartCoreString ||
+      dartType.isDartCoreList) {
+    return arg;
+  }
+
+  final typeSystem = dartType.element?.library?.typeSystem;
+  final typeProvider = dartType.element?.library?.typeProvider;
+  if (typeSystem == null || typeProvider == null) {
+    return fullDynamicCheck;
+  }
+
+  final mapType = typeProvider.mapType(typeProvider.stringType, typeProvider.dynamicType);
+
+  if (typeSystem.isSubtypeOf(dartType, mapType)) {
+    return arg;
+  }
+
+  if (typeSystem.isPotentiallyNullable(dartType)) {
+    return '$arg == null ? null : ($arg as dynamic).toJson()';
+  } else {
+    return '($arg as dynamic).toJson()';
+  }
+}

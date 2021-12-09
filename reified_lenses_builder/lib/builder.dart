@@ -6,9 +6,9 @@ import 'src/flutter_reified_lenses_generator.dart';
 
 /// Builds generators for `build_runner` to run
 Builder reifiedLenses(BuilderOptions options) {
-  return SharedPartBuilder([ReifiedLensesGenerator()], 'reified_lenses');
+  return SharedPartBuilder([const ReifiedLensesGenerator()], 'reified_lenses');
 }
 
 Builder flutterReifiedLenses(BuilderOptions options) {
-  return SharedPartBuilder([FlutterReifiedLensesGenerator()], 'flutter_reified_lenses');
+  return SharedPartBuilder([const FlutterReifiedLensesGenerator()], 'flutter_reified_lenses');
 }
