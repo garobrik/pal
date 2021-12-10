@@ -56,25 +56,37 @@ Widget _listWidget(
     };
   });
 
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      for (final index in range(widgets.length.read(ctx)))
-        Padding(
-          key: ValueKey(widgetID(widgets[index]).read(ctx)),
-          padding: index == 0
-              ? const EdgeInsetsDirectional.only(start: 4, end: 4, bottom: 4)
-              : const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsetsDirectional.only(top: 10, end: 5),
-                child: Icon(Icons.circle, size: 10),
-              ),
-              Expanded(
-                child: Material(
-                  elevation: 2,
+  return TextButton(
+    onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
+    style: ButtonStyle(
+      backgroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.surface,
+      ),
+      elevation: MaterialStateProperty.resolveWith(
+        (states) =>
+            states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty ? 2 : 2,
+      ),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final index in range(widgets.length.read(ctx)))
+          Padding(
+            key: ValueKey(widgetID(widgets[index]).read(ctx)),
+            padding: index == 0
+                ? const EdgeInsetsDirectional.only(start: 4, end: 4, bottom: 4)
+                : const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsetsDirectional.only(top: 10, end: 5),
+                  child: Icon(Icons.circle, size: 10),
+                ),
+                Expanded(
                   child: Actions(
                     actions: {
                       NewNodeBelowIntent: NewNodeBelowAction(
@@ -108,10 +120,10 @@ Widget _listWidget(
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-    ],
+      ],
+    ),
   );
 }

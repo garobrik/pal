@@ -65,22 +65,37 @@ Widget _pageWidget(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black38)],
+        // boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black38)],
       ),
-      child: Column(
-        // onReorder: (old, nu) {
-        //   page.nodeViews.atomically((nodeViews) {
-        //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
-        //     nodeViews.remove(nu < old ? old + 1 : old);
-        //   });
-        // },
-        children: [
-          for (final index in range(widgets.length.read(ctx)))
-            Padding(
-              key: ValueKey(widgetID(widgets[index]).read(ctx)),
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Material(
-                elevation: 6,
+      child: TextButton(
+        onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.resolveWith(
+            (states) =>
+                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+                    ? Theme.of(context).colorScheme.surface
+                    : Theme.of(context).colorScheme.surface,
+          ),
+          elevation: MaterialStateProperty.resolveWith(
+            (states) =>
+                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+                    ? 2
+                    : 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          // onReorder: (old, nu) {
+          //   page.nodeViews.atomically((nodeViews) {
+          //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
+          //     nodeViews.remove(nu < old ? old + 1 : old);
+          //   });
+          // },
+          children: [
+            for (final index in range(widgets.length.read(ctx)))
+              Padding(
+                key: ValueKey(widgetID(widgets[index]).read(ctx)),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Actions(
                   actions: {
                     NewNodeBelowIntent: NewNodeBelowAction(
@@ -109,8 +124,8 @@ Widget _pageWidget(
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     ),
   );
