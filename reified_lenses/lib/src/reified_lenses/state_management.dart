@@ -68,7 +68,7 @@ abstract class Cursor<S> implements GetCursor<S> {
       );
 
   factory Cursor.compute(Cursor<S> Function(Ctx) computation, {required Ctx ctx}) =>
-      FlattenedCursor(GetCursor.compute(computation, ctx: ctx), Lens.identity());
+      GetCursor.compute(computation, ctx: ctx).flatten;
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
@@ -431,62 +431,97 @@ class _MutablePartialViewState<T, S>
   }
 }
 
-abstract class FlattenedCursorBase<T, S> implements GetCursor<S> {
-  GetCursor<GetCursor<T>> get cursor;
-  Getter<T, S> get lens;
+abstract class _FlattenStateBase<T> implements ListenableState<T> {
+  GetCursor<GetCursor<T>> get viewed;
+  void Function()? get disposeListener;
+  set disposeListener(void Function()? disposeListener);
+
+  ListenableStateBase<T> get _state;
 
   @override
-  void Function() listen(void Function(S old, S nu, Diff diff) f) {
-    void listener(T old, T nu, Diff diff) =>
-        f(lens.get(old), lens.get(nu), diff.atPrefix(lens.path));
-    void Function() dispose = cursor.read(Ctx.empty).listen(listener);
+  T get currentState => _state.currentState;
 
-    cursor.listen((old, nu, diff) {
+  @override
+  void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
+    final dispose = _state.listen(path, callback);
+
+    if (disposeListener == null) {
+      var cursorDispose = viewed.read(Ctx.empty).listen(
+            (T old, T nu, Diff diff) => _state.transformAndNotify((_) => DiffResult(nu, diff)),
+          );
+      final viewedDispose = viewed.listen((old, nu, diff) {
+        _state.transformAndNotify((_) => DiffResult(nu.read(Ctx.empty), Diff.allChanged()));
+        cursorDispose();
+        cursorDispose = nu.listen(
+          (T old, T nu, Diff diff) => _state.transformAndNotify((_) => DiffResult(nu, diff)),
+        );
+      });
+      disposeListener = () {
+        viewedDispose();
+        cursorDispose();
+      };
+    }
+
+    return () {
       dispose();
-      dispose = nu.listen(listener);
-      f(lens.get(old.read(Ctx.empty)), lens.get(nu.read(Ctx.empty)), Diff.allChanged());
-    });
-
-    return () => dispose();
-  }
-
-  @override
-  S read(Ctx ctx) => lens.get(cursor.read(ctx).read(ctx));
-
-  @override
-  GetCursor<S2> then<S2>(Lens<S, S2> lens) => FlattenedGetCursor(cursor, this.lens.then(lens));
-
-  @override
-  GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) {
-    return FlattenedGetCursor(cursor, this.lens.thenGet(getter));
+      if (_state._listenables.isEmpty) {
+        if (disposeListener != null) disposeListener!();
+        disposeListener = null;
+      }
+    };
   }
 }
 
-class FlattenedGetCursor<T, S> with FlattenedCursorBase<T, S> {
+class _FlattenState<T> with _FlattenStateBase<T> {
   @override
-  final GetCursor<GetCursor<T>> cursor;
+  final GetCursor<GetCursor<T>> viewed;
   @override
-  final Getter<T, S> lens;
+  void Function()? disposeListener;
 
-  FlattenedGetCursor(this.cursor, this.lens);
+  ListenableStateBase<T>? _stateVar;
+
+  _FlattenState(this.viewed);
+
+  @override
+  ListenableStateBase<T> get _state {
+    _stateVar ??= ListenableStateBase(viewed.read(Ctx.empty).read(Ctx.empty));
+    return _stateVar!;
+  }
 }
 
-class FlattenedCursor<T, S> with FlattenedCursorBase<T, S>, Cursor<S> {
+class _MutableFlattenState<T> with _FlattenStateBase<T> implements MutableListenableState<T> {
   @override
-  final GetCursor<Cursor<T>> cursor;
+  final GetCursor<Cursor<T>> viewed;
   @override
-  final Lens<T, S> lens;
+  void Function()? disposeListener;
 
-  FlattenedCursor(this.cursor, this.lens);
+  ListenableStateBase<T>? _stateVar;
 
-  @override
-  void mutResult(DiffResult<S> Function(S p1) f) =>
-      cursor.read(Ctx.empty).mutResult((t) => lens.mutDiff(t, f));
+  _MutableFlattenState(this.viewed);
 
   @override
-  Cursor<S2> then<S2>(Lens<S, S2> lens) => FlattenedCursor(cursor, this.lens.then(lens));
+  ListenableStateBase<T> get _state {
+    _stateVar ??= ListenableStateBase(viewed.read(Ctx.empty).read(Ctx.empty));
+    return _stateVar!;
+  }
+
+  @override
+  DiffResult<T> transformAndNotify(DiffResult<T> Function(T p1) transform) {
+    final result = transform(_state.currentState);
+    viewed.read(Ctx.empty).setResult(result);
+    return result;
+  }
+
+  @override
+  String toString() {
+    return 'MutableFlattenState<$T>($viewed)';
+  }
+}
+
+extension FlattenedGetCursorExtension<T> on GetCursor<GetCursor<T>> {
+  GetCursor<T> get flatten => StateCursor(_FlattenState(this), Getter.identity());
 }
 
 extension FlattenedCursorExtension<T> on GetCursor<Cursor<T>> {
-  Cursor<T> get flatten => FlattenedCursor(this, Lens.identity());
+  Cursor<T> get flatten => MutableStateCursor(_MutableFlattenState(this), Lens.identity());
 }
