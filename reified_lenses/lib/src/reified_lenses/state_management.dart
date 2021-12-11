@@ -446,16 +446,16 @@ abstract class _FlattenStateBase<T> implements ListenableState<T> {
     final dispose = _state.listen(path, callback);
 
     if (disposeListener == null) {
-      var cursorDispose = viewed.read(Ctx.empty).listen(
-            (T old, T nu, Diff diff) => _state.transformAndNotify((_) => DiffResult(nu, diff)),
-          );
+      void listener(T old, T nu, Diff diff) =>
+          _state.transformAndNotify((_) => DiffResult(nu, diff));
+
+      var cursorDispose = viewed.read(Ctx.empty).listen(listener);
       final viewedDispose = viewed.listen((old, nu, diff) {
-        _state.transformAndNotify((_) => DiffResult(nu.read(Ctx.empty), Diff.allChanged()));
         cursorDispose();
-        cursorDispose = nu.listen(
-          (T old, T nu, Diff diff) => _state.transformAndNotify((_) => DiffResult(nu, diff)),
-        );
+        cursorDispose = nu.listen(listener);
+        _state.transformAndNotify((_) => DiffResult(nu.read(Ctx.empty), Diff.allChanged()));
       });
+
       disposeListener = () {
         viewedDispose();
         cursorDispose();
