@@ -57,76 +57,60 @@ Widget _pageWidget(
     };
   });
 
-  return Container(
-    color: Theme.of(context).colorScheme.background,
-    // constraints: const BoxConstraints.expand(),
-    child: Container(
-      // margin: EdgeInsets.all(15),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        // boxShadow: const [BoxShadow(blurRadius: 2, color: Colors.black38)],
+  return TextButton(
+    onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
+    style: ButtonStyle(
+      backgroundColor: MaterialStateProperty.resolveWith(
+        (states) => states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.surface,
       ),
-      child: TextButton(
-        onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
-        style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.resolveWith(
-            (states) =>
-                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
-                    ? Theme.of(context).colorScheme.surface
-                    : Theme.of(context).colorScheme.surface,
-          ),
-          elevation: MaterialStateProperty.resolveWith(
-            (states) =>
-                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
-                    ? 2
-                    : 2,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          // onReorder: (old, nu) {
-          //   page.nodeViews.atomically((nodeViews) {
-          //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
-          //     nodeViews.remove(nu < old ? old + 1 : old);
-          //   });
-          // },
-          children: [
-            for (final index in range(widgets.length.read(ctx)))
-              Padding(
-                key: ValueKey(widgetID(widgets[index]).read(ctx)),
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Actions(
-                  actions: {
-                    NewNodeBelowIntent: NewNodeBelowAction(
-                      onInvoke: (_) {
-                        final instance = model.defaultInstance(ctx, textWidget);
-                        widgets.insert(
-                          index + 1,
-                          instance,
-                        );
-                        focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
-                      },
-                    ),
-                    DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
-                      onInvoke: (_) {
-                        if (widgets.length.read(Ctx.empty) > 1) {
-                          widgets.remove(index);
-                        }
-                        focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty))
-                            .requestFocus();
-                      },
-                    ),
+      elevation: MaterialStateProperty.resolveWith(
+        (states) =>
+            states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty ? 2 : 2,
+      ),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      // onReorder: (old, nu) {
+      //   page.nodeViews.atomically((nodeViews) {
+      //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
+      //     nodeViews.remove(nu < old ? old + 1 : old);
+      //   });
+      // },
+      children: [
+        for (final index in range(widgets.length.read(ctx)))
+          Padding(
+            key: ValueKey(widgetID(widgets[index]).read(ctx)),
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Actions(
+              actions: {
+                NewNodeBelowIntent: NewNodeBelowAction(
+                  onInvoke: (_) {
+                    final instance = model.defaultInstance(ctx, textWidget);
+                    widgets.insert(
+                      index + 1,
+                      instance,
+                    );
+                    focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
                   },
-                  child: WidgetRenderer(
-                    ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
-                    instance: widgets[index],
-                  ),
                 ),
+                DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
+                  onInvoke: (_) {
+                    if (widgets.length.read(Ctx.empty) > 1) {
+                      widgets.remove(index);
+                    }
+                    focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty)).requestFocus();
+                  },
+                ),
+              },
+              child: WidgetRenderer(
+                ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
+                instance: widgets[index],
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+      ],
     ),
   );
 }
