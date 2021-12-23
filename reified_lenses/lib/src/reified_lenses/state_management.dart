@@ -11,14 +11,14 @@ abstract class GetCursor<S> {
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
 
-  GetCursor<S1> then<S1>(Lens<S, S1> getter) => thenGet(getter);
-
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
   S read(Ctx ctx);
 
+  List<String> stringify();
+
   @override
-  String toString() => 'GetCursor(${read(Ctx.empty)})';
+  String toString() => stringify().join('\n');
 }
 
 extension GetCursorHelpers<S> on GetCursor<S> {
@@ -70,7 +70,6 @@ abstract class Cursor<S> implements GetCursor<S> {
   factory Cursor.compute(Cursor<S> Function(Ctx) computation, {required Ctx ctx}) =>
       GetCursor.compute(computation, ctx: ctx).flatten;
 
-  @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
   void set(S s) => mut((_) => s);
@@ -84,7 +83,7 @@ abstract class Cursor<S> implements GetCursor<S> {
   }
 
   @override
-  String toString() => 'Cursor(${read(Ctx.empty)})';
+  String toString() => stringify().join('\n');
 }
 
 extension GetCursorPartial<S> on GetCursor<S> {
@@ -96,6 +95,7 @@ extension GetCursorPartial<S> on GetCursor<S> {
       );
 
   GetCursor<S1> cast<S1 extends S>() {
+    if (S1 == S) return this as GetCursor<S1>;
     assert(
       this.read(Ctx.empty) is S1,
       'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
@@ -118,6 +118,7 @@ extension CursorPartial<S> on Cursor<S> {
       );
 
   Cursor<S1> cast<S1 extends S>() {
+    if (S1 == S) return this as Cursor<S1>;
     assert(
       this.read(Ctx.empty) is S1,
       'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
@@ -128,11 +129,21 @@ extension CursorPartial<S> on Cursor<S> {
       update: (_, nu, diff) => DiffResult(nu is S1 ? nu : null, diff),
     );
   }
+
+  Cursor<S1> upcast<S1>() {
+    if (S1 == S) return this as Cursor<S1>;
+    return partial(
+      to: (s) => s as S1,
+      from: (s1) => DiffResult(s1.value as S, s1.diff),
+      update: (_, nu, diff) => DiffResult(nu as S1, diff),
+    );
+  }
 }
 
 abstract class ListenableState<T> {
   T get currentState;
   void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback);
+  List<String> stringify();
 }
 
 abstract class MutableListenableState<T> implements ListenableState<T> {
@@ -168,8 +179,8 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
   }
 
   @override
-  String toString() {
-    return 'ListenableStateBase<$T>';
+  List<String> stringify() {
+    return ['ListenableStateBase<$T>'];
   }
 }
 
@@ -205,6 +216,22 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
 
   @override
   int get hashCode => Object.hashAll([state, ...lens.path]);
+
+  @override
+  List<String> stringify() {
+    final stateString = state.stringify();
+    if (lens.path.isEmpty) {
+      return [
+        'StateCursor:${stateString.first}',
+        ...stateString.skip(1),
+      ];
+    } else {
+      return [
+        'StateCursor:${lens.path}:${stateString.first}',
+        ...stateString.skip(1),
+      ];
+    }
+  }
 }
 
 class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
@@ -234,11 +261,6 @@ class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
   void mutResult(DiffResult<S> Function(S) f) {
     state.transformAndNotify((t) => lens.mutDiff(t, f));
   }
-
-  @override
-  String toString() {
-    return 'MutableStateCursor(${this.read(Ctx.empty)}, ${lens.path}, $state)';
-  }
 }
 
 @immutable
@@ -257,6 +279,11 @@ class _ValueCursor<S> with GetCursor<S> {
 
   @override
   S read(Ctx ctx) => state;
+
+  @override
+  List<String> stringify() {
+    return ['ValueCursor($state)'];
+  }
 }
 
 class _ComputedState<T> implements Reader, ListenableState<T> {
@@ -323,6 +350,11 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
       (_) => DiffResult(newState, diff),
     );
   }
+
+  @override
+  List<String> stringify() {
+    return ['ComputedState(current: $currentState)'];
+  }
 }
 
 abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
@@ -362,6 +394,17 @@ abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
         disposeListener = null;
       }
     };
+  }
+
+  @override
+  List<String> stringify() {
+    final viewedString = viewed.stringify();
+    return [
+      'View<$T as $S>(',
+      '  ${currentState.runtimeType}',
+      ...viewedString.map((s) => '  ' + s),
+      ')',
+    ];
   }
 }
 
@@ -424,11 +467,6 @@ class _MutablePartialViewState<T, S>
     viewed.setResult(from(result));
     return result;
   }
-
-  @override
-  String toString() {
-    return 'MutablePartialViewState<$S>($viewed)';
-  }
 }
 
 abstract class _FlattenStateBase<T> implements ListenableState<T> {
@@ -470,6 +508,17 @@ abstract class _FlattenStateBase<T> implements ListenableState<T> {
       }
     };
   }
+
+  @override
+  List<String> stringify() {
+    final viewedString = viewed.read(Ctx.empty).stringify();
+    return [
+      'Flatten<$T>(current:',
+      '  ${currentState.runtimeType}',
+      ...viewedString.map((s) => '  ' + s),
+      ')',
+    ];
+  }
 }
 
 class _FlattenState<T> with _FlattenStateBase<T> {
@@ -510,11 +559,6 @@ class _MutableFlattenState<T> with _FlattenStateBase<T> implements MutableListen
     final result = transform(_state.currentState);
     viewed.read(Ctx.empty).setResult(result);
     return result;
-  }
-
-  @override
-  String toString() {
-    return 'MutableFlattenState<$T>($viewed)';
   }
 }
 

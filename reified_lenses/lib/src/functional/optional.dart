@@ -58,6 +58,7 @@ extension CursorOptional<T> on Cursor<Optional<T>> {
       ));
 
   Cursor<Optional<S>> optionalCast<S extends T>() {
+    if (S == T) return this as Cursor<Optional<S>>;
     assert(
       this.read(Ctx.empty).unwrap is S?,
       'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S',

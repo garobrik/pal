@@ -89,7 +89,6 @@ typedef TransformF<T> = T Function(T);
 
 abstract class Getter<T, S> {
   const factory Getter(Path path, GetterF<T, S> _getter) = _GetterImpl;
-  const factory Getter.mkCast() = _CastImpl;
   static Getter<S, S> identity<S>() => _IdentityImpl();
 
   S get(T t);
@@ -98,16 +97,11 @@ abstract class Getter<T, S> {
   Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) {
     return Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
   }
-
-  Getter<T, S2> then<S2>(Lens<S, S2> getter);
-
-  Getter<T, S2> cast<S2>() => thenGet(Getter<S, S2>.mkCast());
 }
 
 @immutable
 abstract class Lens<T, S> implements Getter<T, S> {
   const factory Lens(Path path, GetterF<T, S> getF, MutaterF<T, S> mutF) = _LensImpl;
-  const factory Lens.mkCast() = _CastImpl;
   static Lens<T, T> identity<T>() => _IdentityImpl();
 
   T mut(T t, S Function(S) s);
@@ -122,7 +116,6 @@ abstract class Lens<T, S> implements Getter<T, S> {
     return DiffResult(newT, diff.prepend(path));
   }
 
-  @override
   Lens<T, S2> then<S2>(Lens<S, S2> lens) => Lens(
         path.followedBy(lens.path),
         (t) => lens.get(get(t)),
@@ -134,9 +127,6 @@ abstract class Lens<T, S> implements Getter<T, S> {
         path.followedBy(getter.path),
         (t) => getter.get(get(t)),
       );
-
-  @override
-  Lens<T, S2> cast<S2>() => then(Lens<S, S2>.mkCast());
 }
 
 @immutable
@@ -151,9 +141,6 @@ class _GetterImpl<T, S> with Getter<T, S> {
 
   @override
   S get(T t) => _getter(t);
-
-  @override
-  Getter<T, S2> then<S2>(Lens<S, S2> lens) => thenGet(lens);
 }
 
 @immutable
@@ -191,29 +178,10 @@ class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
   Getter<T, S2> thenGet<S2>(Getter<T, S2> getter) => getter;
 
   @override
-  Lens<T, S2> cast<S2>() => Lens<T, S2>.mkCast();
-
-  @override
   T mut(T t, T Function(T) f) => f(t);
 
   @override
   DiffResult<T> mutDiff(T t, DiffResult<T> Function(T p1) f) => f(t);
-}
-
-class _CastImpl<T, S> with Getter<T, S>, Lens<T, S> {
-  const _CastImpl();
-
-  @override
-  Path get path => const [];
-
-  @override
-  S get(T t) => t as S;
-
-  @override
-  Lens<T, S2> cast<S2>() => Lens<T, S2>.mkCast();
-
-  @override
-  T mut(T t, S Function(S) f) => f(t as S) as T;
 }
 
 extension GetterNullability<T, S> on Getter<T, S?> {
@@ -221,5 +189,5 @@ extension GetterNullability<T, S> on Getter<T, S?> {
 }
 
 extension LensNullability<T, S> on Lens<T, S?> {
-  Lens<T, S> get nonnull => then(Lens(const [], (s) => s!, (s, f) => f(s!)));
+  Lens<T, S> get nonnull => then(Lens<S?, S>(const [], (s) => s!, (s, f) => f(s!)));
 }
