@@ -6,7 +6,7 @@ repository: https://gitlab.com/arrow/flutter_reified_lenses
 publish_to: none
 
 environment:
-  sdk: ">=2.13.0-0 <3.0.0"
+  sdk: ">=2.15.0-0 <3.0.0"
 
 dependencies:
   reified_lenses:
