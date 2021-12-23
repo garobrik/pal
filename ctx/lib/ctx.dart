@@ -17,4 +17,6 @@ class Ctx {
   }
 }
 
-abstract class CtxElement {}
+abstract class CtxElement {
+  const CtxElement();
+}
