@@ -19,7 +19,7 @@ final textWidget = Dict({
   }),
   model.widgetDefaultFieldsID: ({required Ctx ctx}) =>
       const Dict<Object, Object>({'text': model.PalValue(model.textType, '')}),
-  model.widgetBuildID: TextWidget.tearoff,
+  model.widgetBuildID: TextWidget.new,
 });
 
 final textOption = model.optionType(model.textType);

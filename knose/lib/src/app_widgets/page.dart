@@ -31,7 +31,7 @@ final pageWidget = Dict({
         ),
         'title': const model.PalValue(model.textType, 'Untitled page'),
       }),
-  model.widgetBuildID: PageWidget.tearoff,
+  model.widgetBuildID: PageWidget.new,
 });
 
 @reader

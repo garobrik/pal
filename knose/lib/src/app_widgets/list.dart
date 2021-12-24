@@ -29,7 +29,7 @@ final listWidget = Dict({
           ]),
         ),
       }),
-  model.widgetBuildID: ListWidget.tearoff,
+  model.widgetBuildID: ListWidget.new,
 });
 
 @reader

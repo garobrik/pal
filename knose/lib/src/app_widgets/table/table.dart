@@ -23,7 +23,7 @@ final tableWidget = Dict({
       'title': const model.PalValue(model.textType, 'Untitled page'),
     });
   },
-  model.widgetBuildID: MainTableWidget.tearoff,
+  model.widgetBuildID: MainTableWidget.new,
 });
 
 @reader

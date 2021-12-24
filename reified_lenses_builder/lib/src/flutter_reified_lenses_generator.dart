@@ -92,7 +92,6 @@ void generateBoundWidget(
     for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
     Param(resolvedTypes.key.withNullable(true), 'key', isNamed: true, isRequired: false),
   ];
-  final tearoffParams = ctorParams.map((p) => p.copyWith(isInitializingFormal: false));
 
   Class(
     name,
@@ -114,19 +113,6 @@ void generateBoundWidget(
         returnType: const Type('Widget'),
         params: [buildContextParam ?? const Param(Type('BuildContext'), 'context')],
         body: buildBody.toString(),
-      ),
-      Method(
-        'tearoff',
-        isStatic: true,
-        params: tearoffParams,
-        typeParams: function.typeParams,
-        returnType: const Type('Widget'),
-        isExpression: true,
-        body: callString(
-          name,
-          tearoffParams.asArgs(),
-          typeArgs: function.typeParams.map((tp) => tp.type),
-        ),
       ),
     ],
   ).declare(output);

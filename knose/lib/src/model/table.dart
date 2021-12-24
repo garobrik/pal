@@ -334,9 +334,9 @@ final valueColumnImpl = PalImpl(
   },
 );
 
-final textColumn = valueColumn(textType, StringField.tearoff);
-final numberColumn = valueColumn(numberType, NumField.tearoff);
-final booleanColumn = valueColumn(booleanType, BoolCell.tearoff);
+final textColumn = valueColumn(textType, StringField.new);
+final numberColumn = valueColumn(numberType, NumField.new);
+final booleanColumn = valueColumn(booleanType, BoolCell.new);
 
 final dataColumnTypeID = MemberID();
 final dataColumnValuesID = MemberID();
