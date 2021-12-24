@@ -22,11 +22,11 @@ Widget _linkField(
     final row = rowCursor.read(ctx).unwrap;
     if (row == null || tableID == null) return null;
     final table = ctx.db.get(tableID).whenPresent;
-    return table.columns[table.titleColumn.read(ctx)].whenPresent.config.value
-        .cast<Dict<model.RowID, model.PalValue>>()[row]
-        .read(ctx)
-        .unwrap
-        ?.value as String?;
+    final column = table.columns[table.titleColumn.read(ctx)].whenPresent;
+    final getData = column.columnImpl.interfaceAccess(
+        ctx, model.columnImplDef.asType(), model.columnImplGetDataID) as model.ColumnGetDataFn;
+    final data = getData(Dict({'row': row, 'impl': column.columnImpl}), ctx: ctx);
+    return data.cast<Optional<Object>>().optionalCast<String>().read(ctx).unwrap;
   }
 
   final focusForRow = useMemoized(() {

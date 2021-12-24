@@ -10,6 +10,9 @@ final PalDB coreDB = () {
   for (final interface in interfaceTypes) {
     db.update(interface.id, interface);
   }
+  for (final impl in implementations) {
+    db.update(impl.id, impl);
+  }
 
   return db.read(Ctx.empty);
 }();
@@ -18,44 +21,56 @@ final interfaceTypes = <InterfaceDef>[
   palIDDef,
   widgetIDDef,
   richTextDef,
-  widgetDef,
+  columnImplDef,
   cursorDef,
+];
+final implementations = <PalImpl>[
+  valueColumnImpl,
+  dataColumnImpl,
 ];
 
 final memberIDDef = InterfaceDef(name: 'MemberID', members: []);
 
-final optionMemberID = MemberID();
-final optionDef = InterfaceDef(
+final optionTypeID = MemberID();
+final optionValueID = MemberID();
+final optionSomeID = MemberID();
+final optionNoneID = MemberID();
+final optionDef = DataDef(
   name: 'Option',
-  members: [PalMember(id: optionMemberID, name: 'type', type: typeType)],
+  tree: RecordNode({
+    optionTypeID: DataTreeElement('T', LeafNode(typeType)),
+    optionValueID: DataTreeElement(
+      'value',
+      UnionNode({
+        optionSomeID: DataTreeElement('some', LeafNode(RecordAccess(optionTypeID))),
+        optionNoneID: DataTreeElement('none', LeafNode(unitType)),
+      }),
+    )
+  }),
 );
 
-PalValue mkPalOption(PalValue? value, PalType type) =>
-    PalValue(optionDef.asType({optionMemberID: type}), Optional.fromNullable(value));
+PalType optionType(PalType type) => optionDef.asType({optionTypeID: type});
 
-extension OptionalPalValueCursorExtension on Cursor<Optional<PalValue>> {
-  Cursor<PalValue> asPalOption(PalType type) => partial(
-        to: (opt) => PalValue(optionDef.asType({optionMemberID: type}), opt),
-        from: (diff) => DiffResult(diff.value.value as Optional<PalValue>, diff.diff),
-      );
-}
+// Object mkPalOption(Object? value, PalType type) =>
+//     {optionTypeID: type, optionValueID: Pair(value != null ? optionSomeID : optionNoneID, value)};
 
-extension OptionalPalValueExtension on Optional<PalValue> {
-  PalValue asPalOption(PalType type) => PalValue(optionDef.asType({optionMemberID: type}), this);
-}
+// extension OptionalPalValueCursorExtension on Cursor<Optional<Object>> {
+//   Cursor<Object> asPalOption(PalType type) => partial(
+//         to: (opt) => mkPalOption(opt.unwrap, type),
+//         from: (diff) {
+//           final pair = diff.value.recordAccess(optionValueID) as Pair<MemberID, Object?>;
+//           if (pair.first == optionSomeID) {
+//             return DiffResult(Optional(pair.second!), diff.diff);
+//           } else {
+//             return DiffResult(const Optional.none(), diff.diff);
+//           }
+//         },
+//       );
+// }
 
-TypeID addStructType(Cursor<PalDB> db, String name, dart.List<PalMember> members) {
-  final interface = InterfaceDef(name: name, members: members);
-  db.update(interface.id, interface);
-
-  final dataType = PalValue(MapType(memberIDDef.asType(), typeType),
-      {for (final member in members) member.id: member.type});
-
-  final impl = PalImpl(implementer: dataType, implemented: interface.asType(), implementations: {});
-  db.update(impl.id, impl);
-
-  return interface.id;
-}
+// extension OptionalPalValueExtension on Optional<PalValue> {
+//   PalValue asPalOption(PalType type) => PalValue(optionDef.asType({optionTypeID: type}), this);
+// }
 
 final palIDDef = InterfaceDef(
   name: 'PalID',
@@ -65,12 +80,12 @@ final palIDDef = InterfaceDef(
   ],
 );
 
-final tableIDDef = InterfaceDef(
+final tableIDDef = DataDef.record(
   name: 'TableID',
   members: [PalMember(name: 'id', type: textType)],
 );
 
-class WidgetID extends PalID<PalValue> {
+class WidgetID extends PalID<Object> {
   static const namespace = 'widgets';
 
   WidgetID.create() : super.create(namespace: namespace);
@@ -84,10 +99,11 @@ final richTextDef = InterfaceDef(name: 'RichText', members: [
   PalMember(name: 'elements', type: UnionType({textType, widgetDef.asType()}))
 ]);
 
-final cursorTypeMemberID = MemberID();
+PalType cursorType(PalType type) => cursorDef.asType({cursorTypeID: type});
+final cursorTypeID = MemberID();
 final cursorDef = InterfaceDef(
   name: 'Cursor',
-  members: [PalMember(id: cursorTypeMemberID, name: 'type', type: typeType)],
+  members: [PalMember(id: cursorTypeID, name: 'type', type: typeType)],
 );
 
 final datumDef = InterfaceDef(
@@ -95,16 +111,25 @@ final datumDef = InterfaceDef(
   members: [],
 );
 
-final widgetDef = InterfaceDef(
+final widgetNameID = MemberID();
+final widgetFieldsID = MemberID();
+final widgetDefaultFieldsID = MemberID();
+final widgetBuildID = MemberID();
+final widgetDef = DataDef.record(
   name: 'Widget',
   members: [
-    PalMember(name: 'name', type: textType),
-    PalMember(name: 'fields', type: const MapType(textType, typeType)),
+    PalMember(id: widgetNameID, name: 'name', type: textType),
+    PalMember(id: widgetFieldsID, name: 'fields', type: const MapType(textType, typeType)),
     PalMember(
+      id: widgetDefaultFieldsID,
       name: 'defaultFields',
-      type: const FunctionType(returnType: MapType(textType, anyType), target: unitType),
+      type: FunctionType(
+        returnType: RecordAccess(widgetFieldsID),
+        target: unitType,
+      ),
     ),
     PalMember(
+      id: widgetBuildID,
       name: 'build',
       type: FunctionType(
         returnType: flutterWidgetDef.asType(),
@@ -114,23 +139,31 @@ final widgetDef = InterfaceDef(
   ],
 );
 
+typedef WidgetDefaultFieldsFn = Dict<Object, Object> Function({required Ctx ctx});
+
 typedef WidgetBuildFn = flutter.Widget Function(
-  Dict<String, Cursor<PalValue>> fields, {
+  Dict<String, Cursor<Object>> fields, {
   required Ctx ctx,
 });
 
-final widgetInstanceDef = InterfaceDef(
+final widgetInstanceIDID = MemberID();
+final widgetInstanceWidgetID = MemberID();
+final widgetInstanceFieldsID = MemberID();
+final widgetInstanceDef = DataDef.record(
   name: 'WidgetInstance',
   members: [
     PalMember(
+      id: widgetInstanceIDID,
       name: 'id',
       type: widgetIDDef.asType(),
     ),
     PalMember(
+      id: widgetInstanceWidgetID,
       name: 'widget',
       type: widgetDef.asType(),
     ),
     PalMember(
+      id: widgetInstanceFieldsID,
       name: 'fields',
       type: MapType(textType, UnionType({datumDef.asType(), anyType})),
     ),
@@ -139,64 +172,11 @@ final widgetInstanceDef = InterfaceDef(
 
 final flutterWidgetDef = InterfaceDef(name: 'FlutterWidget', members: []);
 
-PalValue defaultInstance(Ctx ctx, PalValue widget) {
-  assert(widget.type.assignableTo(ctx, widgetDef.asType()));
-
-  final defaultFields =
-      widget.recordAccess<Dict<String, PalValue> Function({required Ctx ctx})>('defaultFields');
-  return PalValue(
-    widgetInstanceDef.asType(),
-    Dict({'id': WidgetID.create(), 'widget': widget, 'fields': defaultFields(ctx: ctx)}),
-  );
+Object defaultInstance(Ctx ctx, Object widget) {
+  final defaultFields = widget.recordAccess(widgetDefaultFieldsID) as WidgetDefaultFieldsFn;
+  return Dict({
+    widgetInstanceIDID: WidgetID.create(),
+    widgetInstanceWidgetID: widget,
+    widgetInstanceFieldsID: defaultFields(ctx: ctx)
+  });
 }
-
-final tableDef = InterfaceDef(name: 'Table', members: []);
-final columnIDDef = InterfaceDef(name: 'ColumnID', members: []);
-final rowIDDef = InterfaceDef(name: 'RowID', members: []);
-
-final columnTypeDataID = MemberID();
-final columnTypeConfigID = MemberID();
-final columnTypeDef = InterfaceDef(
-  name: 'ColumnType',
-  members: [
-    PalMember(id: columnTypeDataID, name: 'dataType', type: typeType),
-    PalMember(id: columnTypeConfigID, name: 'configType', type: typeType),
-    PalMember(name: 'defaultConfig', type: MemberAccess(columnTypeConfigID)),
-    PalMember(
-      name: 'getData',
-      type: FunctionType(
-        returnType: cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeDataID)}),
-        target: PalValue(
-          const MapType(textType, typeType),
-          Dict({
-            'rowID': rowIDDef.asType(),
-            'config': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeConfigID)}),
-          }),
-        ),
-      ),
-    ),
-    PalMember(
-      name: 'getWidget',
-      type: FunctionType(
-        returnType: flutterWidgetDef.asType(),
-        target: PalValue(
-          const MapType(textType, typeType),
-          Dict({
-            'rowData': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeDataID)}),
-            'config': cursorDef.asType({cursorTypeMemberID: MemberAccess(columnTypeConfigID)}),
-          }),
-        ),
-      ),
-    )
-  ],
-);
-
-typedef ColumnGetDataFn = Cursor<PalValue> Function(
-  Dict<String, Object>, {
-  required Ctx ctx,
-});
-
-typedef ColumnGetWidgetFn = flutter.Widget Function(
-  Dict<String, Cursor<PalValue>>, {
-  required Ctx ctx,
-});

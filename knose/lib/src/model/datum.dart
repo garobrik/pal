@@ -16,7 +16,7 @@ abstract class Datum {
 
   PalType type(Ctx ctx);
 
-  Cursor<PalValue>? build(Ctx ctx);
+  Cursor<Object>? build(Ctx ctx);
 }
 
 // @immutable

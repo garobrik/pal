@@ -5,24 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
-import 'package:knose/model.dart' as model;
 
 part 'text_cell.g.dart';
 
 @reader
 Widget _stringField(
   BuildContext context,
-  Cursor<model.PalValue> string, {
+  Cursor<Object> string, {
   required Ctx ctx,
   bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
     value: string,
-    toText: (model.PalValue value) =>
-        ((value.value as Optional<model.PalValue>).unwrap?.value ?? '') as String,
-    parse: (text) =>
-        Optional(model.mkPalOption(model.PalValue(model.textType, text), model.textType)),
+    toText: (Object value) => ((value as Optional<Object>).unwrap ?? '') as String,
+    parse: (text) => Optional(Optional(text)),
     expands: true,
     enabled: enabled,
   );
@@ -31,18 +28,16 @@ Widget _stringField(
 @reader
 Widget _numField(
   BuildContext context,
-  Cursor<model.PalValue> number, {
+  Cursor<Object> number, {
   required Ctx ctx,
   bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
     value: number,
-    toText: (model.PalValue value) =>
-        (value.value as Optional<model.PalValue>).unwrap?.value.toString() ?? '',
-    parse: (text) => Optional(Optional.fromNullable(text.isEmpty ? null : num.tryParse(text))
-        .map((n) => model.PalValue(model.numberType, n))
-        .asPalOption(model.numberType)),
+    toText: (Object value) => (value as Optional<num>).unwrap?.toString() ?? '',
+    parse: (text) =>
+        Optional.fromNullable(text.isEmpty ? null : num.tryParse(text)).map((n) => Optional(n)),
     expands: false,
     enabled: enabled,
   );

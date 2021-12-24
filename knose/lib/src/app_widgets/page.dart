@@ -13,39 +13,48 @@ final _widgetList = model.ListType(
   model.UnionType({model.widgetInstanceDef.asType(), model.widgetIDDef.asType()}),
 );
 
-final pageWidget = model.PalValue(
-  model.widgetDef.asType(),
-  Dict({
-    'name': 'Page',
-    'fields': Dict({
-      'widgets': _widgetList,
-      'title': model.textType,
-    }),
-    'defaultFields': ({required Ctx ctx}) => Dict({
-          'widgets': model.PalValue(
-            _widgetList,
-            Vec([model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget)]),
-          ),
-          'title': const model.PalValue(model.textType, 'Untitled page'),
-        }),
-    'build': PageWidget.tearoff,
+final pageWidget = Dict({
+  model.widgetNameID: 'Page',
+  model.widgetFieldsID: Dict<Object, Object>({
+    'widgets': _widgetList,
+    'title': model.textType,
   }),
-);
+  model.widgetDefaultFieldsID: ({required Ctx ctx}) => Dict<Object, Object>({
+        'widgets': model.PalValue(
+          _widgetList,
+          Vec([
+            model.PalValue(
+              model.widgetInstanceDef.asType(),
+              model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget),
+            )
+          ]),
+        ),
+        'title': const model.PalValue(model.textType, 'Untitled page'),
+      }),
+  model.widgetBuildID: PageWidget.tearoff,
+});
 
 @reader
 Widget _pageWidget(
   BuildContext context,
-  Dict<String, Cursor<model.PalValue>> fields, {
+  Dict<String, Cursor<Object>> fields, {
   required Ctx ctx,
 }) {
   final widgetsValue = fields['widgets'].unwrap!;
-  assert(
-    widgetsValue.type.read(ctx).assignableTo(
-        ctx, pageWidget.recordAccess<Dict<String, model.PalType>>('fields')['widgets'].unwrap!),
-  );
-  final widgets = widgetsValue.value.cast<Vec<model.PalValue>>();
-  Cursor<model.WidgetID> widgetID(Cursor<model.PalValue> widget) =>
-      widget.value.cast<Dict<String, dynamic>>()['id'].whenPresent.cast<model.WidgetID>();
+  final widgets = widgetsValue.cast<Vec<model.PalValue>>();
+  GetCursor<model.WidgetID> widgetID(GetCursor<model.PalValue> widget) => GetCursor.compute(
+        (ctx) {
+          if (widget.type.read(ctx).assignableTo(ctx, model.widgetInstanceDef.asType())) {
+            return widget.value
+                .recordAccess(model.widgetInstanceIDID)
+                .cast<model.WidgetID>()
+                .read(ctx);
+          } else {
+            return widget.value.cast<model.WidgetID>().read(ctx);
+          }
+        },
+        ctx: ctx,
+      );
 
   final focusForID = useMemoized(() {
     final foci = <model.PalID, FocusNode>{};
@@ -87,12 +96,16 @@ Widget _pageWidget(
               actions: {
                 NewNodeBelowIntent: NewNodeBelowAction(
                   onInvoke: (_) {
-                    final instance = model.defaultInstance(ctx, textWidget);
+                    final instance = model.PalValue(
+                      model.widgetInstanceDef.asType(),
+                      model.defaultInstance(ctx, textWidget),
+                    );
+
                     widgets.insert(
                       index + 1,
                       instance,
                     );
-                    focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
+                    focusForID(widgetID(GetCursor(instance)).read(Ctx.empty)).requestFocus();
                   },
                 ),
                 DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
@@ -106,7 +119,7 @@ Widget _pageWidget(
               },
               child: WidgetRenderer(
                 ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
-                instance: widgets[index],
+                instance: widgets[index].value,
               ),
             ),
           ),

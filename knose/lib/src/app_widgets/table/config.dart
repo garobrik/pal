@@ -32,9 +32,10 @@ Widget _tableConfig(
                   builder: (_, ctx) {
                     final widget = ctx.db.get(rowView.read(ctx)).whenPresent;
                     final title = widget
-                        .recordAccess<Dict<String, model.PalValue>>('fields')['title']
+                        .recordAccess(model.widgetInstanceFieldsID)
+                        .mapAccess('title')
                         .whenPresent
-                        .value
+                        .palValue()
                         .read(ctx) as String;
 
                     return TextButton(
@@ -53,7 +54,7 @@ Widget _tableConfig(
               TextButton(
                 onPressed: () {
                   final newPage = model.defaultInstance(ctx, pageWidget);
-                  final widgetID = newPage.recordAccess<model.WidgetID>('id');
+                  final widgetID = newPage.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
                   ctx.db.update(widgetID, newPage);
 
                   table.rowViews.add(widgetID);

@@ -25,7 +25,8 @@ extension PalDBCursor on Cursor<PalDB> {
         return Optional(obj);
       }
     }
-    return const Optional.none();
+    // ignore: prefer_const_constructors, Optional<Cursor<Never>> doesn't subtype Optional<Cursor<T>>
+    return Optional.none();
   }
 
   Iterable<Cursor<T>> where<T extends Object>({

@@ -8,34 +8,31 @@ import 'package:knose/infra_widgets.dart';
 
 part 'table.g.dart';
 
-final tableWidget = model.PalValue(
-  model.widgetDef.asType(),
-  Dict({
-    'name': 'Table',
-    'fields': Dict({
-      'table': model.tableIDDef.asType(),
-      'title': model.textType,
-    }),
-    'defaultFields': ({required Ctx ctx}) {
-      final table = model.Table.newDefault();
-      ctx.db.update(table.id, table);
-
-      return Dict({
-        'table': model.PalValue(model.tableIDDef.asType(), table.id),
-        'title': const model.PalValue(model.textType, 'Untitled page'),
-      });
-    },
-    'build': MainTableWidget.tearoff,
+final tableWidget = Dict({
+  model.widgetNameID: 'Table',
+  model.widgetFieldsID: Dict({
+    'table': model.tableIDDef.asType(),
+    'title': model.textType,
   }),
-);
+  model.widgetDefaultFieldsID: ({required Ctx ctx}) {
+    final table = model.Table.newDefault();
+    ctx.db.update(table.id, table);
+
+    return Dict({
+      'table': model.PalValue(model.tableIDDef.asType(), table.id),
+      'title': const model.PalValue(model.textType, 'Untitled page'),
+    });
+  },
+  model.widgetBuildID: MainTableWidget.tearoff,
+});
 
 @reader
 Widget _mainTableWidget(
   BuildContext context,
-  Dict<String, Cursor<model.PalValue>> fields, {
+  Dict<String, Cursor<Object>> fields, {
   required Ctx ctx,
 }) {
-  final tableID = fields['table'].unwrap!.value.cast<model.TableID>().read(ctx);
+  final tableID = fields['table'].unwrap!.cast<model.TableID>().read(ctx);
   final table = ctx.db.get(tableID).whenPresent;
 
   return Container(

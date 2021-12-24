@@ -80,16 +80,22 @@ Widget _tableRow(
                       ctx: ctx,
                       builder: (_, ctx) {
                         final column = table.columns[columnID].whenPresent;
-                        final getWidget = column.columnType
-                            .recordAccess<model.ColumnGetWidgetFn>('getWidget')
-                            .read(ctx);
-                        final getData = column.columnType
-                            .recordAccess<model.ColumnGetDataFn>('getData')
-                            .read(ctx);
+                        final getWidget = column.columnImpl.interfaceAccess(
+                          ctx,
+                          model.columnImplDef.asType(),
+                          model.columnImplGetWidgetID,
+                        ) as model.ColumnGetWidgetFn;
+                        final getData = column.columnImpl.interfaceAccess(
+                          ctx,
+                          model.columnImplDef.asType(),
+                          model.columnImplGetDataID,
+                        ) as model.ColumnGetDataFn;
                         final data =
-                            getData(Dict({'rowID': rowID, 'config': column.config}), ctx: ctx);
-                        return getWidget(Dict({'rowData': data, 'config': column.config}),
-                            ctx: ctx);
+                            getData(Dict({'rowID': rowID, 'impl': column.columnImpl}), ctx: ctx);
+                        return getWidget(
+                          Dict({'rowData': data, 'impl': column.columnImpl}),
+                          ctx: ctx,
+                        );
                       },
                     ),
                   ),

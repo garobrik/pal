@@ -38,7 +38,7 @@ Widget _mainScaffold(
               icon: Icons.post_add,
               onPressed: () {
                 final newPage = model.defaultInstance(ctx, pageWidget);
-                final widgetID = newPage.recordAccess<model.WidgetID>('id');
+                final widgetID = newPage.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
                 ctx.db.update(widgetID, newPage);
 
                 if (replaceRouteOnPush) {
@@ -61,7 +61,7 @@ Widget _mainScaffold(
               icon: Icons.playlist_add,
               onPressed: () {
                 final newTable = model.defaultInstance(ctx, tableWidget);
-                final widgetID = newTable.recordAccess<model.WidgetID>('id');
+                final widgetID = newTable.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
                 ctx.db.update(widgetID, newTable);
 
                 if (replaceRouteOnPush) {

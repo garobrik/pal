@@ -21,7 +21,7 @@ Route generateWidgetRoute(
       ctx: ctx,
       body: WidgetRenderer(
         ctx: ctx,
-        instance: ctx.db.get(widgetID).whenPresent.cast<model.PalValue>(),
+        instance: ctx.db.get(widgetID).whenPresent,
       ),
       replaceRouteOnPush: false,
     ),
@@ -32,29 +32,42 @@ Route generateWidgetRoute(
 Widget _widgetRenderer(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<model.PalValue> instance,
+  required Cursor<Object> instance,
 }) {
-  assert(instance.type.read(ctx).assignableTo(ctx, model.widgetInstanceDef.asType()));
-  final fields = instance.recordAccess<Dict<String, model.PalValue>>('fields');
-  final widget = instance.recordAccess<model.PalValue>('widget');
-  final build = widget.recordAccess<model.WidgetBuildFn>('build').read(ctx);
+  final fields = instance.recordAccess(model.widgetInstanceFieldsID);
+  final widget = instance.recordAccess(model.widgetInstanceWidgetID);
+  final build = widget.recordAccess(model.widgetBuildID).read(ctx) as model.WidgetBuildFn;
+  final fieldTypes = widget.recordAccess(model.widgetFieldsID);
 
-  final evaluatedFields = <String, Cursor<model.PalValue>>{};
+  final evaluatedFields = <String, Cursor<Object>>{};
   final nullFields = <String>[];
-  for (final fieldName in fields.keys.read(ctx)) {
+  for (final fieldName in fields.mapKeys().read(ctx)) {
     final optCursor = GetCursor.compute((ctx) {
-      if (fields[fieldName].whenPresent.type.read(ctx).assignableTo(ctx, model.datumDef.asType())) {
-        final evaluatedField =
-            fields[fieldName].whenPresent.value.cast<model.Datum>().read(ctx).build(ctx);
-        return Optional.fromNullable(evaluatedField);
+      final field = fields.mapAccess(fieldName).whenPresent;
+      final fieldType = fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as model.PalType;
+      if ((field.palType().read(ctx)).assignableTo(ctx, model.datumDef.asType())) {
+        final datum = field.palValue().cast<model.Datum>().read(ctx);
+        final evaluatedField = datum.build(ctx);
+        final evaluatedType = datum.type(ctx);
+        if (!fieldType.isConcrete && evaluatedType.isConcrete) {
+          return evaluatedField == null
+              ? const Optional<Cursor<Object>>.none()
+              : Optional(evaluatedField.wrap(evaluatedType).upcast<Object>());
+        } else {
+          return Optional.fromNullable(evaluatedField);
+        }
       } else {
-        return Optional(fields[fieldName].whenPresent.cast<model.PalValue>());
+        if (fieldType.isConcrete) {
+          return Optional(field.palValue());
+        } else {
+          return Optional(field);
+        }
       }
     }, ctx: ctx);
     if (optCursor.isPresent.read(ctx)) {
-      evaluatedFields[fieldName] = optCursor.whenPresent.flatten;
+      evaluatedFields[fieldName as String] = optCursor.whenPresent.flatten;
     } else {
-      nullFields.add(fieldName);
+      nullFields.add(fieldName as String);
     }
   }
 
@@ -102,7 +115,7 @@ Widget _widgetRenderer(
   );
 }
 
-final widgets = <model.PalValue>[
+final widgets = [
   tableWidget,
   listWidget,
   textWidget,
@@ -112,22 +125,21 @@ final widgets = <model.PalValue>[
 @reader
 Widget _widgetConfigWidget({
   required Ctx ctx,
-  required Cursor<model.PalValue> instance,
+  required Cursor<Object> instance,
 }) {
-  assert(instance.type.read(ctx).assignableTo(ctx, model.widgetInstanceDef.asType()));
-
   final isOpen = useCursor(false);
 
-  final fields = instance.recordAccess<Dict<String, model.PalValue>>('fields');
-  final thisWidget = instance.recordAccess<model.PalValue>('widget');
-  final fieldTypes = thisWidget.recordAccess<Dict<String, model.PalType>>('fields');
-  final firstFieldName = fields.keys.read(ctx).isNotEmpty ? fields.keys.read(ctx).first : null;
+  final fields = instance.recordAccess(model.widgetInstanceFieldsID);
+  final thisWidget = instance.recordAccess(model.widgetInstanceWidgetID);
+  final fieldTypes = thisWidget.recordAccess(model.widgetFieldsID);
+  final firstFieldName =
+      fields.mapKeys().read(ctx).isNotEmpty ? fields.mapKeys().read(ctx).first : null;
 
   return IntrinsicWidth(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final fieldName in fields.keys.read(ctx))
+        for (final fieldName in fields.mapKeys().read(ctx))
           ReaderWidget(
             ctx: ctx,
             builder: (_, ctx) {
@@ -140,12 +152,15 @@ Widget _widgetConfigWidget({
                     children: [
                       for (final dataSource in ctx.ofType<model.DataSource>())
                         for (final datum in dataSource.data.read(ctx))
-                          if (datum
-                              .type(ctx)
-                              .assignableTo(ctx, fieldTypes[fieldName].whenPresent.read(ctx)))
+                          if (datum.type(ctx).assignableTo(
+                                ctx,
+                                fieldTypes.mapAccess(fieldName).whenPresent.read(ctx)
+                                    as model.PalType,
+                              ))
                             TextButton(
-                              onPressed: () => fields[fieldName] =
-                                  Optional(model.PalValue(model.datumDef.asType(), datum)),
+                              onPressed: () => fields
+                                  .mapAccess(fieldName)
+                                  .set(Optional(model.PalValue(model.datumDef.asType(), datum))),
                               child: Text(datum.name(ctx)),
                             ),
                     ],
@@ -175,7 +190,9 @@ Widget _widgetConfigWidget({
                         instance.set(model.defaultInstance(ctx, widget));
                       }
                     },
-                    child: Row(children: [Text(widget.recordAccess<String>('name'))]),
+                    child: Row(
+                      children: [Text(widget.recordAccess(model.widgetNameID) as String)],
+                    ),
                   ),
               ],
             ),

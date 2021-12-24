@@ -56,14 +56,14 @@ Widget _searchPage(
         ),
       ),
       ...ctx.db
-          .where<model.PalValue>(
+          .where<Object>(
         ctx: ctx,
         namespace: model.WidgetID.namespace,
         predicate: (_) => true,
       )
           .map((widget) {
         const title = 'temp';
-        final widgetID = widget.recordAccess<model.WidgetID>('id').read(ctx);
+        final widgetID = widget.recordAccess(model.widgetInstanceIDID).read(ctx) as model.WidgetID;
         return TextButton(
           key: ValueKey(widgetID),
           onPressed: () {

@@ -8,42 +8,39 @@ import 'package:knose/model.dart' as model;
 
 part 'text.g.dart';
 
-final textWidget = model.PalValue(
-  model.widgetDef.asType(),
-  Dict({
-    'name': 'Text',
-    'fields': Dict({
-      'text': model.UnionType({
-        model.textType,
-        model.richTextDef.asType(),
-        textOption,
-      }),
+final textWidget = Dict({
+  model.widgetNameID: 'Text',
+  model.widgetFieldsID: Dict({
+    'text': model.UnionType({
+      model.textType,
+      model.richTextDef.asType(),
+      textOption,
     }),
-    'defaultFields': ({required Ctx ctx}) =>
-        const Dict({'text': model.PalValue(model.textType, '')}),
-    'build': TextWidget.tearoff,
   }),
-);
+  model.widgetDefaultFieldsID: ({required Ctx ctx}) =>
+      const Dict<Object, Object>({'text': model.PalValue(model.textType, '')}),
+  model.widgetBuildID: TextWidget.tearoff,
+});
 
-final textOption = model.optionDef.asType({model.optionMemberID: model.textType});
+final textOption = model.optionType(model.textType);
 
 @reader
 Widget _textWidget(
   BuildContext context,
-  Dict<String, Cursor<model.PalValue>> fields, {
+  Dict<String, Cursor<Object>> fields, {
   required Ctx ctx,
 }) {
   final text = fields['text'].unwrap!;
-  final stringCursor = Cursor.compute((ctx) {
-    final type = text.type.read(ctx);
+  final stringCursor = Cursor<String>.compute((ctx) {
+    final type = text.palType().read(ctx);
     if (type == model.textType) {
-      return text.value.cast<String>();
+      return text.palValue().cast<String>();
     } else if (type.assignableTo(ctx, textOption)) {
-      return text.value
-          .cast<Optional<model.PalValue>>()
-          .orElse(const model.PalValue(model.textType, ''))
-          .value
-          .cast<String>(); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
+      return text
+          .palValue()
+          .cast<Optional<Object>>()
+          .optionalCast<String>()
+          .orElse(''); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
     } else {
       return Cursor('whoops');
     }

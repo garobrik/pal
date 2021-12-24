@@ -13,38 +13,47 @@ final _widgetList = model.ListType(
   model.UnionType({model.widgetInstanceDef.asType(), model.widgetIDDef.asType()}),
 );
 
-final listWidget = model.PalValue(
-  model.widgetDef.asType(),
-  Dict({
-    'name': 'Bullet List',
-    'fields': Dict({
-      'widgets': _widgetList,
-    }),
-    'defaultFields': ({required Ctx ctx}) => Dict({
-          'widgets': model.PalValue(
-            _widgetList,
-            Vec([model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget)]),
-          ),
-        }),
-    'build': ListWidget.tearoff,
+final listWidget = Dict({
+  model.widgetNameID: 'Bullet List',
+  model.widgetFieldsID: Dict({
+    'widgets': _widgetList,
   }),
-);
+  model.widgetDefaultFieldsID: ({required Ctx ctx}) => Dict<Object, Object>({
+        'widgets': model.PalValue(
+          _widgetList,
+          Vec([
+            model.PalValue(
+              model.widgetInstanceDef.asType(),
+              model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget),
+            )
+          ]),
+        ),
+      }),
+  model.widgetBuildID: ListWidget.tearoff,
+});
 
 @reader
 Widget _listWidget(
   BuildContext context,
-  Dict<String, Cursor<model.PalValue>> fields, {
+  Dict<String, Cursor<Object>> fields, {
   required Ctx ctx,
 }) {
   final widgetsValue = fields['widgets'].unwrap!;
-  assert(
-    widgetsValue.type.read(ctx).assignableTo(
-        ctx, listWidget.recordAccess<Dict<String, model.PalType>>('fields')['widgets'].unwrap!),
-  );
-  final widgets = widgetsValue.value.cast<Vec<model.PalValue>>();
+  final widgets = widgetsValue.cast<Vec<model.PalValue>>();
 
-  Cursor<model.WidgetID> widgetID(Cursor<model.PalValue> widget) =>
-      widget.value.cast<Dict<String, dynamic>>()['id'].whenPresent.cast<model.WidgetID>();
+  GetCursor<model.WidgetID> widgetID(GetCursor<model.PalValue> widget) => GetCursor.compute(
+        (ctx) {
+          if (widget.type.read(ctx).assignableTo(ctx, model.widgetInstanceDef.asType())) {
+            return widget.value
+                .recordAccess(model.widgetInstanceIDID)
+                .cast<model.WidgetID>()
+                .read(ctx);
+          } else {
+            return widget.value.cast<model.WidgetID>().read(ctx);
+          }
+        },
+        ctx: ctx,
+      );
 
   final focusForID = useMemoized(() {
     final foci = <model.PalID, FocusNode>{};
@@ -91,7 +100,10 @@ Widget _listWidget(
                     actions: {
                       NewNodeBelowIntent: NewNodeBelowAction(
                         onInvoke: (_) {
-                          final instance = model.defaultInstance(ctx, textWidget);
+                          final instance = model.PalValue(
+                            model.widgetInstanceDef.asType(),
+                            model.defaultInstance(ctx, textWidget),
+                          );
                           widgets.insert(
                             index + 1,
                             instance,
@@ -116,7 +128,7 @@ Widget _listWidget(
                     },
                     child: WidgetRenderer(
                       ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
-                      instance: widgets[index],
+                      instance: widgets[index].value,
                     ),
                   ),
                 ),

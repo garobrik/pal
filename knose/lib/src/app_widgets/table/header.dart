@@ -132,7 +132,7 @@ Widget _columnConfigurationDropdown(
         isOpen: columnTypeIsOpen,
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.columnType.read(ctx)],
+        dropdownFocus: caseFoci[column.columnImpl.read(ctx)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -177,7 +177,7 @@ Iterable<Widget> columnSpecificConfiguration(
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  final type = column.columnType.read(ctx);
+  final type = column.columnImpl.read(ctx);
   if (type is model.TextType) {
     return [];
   } else if (type is model.BooleanType) {
