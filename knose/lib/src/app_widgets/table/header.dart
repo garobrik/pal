@@ -143,7 +143,19 @@ Widget _columnConfigurationDropdown(
                   key: ValueKey(type),
                   focusNode: caseFoci[type],
                   onPressed: () => column.setType(type),
-                  child: Row(children: [Text('$type')]),
+                  child: Row(children: [
+                    ReaderWidget(
+                      ctx: ctx,
+                      builder: (_, ctx) {
+                        final getName = type.interfaceAccess(
+                          ctx,
+                          model.columnImplDef.asType(),
+                          model.columnImplGetNameID,
+                        ) as model.ColumnGetNameFn;
+                        return Text(getName(Cursor(type), ctx: ctx));
+                      },
+                    )
+                  ]),
                 ),
             ],
           ),

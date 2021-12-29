@@ -313,6 +313,11 @@ final valueColumnImpl = PalImpl(
   implemented: columnImplDef.asType(),
   implementations: {
     columnImplDataID: PalValue(typeType, optionType(RecordAccess(valueColumnTypeID))),
+    columnImplGetNameID: PalValue(
+      columnImplGetNameType,
+      (Cursor<PalValue> arg, {required Ctx ctx}) =>
+          '${arg.value.recordAccess(valueColumnTypeID).read(ctx).toString()} Column',
+    ),
     columnImplGetDataID: PalValue(
       columnImplGetDataType,
       (Dict<String, Object> dict, {required Ctx ctx}) {
@@ -382,7 +387,9 @@ final rowIDDef = InterfaceDef(name: 'RowID', members: []);
 final columnImplDataID = MemberID();
 final columnImplGetDataID = MemberID();
 final columnImplGetWidgetID = MemberID();
+final columnImplGetNameID = MemberID();
 final columnImplType = InterfaceType(id: InterfaceID.create());
+final columnImplGetNameType = FunctionType(returnType: textType, target: cursorType(thisType));
 final columnImplGetDataType = FunctionType(
   returnType: cursorType(
     InterfaceAccess(member: columnImplDataID, iface: columnImplType),
@@ -404,15 +411,22 @@ final columnImplGetWidgetType = FunctionType(
     }),
   ),
 );
+
 final columnImplDef = InterfaceDef(
   id: columnImplType.id,
   name: 'ColumnImpl',
   members: [
     PalMember(id: columnImplDataID, name: 'dataType', type: typeType),
+    PalMember(id: columnImplGetNameID, name: 'getName', type: columnImplGetNameType),
     PalMember(id: columnImplGetDataID, name: 'getData', type: columnImplGetDataType),
     PalMember(id: columnImplGetWidgetID, name: 'getWidget', type: columnImplGetWidgetType)
   ],
 );
+
+typedef ColumnGetNameFn = String Function(
+  Cursor<PalValue> impl, {
+  required Ctx ctx,
+});
 
 typedef ColumnGetDataFn = Cursor<Object> Function(
   Dict<String, Object>, {
