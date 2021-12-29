@@ -496,6 +496,8 @@ class ThisExpr extends PalExpr {
   Object eval(Ctx ctx) => ctx.thisValue.value;
 }
 
+const thisExpr = ThisExpr._();
+
 extension _ThisCtxExtension on Ctx {
   PalValue get thisValue => get<_ThisCtx>()!.thisCtx;
   Ctx withThis(PalValue value) => withElement(_ThisCtx(value));
@@ -506,8 +508,6 @@ class _ThisCtx extends CtxElement {
 
   const _ThisCtx(this.thisCtx);
 }
-
-const thisExpr = ThisExpr._();
 
 class InterfaceAccess extends PalExpr {
   final PalExpr target;
@@ -651,9 +651,8 @@ extension PalValueExtensions on Object {
     return cases[caseObj.first]!(caseObj.second as V);
   }
 
-  Object interfaceAccess<V extends Object>(
-      Ctx ctx, PalType targetType, InterfaceType ifaceType, MemberID member) {
-    final impl = findImpl(ctx, targetType, ifaceType);
+  Object interfaceAccess<V extends Object>(Ctx ctx, InterfaceType ifaceType, MemberID member) {
+    final impl = findImpl(ctx, (this as PalValue).type, ifaceType);
     assert(impl != null);
     return impl!.implementations[member]!.eval(ctx);
   }
