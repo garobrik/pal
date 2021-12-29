@@ -35,7 +35,7 @@ Widget _numField(
   return TableCellTextField(
     ctx: ctx,
     value: number,
-    toText: (Object value) => (value as Optional<num>).unwrap?.toString() ?? '',
+    toText: (Object value) => (value as Optional<Object>).unwrap?.toString() ?? '',
     parse: (text) =>
         Optional.fromNullable(text.isEmpty ? null : num.tryParse(text)).map((n) => Optional(n)),
     expands: false,
