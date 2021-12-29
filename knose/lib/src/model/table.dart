@@ -342,6 +342,10 @@ final valueColumnImpl = PalImpl(
 final textColumn = valueColumn(textType, StringField.new);
 final numberColumn = valueColumn(numberType, NumField.new);
 final booleanColumn = valueColumn(booleanType, BoolCell.new);
+final dataColumn = PalValue(
+  dataColumnDef.asType(),
+  Dict({dataColumnTypeID: textType, dataColumnValuesID: const Dict<Object, Object>()}),
+);
 
 final dataColumnTypeID = MemberID();
 final dataColumnValuesID = MemberID();
@@ -358,23 +362,28 @@ final dataColumnDef = DataDef.record(
 );
 
 final dataColumnImpl = PalImpl(
-  implementer: valueColumnDef.asType(),
+  implementer: dataColumnDef.asType(),
   implemented: columnImplDef.asType(),
   implementations: {
     columnImplDataID: RecordAccess(valueColumnTypeID),
+    columnImplGetNameID: PalValue(
+      columnImplGetNameType,
+      (Cursor<PalValue> arg, {required Ctx ctx}) => 'Data Column',
+    ),
     columnImplGetDataID: PalValue(
       columnImplGetDataType,
       (Dict<String, Object> dict, {required Ctx ctx}) {
-        final colImpl = dict['impl'].unwrap! as Cursor<PalValue>;
+        final colImpl = dict['impl'].unwrap! as Cursor<Object>;
         final rowID = dict['rowID'].unwrap! as RowID;
-        final valueMap = colImpl.value.recordAccess(dataColumnValuesID);
+        final valueMap = colImpl.palValue().recordAccess(dataColumnValuesID);
         return valueMap.mapAccess(rowID);
       },
     ),
     columnImplGetWidgetID: PalValue(
       columnImplGetWidgetType,
-      (Dict<String, Cursor<PalValue>> args, {required Ctx ctx}) {
-        return Text(args['impl'].unwrap!.recordAccess(dataColumnTypeID).read(ctx).toString());
+      (Dict<String, Cursor<Object>> args, {required Ctx ctx}) {
+        return Text(
+            args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx).toString());
       },
     ),
   },

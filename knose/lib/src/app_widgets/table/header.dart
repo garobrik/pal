@@ -7,7 +7,7 @@ import 'package:knose/model.dart' as model;
 
 part 'header.g.dart';
 
-final columnTypes = [model.textColumn, model.booleanColumn, model.numberColumn];
+final columnTypes = [model.textColumn, model.booleanColumn, model.numberColumn, model.dataColumn];
 
 @reader
 Widget _tableHeader(
