@@ -4,25 +4,25 @@ import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'text.g.dart';
 
 final textWidget = Dict({
-  model.widgetNameID: 'Text',
-  model.widgetFieldsID: Dict({
-    'text': model.UnionType({
-      model.textType,
-      model.richTextDef.asType(),
+  widget.nameID: 'Text',
+  widget.fieldsID: Dict({
+    'text': pal.Union({
+      pal.text,
       textOption,
     }),
   }),
-  model.widgetDefaultFieldsID: ({required Ctx ctx}) =>
-      const Dict<Object, Object>({'text': model.PalValue(model.textType, '')}),
-  model.widgetBuildID: TextWidget.new,
+  widget.defaultFieldsID: ({required Ctx ctx}) =>
+      const Dict<Object, Object>({'text': pal.Value(pal.text, '')}),
+  widget.buildID: TextWidget.new,
 });
 
-final textOption = model.optionType(model.textType);
+final textOption = pal.optionType(pal.text);
 
 @reader
 Widget _textWidget(
@@ -33,7 +33,7 @@ Widget _textWidget(
   final text = fields['text'].unwrap!;
   final stringCursor = Cursor<String>.compute((ctx) {
     final type = text.palType().read(ctx);
-    if (type == model.textType) {
+    if (type == pal.text) {
       return text.palValue().cast<String>();
     } else if (type.assignableTo(ctx, textOption)) {
       return text

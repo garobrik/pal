@@ -5,33 +5,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'page.g.dart';
 
-final _widgetList = model.ListType(
-  model.UnionType({model.widgetInstanceDef.asType(), model.widgetIDDef.asType()}),
+final _widgetList = pal.List(
+  pal.Union({widget.instanceDef.asType(), widget.idDef.asType()}),
 );
 
 final pageWidget = Dict({
-  model.widgetNameID: 'Page',
-  model.widgetFieldsID: Dict<Object, Object>({
+  widget.nameID: 'Page',
+  widget.fieldsID: Dict<Object, Object>({
     'widgets': _widgetList,
-    'title': model.textType,
+    'title': pal.text,
   }),
-  model.widgetDefaultFieldsID: ({required Ctx ctx}) => Dict<Object, Object>({
-        'widgets': model.PalValue(
+  widget.defaultFieldsID: ({required Ctx ctx}) => Dict<Object, Object>({
+        'widgets': pal.Value(
           _widgetList,
           Vec([
-            model.PalValue(
-              model.widgetInstanceDef.asType(),
-              model.defaultInstance(Ctx.empty.withDB(Cursor(model.coreDB)), textWidget),
+            pal.Value(
+              widget.instanceDef.asType(),
+              widget.defaultInstance(ctx, textWidget),
             )
           ]),
         ),
-        'title': const model.PalValue(model.textType, 'Untitled page'),
+        'title': const pal.Value(pal.text, 'Untitled page'),
       }),
-  model.widgetBuildID: PageWidget.new,
+  widget.buildID: PageWidget.new,
 });
 
 @reader
@@ -41,24 +42,21 @@ Widget _pageWidget(
   required Ctx ctx,
 }) {
   final widgetsValue = fields['widgets'].unwrap!;
-  final widgets = widgetsValue.cast<Vec<model.PalValue>>();
-  GetCursor<model.WidgetID> widgetID(GetCursor<model.PalValue> widget) => GetCursor.compute(
+  final widgets = widgetsValue.cast<Vec<pal.Value>>();
+  GetCursor<widget.ID> widgetID(GetCursor<pal.Value> widgetDef) => GetCursor.compute(
         (ctx) {
-          if (widget.type.read(ctx).assignableTo(ctx, model.widgetInstanceDef.asType())) {
-            return widget.value
-                .recordAccess(model.widgetInstanceIDID)
-                .cast<model.WidgetID>()
-                .read(ctx);
+          if (widgetDef.type.read(ctx).assignableTo(ctx, widget.instanceDef.asType())) {
+            return widgetDef.value.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx);
           } else {
-            return widget.value.cast<model.WidgetID>().read(ctx);
+            return widgetDef.value.cast<widget.ID>().read(ctx);
           }
         },
         ctx: ctx,
       );
 
   final focusForID = useMemoized(() {
-    final foci = <model.PalID, FocusNode>{};
-    return (model.PalID id) {
+    final foci = <pal.ID, FocusNode>{};
+    return (pal.ID id) {
       if (widgetID(widgets[0]).read(ctx) == id) {
         return ctx.defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
       }
@@ -96,9 +94,9 @@ Widget _pageWidget(
               actions: {
                 NewNodeBelowIntent: NewNodeBelowAction(
                   onInvoke: (_) {
-                    final instance = model.PalValue(
-                      model.widgetInstanceDef.asType(),
-                      model.defaultInstance(ctx, textWidget),
+                    final instance = pal.Value(
+                      widget.instanceDef.asType(),
+                      widget.defaultInstance(ctx, textWidget),
                     );
 
                     widgets.insert(

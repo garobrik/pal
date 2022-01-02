@@ -2,10 +2,12 @@ import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:knose/model.dart' as model;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/shortcuts.dart';
+import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'scaffold.g.dart';
 
@@ -37,8 +39,8 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final newPage = model.defaultInstance(ctx, pageWidget);
-                final widgetID = newPage.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
+                final newPage = widget.defaultInstance(ctx, pageWidget);
+                final widgetID = newPage.recordAccess(widget.instanceIDID) as widget.ID;
                 ctx.db.update(widgetID, newPage);
 
                 if (replaceRouteOnPush) {
@@ -60,8 +62,8 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final newTable = model.defaultInstance(ctx, tableWidget);
-                final widgetID = newTable.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
+                final newTable = widget.defaultInstance(ctx, tableWidget);
+                final widgetID = newTable.recordAccess(widget.instanceIDID) as widget.ID;
                 ctx.db.update(widgetID, newTable);
 
                 if (replaceRouteOnPush) {

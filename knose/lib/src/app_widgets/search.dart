@@ -4,6 +4,8 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'search.g.dart';
 
@@ -58,12 +60,12 @@ Widget _searchPage(
       ...ctx.db
           .where<Object>(
         ctx: ctx,
-        namespace: model.WidgetID.namespace,
+        namespace: widget.ID.namespace,
         predicate: (_) => true,
       )
-          .map((widget) {
+          .map((widgetDef) {
         const title = 'temp';
-        final widgetID = widget.recordAccess(model.widgetInstanceIDID).read(ctx) as model.WidgetID;
+        final widgetID = widgetDef.recordAccess(widget.instanceIDID).read(ctx) as widget.ID;
         return TextButton(
           key: ValueKey(widgetID),
           onPressed: () {

@@ -5,14 +5,18 @@ import 'package:uuid/uuid.dart';
 part 'db.g.dart';
 
 @reify
-class PalDB with _PalDBMixin {
+class DB with _DBMixin {
   @override
   final Dict<String, Dict<String, Object>> cache;
 
-  const PalDB([this.cache = const Dict()]);
+  const DB([this.cache = const Dict()]);
+
+  DB merge(DB other) {
+    return DB(Dict(Map.fromEntries(this.cache.entries.followedBy(other.cache.entries))));
+  }
 }
 
-extension PalDBCursor on Cursor<PalDB> {
+extension DBCursor on Cursor<DB> {
   Optional<Cursor<T>> find<T extends Object>({
     required Ctx ctx,
     required String namespace,
@@ -43,37 +47,37 @@ extension PalDBCursor on Cursor<PalDB> {
     }
   }
 
-  Cursor<Optional<T>> get<T extends Object>(PalID<T> id) {
+  Cursor<Optional<T>> get<T extends Object>(ID<T> id) {
     return cache[id._namespace].orElse(const Dict())[id._key].optionalCast<T>();
   }
 
-  void update<T extends Object>(PalID<T> id, T object) {
+  void update<T extends Object>(ID<T> id, T object) {
     cache[id._namespace].orElse(const Dict())[id._key] = Optional(object);
   }
 }
 
-class PalID<T extends Object> {
+class ID<T extends Object> {
   static const _uuid = Uuid();
 
   final String _namespace;
   final String _key;
 
-  PalID.create({required String namespace})
+  ID.create({required String namespace})
       : _namespace = namespace,
         _key = _uuid.v4();
-  const PalID.from(this._namespace, this._key);
+  const ID.from(this._namespace, this._key);
 
   @override
   String toString() => 'PalID($_namespace: $_key)';
 }
 
-class _PalDBCtxElement extends CtxElement {
-  final Cursor<PalDB> palDB;
+class _DBCtxElement extends CtxElement {
+  final Cursor<DB> palDB;
 
-  _PalDBCtxElement(this.palDB);
+  _DBCtxElement(this.palDB);
 }
 
-extension PalDBCtxExtension on Ctx {
-  Ctx withDB(Cursor<PalDB> db) => withElement(_PalDBCtxElement(db));
-  Cursor<PalDB> get db => get<_PalDBCtxElement>()!.palDB;
+extension DBCtxExtension on Ctx {
+  Ctx withDB(Cursor<DB> db) => withElement(_DBCtxElement(db));
+  Cursor<DB> get db => get<_DBCtxElement>()!.palDB;
 }

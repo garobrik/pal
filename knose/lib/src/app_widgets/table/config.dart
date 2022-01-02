@@ -4,6 +4,8 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'config.g.dart';
@@ -30,9 +32,9 @@ Widget _tableConfig(
                 ReaderWidget(
                   ctx: ctx,
                   builder: (_, ctx) {
-                    final widget = ctx.db.get(rowView.read(ctx)).whenPresent;
-                    final title = widget
-                        .recordAccess(model.widgetInstanceFieldsID)
+                    final widgetDef = ctx.db.get(rowView.read(ctx)).whenPresent;
+                    final title = widgetDef
+                        .recordAccess(widget.instanceFieldsID)
                         .mapAccess('title')
                         .whenPresent
                         .palValue()
@@ -53,8 +55,8 @@ Widget _tableConfig(
                 ),
               TextButton(
                 onPressed: () {
-                  final newPage = model.defaultInstance(ctx, pageWidget);
-                  final widgetID = newPage.recordAccess(model.widgetInstanceIDID) as model.WidgetID;
+                  final newPage = widget.defaultInstance(ctx, pageWidget);
+                  final widgetID = newPage.recordAccess(widget.instanceIDID) as widget.ID;
                   ctx.db.update(widgetID, newPage);
 
                   table.rowViews.add(widgetID);

@@ -6,12 +6,14 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'widget.g.dart';
 
 Route generateWidgetRoute(
   Ctx ctx,
-  model.PalID widgetID,
+  pal.ID widgetID,
 ) {
   return MaterialPageRoute<void>(
     settings: RouteSettings(
@@ -34,18 +36,18 @@ Widget _widgetRenderer(
   required Ctx ctx,
   required Cursor<Object> instance,
 }) {
-  final fields = instance.recordAccess(model.widgetInstanceFieldsID);
-  final widget = instance.recordAccess(model.widgetInstanceWidgetID);
-  final build = widget.recordAccess(model.widgetBuildID).read(ctx) as model.WidgetBuildFn;
-  final fieldTypes = widget.recordAccess(model.widgetFieldsID);
+  final fields = instance.recordAccess(widget.instanceFieldsID);
+  final widgetDef = instance.recordAccess(widget.instanceWidgetID);
+  final build = widgetDef.recordAccess(widget.buildID).read(ctx) as widget.BuildFn;
+  final fieldTypes = widgetDef.recordAccess(widget.fieldsID);
 
   final evaluatedFields = <String, Cursor<Object>>{};
   final nullFields = <String>[];
   for (final fieldName in fields.mapKeys().read(ctx)) {
     final optCursor = GetCursor.compute((ctx) {
       final field = fields.mapAccess(fieldName).whenPresent;
-      final fieldType = fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as model.PalType;
-      if ((field.palType().read(ctx)).assignableTo(ctx, model.datumDef.asType())) {
+      final fieldType = fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type;
+      if ((field.palType().read(ctx)).assignableTo(ctx, pal.datumDef.asType())) {
         final datum = field.palValue().cast<model.Datum>().read(ctx);
         final evaluatedField = datum.build(ctx);
         final evaluatedType = datum.type(ctx);
@@ -129,9 +131,9 @@ Widget _widgetConfigWidget({
 }) {
   final isOpen = useCursor(false);
 
-  final fields = instance.recordAccess(model.widgetInstanceFieldsID);
-  final thisWidget = instance.recordAccess(model.widgetInstanceWidgetID);
-  final fieldTypes = thisWidget.recordAccess(model.widgetFieldsID);
+  final fields = instance.recordAccess(widget.instanceFieldsID);
+  final thisWidget = instance.recordAccess(widget.instanceWidgetID);
+  final fieldTypes = thisWidget.recordAccess(widget.fieldsID);
   final firstFieldName =
       fields.mapKeys().read(ctx).isNotEmpty ? fields.mapKeys().read(ctx).first : null;
 
@@ -154,13 +156,12 @@ Widget _widgetConfigWidget({
                         for (final datum in dataSource.data.read(ctx))
                           if (datum.type(ctx).assignableTo(
                                 ctx,
-                                fieldTypes.mapAccess(fieldName).whenPresent.read(ctx)
-                                    as model.PalType,
+                                fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type,
                               ))
                             TextButton(
                               onPressed: () => fields
                                   .mapAccess(fieldName)
-                                  .set(Optional(model.PalValue(model.datumDef.asType(), datum))),
+                                  .set(Optional(pal.Value(pal.datumDef.asType(), datum))),
                               child: Text(datum.name(ctx)),
                             ),
                     ],
@@ -183,15 +184,15 @@ Widget _widgetConfigWidget({
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final widget in widgets)
+                for (final widgetDef in widgets)
                   TextButton(
                     onPressed: () {
-                      if (thisWidget.read(Ctx.empty) != widget) {
-                        instance.set(model.defaultInstance(ctx, widget));
+                      if (thisWidget.read(Ctx.empty) != widgetDef) {
+                        instance.set(widget.defaultInstance(ctx, widgetDef));
                       }
                     },
                     child: Row(
-                      children: [Text(widget.recordAccess(model.widgetNameID) as String)],
+                      children: [Text(widgetDef.recordAccess(widget.nameID) as String)],
                     ),
                   ),
               ],

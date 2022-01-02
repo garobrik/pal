@@ -1,7 +1,7 @@
 import 'package:ctx/ctx.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
+import 'package:knose/pal.dart' as pal;
 import 'package:meta/meta.dart';
-import 'package:knose/model.dart';
 
 @immutable
 abstract class DataSource implements CtxElement {
@@ -14,7 +14,7 @@ abstract class Datum {
 
   String name(Ctx ctx);
 
-  PalType type(Ctx ctx);
+  pal.Type type(Ctx ctx);
 
   Cursor<Object>? build(Ctx ctx);
 }

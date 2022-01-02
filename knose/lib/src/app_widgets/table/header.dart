@@ -4,6 +4,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
 
 part 'header.g.dart';
 
@@ -189,16 +190,7 @@ Iterable<Widget> columnSpecificConfiguration(
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  final type = column.columnImpl.read(ctx);
-  if (type is model.TextType) {
-    return [];
-  } else if (type is model.BooleanType) {
-    return [];
-  } else if (type is model.NumberType) {
-    return [];
-  } else {
-    return [];
-  }
+  return [];
   // (model.Column linkColumn) {
   //   final state = CursorProvider.of<model.State>(context);
   //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;

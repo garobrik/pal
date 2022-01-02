@@ -1,37 +1,38 @@
 import 'dart:core' as dart;
 import 'dart:core';
+import 'package:knose/uuid.dart';
 import 'package:meta/meta.dart';
 
 import 'package:ctx/ctx.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:knose/model.dart';
+import 'package:knose/pal.dart';
 
 part 'types.g.dart';
 
-class ImplID extends PalID<PalImpl> {
+class ImplID extends ID<Impl> {
   static const namespace = 'PalImpl';
 
   ImplID.create() : super.create(namespace: namespace);
   ImplID.from(String key) : super.from(namespace, key);
 }
 
-abstract class PalType {
-  const PalType();
+abstract class Type {
+  const Type();
 
   bool get isConcrete;
 }
 
 @reify
-class PalValue extends PalType with _PalValueMixin implements PalExpr {
+class Value extends Type with _ValueMixin implements Expr {
   @override
-  final PalType type;
+  final Type type;
   @override
   final Object value;
 
-  const PalValue(this.type, this.value);
+  const Value(this.type, this.value);
 
   @override
-  PalType evalType(Ctx ctx) => type;
+  Type evalType(Ctx ctx) => type;
 
   @override
   Object eval(Ctx ctx) {
@@ -42,7 +43,7 @@ class PalValue extends PalType with _PalValueMixin implements PalExpr {
           assignments: (value as DataType).assignments.map(
                 (key, value) => MapEntry(
                   key,
-                  value is PalExpr ? value.eval(ctx) as PalType : value,
+                  value is Expr ? value.eval(ctx) as Type : value,
                 ),
               ),
         );
@@ -59,54 +60,54 @@ class PalValue extends PalType with _PalValueMixin implements PalExpr {
 }
 
 extension WrapValueExtension<T extends Object> on Cursor<T> {
-  Cursor<PalValue> wrap(PalType type) {
+  Cursor<Value> wrap(Type type) {
     return partial(
-      to: (object) => PalValue(type, object),
+      to: (object) => Value(type, object),
       from: (diff) => DiffResult(diff.value.value as T, diff.diff.atPrefix(['value'])),
-      update: (old, nu, diff) => DiffResult(PalValue(type, nu), diff.prepend(['value'])),
+      update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(['value'])),
     );
   }
 }
 
-extension Assignable on PalType {
-  bool assignableTo(Ctx ctx, PalType other) {
+extension Assignable on Type {
+  bool assignableTo(Ctx ctx, Type other) {
     return assignable(ctx, this, other);
   }
 }
 
-bool assignable(Ctx ctx, PalType a, PalType b) {
-  if (b is AnyType || b is TypeType || b is UnitType) {
+bool assignable(Ctx ctx, Type a, Type b) {
+  if (b is Any || b is TypeType || b is Unit) {
     return true;
-  } else if (a is UnionType) {
+  } else if (a is Union) {
     return a.types.every((aType) => aType.assignableTo(ctx, b));
-  } else if (b is UnionType) {
+  } else if (b is Union) {
     return b.types.any((bType) => a.assignableTo(ctx, bType));
-  } else if (b is IntersectionType) {
+  } else if (b is Intersection) {
     return b.types.every((bType) => a.assignableTo(ctx, bType));
-  } else if (a is IntersectionType) {
+  } else if (a is Intersection) {
     return a.types.any((aType) => aType.assignableTo(ctx, b));
-  } else if (a is PalExpr) {
-    return (a.eval(ctx) as PalType).assignableTo(ctx, b);
-  } else if (b is PalExpr) {
-    return a.assignableTo(ctx, b.eval(ctx) as PalType);
-  } else if (b is ListType) {
-    if (a is ListType) {
+  } else if (a is Expr) {
+    return (a.eval(ctx) as Type).assignableTo(ctx, b);
+  } else if (b is Expr) {
+    return a.assignableTo(ctx, b.eval(ctx) as Type);
+  } else if (b is List) {
+    if (a is List) {
       return a.type.assignableTo(ctx, b.type);
-    } else if (a is PalValue) {
-      if (a.type is! ListType) return false;
-      for (final value in a.value as dart.List<PalType>) {
+    } else if (a is Value) {
+      if (a.type is! List) return false;
+      for (final value in a.value as dart.List<Type>) {
         if (!value.assignableTo(ctx, b.type)) return false;
       }
       return true;
     } else {
       return false;
     }
-  } else if (b is MapType) {
-    if (a is MapType) {
+  } else if (b is Map) {
+    if (a is Map) {
       return a.key.assignableTo(ctx, b.key) && a.value.assignableTo(ctx, b.value);
-    } else if (a is PalValue) {
-      if (a.type is! MapType) return false;
-      for (final entry in (a.value as Map<PalValue, PalType>).entries) {
+    } else if (a is Value) {
+      if (a.type is! Map) return false;
+      for (final entry in (a.value as dart.Map<Value, Type>).entries) {
         if (!entry.key.type.assignableTo(ctx, b.key)) return false;
         if (!entry.value.assignableTo(ctx, b.value)) return false;
       }
@@ -128,7 +129,7 @@ bool assignable(Ctx ctx, PalType a, PalType b) {
       }
     }
 
-    final implementation = ctx.db.find<PalImpl>(
+    final implementation = ctx.db.find<Impl>(
       ctx: ctx,
       namespace: ImplID.namespace,
       predicate: (impl) {
@@ -145,13 +146,13 @@ bool assignable(Ctx ctx, PalType a, PalType b) {
       }
     }
     return false;
-  } else if (b is PalValue) {
-    if (a is! PalValue) return false;
+  } else if (b is Value) {
+    if (a is! Value) return false;
     if (!a.type.assignableTo(ctx, b.type)) return false;
-    if (b.type is MapType) {
-      if (a.type is! MapType) return false;
-      final aMap = a.value as dart.Map<PalValue, PalType>;
-      final bMap = b.value as dart.Map<PalValue, PalType>;
+    if (b.type is Map) {
+      if (a.type is! Map) return false;
+      final aMap = a.value as dart.Map<Value, Type>;
+      final bMap = b.value as dart.Map<Value, Type>;
       if (aMap.length != bMap.length) return false;
       for (final entry in aMap.entries) {
         final bValue = bMap[entry.key];
@@ -159,10 +160,10 @@ bool assignable(Ctx ctx, PalType a, PalType b) {
         if (!entry.value.assignableTo(ctx, bValue)) return false;
       }
       return true;
-    } else if (b.type is ListType) {
-      if (a.type is! ListType) return false;
-      final aList = a.value as dart.List<PalType>;
-      final bList = b.value as dart.List<PalType>;
+    } else if (b.type is List) {
+      if (a.type is! List) return false;
+      final aList = a.value as dart.List<Type>;
+      final bList = b.value as dart.List<Type>;
       if (aList.length != bList.length) return false;
       for (final pair in zip(aList, bList)) {
         if (!pair.first.assignableTo(ctx, pair.second)) return false;
@@ -171,15 +172,15 @@ bool assignable(Ctx ctx, PalType a, PalType b) {
     } else {
       return a.value == b.value;
     }
-  } else if (a is PalValue) {
+  } else if (a is Value) {
     return a.type.assignableTo(ctx, b);
   } else {
     return a == b;
   }
 }
 
-class AnyType extends PalType {
-  const AnyType._();
+class Any extends Type {
+  const Any._();
   @override
   String toString() => 'Any';
 
@@ -187,9 +188,9 @@ class AnyType extends PalType {
   bool get isConcrete => false;
 }
 
-const anyType = AnyType._();
+const any = Any._();
 
-class ThisType extends PalType {
+class ThisType extends Type {
   const ThisType._();
 
   @override
@@ -201,10 +202,10 @@ class ThisType extends PalType {
 
 const thisType = ThisType._();
 
-class ListType extends PalType {
-  final PalType type;
+class List extends Type {
+  final Type type;
 
-  const ListType(this.type);
+  const List(this.type);
 
   @override
   String toString() => 'List($type)';
@@ -214,13 +215,13 @@ class ListType extends PalType {
 }
 
 @reify
-class MapType extends PalType with _MapTypeMixin {
+class Map extends Type with _MapMixin {
   @override
-  final PalType key;
+  final Type key;
   @override
-  final PalType value;
+  final Type value;
 
-  const MapType(this.key, this.value);
+  const Map(this.key, this.value);
 
   @override
   String toString() => 'Map($key, $value)';
@@ -229,10 +230,10 @@ class MapType extends PalType with _MapTypeMixin {
   bool get isConcrete => true;
 }
 
-class UnionType extends PalType {
-  final dart.Set<PalType> types;
+class Union extends Type {
+  final dart.Set<Type> types;
 
-  const UnionType(this.types) : assert(types.length > 1);
+  const Union(this.types) : assert(types.length > 1);
 
   @override
   String toString() => 'Union(${types.join(", ")})';
@@ -241,10 +242,10 @@ class UnionType extends PalType {
   bool get isConcrete => false;
 }
 
-class IntersectionType extends PalType {
-  final dart.Set<PalType> types;
+class Intersection extends Type {
+  final dart.Set<Type> types;
 
-  const IntersectionType(this.types) : assert(types.length > 1);
+  const Intersection(this.types) : assert(types.length > 1);
 
   @override
   String toString() => 'Intersection(${types.join(", ")})';
@@ -253,8 +254,8 @@ class IntersectionType extends PalType {
   bool get isConcrete => false;
 }
 
-class BooleanType extends PalType {
-  const BooleanType._();
+class Boolean extends Type {
+  const Boolean._();
 
   @override
   String toString() => 'Boolean';
@@ -263,10 +264,10 @@ class BooleanType extends PalType {
   bool get isConcrete => true;
 }
 
-const booleanType = BooleanType._();
+const boolean = Boolean._();
 
-class NumberType extends PalType {
-  const NumberType._();
+class Number extends Type {
+  const Number._();
 
   @override
   String toString() => 'Number';
@@ -275,10 +276,10 @@ class NumberType extends PalType {
   bool get isConcrete => true;
 }
 
-const numberType = NumberType._();
+const number = Number._();
 
-class TextType extends PalType {
-  const TextType._();
+class Text extends Type {
+  const Text._();
 
   @override
   String toString() => 'Text';
@@ -287,9 +288,9 @@ class TextType extends PalType {
   bool get isConcrete => true;
 }
 
-const textType = TextType._();
+const text = Text._();
 
-class TypeType extends PalType {
+class TypeType extends Type {
   const TypeType._();
 
   @override
@@ -301,8 +302,8 @@ class TypeType extends PalType {
 
 const typeType = TypeType._();
 
-class UnitType extends PalType {
-  const UnitType._();
+class Unit extends Type {
+  const Unit._();
 
   @override
   String toString() => 'Unit';
@@ -311,15 +312,15 @@ class UnitType extends PalType {
   bool get isConcrete => true;
 }
 
-const unitType = UnitType._();
+const unit = Unit._();
 
-class FunctionType extends PalType {
-  final PalType target;
-  final PalType returnType;
+class FunctionType extends Type {
+  final Type target;
+  final Type returnType;
 
   const FunctionType({
-    this.target = unitType,
-    this.returnType = unitType,
+    this.target = unit,
+    this.returnType = unit,
   });
 
   @override
@@ -331,9 +332,9 @@ class FunctionType extends PalType {
 
 class MemberID extends UUID<MemberID> {}
 
-class InterfaceType extends PalType {
+class InterfaceType extends Type {
   final InterfaceID id;
-  final Map<MemberID, PalType> assignments;
+  final dart.Map<MemberID, Type> assignments;
 
   InterfaceType({required this.id, this.assignments = const {}});
 
@@ -344,7 +345,7 @@ class InterfaceType extends PalType {
   bool get isConcrete => false;
 }
 
-class InterfaceID extends PalID<InterfaceDef> {
+class InterfaceID extends ID<InterfaceDef> {
   static const namespace = 'PalInterface';
 
   InterfaceID.create() : super.create(namespace: namespace);
@@ -354,22 +355,22 @@ class InterfaceID extends PalID<InterfaceDef> {
 class InterfaceDef {
   final InterfaceID id;
   final String name;
-  final Map<MemberID, PalMember> members;
+  final dart.Map<MemberID, Member> members;
 
   InterfaceDef({
     InterfaceID? id,
     required this.name,
-    required dart.List<PalMember> members,
+    required dart.List<Member> members,
   })  : this.id = id ?? InterfaceID.create(),
         members = {for (final member in members) member.id: member};
 
-  InterfaceType asType([Map<MemberID, PalType> assignments = const {}]) =>
+  InterfaceType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
       InterfaceType(id: id, assignments: assignments);
 }
 
-class DataType extends PalType {
+class DataType extends Type {
   final DataID id;
-  final Map<MemberID, PalType> assignments;
+  final dart.Map<MemberID, Type> assignments;
 
   DataType({required this.id, this.assignments = const {}});
 
@@ -377,7 +378,7 @@ class DataType extends PalType {
   bool get isConcrete => true;
 }
 
-class DataID extends PalID<DataDef> {
+class DataID extends ID<DataDef> {
   static const namespace = 'PalData';
 
   DataID.create() : super.create(namespace: namespace);
@@ -387,12 +388,12 @@ class DataID extends PalID<DataDef> {
 class DataDef {
   final DataID id;
   final String name;
-  final DataTree<PalType> tree;
+  final DataTree<Type> tree;
 
   DataDef.record({
     DataID? id,
     required this.name,
-    required dart.List<PalMember> members,
+    required dart.List<Member> members,
   })  : this.id = id ?? DataID.create(),
         tree = RecordNode({
           for (final member in members)
@@ -402,7 +403,7 @@ class DataDef {
   DataDef.union({
     DataID? id,
     required this.name,
-    required dart.List<PalMember> members,
+    required dart.List<Member> members,
   })  : this.id = id ?? DataID.create(),
         tree = UnionNode({
           for (final member in members)
@@ -412,10 +413,10 @@ class DataDef {
   DataDef({
     DataID? id,
     required this.name,
-    required this.tree,
+    this.tree = const RecordNode({}),
   }) : this.id = id ?? DataID.create();
 
-  DataType asType([Map<MemberID, PalType> assignments = const {}]) =>
+  DataType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
       DataType(id: id, assignments: assignments);
 }
 
@@ -425,15 +426,15 @@ abstract class DataTree<T> {
 }
 
 class UnionNode<T> extends DataTree<T> {
-  final Map<MemberID, DataTreeElement<T>> elements;
+  final dart.Map<MemberID, DataTreeElement<T>> elements;
 
   const UnionNode(this.elements);
 }
 
 class RecordNode<T> extends DataTree<T> {
-  final Map<MemberID, DataTreeElement<T>> elements;
+  final dart.Map<MemberID, DataTreeElement<T>> elements;
 
-  RecordNode(this.elements);
+  const RecordNode(this.elements);
 }
 
 class DataTreeElement<T> {
@@ -449,26 +450,26 @@ class LeafNode<T> extends DataTree<T> {
   LeafNode(this.type);
 }
 
-class PalMember {
+class Member {
   final MemberID id;
   final String name;
-  final PalType type;
+  final Type type;
 
-  PalMember({MemberID? id, required this.name, required this.type}) : id = id ?? MemberID();
+  Member({MemberID? id, required this.name, required this.type}) : id = id ?? MemberID();
 }
 
 @reify
-class PalImpl with _PalImplMixin {
+class Impl with _ImplMixin {
   @override
   final ImplID id;
   @override
-  final PalType implementer;
+  final Type implementer;
   @override
   final InterfaceType implemented;
   @override
-  final Map<MemberID, PalExpr> implementations;
+  final dart.Map<MemberID, Expr> implementations;
 
-  PalImpl({
+  Impl({
     ImplID? id,
     required this.implementer,
     required this.implemented,
@@ -476,21 +477,21 @@ class PalImpl with _PalImplMixin {
   }) : this.id = id ?? ImplID.create();
 }
 
-abstract class PalExpr extends PalType {
-  const PalExpr();
+abstract class Expr extends Type {
+  const Expr();
 
-  PalType evalType(Ctx ctx);
+  Type evalType(Ctx ctx);
   Object eval(Ctx ctx);
 
   @override
   bool get isConcrete => false;
 }
 
-class ThisExpr extends PalExpr {
+class ThisExpr extends Expr {
   const ThisExpr._();
 
   @override
-  PalType evalType(Ctx ctx) => ctx.thisValue.type;
+  Type evalType(Ctx ctx) => ctx.thisValue.type;
 
   @override
   Object eval(Ctx ctx) => ctx.thisValue.value;
@@ -499,18 +500,18 @@ class ThisExpr extends PalExpr {
 const thisExpr = ThisExpr._();
 
 extension _ThisCtxExtension on Ctx {
-  PalValue get thisValue => get<_ThisCtx>()!.thisCtx;
-  Ctx withThis(PalValue value) => withElement(_ThisCtx(value));
+  Value get thisValue => get<_ThisCtx>()!.thisCtx;
+  Ctx withThis(Value value) => withElement(_ThisCtx(value));
 }
 
 class _ThisCtx extends CtxElement {
-  final PalValue thisCtx;
+  final Value thisCtx;
 
   const _ThisCtx(this.thisCtx);
 }
 
-class InterfaceAccess extends PalExpr {
-  final PalExpr target;
+class InterfaceAccess extends Expr {
+  final Expr target;
   final InterfaceType iface;
   final MemberID member;
 
@@ -521,7 +522,7 @@ class InterfaceAccess extends PalExpr {
   });
 
   @override
-  PalType evalType(Ctx ctx) {
+  Type evalType(Ctx ctx) {
     {
       final assignment = iface.assignments[member];
       if (assignment != null) {
@@ -538,25 +539,25 @@ class InterfaceAccess extends PalExpr {
     assert(targetType.assignableTo(ctx, iface));
     final impl = findImpl(ctx, targetType, iface);
     assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx.withThis(PalValue(targetType, targetValue)));
+    return impl!.implementations[member]!.eval(ctx.withThis(Value(targetType, targetValue)));
   }
 }
 
-class RecordAccess extends PalExpr {
-  final PalExpr target;
+class RecordAccess extends Expr {
+  final Expr target;
   final MemberID member;
 
   RecordAccess(this.member, {this.target = thisExpr});
 
   @override
-  PalType evalType(Ctx ctx) {
+  Type evalType(Ctx ctx) {
     final targetType = target.evalType(ctx) as DataType;
     if (targetType.assignments.containsKey(member)) {
       return targetType.assignments[member]!;
     }
-    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode<PalType>)
+    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode<Type>)
             .elements[member]!
-            .node as LeafNode<PalType>)
+            .node as LeafNode<Type>)
         .type;
   }
 
@@ -567,8 +568,8 @@ class RecordAccess extends PalExpr {
   }
 }
 
-PalImpl? findImpl(Ctx ctx, PalType implementer, InterfaceType iface) {
-  final maybeImpl = ctx.db.find<PalImpl>(
+Impl? findImpl(Ctx ctx, Type implementer, InterfaceType iface) {
+  final maybeImpl = ctx.db.find<Impl>(
     ctx: ctx,
     namespace: ImplID.namespace,
     predicate: (impl) {
@@ -592,7 +593,7 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     return this.cast<Dict<MemberID, Object>>()[member].whenPresent;
   }
 
-  T dataCases<V extends Object, T>(Ctx ctx, Map<MemberID, T Function(GetCursor<V>)> cases) {
+  T dataCases<V extends Object, T>(Ctx ctx, dart.Map<MemberID, T Function(GetCursor<V>)> cases) {
     final caseObj = this.cast<Pair<MemberID, Object>>();
     return cases[caseObj.first.read(ctx)]!(caseObj.second.cast<V>());
   }
@@ -603,8 +604,8 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     return impl!.implementations[member]!.eval(ctx);
   }
 
-  GetCursor<PalType> palType() {
-    return this.cast<PalValue>().type;
+  GetCursor<Type> palType() {
+    return this.cast<Value>().type;
   }
 }
 
@@ -621,7 +622,7 @@ extension PalValueCursorExtensions on Cursor<Object> {
     return this.cast<Dict<MemberID, Object>>()[member].whenPresent;
   }
 
-  T dataCases<V extends Object, T>(Ctx ctx, Map<MemberID, T Function(Cursor<V>)> cases) {
+  T dataCases<V extends Object, T>(Ctx ctx, dart.Map<MemberID, T Function(Cursor<V>)> cases) {
     final caseObj = this.cast<Pair<MemberID, Object>>();
     return cases[caseObj.first.read(ctx)]!(caseObj.second.cast<V>());
   }
@@ -629,15 +630,15 @@ extension PalValueCursorExtensions on Cursor<Object> {
   Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
     final impl = findImpl(ctx, this.palType().read(ctx), type);
     assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx.withThis(this.read(ctx) as PalValue));
+    return impl!.implementations[member]!.eval(ctx.withThis(this.read(ctx) as Value));
   }
 
-  Cursor<PalType> palType() {
-    return this.cast<PalValue>().type;
+  Cursor<Type> palType() {
+    return this.cast<Value>().type;
   }
 
   Cursor<Object> palValue() {
-    return this.cast<PalValue>().value;
+    return this.cast<Value>().value;
   }
 }
 
@@ -646,13 +647,13 @@ extension PalValueExtensions on Object {
     return (this as Dict<MemberID, Object>)[member].unwrap!;
   }
 
-  T dataCases<V extends Object, T>(Ctx ctx, Map<MemberID, T Function(V)> cases) {
+  T dataCases<V extends Object, T>(Ctx ctx, dart.Map<MemberID, T Function(V)> cases) {
     final caseObj = this as Pair<MemberID, Object>;
     return cases[caseObj.first]!(caseObj.second as V);
   }
 
   Object interfaceAccess<V extends Object>(Ctx ctx, InterfaceType ifaceType, MemberID member) {
-    final impl = findImpl(ctx, (this as PalValue).type, ifaceType);
+    final impl = findImpl(ctx, (this as Value).type, ifaceType);
     assert(impl != null);
     return impl!.implementations[member]!.eval(ctx);
   }

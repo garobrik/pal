@@ -5,6 +5,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
 
 part 'link_cell.g.dart';
 

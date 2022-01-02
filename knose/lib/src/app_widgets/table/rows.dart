@@ -5,6 +5,8 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:reorderables/reorderables.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/pal.dart' as pal;
+import 'package:knose/widget.dart' as widget;
 
 part 'rows.g.dart';
 
@@ -123,7 +125,7 @@ Widget _tableRow(
 @reader
 Widget _openRowButton(
   BuildContext context, {
-  model.WidgetID? widgetID,
+  widget.ID? widgetID,
   Ctx ctx = Ctx.empty,
 }) {
   return AnimatedOpacity(

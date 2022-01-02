@@ -1,5 +1,5 @@
 import 'package:ctx/ctx.dart';
-import 'package:knose/model.dart';
+import 'package:knose/pal.dart' as pal;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:meta/meta.dart';
 
@@ -18,7 +18,7 @@ class SearchRoute extends Route with _SearchRouteMixin {
 @reify
 class WidgetRoute extends Route with _WidgetRouteMixin {
   @override
-  final PalID id;
+  final pal.ID id;
   @override
   final Ctx? ctx;
 
