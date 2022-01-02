@@ -20,8 +20,6 @@ class RowID extends UUID<RowID> {}
 
 class TagID extends UUID<TagID> {}
 
-class RowViewID extends UUID<RowViewID> {}
-
 @immutable
 @reify
 class Table with _TableMixin {
