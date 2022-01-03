@@ -122,4 +122,6 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
 
   @override
   int get hashCode => hash(this);
+
+  Dict<Key, Value> merge(Dict<Key, Value> other) => Dict(Map.of(_values)..addAll(other._values));
 }

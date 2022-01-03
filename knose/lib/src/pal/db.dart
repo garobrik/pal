@@ -12,7 +12,7 @@ class DB with _DBMixin {
   const DB([this.cache = const Dict()]);
 
   DB merge(DB other) {
-    return DB(Dict(Map.fromEntries(this.cache.entries.followedBy(other.cache.entries))));
+    return DB(cache.merge(other.cache));
   }
 }
 
