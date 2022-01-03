@@ -185,12 +185,15 @@ Widget _columnConfigurationDropdown(
   );
 }
 
-Iterable<Widget> columnSpecificConfiguration(
+Optional<Widget> columnSpecificConfiguration(
   BuildContext context,
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  return [];
+  final impl = column.columnImpl;
+  final getConfig = impl.interfaceAccess(ctx, model.columnImplType, model.columnImplGetConfigID)
+      as model.ColumnGetConfigFn;
+  return getConfig(impl, ctx: ctx);
   // (model.Column linkColumn) {
   //   final state = CursorProvider.of<model.State>(context);
   //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;

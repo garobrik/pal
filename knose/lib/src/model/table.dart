@@ -1,7 +1,9 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/material.dart' as flutter;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
+import 'package:knose/infra_widgets.dart';
 
 import 'package:knose/model.dart';
 import 'package:knose/pal.dart' as pal;
@@ -115,7 +117,7 @@ class Column with _ColumnMixin {
   @override
   final ColumnID id;
   @override
-  final Object columnImpl;
+  final pal.Value columnImpl;
   @override
   final double width;
   @override
@@ -319,7 +321,7 @@ final valueColumnImpl = pal.Impl(
     columnImplGetNameID: pal.Value(
       columnImplGetNameType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) =>
-          '${arg.value.recordAccess(valueColumnTypeID).read(ctx).toString()} Column',
+          '${arg.value.recordAccess(valueColumnTypeID).read(ctx)} Column',
     ),
     columnImplGetDataID: pal.Value(
       columnImplGetDataType,
@@ -338,6 +340,10 @@ final valueColumnImpl = pal.Impl(
             Function(Cursor<Object>, {required Ctx ctx});
         return getWidget(args['rowData'].unwrap!, ctx: ctx);
       },
+    ),
+    columnImplGetConfigID: pal.Value(
+      columnImplGetConfigType,
+      (Cursor<pal.Value> arg, {required Ctx ctx}) => const Optional<flutter.Widget>.none(),
     ),
   },
 );
@@ -389,6 +395,28 @@ final dataColumnImpl = pal.Impl(
             args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx).toString());
       },
     ),
+    columnImplGetConfigID: pal.Value(
+      columnImplGetConfigType,
+      (Cursor<pal.Value> arg, {required Ctx ctx}) => Optional(ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) {
+          final columnType = arg.value.recordAccess(dataColumnTypeID);
+          final isOpen = useCursor(false);
+          return DeferredDropdown(
+            dropdown: flutter.Column(children: [
+              for (final type in [pal.text, pal.boolean, pal.number])
+                flutter.TextButton(
+                  onPressed: () => columnType.set(type),
+                  child: Text(type.toString()),
+                )
+            ]),
+            child: flutter.TextButton(
+                onPressed: () => isOpen.set(true), child: Text('Type: ${columnType.read(ctx)}')),
+            isOpen: isOpen,
+          );
+        },
+      )),
+    ),
   },
 );
 
@@ -400,6 +428,7 @@ final columnImplDataID = pal.MemberID();
 final columnImplGetDataID = pal.MemberID();
 final columnImplGetWidgetID = pal.MemberID();
 final columnImplGetNameID = pal.MemberID();
+final columnImplGetConfigID = pal.MemberID();
 final columnImplType = pal.InterfaceType(id: pal.InterfaceID.create());
 final columnImplGetNameType =
     pal.FunctionType(returnType: pal.text, target: pal.cursorType(pal.thisType));
@@ -425,6 +454,11 @@ final columnImplGetWidgetType = pal.FunctionType(
   ),
 );
 
+final columnImplGetConfigType = pal.FunctionType(
+  returnType: pal.optionType(widget.flutterWidgetDef.asType()),
+  target: pal.cursorType(pal.thisType),
+);
+
 final columnImplDef = pal.InterfaceDef(
   id: columnImplType.id,
   name: 'ColumnImpl',
@@ -432,7 +466,8 @@ final columnImplDef = pal.InterfaceDef(
     pal.Member(id: columnImplDataID, name: 'dataType', type: pal.typeType),
     pal.Member(id: columnImplGetNameID, name: 'getName', type: columnImplGetNameType),
     pal.Member(id: columnImplGetDataID, name: 'getData', type: columnImplGetDataType),
-    pal.Member(id: columnImplGetWidgetID, name: 'getWidget', type: columnImplGetWidgetType)
+    pal.Member(id: columnImplGetWidgetID, name: 'getWidget', type: columnImplGetWidgetType),
+    pal.Member(id: columnImplGetConfigID, name: 'getConfig', type: columnImplGetConfigType),
   ],
 );
 
@@ -448,6 +483,11 @@ typedef ColumnGetDataFn = Cursor<Object> Function(
 
 typedef ColumnGetWidgetFn = Widget Function(
   Dict<String, Cursor<Object>>, {
+  required Ctx ctx,
+});
+
+typedef ColumnGetConfigFn = Optional<Widget> Function(
+  Cursor<pal.Value> impl, {
   required Ctx ctx,
 });
 
