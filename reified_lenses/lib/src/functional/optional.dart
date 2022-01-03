@@ -1,7 +1,7 @@
 import 'package:ctx/ctx.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
-class Optional<Value> {
+class Optional<Value> extends Iterable<Value> {
   final Value? _value;
 
   const Optional(Value value) : _value = value;
@@ -13,8 +13,9 @@ class Optional<Value> {
   T cases<T>({required T Function(Value) some, required T Function() none}) =>
       _value == null ? none() : some(_value!);
 
-  Optional<T> map<T>(T Function(Value) f) =>
-      _value == null ? Optional.none() : Optional(f(_value!));
+  @override
+  Optional<T> map<T>(T Function(Value) toElement) =>
+      _value == null ? Optional.none() : Optional(toElement(_value!));
 
   bool get isPresent => _value != null;
 
@@ -26,6 +27,9 @@ class Optional<Value> {
 
   @override
   String toString() => _value == null ? 'Optional.none' : 'Optional($_value)';
+
+  @override
+  Iterator<Value> get iterator => _value == null ? <Value>[].iterator : [_value!].iterator;
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
