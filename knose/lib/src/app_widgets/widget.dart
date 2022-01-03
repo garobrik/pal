@@ -129,8 +129,6 @@ Widget _widgetConfigWidget({
   required Ctx ctx,
   required Cursor<Object> instance,
 }) {
-  final isOpen = useCursor(false);
-
   final fields = instance.recordAccess(widget.instanceFieldsID);
   final thisWidget = instance.recordAccess(widget.instanceWidgetID);
   final fieldTypes = thisWidget.recordAccess(widget.fieldsID);
@@ -145,9 +143,7 @@ Widget _widgetConfigWidget({
           ReaderWidget(
             ctx: ctx,
             builder: (_, ctx) {
-              final fieldIsOpen = useCursor(false);
-              return DeferredDropdown(
-                isOpen: fieldIsOpen,
+              return TextButtonDropdown(
                 dropdown: IntrinsicWidth(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -167,17 +163,13 @@ Widget _widgetConfigWidget({
                     ],
                   ),
                 ),
-                child: TextButton(
-                  focusNode: firstFieldName == fieldName ? ctx.defaultFocus : null,
-                  onPressed: () => fieldIsOpen.set(!fieldIsOpen.read(Ctx.empty)),
-                  child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
-                      ),
-                ),
+                buttonFocus: firstFieldName == fieldName ? ctx.defaultFocus : null,
+                child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
+                    ),
               );
             },
           ),
-        DeferredDropdown(
-          isOpen: isOpen,
+        TextButtonDropdown(
           childAnchor: Alignment.topRight,
           dropdown: IntrinsicWidth(
             child: Column(
@@ -198,11 +190,8 @@ Widget _widgetConfigWidget({
               ],
             ),
           ),
-          child: TextButton(
-            focusNode: firstFieldName == null ? ctx.defaultFocus : null,
-            onPressed: () => isOpen.set(!isOpen.read(Ctx.empty)),
-            child: const Text('View type'),
-          ),
+          buttonFocus: firstFieldName == null ? ctx.defaultFocus : null,
+          child: const Text('View type'),
         ),
       ],
     ),

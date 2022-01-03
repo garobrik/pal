@@ -53,7 +53,6 @@ Widget _tableCellTextField<T>(
   required bool expands,
   bool enabled = true,
 }) {
-  final isOpen = useCursor(false);
   final textStyle = Theme.of(context).textTheme.bodyText2;
   const padding = EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);
   final padding2 = EdgeInsetsDirectional.only(
@@ -65,14 +64,14 @@ Widget _tableCellTextField<T>(
   final minWidth = useMemoized(() => expands ? 200.0 : 0.0, [expands]);
   final dropdownFocus = useFocusNode();
 
-  return DeferredDropdown(
+  return TextButtonDropdown(
+    enabled: enabled,
     modifyConstraints: (constraints) => BoxConstraints(
       minHeight: constraints.maxHeight + 2,
       maxHeight: constraints.maxHeight + 2,
       minWidth: constraints.maxWidth + 2,
       maxWidth: max(minWidth, constraints.maxWidth + 2),
     ),
-    isOpen: isOpen,
     dropdownFocus: dropdownFocus,
     offset: const Offset(-1, -1),
     childAnchor: Alignment.topLeft,
@@ -100,19 +99,16 @@ Widget _tableCellTextField<T>(
         ),
       ),
     ),
-    child: TextButton(
-      style: ButtonStyle(
-        padding: MaterialStateProperty.all(padding),
-      ),
-      onPressed: !enabled ? null : () => isOpen.set(true),
-      child: Container(
-        alignment: Alignment.topLeft,
-        child: Text(
-          toText(value.read(ctx)),
-          style: textStyle,
-          maxLines: expands ? 5 : 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+    style: ButtonStyle(
+      padding: MaterialStateProperty.all(padding),
+    ),
+    child: Container(
+      alignment: Alignment.topLeft,
+      child: Text(
+        toText(value.read(ctx)),
+        style: textStyle,
+        maxLines: expands ? 5 : 1,
+        overflow: TextOverflow.ellipsis,
       ),
     ),
   );

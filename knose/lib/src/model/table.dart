@@ -397,25 +397,27 @@ final dataColumnImpl = pal.Impl(
     ),
     columnImplGetConfigID: pal.Value(
       columnImplGetConfigType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) => Optional(ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final columnType = arg.value.recordAccess(dataColumnTypeID);
-          final isOpen = useCursor(false);
-          return DeferredDropdown(
-            dropdown: flutter.Column(children: [
-              for (final type in [pal.text, pal.boolean, pal.number])
-                flutter.TextButton(
-                  onPressed: () => columnType.set(type),
-                  child: Text(type.toString()),
-                )
-            ]),
-            child: flutter.TextButton(
-                onPressed: () => isOpen.set(true), child: Text('Type: ${columnType.read(ctx)}')),
-            isOpen: isOpen,
-          );
-        },
-      )),
+      (Cursor<pal.Value> arg, {required Ctx ctx}) {
+        final columnType = arg.value.recordAccess(dataColumnTypeID);
+
+        return Optional(ReaderWidget(
+          ctx: ctx,
+          builder: (_, ctx) => TextButtonDropdown(
+            childAnchor: Alignment.topRight,
+            dropdown: flutter.Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final type in [pal.text, pal.boolean, pal.number])
+                  flutter.TextButton(
+                    onPressed: () => columnType.set(type),
+                    child: Text(type.toString()),
+                  )
+              ],
+            ),
+            child: flutter.Row(children: [Text('Type: ${columnType.read(ctx)}')]),
+          ),
+        ));
+      },
     ),
   },
 );

@@ -122,15 +122,13 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
-  final columnTypeIsOpen = useCursor(false);
   final caseFoci = useMemoized(() => {for (final type in columnTypes) type: FocusNode()});
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      DeferredDropdown(
-        isOpen: columnTypeIsOpen,
+      TextButtonDropdown(
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
         dropdownFocus: caseFoci[column.columnImpl.read(ctx)],
@@ -161,11 +159,8 @@ Widget _columnConfigurationDropdown(
             ],
           ),
         ),
-        child: TextButton(
-          onPressed: () => columnTypeIsOpen.mut((b) => !b),
-          child: Row(
-            children: const [Icon(Icons.list), Text('Column type')],
-          ),
+        child: Row(
+          children: const [Icon(Icons.list), Text('Column type')],
         ),
       ),
       ...columnSpecificConfiguration(context, column, ctx: ctx),

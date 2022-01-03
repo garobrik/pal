@@ -8,6 +8,43 @@ import 'package:knose/infra_widgets.dart';
 part 'dropdown.g.dart';
 
 @reader
+Widget _textButtonDropdown(
+  BuildContext context, {
+  required Widget child,
+  required Widget dropdown,
+  bool enabled = true,
+  ButtonStyle? style,
+  FocusNode? buttonFocus,
+  FocusNode? dropdownFocus,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.bottomLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
+  bool constrainHeight = false,
+  bool constrainWidth = false,
+  BoxConstraints Function(BoxConstraints)? modifyConstraints,
+}) {
+  final isOpen = useCursor(false);
+
+  return DeferredDropdown(
+    dropdownFocus: dropdownFocus,
+    childAnchor: childAnchor,
+    dropdownAnchor: dropdownAnchor,
+    offset: offset,
+    constrainHeight: constrainHeight,
+    constrainWidth: constrainWidth,
+    modifyConstraints: modifyConstraints,
+    isOpen: isOpen,
+    dropdown: dropdown,
+    child: TextButton(
+      style: style,
+      focusNode: buttonFocus,
+      onPressed: enabled ? () => isOpen.mut((b) => !b) : null,
+      child: child,
+    ),
+  );
+}
+
+@reader
 Widget _deferredDropdown(
   BuildContext context, {
   required Widget child,

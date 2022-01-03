@@ -16,13 +16,10 @@ Widget _tableConfig(
   required Cursor<model.Table> table,
   required Ctx ctx,
 }) {
-  final isOpen = useCursor(false);
-
   return Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      DeferredDropdown(
-        isOpen: isOpen,
+      TextButtonDropdown(
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -76,14 +73,11 @@ Widget _tableConfig(
             ],
           ),
         ),
-        child: TextButton(
-          onPressed: () => isOpen.set(!isOpen.read(Ctx.empty)),
-          child: Row(
-            children: const [
-              Text('Row views'),
-              Icon(Icons.arrow_drop_down),
-            ],
-          ),
+        child: Row(
+          children: const [
+            Text('Row views'),
+            Icon(Icons.arrow_drop_down),
+          ],
         ),
       ),
     ],
