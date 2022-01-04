@@ -131,7 +131,7 @@ Widget _columnConfigurationDropdown(
       TextButtonDropdown(
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.columnImpl.read(ctx)],
+        dropdownFocus: caseFoci[column.impl.read(ctx)],
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -148,7 +148,7 @@ Widget _columnConfigurationDropdown(
                       builder: (_, ctx) {
                         final getName = type.interfaceAccess(
                           ctx,
-                          model.columnImplDef.asType(),
+                          model.columnImpl,
                           model.columnImplGetNameID,
                         ) as model.ColumnGetNameFn;
                         return Text(getName(Cursor(type), ctx: ctx));
@@ -185,8 +185,8 @@ Optional<Widget> columnSpecificConfiguration(
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  final impl = column.columnImpl;
-  final getConfig = impl.interfaceAccess(ctx, model.columnImplType, model.columnImplGetConfigID)
+  final impl = column.impl;
+  final getConfig = impl.interfaceAccess(ctx, model.columnImpl, model.columnImplGetConfigID)
       as model.ColumnGetConfigFn;
   return getConfig(impl, ctx: ctx);
   // (model.Column linkColumn) {

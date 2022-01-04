@@ -62,11 +62,11 @@ class Table with _TableMixin {
     final columns = [
       Column(
         id: titleColumn,
-        columnImpl: textColumn,
+        impl: textColumn,
         title: 'Title',
       ),
       Column(
-        columnImpl: booleanColumn,
+        impl: booleanColumn,
         title: 'Done',
       ),
     ];
@@ -90,7 +90,7 @@ extension TableMutations on Cursor<Table> {
   ColumnID addColumn(pal.Value columnImpl, [int? index]) {
     late final ColumnID columnID;
     atomically((table) {
-      final column = Column(columnImpl: columnImpl);
+      final column = Column(impl: columnImpl);
 
       table.columns[column.id] = Optional(column);
       table.columnIDs.insert(index ?? table.columnIDs.length.read(Ctx.empty), column.id);
@@ -117,7 +117,7 @@ class Column with _ColumnMixin {
   @override
   final ColumnID id;
   @override
-  final pal.Value columnImpl;
+  final pal.Value impl;
   @override
   final double width;
   @override
@@ -125,16 +125,16 @@ class Column with _ColumnMixin {
 
   Column({
     ColumnID? id,
-    required this.columnImpl,
+    required this.impl,
     this.width = 100,
     this.title = '',
   }) : this.id = id ?? ColumnID();
 }
 
 extension ColumnMutations on Cursor<Column> {
-  void setType(pal.Value newColumnType) {
-    if (newColumnType != columnImpl.read(Ctx.empty)) {
-      this.columnImpl.set(newColumnType);
+  void setType(pal.Value newImpl) {
+    if (newImpl != impl.read(Ctx.empty)) {
+      this.impl.set(newImpl);
     }
   }
 }
@@ -255,9 +255,12 @@ class _TableDatum extends Datum {
     final rowID = rowCtx.rowID;
     final table = ctx.db.get(tableID);
     final column = table.whenPresent.columns[columnID].whenPresent;
-    final getData = column.columnImpl
-        .interfaceAccess(ctx, columnImplDef.asType(), columnImplGetDataID) as ColumnGetDataFn;
-    return getData(Dict({'rowID': rowID, 'impl': column.columnImpl}), ctx: ctx);
+    final getData = column.impl.interfaceAccess(
+      ctx,
+      columnImpl,
+      columnImplGetDataID,
+    ) as ColumnGetDataFn;
+    return getData(Dict({'rowID': rowID, 'impl': column.impl}), ctx: ctx);
   }
 
   @override
@@ -273,8 +276,8 @@ class _TableDatum extends Datum {
         .whenPresent
         .columns[columnID]
         .whenPresent
-        .columnImpl
-        .interfaceAccess(ctx, columnImplDef.asType(), columnImplDataID) as pal.Type;
+        .impl
+        .interfaceAccess(ctx, columnImpl, columnImplDataID) as pal.Type;
   }
 }
 
@@ -431,12 +434,12 @@ final columnImplGetDataID = pal.MemberID();
 final columnImplGetWidgetID = pal.MemberID();
 final columnImplGetNameID = pal.MemberID();
 final columnImplGetConfigID = pal.MemberID();
-final columnImplType = pal.InterfaceType(id: pal.InterfaceID.create());
+final columnImpl = pal.InterfaceType(id: pal.InterfaceID.create());
 final columnImplGetNameType =
     pal.FunctionType(returnType: pal.text, target: pal.cursorType(pal.thisType));
 final columnImplGetDataType = pal.FunctionType(
   returnType: pal.cursorType(
-    pal.InterfaceAccess(member: columnImplDataID, iface: columnImplType),
+    pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
   ),
   target: pal.Value(
     const pal.Map(pal.text, pal.typeType),
@@ -449,7 +452,7 @@ final columnImplGetWidgetType = pal.FunctionType(
     const pal.Map(pal.text, pal.typeType),
     Dict({
       'rowData': pal.cursorType(
-        pal.InterfaceAccess(member: columnImplDataID, iface: columnImplType),
+        pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
       ),
       'impl': pal.cursorType(pal.thisType),
     }),
@@ -462,7 +465,7 @@ final columnImplGetConfigType = pal.FunctionType(
 );
 
 final columnImplDef = pal.InterfaceDef(
-  id: columnImplType.id,
+  id: columnImpl.id,
   name: 'ColumnImpl',
   members: [
     pal.Member(id: columnImplDataID, name: 'dataType', type: pal.typeType),

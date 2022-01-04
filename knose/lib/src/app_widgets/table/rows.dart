@@ -82,20 +82,19 @@ Widget _tableRow(
                       ctx: ctx,
                       builder: (_, ctx) {
                         final column = table.columns[columnID].whenPresent;
-                        final getWidget = column.columnImpl.interfaceAccess(
+                        final getWidget = column.impl.interfaceAccess(
                           ctx,
-                          model.columnImplDef.asType(),
+                          model.columnImpl,
                           model.columnImplGetWidgetID,
                         ) as model.ColumnGetWidgetFn;
-                        final getData = column.columnImpl.interfaceAccess(
+                        final getData = column.impl.interfaceAccess(
                           ctx,
-                          model.columnImplDef.asType(),
+                          model.columnImpl,
                           model.columnImplGetDataID,
                         ) as model.ColumnGetDataFn;
-                        final data =
-                            getData(Dict({'rowID': rowID, 'impl': column.columnImpl}), ctx: ctx);
+                        final data = getData(Dict({'rowID': rowID, 'impl': column.impl}), ctx: ctx);
                         return getWidget(
-                          Dict({'rowData': data, 'impl': column.columnImpl}),
+                          Dict({'rowData': data, 'impl': column.impl}),
                           ctx: ctx,
                         );
                       },
