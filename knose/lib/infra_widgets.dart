@@ -8,3 +8,4 @@ export 'src/infra_widgets/ticker_provider_hook.dart';
 export 'src/infra_widgets/divider.dart';
 export 'src/infra_widgets/inherited_value.dart';
 export 'src/infra_widgets/deferred_paint.dart';
+export 'src/infra_widgets/focus_trap.dart';

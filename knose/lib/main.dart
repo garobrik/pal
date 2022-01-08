@@ -21,24 +21,27 @@ Widget myApp() {
     ctx: Ctx.empty,
     create: () => model.baseDB,
     builder: (_, ctx, Cursor<DB> db) => KeyPressedProvider(
-      child: MaterialApp(
-        title: 'knose',
-        shortcuts: shortcuts,
-        actions: actions,
-        theme: theme(Colors.grey, Brightness.light),
-        onGenerateRoute: (settings) {
-          if (settings.name == '/') {
-            return generateSearchRoute(ctx.withDB(db));
-          }
+      child: DisableBuiltinFocusTrap(
+        child: MaterialApp(
+          title: 'knose',
+          shortcuts: shortcuts,
+          actions: actions,
+          theme: theme(Colors.grey, Brightness.light),
+          onGenerateRoute: (settings) {
+            if (settings.name == '/') {
+              return generateSearchRoute(ctx.withDB(db));
+            }
 
-          final arguments = settings.arguments;
-          if (arguments is model.Route) {
-            return arguments.cases(
-              widgetRoute: (widget) => generateWidgetRoute(widget.ctx ?? ctx.withDB(db), widget.id),
-              searchRoute: (_) => generateSearchRoute(ctx.withDB(db)),
-            );
-          }
-        },
+            final arguments = settings.arguments;
+            if (arguments is model.Route) {
+              return arguments.cases(
+                widgetRoute: (widget) =>
+                    generateWidgetRoute(widget.ctx ?? ctx.withDB(db), widget.id),
+                searchRoute: (_) => generateSearchRoute(ctx.withDB(db)),
+              );
+            }
+          },
+        ),
       ),
     ),
   );
