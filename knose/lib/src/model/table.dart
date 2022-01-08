@@ -1,10 +1,7 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart' as flutter;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
-import 'package:knose/infra_widgets.dart';
-
 import 'package:knose/model.dart';
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/uuid.dart';
@@ -346,7 +343,7 @@ final valueColumnImpl = pal.Impl(
     ),
     columnImplGetConfigID: pal.Value(
       columnImplGetConfigType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) => const Optional<flutter.Widget>.none(),
+      (Cursor<pal.Value> arg, {required Ctx ctx}) => const Optional<Widget>.none(),
     ),
   },
 );
@@ -394,32 +391,43 @@ final dataColumnImpl = pal.Impl(
     columnImplGetWidgetID: pal.Value(
       columnImplGetWidgetType,
       (Dict<String, Cursor<Object>> args, {required Ctx ctx}) {
-        return Text(
-            args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx).toString());
+        return ReaderWidget(
+          ctx: ctx,
+          builder: (_, ctx) {
+            return DataCell(
+              args['rowData'].unwrap!,
+              args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx) as pal.Type,
+              ctx: ctx,
+            );
+          },
+        );
       },
     ),
     columnImplGetConfigID: pal.Value(
       columnImplGetConfigType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) {
-        final columnType = arg.value.recordAccess(dataColumnTypeID);
-
-        return Optional(ReaderWidget(
-          ctx: ctx,
-          builder: (_, ctx) => TextButtonDropdown(
-            childAnchor: Alignment.topRight,
-            dropdown: flutter.Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final type in [pal.text, pal.boolean, pal.number])
-                  flutter.TextButton(
-                    onPressed: () => columnType.set(type),
-                    child: Text(type.toString()),
-                  )
-              ],
+        return Optional(TypeSelector(
+            // TODO: this is slightly incorrect, doesn't trigger change notif on the row data
+            arg.value.then(
+              Lens(
+                [
+                  Vec(['[]', dataColumnTypeID])
+                ],
+                (impl) => impl.recordAccess(dataColumnTypeID),
+                (impl, fn) {
+                  final oldType = impl.recordAccess(dataColumnTypeID);
+                  final newType = fn(oldType);
+                  if (oldType == newType) {
+                    return impl;
+                  } else {
+                    return (impl as Dict<pal.MemberID, Object>)
+                        .put(dataColumnTypeID, newType)
+                        .put(dataColumnValuesID, const Dict<Object, Object>());
+                  }
+                },
+              ),
             ),
-            child: flutter.Row(children: [Text('Type: ${columnType.read(ctx)}')]),
-          ),
-        ));
+            ctx: ctx));
       },
     ),
   },
