@@ -16,29 +16,61 @@ Widget _dataCell(Cursor<Object> object, pal.Type type, {required Ctx ctx}) {
     return NumField(object, ctx: ctx);
   } else if (type == pal.boolean) {
     return BoolCell(object, ctx: ctx);
-  } else if (type is pal.List) {
-    return const Text('List');
-  } else if (type is pal.Map) {
-    return const Text('Map');
   } else {
-    return const Text('Unknown');
+    return Text('$type');
   }
 }
 
 @reader
-Widget _typeSelector(Cursor<Object> type, {required Ctx ctx}) {
+Widget _typeSelector(Cursor<Object> type, {required Ctx ctx, required bool topLevel}) {
+  final focusForType = useMemoized(() {
+    final foci = <Type, FocusNode>{};
+    return (Type type) {
+      return foci.putIfAbsent(type, () => FocusNode());
+    };
+  });
+
+  late final Widget child;
+  if (type.type(ctx) == pal.List) {
+    child = Row(
+      children: [
+        if (topLevel) const Text('Type: '),
+        const Text('List('),
+        TypeSelector(
+          type.cast<pal.List>().type,
+          ctx: ctx,
+          topLevel: false,
+        ),
+        const Text(')')
+      ],
+    );
+  } else {
+    child = Row(
+      children: [
+        if (topLevel) const Text('Type: '),
+        Text(type.read(ctx).toString()),
+      ],
+    );
+  }
+
   return TextButtonDropdown(
+    style: ButtonStyle(
+      padding: topLevel ? null : MaterialStateProperty.all(EdgeInsets.zero),
+      minimumSize: topLevel ? null : MaterialStateProperty.all(Size.zero),
+    ),
+    dropdownFocus: focusForType(type.type(ctx)),
     childAnchor: Alignment.topRight,
     dropdown: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final newType in [pal.text, pal.boolean, pal.number])
+        for (final newType in const [pal.text, pal.boolean, pal.number, pal.List(pal.text)])
           TextButton(
+            focusNode: focusForType(newType.runtimeType),
             onPressed: () => type.set(newType),
             child: Text(newType.toString()),
           ),
       ],
     ),
-    child: Row(children: [Text('Type: ${type.read(ctx).toString()}')]),
+    child: child,
   );
 }

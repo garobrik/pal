@@ -407,27 +407,29 @@ final dataColumnImpl = pal.Impl(
       columnImplGetConfigType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) {
         return Optional(TypeSelector(
-            // TODO: this is slightly incorrect, doesn't trigger change notif on the row data
-            arg.value.then(
-              Lens(
-                [
-                  Vec(['[]', dataColumnTypeID])
-                ],
-                (impl) => impl.recordAccess(dataColumnTypeID),
-                (impl, fn) {
-                  final oldType = impl.recordAccess(dataColumnTypeID);
-                  final newType = fn(oldType);
-                  if (oldType == newType) {
-                    return impl;
-                  } else {
-                    return (impl as Dict<pal.MemberID, Object>)
-                        .put(dataColumnTypeID, newType)
-                        .put(dataColumnValuesID, const Dict<Object, Object>());
-                  }
-                },
-              ),
+          // TODO: this is slightly incorrect, doesn't trigger change notif on the row data
+          arg.value.then(
+            Lens(
+              [
+                Vec(['[]', dataColumnTypeID])
+              ],
+              (impl) => impl.recordAccess(dataColumnTypeID),
+              (impl, fn) {
+                final oldType = impl.recordAccess(dataColumnTypeID);
+                final newType = fn(oldType);
+                if (oldType == newType) {
+                  return impl;
+                } else {
+                  return (impl as Dict<pal.MemberID, Object>)
+                      .put(dataColumnTypeID, newType)
+                      .put(dataColumnValuesID, const Dict<Object, Object>());
+                }
+              },
             ),
-            ctx: ctx));
+          ),
+          ctx: ctx,
+          topLevel: true,
+        ));
       },
     ),
   },
