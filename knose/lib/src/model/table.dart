@@ -472,6 +472,11 @@ final columnImplGetConfigType = pal.FunctionType(
   target: pal.cursorType(pal.thisType),
 );
 
+String columnImplGetName(Cursor<pal.Value> impl, {required Ctx ctx}) {
+  final getName = impl.interfaceAccess(ctx, columnImpl, columnImplGetNameID) as ColumnGetNameFn;
+  return getName(impl, ctx: ctx);
+}
+
 final columnImplDef = pal.InterfaceDef(
   id: columnImpl.id,
   name: 'ColumnImpl',

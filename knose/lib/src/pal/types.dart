@@ -202,7 +202,9 @@ class ThisType extends Type {
 
 const thisType = ThisType._();
 
-class List extends Type {
+@reify
+class List extends Type with _ListMixin {
+  @override
   final Type type;
 
   const List(this.type);
@@ -655,6 +657,6 @@ extension PalValueExtensions on Object {
   Object interfaceAccess<V extends Object>(Ctx ctx, InterfaceType ifaceType, MemberID member) {
     final impl = findImpl(ctx, (this as Value).type, ifaceType);
     assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx);
+    return impl!.implementations[member]!.eval(ctx.withThis(this as Value));
   }
 }
