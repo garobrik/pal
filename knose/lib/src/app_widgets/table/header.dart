@@ -122,7 +122,12 @@ Widget _columnConfigurationDropdown(
   required Cursor<model.Table> table,
   required Cursor<model.Column> column,
 }) {
-  final caseFoci = useMemoized(() => {for (final type in columnTypes) type: FocusNode()});
+  final focusForImpl = useMemoized(() {
+    final foci = <String, FocusNode>{};
+    return (Cursor<pal.Value> impl, Ctx ctx) {
+      return foci.putIfAbsent(model.columnImplGetName(impl, ctx: ctx), () => FocusNode());
+    };
+  });
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,7 +136,7 @@ Widget _columnConfigurationDropdown(
       TextButtonDropdown(
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: caseFoci[column.impl.read(ctx)],
+        dropdownFocus: focusForImpl(column.impl, ctx),
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -140,18 +145,13 @@ Widget _columnConfigurationDropdown(
               for (final type in columnTypes)
                 TextButton(
                   key: ValueKey(type),
-                  focusNode: caseFoci[type],
+                  focusNode: focusForImpl(Cursor(type), ctx),
                   onPressed: () => column.setType(type),
                   child: Row(children: [
                     ReaderWidget(
                       ctx: ctx,
                       builder: (_, ctx) {
-                        final getName = type.interfaceAccess(
-                          ctx,
-                          model.columnImpl,
-                          model.columnImplGetNameID,
-                        ) as model.ColumnGetNameFn;
-                        return Text(getName(Cursor(type), ctx: ctx));
+                        return Text(model.columnImplGetName(Cursor(type), ctx: ctx));
                       },
                     )
                   ]),
