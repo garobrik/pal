@@ -14,10 +14,11 @@ Widget _cellDropdown(
   required Ctx ctx,
   required Widget dropdown,
   required Widget child,
+  required bool enabled,
   ButtonStyle? style,
   FocusNode? dropdownFocus,
   bool expands = true,
-  bool enabled = true,
+  bool constrainHeight = true,
 }) {
   final minWidth = useMemoized(() => expands ? 200.0 : 0.0, [expands]);
 
@@ -25,7 +26,7 @@ Widget _cellDropdown(
     enabled: enabled,
     modifyConstraints: (constraints) => BoxConstraints(
       minHeight: constraints.maxHeight + 2,
-      maxHeight: constraints.maxHeight + 2,
+      maxHeight: constrainHeight ? constraints.maxHeight + 2 : double.infinity,
       minWidth: constraints.maxWidth + 2,
       maxWidth: max(minWidth, constraints.maxWidth + 2),
     ),

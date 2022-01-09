@@ -60,10 +60,10 @@ class Value extends Type with _ValueMixin implements Expr {
 }
 
 extension WrapValueExtension<T extends Object> on Cursor<T> {
-  Cursor<Value> wrap(Type type) {
+  Cursor<Value> wrap<S extends T>(Type type) {
     return partial(
       to: (object) => Value(type, object),
-      from: (diff) => DiffResult(diff.value.value as T, diff.diff.atPrefix(['value'])),
+      from: (diff) => DiffResult<S>(diff.value.value as S, diff.diff.atPrefix(['value'])),
       update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(['value'])),
     );
   }

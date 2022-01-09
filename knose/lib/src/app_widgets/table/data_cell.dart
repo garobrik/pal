@@ -9,13 +9,21 @@ import 'package:knose/pal.dart' as pal;
 part 'data_cell.g.dart';
 
 @reader
-Widget _dataCell(Cursor<Object> object, pal.Type type, {required Ctx ctx}) {
+Widget _dataCell({
+  required Cursor<pal.Value> value,
+  required Ctx ctx,
+  required bool enabled,
+  FocusNode? focusNode,
+}) {
+  final type = (value.palType().read(ctx) as pal.DataType).assignments[pal.optionTypeID]!;
   if (type == pal.text) {
-    return StringField(object, ctx: ctx);
+    return StringField(value.palValue(), enabled: enabled, ctx: ctx);
   } else if (type == pal.number) {
-    return NumField(object, ctx: ctx);
+    return NumField(value.palValue(), enabled: enabled, ctx: ctx);
   } else if (type == pal.boolean) {
-    return BoolCell(object, ctx: ctx);
+    return BoolCell(value.palValue(), enabled: enabled, ctx: ctx);
+  } else if (type is pal.List) {
+    return ListCell(list: value, enabled: enabled, ctx: ctx);
   } else {
     return Text('$type');
   }

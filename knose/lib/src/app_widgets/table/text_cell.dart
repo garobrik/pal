@@ -51,7 +51,7 @@ Widget _tableCellTextField<T>(
   required String Function(T) toText,
   required Optional<T> Function(String) parse,
   required bool expands,
-  bool enabled = true,
+  required bool enabled,
 }) {
   final textStyle = Theme.of(context).textTheme.bodyText2;
   const padding = EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);

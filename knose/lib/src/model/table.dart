@@ -394,11 +394,10 @@ final dataColumnImpl = pal.Impl(
         return ReaderWidget(
           ctx: ctx,
           builder: (_, ctx) {
-            return DataCell(
-              args['rowData'].unwrap!,
-              args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx) as pal.Type,
-              ctx: ctx,
-            );
+            final type = args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx)
+                as pal.Type;
+            final value = args['rowData'].unwrap!.wrap<Optional<Object>>(pal.optionType(type));
+            return DataCell(value: value, enabled: true, ctx: ctx);
           },
         );
       },

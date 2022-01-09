@@ -61,6 +61,10 @@ Widget _deferredDropdown(
   final previousPolicy = FocusTraversalGroup.maybeOf(context);
 
   useEffect(() {
+    if (isOpen.read(Ctx.empty)) dropdownFocus?.requestFocus();
+  }, []);
+
+  useEffect(() {
     if (dropdownFocus == null) return null;
 
     return isOpen.listen((wasOpen, isOpen, _) {
