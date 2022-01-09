@@ -1,10 +1,8 @@
-import 'dart:math';
-
 import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:knose/infra_widgets.dart';
+import 'package:knose/app_widgets.dart';
 
 part 'text_cell.g.dart';
 
@@ -63,41 +61,31 @@ Widget _tableCellTextField<T>(
     start: padding.start + 1,
     end: 0,
   );
-  final minWidth = useMemoized(() => expands ? 200.0 : 0.0, [expands]);
   final dropdownFocus = useFocusNode();
 
-  return TextButtonDropdown(
+  return CellDropdown(
+    ctx: ctx,
     enabled: enabled,
-    modifyConstraints: (constraints) => BoxConstraints(
-      minHeight: constraints.maxHeight + 2,
-      maxHeight: constraints.maxHeight + 2,
-      minWidth: constraints.maxWidth + 2,
-      maxWidth: max(minWidth, constraints.maxWidth + 2),
-    ),
     dropdownFocus: dropdownFocus,
-    offset: const Offset(-1, -1),
-    childAnchor: Alignment.topLeft,
+    expands: expands,
     dropdown: ScrollConfiguration(
       behavior: const ScrollBehavior().copyWith(scrollbars: false),
-      child: ModifiedIntrinsicWidth(
-        modification: 2,
-        child: Container(
-          decoration: BoxDecoration(color: Theme.of(context).backgroundColor),
-          alignment: AlignmentDirectional.topStart,
-          child: TextFormField(
-            initialValue: toText(value.read(Ctx.empty)),
-            style: textStyle,
-            focusNode: dropdownFocus,
-            maxLines: expands ? null : 1,
-            expands: expands,
-            decoration: InputDecoration(
-              focusedBorder: InputBorder.none,
-              contentPadding: padding2,
-            ),
-            onChanged: (newText) {
-              parse(newText).ifPresent<T>((t) => value.set(t));
-            },
+      child: Container(
+        decoration: BoxDecoration(color: Theme.of(context).backgroundColor),
+        alignment: AlignmentDirectional.topStart,
+        child: TextFormField(
+          initialValue: toText(value.read(Ctx.empty)),
+          style: textStyle,
+          focusNode: dropdownFocus,
+          maxLines: expands ? null : 1,
+          expands: expands,
+          decoration: InputDecoration(
+            focusedBorder: InputBorder.none,
+            contentPadding: padding2,
           ),
+          onChanged: (newText) {
+            parse(newText).ifPresent<T>((t) => value.set(t));
+          },
         ),
       ),
     ),
