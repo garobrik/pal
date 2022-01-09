@@ -36,8 +36,10 @@ Widget _numField(
     ctx: ctx,
     value: number,
     toText: (Object value) => (value as Optional<Object>).unwrap?.toString() ?? '',
-    parse: (text) =>
-        Optional.fromNullable(text.isEmpty ? null : num.tryParse(text)).map((n) => Optional(n)),
+    parse: (text) {
+      if (text.isEmpty) return const Optional(Optional<Object>.none());
+      return Optional.fromNullable(num.tryParse(text)).map(Optional.new);
+    },
     expands: false,
     enabled: enabled,
   );
