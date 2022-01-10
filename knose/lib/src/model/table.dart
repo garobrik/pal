@@ -329,7 +329,7 @@ final valueColumnImpl = pal.Impl(
         final colImpl = dict['impl'].unwrap! as Cursor<Object>;
         final rowID = dict['rowID'].unwrap! as RowID;
         final valueMap = colImpl.palValue().recordAccess(valueColumnValuesID);
-        return valueMap.mapAccess(rowID);
+        return valueMap.mapAccess(rowID).upcast<Object>();
       },
     ),
     columnImplGetWidgetID: pal.Value(
@@ -385,7 +385,7 @@ final dataColumnImpl = pal.Impl(
         final colImpl = dict['impl'].unwrap! as Cursor<Object>;
         final rowID = dict['rowID'].unwrap! as RowID;
         final valueMap = colImpl.palValue().recordAccess(dataColumnValuesID);
-        return valueMap.mapAccess(rowID);
+        return valueMap.mapAccess(rowID).upcast<Object>();
       },
     ),
     columnImplGetWidgetID: pal.Value(
@@ -396,7 +396,7 @@ final dataColumnImpl = pal.Impl(
           builder: (_, ctx) {
             final type = args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx)
                 as pal.Type;
-            final value = args['rowData'].unwrap!.wrap<Optional<Object>>(pal.optionType(type));
+            final value = args['rowData'].unwrap!.wrap(pal.optionType(type));
             return DataCell(value: value, enabled: true, ctx: ctx);
           },
         );

@@ -59,11 +59,11 @@ class Value extends Type with _ValueMixin implements Expr {
   bool get isConcrete => type.isConcrete;
 }
 
-extension WrapValueExtension<T extends Object> on Cursor<T> {
-  Cursor<Value> wrap<S extends T>(Type type) {
+extension WrapValueExtension on Cursor<Object> {
+  Cursor<Value> wrap(Type type) {
     return partial(
       to: (object) => Value(type, object),
-      from: (diff) => DiffResult<S>(diff.value.value as S, diff.diff.atPrefix(['value'])),
+      from: (diff) => DiffResult(diff.value.value, diff.diff.atPrefix(['value'])),
       update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(['value'])),
     );
   }
