@@ -374,7 +374,7 @@ final dataColumnImpl = pal.Impl(
   implementer: dataColumnDef.asType(),
   implemented: columnImplDef.asType(),
   implementations: {
-    columnImplDataID: pal.RecordAccess(valueColumnTypeID),
+    columnImplDataID: pal.Value(pal.typeType, pal.optionType(pal.RecordAccess(dataColumnTypeID))),
     columnImplGetNameID: pal.Value(
       columnImplGetNameType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) => 'Data Column',
