@@ -16,7 +16,7 @@ class TableID extends pal.ID<Table> {
   TableID.from(String key) : super.from(namespace, key);
 }
 
-final tableIDDef = pal.DataDef(name: 'TableID');
+final tableIDDef = pal.DataDef.unit('TableID');
 
 class ColumnID extends UUID<ColumnID> {}
 

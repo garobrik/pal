@@ -13,10 +13,9 @@ part 'page.g.dart';
 final _widgetsID = pal.MemberID();
 final pageTitleID = pal.MemberID();
 final pageDataDef = pal.DataDef(
-  name: 'PageData',
-  tree: pal.RecordNode({
-    _widgetsID: pal.DataTreeElement('widgets', pal.LeafNode(pal.List(widget.instance))),
-    pageTitleID: pal.DataTreeElement('title', pal.LeafNode(pal.text)),
+  tree: pal.RecordNode('PageData', {
+    _widgetsID: pal.LeafNode('widgets', pal.List(widget.instance)),
+    pageTitleID: const pal.LeafNode('title', pal.text),
   }),
 );
 

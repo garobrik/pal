@@ -389,34 +389,37 @@ class DataID extends ID<DataDef> {
 
 class DataDef {
   final DataID id;
-  final String name;
   final TypeTree tree;
+  String get name => tree.name;
 
   DataDef.record({
     DataID? id,
-    required this.name,
+    required String name,
     required dart.List<Member> members,
   })  : this.id = id ?? DataID.create(),
-        tree = RecordNode({
-          for (final member in members)
-            member.id: DataTreeElement(member.name, LeafNode(member.type)),
+        tree = RecordNode(name, {
+          for (final member in members) member.id: LeafNode(member.name, member.type),
         });
 
   DataDef.union({
     DataID? id,
-    required this.name,
+    required String name,
     required dart.List<Member> members,
   })  : this.id = id ?? DataID.create(),
-        tree = UnionNode({
-          for (final member in members)
-            member.id: DataTreeElement(member.name, LeafNode(member.type)),
+        tree = UnionNode(name, {
+          for (final member in members) member.id: LeafNode(member.name, member.type),
         });
 
   DataDef({
     DataID? id,
-    required this.name,
-    this.tree = const RecordNode({}),
+    required this.tree,
   }) : this.id = id ?? DataID.create();
+
+  DataDef.unit(
+    String name, {
+    DataID? id,
+  })  : this.id = id ?? DataID.create(),
+        this.tree = RecordNode(name, const {});
 
   DataType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
       DataType(id: id, assignments: assignments);
@@ -436,7 +439,9 @@ class UnionTag with _UnionTagMixin {
 
 @sealed
 abstract class TypeTree {
-  const TypeTree();
+  final String name;
+
+  const TypeTree({required this.name});
 
   Object instantiate(final Object data) {
     if (this is UnionNode) {
@@ -444,7 +449,7 @@ abstract class TypeTree {
       final unionTag = data as UnionTag;
       return UnionTag(
         unionTag.tag,
-        (this as UnionNode).elements[unionTag.tag]!.node.instantiate(unionTag.value),
+        (this as UnionNode).elements[unionTag.tag]!.instantiate(unionTag.value),
       );
     } else if (this is RecordNode) {
       assert(data is dart.Map<MemberID, Object>);
@@ -457,7 +462,7 @@ abstract class TypeTree {
 
       return Dict({
         for (final entry in map.entries)
-          entry.key: recordNode.elements[entry.key]!.node.instantiate(entry.value),
+          entry.key: recordNode.elements[entry.key]!.instantiate(entry.value),
       });
     } else {
       return data;
@@ -466,15 +471,15 @@ abstract class TypeTree {
 }
 
 class UnionNode extends TypeTree {
-  final dart.Map<MemberID, DataTreeElement> elements;
+  final dart.Map<MemberID, TypeTree> elements;
 
-  const UnionNode(this.elements);
+  const UnionNode(String name, this.elements) : super(name: name);
 }
 
 class RecordNode extends TypeTree {
-  final dart.Map<MemberID, DataTreeElement> elements;
+  final dart.Map<MemberID, TypeTree> elements;
 
-  const RecordNode(this.elements);
+  const RecordNode(String name, this.elements) : super(name: name);
 }
 
 class DataTreeElement {
@@ -487,7 +492,7 @@ class DataTreeElement {
 class LeafNode extends TypeTree {
   final Type type;
 
-  LeafNode(this.type);
+  const LeafNode(String name, this.type) : super(name: name);
 }
 
 class Member {
@@ -595,9 +600,8 @@ class RecordAccess extends Expr {
     if (targetType.assignments.containsKey(member)) {
       return targetType.assignments[member]!;
     }
-    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode)
-            .elements[member]!
-            .node as LeafNode)
+    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode).elements[member]!
+            as LeafNode)
         .type;
   }
 

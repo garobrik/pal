@@ -29,16 +29,12 @@ final optionValueID = MemberID();
 final optionSomeID = MemberID();
 final optionNoneID = MemberID();
 final optionDef = DataDef(
-  name: 'Option',
-  tree: RecordNode({
-    optionTypeID: DataTreeElement('T', LeafNode(type)),
-    optionValueID: DataTreeElement(
-      'value',
-      UnionNode({
-        optionSomeID: DataTreeElement('some', LeafNode(RecordAccess(optionTypeID))),
-        optionNoneID: DataTreeElement('none', LeafNode(unit)),
-      }),
-    )
+  tree: RecordNode('Option', {
+    optionTypeID: const LeafNode('T', type),
+    optionValueID: UnionNode('value', {
+      optionSomeID: LeafNode('some', RecordAccess(optionTypeID)),
+      optionNoneID: const LeafNode('none', unit),
+    }),
   }),
 );
 
