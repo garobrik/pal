@@ -10,19 +10,26 @@ import 'package:knose/widget.dart' as widget;
 
 part 'table.g.dart';
 
-final tableWidget = Dict({
+final _tableID = pal.MemberID();
+final _titleID = pal.MemberID();
+final tableDataDef = pal.DataDef.record(
+  name: 'TableData',
+  members: [
+    pal.Member(id: _tableID, name: 'table', type: model.tableIDDef.asType()),
+    pal.Member(id: _titleID, name: 'title', type: pal.text),
+  ],
+);
+
+final tableWidget = widget.def.instantiate({
   widget.nameID: 'Table',
-  widget.fieldsID: Dict({
-    'table': model.tableIDDef.asType(),
-    'title': pal.text,
-  }),
-  widget.defaultFieldsID: ({required Ctx ctx}) {
+  widget.typeID: tableDataDef.asType(),
+  widget.defaultDataID: ({required Ctx ctx}) {
     final table = model.Table.newDefault();
     ctx.db.update(table.id, table);
 
-    return Dict({
-      'table': pal.Value(model.tableIDDef.asType(), table.id),
-      'title': const pal.Value(pal.text, 'Untitled page'),
+    return tableDataDef.instantiate({
+      _tableID: table.id,
+      _titleID: 'Untitled page',
     });
   },
   widget.buildID: MainTableWidget.new,
@@ -31,10 +38,10 @@ final tableWidget = Dict({
 @reader
 Widget _mainTableWidget(
   BuildContext context,
-  Dict<String, Cursor<Object>> fields, {
+  Cursor<Object> tableData, {
   required Ctx ctx,
 }) {
-  final tableID = fields['table'].unwrap!.cast<model.TableID>().read(ctx);
+  final tableID = tableData.recordAccess(_tableID).read(ctx) as model.TableID;
   final table = ctx.db.get(tableID).whenPresent;
 
   return Container(

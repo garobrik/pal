@@ -36,61 +36,14 @@ Widget _widgetRenderer(
   required Ctx ctx,
   required Cursor<Object> instance,
 }) {
-  final fields = instance.recordAccess(widget.instanceFieldsID);
-  final widgetDef = instance.recordAccess(widget.instanceWidgetID);
-  final build = widgetDef.recordAccess(widget.buildID).read(ctx) as widget.BuildFn;
-  final fieldTypes = widgetDef.recordAccess(widget.fieldsID);
-
-  final evaluatedFields = <String, Cursor<Object>>{};
-  final nullFields = <String>[];
-  for (final fieldName in fields.mapKeys().read(ctx)) {
-    final optCursor = GetCursor.compute((ctx) {
-      final field = fields.mapAccess(fieldName).whenPresent;
-      final fieldType = fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type;
-      if ((field.palType().read(ctx)).assignableTo(ctx, pal.datumDef.asType())) {
-        final datum = field.palValue().cast<model.Datum>().read(ctx);
-        final evaluatedField = datum.build(ctx);
-        final evaluatedType = datum.type(ctx);
-        if (!fieldType.isConcrete && evaluatedType.isConcrete) {
-          return evaluatedField == null
-              ? const Optional<Cursor<Object>>.none()
-              : Optional(evaluatedField.wrap(evaluatedType).upcast<Object>());
-        } else {
-          return Optional.fromNullable(evaluatedField);
-        }
-      } else {
-        if (fieldType.isConcrete) {
-          return Optional(field.palValue());
-        } else {
-          return Optional(field);
-        }
-      }
-    }, ctx: ctx);
-    if (optCursor.isPresent.read(ctx)) {
-      evaluatedFields[fieldName as String] = optCursor.whenPresent.flatten;
-    } else {
-      nullFields.add(fieldName as String);
-    }
-  }
+  final data = instance.recordAccess(widget.instanceDataID);
+  final build = instance
+      .recordAccess(widget.instanceWidgetID)
+      .recordAccess(widget.buildID)
+      .read(ctx) as widget.BuildFn;
 
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
-
-  late final Widget child;
-  if (nullFields.isNotEmpty) {
-    child = Row(
-      children: [
-        Expanded(
-          child: TextButton(
-            onPressed: () => Actions.invoke(context, const NewNodeBelowIntent()),
-            child: Text('Fields are null: ${nullFields.join(", ")}.'),
-          ),
-        ),
-      ],
-    );
-  } else {
-    child = build(Dict(evaluatedFields), ctx: ctx);
-  }
 
   return Actions(
     actions: {
@@ -111,7 +64,7 @@ Widget _widgetRenderer(
           ctx: ctx.withDefaultFocus(dropdownFocus),
           instance: instance,
         ),
-        child: child,
+        child: build(data, ctx: ctx),
       ),
     ),
   );
@@ -129,46 +82,42 @@ Widget _widgetConfigWidget({
   required Ctx ctx,
   required Cursor<Object> instance,
 }) {
-  final fields = instance.recordAccess(widget.instanceFieldsID);
   final thisWidget = instance.recordAccess(widget.instanceWidgetID);
-  final fieldTypes = thisWidget.recordAccess(widget.fieldsID);
-  final firstFieldName =
-      fields.mapKeys().read(ctx).isNotEmpty ? fields.mapKeys().read(ctx).first : null;
 
   return IntrinsicWidth(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final fieldName in fields.mapKeys().read(ctx))
-          ReaderWidget(
-            ctx: ctx,
-            builder: (_, ctx) {
-              return TextButtonDropdown(
-                dropdown: IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final dataSource in ctx.ofType<model.DataSource>())
-                        for (final datum in dataSource.data.read(ctx))
-                          if (datum.type(ctx).assignableTo(
-                                ctx,
-                                fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type,
-                              ))
-                            TextButton(
-                              onPressed: () => fields
-                                  .mapAccess(fieldName)
-                                  .set(Optional(pal.Value(pal.datumDef.asType(), datum))),
-                              child: Text(datum.name(ctx)),
-                            ),
-                    ],
-                  ),
-                ),
-                buttonFocus: firstFieldName == fieldName ? ctx.defaultFocus : null,
-                child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
-                    ),
-              );
-            },
-          ),
+        // for (final fieldName in fields.mapKeys().read(ctx))
+        //   ReaderWidget(
+        //     ctx: ctx,
+        //     builder: (_, ctx) {
+        //       return TextButtonDropdown(
+        //         dropdown: IntrinsicWidth(
+        //           child: Column(
+        //             crossAxisAlignment: CrossAxisAlignment.stretch,
+        //             children: [
+        //               for (final dataSource in ctx.ofType<model.DataSource>())
+        //                 for (final datum in dataSource.data.read(ctx))
+        //                   if (datum.type(ctx).assignableTo(
+        //                         ctx,
+        //                         fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type,
+        //                       ))
+        //                     TextButton(
+        //                       onPressed: () => fields
+        //                           .mapAccess(fieldName)
+        //                           .set(Optional(pal.Value(pal.datumDef.asType(), datum))),
+        //                       child: Text(datum.name(ctx)),
+        //                     ),
+        //             ],
+        //           ),
+        //         ),
+        //         buttonFocus: firstFieldName == fieldName ? ctx.defaultFocus : null,
+        //         child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
+        //             ),
+        //       );
+        //     },
+        //   ),
         TextButtonDropdown(
           childAnchor: Alignment.topRight,
           dropdown: IntrinsicWidth(
@@ -190,7 +139,7 @@ Widget _widgetConfigWidget({
               ],
             ),
           ),
-          buttonFocus: firstFieldName == null ? ctx.defaultFocus : null,
+          buttonFocus: ctx.defaultFocus,
           child: const Text('View type'),
         ),
       ],

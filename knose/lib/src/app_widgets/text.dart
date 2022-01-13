@@ -9,33 +9,27 @@ import 'package:knose/widget.dart' as widget;
 
 part 'text.g.dart';
 
-final textWidget = Dict({
+final textWidget = widget.def.instantiate({
   widget.nameID: 'Text',
-  widget.fieldsID: Dict({
-    'text': pal.Union({
-      pal.text,
-      textOption,
-    }),
+  widget.typeID: pal.Union({
+    pal.text,
+    pal.optionType(pal.text),
   }),
-  widget.defaultFieldsID: ({required Ctx ctx}) =>
-      const Dict<Object, Object>({'text': pal.Value(pal.text, '')}),
+  widget.defaultDataID: ({required Ctx ctx}) => const pal.Value(pal.text, ''),
   widget.buildID: TextWidget.new,
 });
-
-final textOption = pal.optionType(pal.text);
 
 @reader
 Widget _textWidget(
   BuildContext context,
-  Dict<String, Cursor<Object>> fields, {
+  Cursor<Object> text, {
   required Ctx ctx,
 }) {
-  final text = fields['text'].unwrap!;
   final stringCursor = Cursor<String>.compute((ctx) {
     final type = text.palType().read(ctx);
     if (type == pal.text) {
       return text.palValue().cast<String>();
-    } else if (type.assignableTo(ctx, textOption)) {
+    } else if (type.assignableTo(ctx, pal.optionType(pal.text))) {
       return text
           .palValue()
           .cast<Optional<Object>>()

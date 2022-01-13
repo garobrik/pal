@@ -10,27 +10,22 @@ import 'package:knose/widget.dart' as widget;
 
 part 'page.g.dart';
 
-final _widgetList = pal.List(
-  pal.Union({widget.instanceDef.asType(), widget.idDef.asType()}),
+final _widgetsID = pal.MemberID();
+final pageTitleID = pal.MemberID();
+final pageDataDef = pal.DataDef(
+  name: 'PageData',
+  tree: pal.RecordNode({
+    _widgetsID: pal.DataTreeElement('widgets', pal.LeafNode(pal.List(widget.instance))),
+    pageTitleID: pal.DataTreeElement('title', pal.LeafNode(pal.text)),
+  }),
 );
 
-final pageWidget = Dict({
+final pageWidget = widget.def.instantiate({
   widget.nameID: 'Page',
-  widget.fieldsID: Dict<Object, Object>({
-    'widgets': _widgetList,
-    'title': pal.text,
-  }),
-  widget.defaultFieldsID: ({required Ctx ctx}) => Dict<Object, Object>({
-        'widgets': pal.Value(
-          _widgetList,
-          Vec([
-            pal.Value(
-              widget.instanceDef.asType(),
-              widget.defaultInstance(ctx, textWidget),
-            )
-          ]),
-        ),
-        'title': const pal.Value(pal.text, 'Untitled page'),
+  widget.typeID: pageDataDef.asType(),
+  widget.defaultDataID: ({required Ctx ctx}) => pageDataDef.instantiate({
+        _widgetsID: Vec([widget.defaultInstance(ctx, textWidget)]),
+        pageTitleID: 'Untitled page',
       }),
   widget.buildID: PageWidget.new,
 });
@@ -38,19 +33,12 @@ final pageWidget = Dict({
 @reader
 Widget _pageWidget(
   BuildContext context,
-  Dict<String, Cursor<Object>> fields, {
+  Cursor<Object> data, {
   required Ctx ctx,
 }) {
-  final widgetsValue = fields['widgets'].unwrap!;
-  final widgets = widgetsValue.cast<Vec<pal.Value>>();
-  GetCursor<widget.ID> widgetID(GetCursor<pal.Value> widgetDef) => GetCursor.compute(
-        (ctx) {
-          if (widgetDef.type.read(ctx).assignableTo(ctx, widget.instanceDef.asType())) {
-            return widgetDef.value.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx);
-          } else {
-            return widgetDef.value.cast<widget.ID>().read(ctx);
-          }
-        },
+  final widgets = data.recordAccess(_widgetsID).cast<Vec<Object>>();
+  GetCursor<widget.ID> widgetID(GetCursor<Object> widgetDef) => GetCursor.compute(
+        (ctx) => widgetDef.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx),
         ctx: ctx,
       );
 
@@ -94,10 +82,7 @@ Widget _pageWidget(
               actions: {
                 NewNodeBelowIntent: NewNodeBelowAction(
                   onInvoke: (_) {
-                    final instance = pal.Value(
-                      widget.instanceDef.asType(),
-                      widget.defaultInstance(ctx, textWidget),
-                    );
+                    final instance = widget.defaultInstance(ctx, textWidget);
 
                     widgets.insert(
                       index + 1,
@@ -117,7 +102,7 @@ Widget _pageWidget(
               },
               child: WidgetRenderer(
                 ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
-                instance: widgets[index].value,
+                instance: widgets[index],
               ),
             ),
           ),

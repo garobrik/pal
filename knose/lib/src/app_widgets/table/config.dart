@@ -31,10 +31,8 @@ Widget _tableConfig(
                   builder: (_, ctx) {
                     final widgetDef = ctx.db.get(rowView.read(ctx)).whenPresent;
                     final title = widgetDef
-                        .recordAccess(widget.instanceFieldsID)
-                        .mapAccess('title')
-                        .whenPresent
-                        .palValue()
+                        .recordAccess(widget.instanceDataID)
+                        .recordAccess(pageTitleID)
                         .read(ctx) as String;
 
                     return TextButton(

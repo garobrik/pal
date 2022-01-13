@@ -13,43 +13,37 @@ class ID extends pal.ID<Object> {
 final idDef = pal.InterfaceDef(name: 'WidgetID', members: [pal.Member(name: 'id', type: pal.text)]);
 
 final nameID = pal.MemberID();
-final fieldsID = pal.MemberID();
-final defaultFieldsID = pal.MemberID();
+final typeID = pal.MemberID();
+final defaultDataID = pal.MemberID();
 final buildID = pal.MemberID();
 final def = pal.DataDef.record(
   name: 'Widget',
   members: [
     pal.Member(id: nameID, name: 'name', type: pal.text),
-    pal.Member(id: fieldsID, name: 'fields', type: const pal.Map(pal.text, pal.typeType)),
-    pal.Member(
-      id: defaultFieldsID,
-      name: 'defaultFields',
-      type: pal.FunctionType(
-        returnType: pal.RecordAccess(fieldsID),
-        target: pal.unit,
-      ),
-    ),
+    pal.Member(id: typeID, name: 'type', type: pal.type),
+    pal.Member(id: defaultDataID, name: 'defaultDataID', type: pal.RecordAccess(typeID)),
     pal.Member(
       id: buildID,
       name: 'build',
       type: pal.FunctionType(
         returnType: flutterWidgetDef.asType(),
-        target: pal.Map(pal.text, pal.cursorDef.asType()),
+        target: pal.cursorType(pal.RecordAccess(typeID)),
       ),
     ),
   ],
 );
 
-typedef DefaultFieldsFn = Dict<Object, Object> Function({required Ctx ctx});
+typedef DefaultDataFn = Object Function({required Ctx ctx});
 
 typedef BuildFn = flutter.Widget Function(
-  Dict<String, Cursor<Object>> fields, {
+  Cursor<Object> data, {
   required Ctx ctx,
 });
 
+final instance = instanceDef.asType();
 final instanceIDID = pal.MemberID();
 final instanceWidgetID = pal.MemberID();
-final instanceFieldsID = pal.MemberID();
+final instanceDataID = pal.MemberID();
 final instanceDef = pal.DataDef.record(
   name: 'WidgetInstance',
   members: [
@@ -64,9 +58,9 @@ final instanceDef = pal.DataDef.record(
       type: def.asType(),
     ),
     pal.Member(
-      id: instanceFieldsID,
-      name: 'fields',
-      type: pal.Map(pal.text, pal.Union({pal.datumDef.asType(), pal.any})),
+      id: instanceDataID,
+      name: 'data',
+      type: pal.RecordAccess(typeID, target: pal.RecordAccess(instanceWidgetID)),
     ),
   ],
 );
@@ -74,10 +68,10 @@ final instanceDef = pal.DataDef.record(
 final flutterWidgetDef = pal.InterfaceDef(name: 'FlutterWidget', members: []);
 
 Object defaultInstance(Ctx ctx, Object widget) {
-  final defaultFields = widget.recordAccess(defaultFieldsID) as DefaultFieldsFn;
-  return Dict({
+  final defaultData = widget.recordAccess(defaultDataID) as DefaultDataFn;
+  return instanceDef.instantiate({
     instanceIDID: ID.create(),
     instanceWidgetID: widget,
-    instanceFieldsID: defaultFields(ctx: ctx)
+    instanceDataID: defaultData(ctx: ctx),
   });
 }
