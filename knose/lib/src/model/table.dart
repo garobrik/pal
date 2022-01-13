@@ -297,7 +297,7 @@ final valueColumnValuesID = pal.MemberID();
 final valueColumnGetWidgetID = pal.MemberID();
 final valueColumnGetWidgetType = pal.MemberID();
 final valueColumnDef = pal.DataDef.record(name: 'ValueColumn', members: [
-  pal.Member(id: valueColumnTypeID, name: 'valueType', type: pal.typeType),
+  pal.Member(id: valueColumnTypeID, name: 'valueType', type: pal.type),
   pal.Member(
     id: valueColumnValuesID,
     name: 'values',
@@ -317,7 +317,7 @@ final valueColumnImpl = pal.Impl(
   implementer: valueColumnDef.asType(),
   implemented: columnImplDef.asType(),
   implementations: {
-    columnImplDataID: pal.Value(pal.typeType, pal.optionType(pal.RecordAccess(valueColumnTypeID))),
+    columnImplDataID: pal.Value(pal.type, pal.optionType(pal.RecordAccess(valueColumnTypeID))),
     columnImplGetNameID: pal.Value(
       columnImplGetNameType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) =>
@@ -361,7 +361,7 @@ final dataColumnValuesID = pal.MemberID();
 final dataColumnDef = pal.DataDef.record(
   name: 'DataColumn',
   members: [
-    pal.Member(id: dataColumnTypeID, name: 'valueType', type: pal.typeType),
+    pal.Member(id: dataColumnTypeID, name: 'valueType', type: pal.type),
     pal.Member(
       id: dataColumnValuesID,
       name: 'values',
@@ -374,7 +374,7 @@ final dataColumnImpl = pal.Impl(
   implementer: dataColumnDef.asType(),
   implemented: columnImplDef.asType(),
   implementations: {
-    columnImplDataID: pal.Value(pal.typeType, pal.optionType(pal.RecordAccess(dataColumnTypeID))),
+    columnImplDataID: pal.Value(pal.type, pal.optionType(pal.RecordAccess(dataColumnTypeID))),
     columnImplGetNameID: pal.Value(
       columnImplGetNameType,
       (Cursor<pal.Value> arg, {required Ctx ctx}) => 'Data Column',
@@ -451,14 +451,14 @@ final columnImplGetDataType = pal.FunctionType(
     pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
   ),
   target: pal.Value(
-    const pal.Map(pal.text, pal.typeType),
+    const pal.Map(pal.text, pal.type),
     Dict({'rowID': rowIDDef.asType(), 'impl': pal.cursorType(pal.thisType)}),
   ),
 );
 final columnImplGetWidgetType = pal.FunctionType(
   returnType: widget.flutterWidgetDef.asType(),
   target: pal.Value(
-    const pal.Map(pal.text, pal.typeType),
+    const pal.Map(pal.text, pal.type),
     Dict({
       'rowData': pal.cursorType(
         pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
@@ -482,7 +482,7 @@ final columnImplDef = pal.InterfaceDef(
   id: columnImpl.id,
   name: 'ColumnImpl',
   members: [
-    pal.Member(id: columnImplDataID, name: 'dataType', type: pal.typeType),
+    pal.Member(id: columnImplDataID, name: 'dataType', type: pal.type),
     pal.Member(id: columnImplGetNameID, name: 'getName', type: columnImplGetNameType),
     pal.Member(id: columnImplGetDataID, name: 'getData', type: columnImplGetDataType),
     pal.Member(id: columnImplGetWidgetID, name: 'getWidget', type: columnImplGetWidgetType),

@@ -36,7 +36,7 @@ class Value extends Type with _ValueMixin implements Expr {
 
   @override
   Object eval(Ctx ctx) {
-    if (type == typeType) {
+    if (this.type == const TypeType._()) {
       if (value is DataType) {
         return DataType(
           id: (value as DataType).id,
@@ -302,7 +302,7 @@ class TypeType extends Type {
   bool get isConcrete => true;
 }
 
-const typeType = TypeType._();
+const type = TypeType._();
 
 class Unit extends Type {
   const Unit._();
@@ -390,7 +390,7 @@ class DataID extends ID<DataDef> {
 class DataDef {
   final DataID id;
   final String name;
-  final DataTree<Type> tree;
+  final TypeTree tree;
 
   DataDef.record({
     DataID? id,
@@ -420,34 +420,72 @@ class DataDef {
 
   DataType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
       DataType(id: id, assignments: assignments);
+
+  Object instantiate(final Object data) => tree.instantiate(data);
+}
+
+@reify
+class UnionTag with _UnionTagMixin {
+  @override
+  final MemberID tag;
+  @override
+  final Object value;
+
+  UnionTag(this.tag, this.value);
 }
 
 @sealed
-abstract class DataTree<T> {
-  const DataTree();
+abstract class TypeTree {
+  const TypeTree();
+
+  Object instantiate(final Object data) {
+    if (this is UnionNode) {
+      assert(data is UnionTag && (this as UnionNode).elements.containsKey(data.tag));
+      final unionTag = data as UnionTag;
+      return UnionTag(
+        unionTag.tag,
+        (this as UnionNode).elements[unionTag.tag]!.node.instantiate(unionTag.value),
+      );
+    } else if (this is RecordNode) {
+      assert(data is dart.Map<MemberID, Object>);
+      final map = data as dart.Map<MemberID, Object>;
+      final recordNode = this as RecordNode;
+      assert(
+        map.keys.every((key) => recordNode.elements.containsKey(key)) &&
+            recordNode.elements.keys.every((key) => map.containsKey(key)),
+      );
+
+      return Dict({
+        for (final entry in map.entries)
+          entry.key: recordNode.elements[entry.key]!.node.instantiate(entry.value),
+      });
+    } else {
+      return data;
+    }
+  }
 }
 
-class UnionNode<T> extends DataTree<T> {
-  final dart.Map<MemberID, DataTreeElement<T>> elements;
+class UnionNode extends TypeTree {
+  final dart.Map<MemberID, DataTreeElement> elements;
 
   const UnionNode(this.elements);
 }
 
-class RecordNode<T> extends DataTree<T> {
-  final dart.Map<MemberID, DataTreeElement<T>> elements;
+class RecordNode extends TypeTree {
+  final dart.Map<MemberID, DataTreeElement> elements;
 
   const RecordNode(this.elements);
 }
 
-class DataTreeElement<T> {
+class DataTreeElement {
   final String name;
-  final DataTree<T> node;
+  final TypeTree node;
 
   const DataTreeElement(this.name, this.node);
 }
 
-class LeafNode<T> extends DataTree<T> {
-  final T type;
+class LeafNode extends TypeTree {
+  final Type type;
 
   LeafNode(this.type);
 }
@@ -557,9 +595,9 @@ class RecordAccess extends Expr {
     if (targetType.assignments.containsKey(member)) {
       return targetType.assignments[member]!;
     }
-    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode<Type>)
+    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode)
             .elements[member]!
-            .node as LeafNode<Type>)
+            .node as LeafNode)
         .type;
   }
 

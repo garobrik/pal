@@ -31,7 +31,7 @@ final optionNoneID = MemberID();
 final optionDef = DataDef(
   name: 'Option',
   tree: RecordNode({
-    optionTypeID: DataTreeElement('T', LeafNode(typeType)),
+    optionTypeID: DataTreeElement('T', LeafNode(type)),
     optionValueID: DataTreeElement(
       'value',
       UnionNode({
@@ -72,7 +72,7 @@ Type cursorType(Type type) => cursorDef.asType({cursorTypeID: type});
 final cursorTypeID = MemberID();
 final cursorDef = InterfaceDef(
   name: 'Cursor',
-  members: [Member(id: cursorTypeID, name: 'type', type: typeType)],
+  members: [Member(id: cursorTypeID, name: 'type', type: type)],
 );
 
 final datumDef = InterfaceDef(
