@@ -666,9 +666,9 @@ extension PalValueCursorExtensions on Cursor<Object> {
     return this.cast<Dict<MemberID, Object>>()[member].whenPresent;
   }
 
-  T dataCases<V extends Object, T>(Ctx ctx, dart.Map<MemberID, T Function(Cursor<V>)> cases) {
-    final caseObj = this.cast<Pair<MemberID, Object>>();
-    return cases[caseObj.first.read(ctx)]!(caseObj.second.cast<V>());
+  T dataCases<T>(Ctx ctx, dart.Map<MemberID, T Function(Cursor<Object>)> cases) {
+    final unionTag = this.cast<UnionTag>();
+    return cases[unionTag.tag.read(ctx)]!(unionTag.value);
   }
 
   Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
