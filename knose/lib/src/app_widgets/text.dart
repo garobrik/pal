@@ -11,45 +11,65 @@ part 'text.g.dart';
 
 final textWidget = widget.def.instantiate({
   widget.nameID: 'Text',
-  widget.typeID: pal.Union({
-    pal.text,
-    pal.optionType(pal.text),
-  }),
-  widget.defaultDataID: ({required Ctx ctx}) => const pal.Value(pal.text, ''),
+  widget.typeID: widget.datumOr(pal.Union({pal.text, pal.optionType(pal.text)})),
+  widget.defaultDataID: ({required Ctx ctx}) => widget.datumOr.instantiate(
+        type: pal.Union({pal.text, pal.optionType(pal.text)}),
+        data: const pal.Value(pal.text, ''),
+      ),
   widget.buildID: TextWidget.new,
 });
 
 @reader
 Widget _textWidget(
   BuildContext context,
-  Cursor<Object> text, {
+  Cursor<Object> datumOrText, {
   required Ctx ctx,
 }) {
-  final stringCursor = Cursor<String>.compute((ctx) {
-    final type = text.palType().read(ctx);
-    if (type == pal.text) {
-      return text.palValue().cast<String>();
-    } else if (type.assignableTo(ctx, pal.optionType(pal.text))) {
-      return text
-          .palValue()
-          .cast<Optional<Object>>()
-          .optionalCast<String>()
-          .orElse(''); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
-    } else {
-      return Cursor('whoops');
-    }
-  }, ctx: ctx);
+  final text = widget.evalDatumOr(ctx, datumOrText);
+
+  late final Widget child;
+  if (ctx.widgetMode == widget.Mode.edit) {
+    child = Text.rich(TextSpan(children: [
+      const TextSpan(text: 'TextWidget('),
+      WidgetSpan(
+        child: widget.EditDatumOr(
+          ctx: ctx,
+          datumOr: datumOrText,
+        ),
+      ),
+      const TextSpan(text: ')'),
+    ]));
+  } else if (text != null) {
+    final stringCursor = Cursor<String>.compute((ctx) {
+      final type = text.palType().read(ctx);
+      if (type == pal.text) {
+        return text.palValue().cast<String>();
+      } else if (type.assignableTo(ctx, pal.optionType(pal.text))) {
+        return text
+            .palValue()
+            .cast<Optional<Object>>()
+            .optionalCast<String>()
+            .orElse(''); // text.cast<model.Text>().elements[0].cast<model.PlainText>().text;
+      } else {
+        return Cursor('whoops');
+      }
+    }, ctx: ctx);
+
+    child = BoundTextFormField(
+      stringCursor,
+      ctx: ctx,
+      maxLines: null,
+      focusNode: ctx.defaultFocus,
+    );
+  } else {
+    return const Text('Error: text datum is not buildable or has wrong type.');
+  }
 
   return Shortcuts(
     shortcuts: const {
       SingleActivator(LogicalKeyboardKey.enter): NewNodeBelowIntent(),
       SingleActivator(LogicalKeyboardKey.backspace, control: true): DeleteNodeIntent(),
     },
-    child: BoundTextFormField(
-      stringCursor,
-      ctx: ctx,
-      maxLines: null,
-      focusNode: ctx.defaultFocus,
-    ),
+    child: child,
   );
 }
