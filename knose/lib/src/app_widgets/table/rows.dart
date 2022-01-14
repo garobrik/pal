@@ -140,7 +140,7 @@ Widget _openRowButton(
                 '',
                 arguments: model.WidgetRoute(
                   widgetID,
-                  ctx: ctx,
+                  ctx: ctx.withWidgetMode(widget.Mode.view),
                 ),
               );
             },

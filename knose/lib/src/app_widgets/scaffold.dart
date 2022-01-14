@@ -47,13 +47,19 @@ Widget _mainScaffold(
                   Navigator.pushReplacementNamed(
                     context,
                     '',
-                    arguments: model.WidgetRoute(widgetID, ctx: ctx),
+                    arguments: model.WidgetRoute(
+                      widgetID,
+                      ctx: ctx.withWidgetMode(widget.Mode.view),
+                    ),
                   );
                 } else {
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.WidgetRoute(widgetID, ctx: ctx),
+                    arguments: model.WidgetRoute(
+                      widgetID,
+                      ctx: ctx.withWidgetMode(widget.Mode.view),
+                    ),
                   );
                 }
               },

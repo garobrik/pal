@@ -75,3 +75,19 @@ Object defaultInstance(Ctx ctx, Object widget) {
     instanceDataID: defaultData(ctx: ctx),
   });
 }
+
+enum Mode {
+  edit,
+  view,
+}
+
+class _WidgetModeCtx extends CtxElement {
+  final Mode mode;
+
+  _WidgetModeCtx(this.mode);
+}
+
+extension WidgetModeCtxExtension on Ctx {
+  Ctx withWidgetMode(Mode mode) => withElement(_WidgetModeCtx(mode));
+  Mode get widgetMode => get<_WidgetModeCtx>()?.mode ?? Mode.view;
+}

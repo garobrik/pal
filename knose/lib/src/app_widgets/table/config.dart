@@ -41,7 +41,7 @@ Widget _tableConfig(
                         '',
                         arguments: model.WidgetRoute(
                           rowView.read(ctx),
-                          ctx: ctx.withTable(table),
+                          ctx: ctx.withTable(table).withWidgetMode(widget.Mode.edit),
                         ),
                       ),
                       child: Row(children: [Text(title)]),
@@ -60,7 +60,7 @@ Widget _tableConfig(
                     '',
                     arguments: model.WidgetRoute(
                       widgetID,
-                      ctx: ctx.withTable(table),
+                      ctx: ctx.withTable(table).withWidgetMode(widget.Mode.edit),
                     ),
                   );
                 },
