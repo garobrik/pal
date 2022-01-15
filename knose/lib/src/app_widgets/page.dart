@@ -10,11 +10,42 @@ import 'package:knose/widget.dart' as widget;
 
 part 'page.g.dart';
 
-final _widgetsID = pal.MemberID();
+final pageModeID = pal.MemberID();
+final pageLiteralID = pal.MemberID();
+final pageComputedID = pal.MemberID();
+final pageComputedTypeID = pal.MemberID();
+final pageComputedDataID = pal.MemberID();
+final pageComputedFnID = pal.MemberID();
 final pageTitleID = pal.MemberID();
 final pageDataDef = pal.DataDef(
   tree: pal.RecordNode('PageData', {
-    _widgetsID: pal.LeafNode('widgets', pal.List(widget.instance)),
+    pageModeID: pal.UnionNode('mode', {
+      pageLiteralID: pal.LeafNode('literal', pal.List(widget.instance)),
+      pageComputedID: pal.RecordNode('computed', {
+        pageComputedTypeID: const pal.LeafNode('type', pal.type),
+        pageComputedDataID: pal.LeafNode(
+          'data',
+          pal.List(
+            pal.RecordAccess(
+              pageComputedTypeID,
+              target: pal.UnionAccess(pageComputedID, target: pal.RecordAccess(pageModeID)),
+            ),
+          ),
+        ),
+        pageComputedFnID: pal.LeafNode(
+          'fn',
+          pal.FunctionType(
+            returnType: widget.instance,
+            target: pal.cursorType(
+              pal.RecordAccess(
+                pageComputedTypeID,
+                target: pal.UnionAccess(pageComputedID, target: pal.RecordAccess(pageModeID)),
+              ),
+            ),
+          ),
+        )
+      }),
+    }),
     pageTitleID: const pal.LeafNode('title', pal.text),
   }),
 );
@@ -23,7 +54,7 @@ final pageWidget = widget.def.instantiate({
   widget.nameID: 'Page',
   widget.typeID: pageDataDef.asType(),
   widget.defaultDataID: ({required Ctx ctx}) => pageDataDef.instantiate({
-        _widgetsID: Vec([widget.defaultInstance(ctx, textWidget)]),
+        pageModeID: pal.UnionTag(pageLiteralID, Vec([widget.defaultInstance(ctx, textWidget)])),
         pageTitleID: 'Untitled page',
       }),
   widget.buildID: PageWidget.new,
@@ -35,7 +66,9 @@ Widget _pageWidget(
   Cursor<Object> data, {
   required Ctx ctx,
 }) {
-  final widgets = data.recordAccess(_widgetsID).cast<Vec<Object>>();
+  final widgets = data.recordAccess(pageModeID).dataCases(ctx, {
+    pageLiteralID: (obj) => obj.cast<Vec<Object>>(),
+  });
   GetCursor<widget.ID> widgetID(GetCursor<Object> widgetDef) => GetCursor.compute(
         (ctx) => widgetDef.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx),
         ctx: ctx,
