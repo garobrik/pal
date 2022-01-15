@@ -512,6 +512,9 @@ typedef ColumnGetConfigFn = Optional<Widget> Function(
 
 final tableDB = () {
   final db = Cursor(const pal.DB());
+  for (final dataDef in _dataTypes) {
+    db.update(dataDef.id, dataDef);
+  }
   for (final interface in _interfaceTypes) {
     db.update(interface.id, interface);
   }
@@ -522,6 +525,10 @@ final tableDB = () {
   return db.read(Ctx.empty);
 }();
 
+final _dataTypes = [
+  valueColumnDef,
+  dataColumnDef,
+];
 final _interfaceTypes = [
   columnImplDef,
 ];
