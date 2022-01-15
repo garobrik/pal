@@ -58,8 +58,10 @@ Cursor<Object>? evalDatumOr(Ctx ctx, Cursor<Object> datumOr) {
 Widget _editDatumOr({
   required Cursor<Object> datumOr,
   required Ctx ctx,
+  ButtonStyle? style,
 }) {
   return TextButtonDropdown(
+    style: style,
     dropdown: IntrinsicWidth(
       child: ReaderWidget(
         ctx: ctx,

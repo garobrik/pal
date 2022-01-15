@@ -30,8 +30,10 @@ Widget _textWidget(
   late final Widget child;
   if (ctx.widgetMode == widget.Mode.edit) {
     child = Text.rich(TextSpan(children: [
-      const TextSpan(text: 'TextWidget('),
+      const TextSpan(text: 'TextWidget(value: '),
       WidgetSpan(
+        alignment: PlaceholderAlignment.baseline,
+        baseline: TextBaseline.alphabetic,
         child: widget.EditDatumOr(
           ctx: ctx,
           datumOr: datumOrText,
