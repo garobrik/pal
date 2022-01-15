@@ -14,11 +14,8 @@ Widget _listCell({
   required Ctx ctx,
 }) {
   final dropdownFocus = useFocusNode();
-  final rawList = list
-      .palValue()
-      .cast<Optional<Object>>()
-      .optionalCast<Vec<Optional<Object>>>()
-      .orElse(const Vec());
+  final rawList =
+      list.palValue().cast<Optional<Object>>().optionalCast<Vec<Object>>().orElse(const Vec());
   final elementType =
       (list.palType().cast<pal.DataType>().read(ctx).assignments[pal.optionTypeID] as pal.List)
           .type;
