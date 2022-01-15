@@ -38,7 +38,7 @@ final optionDef = DataDef(
   }),
 );
 
-Type optionType(Type type) => optionDef.asType({optionTypeID: type});
+Type optionType(Type type) => optionDef.asType(assignments: {optionTypeID: type});
 //   Cursor<Object> asPalOption(PalType type) => partial(
 //         to: (opt) => mkPalOption(opt.unwrap, type),
 //         from: (diff) {

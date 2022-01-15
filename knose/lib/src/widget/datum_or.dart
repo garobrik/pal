@@ -11,7 +11,7 @@ part 'datum_or.g.dart';
 class _DatumOrDispatch {
   const _DatumOrDispatch._();
 
-  pal.DataType call(pal.Type type) => datumOrDef.asType({datumOrTypeID: type});
+  pal.DataType call(pal.Type type) => datumOrDef.asType(assignments: {datumOrTypeID: type});
 
   Object instantiate({required pal.Type type, required Object data}) => datumOrDef.instantiate({
         datumOrTypeID: type,

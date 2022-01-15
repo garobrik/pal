@@ -36,10 +36,11 @@ class Value extends Type with _ValueMixin implements Expr {
 
   @override
   Object eval(Ctx ctx) {
-    if (this.type == const TypeType._()) {
+    if (this.type is TypeType) {
       if (value is DataType) {
         return DataType(
           id: (value as DataType).id,
+          path: (value as DataType).path,
           assignments: (value as DataType).assignments.map(
                 (key, value) => MapEntry(
                   key,
@@ -372,9 +373,10 @@ class InterfaceDef {
 
 class DataType extends Type {
   final DataID id;
+  final dart.List<MemberID> path;
   final dart.Map<MemberID, Type> assignments;
 
-  DataType({required this.id, this.assignments = const {}});
+  DataType({required this.id, this.path = const [], this.assignments = const {}});
 
   @override
   bool get isConcrete => true;
@@ -421,10 +423,33 @@ class DataDef {
   })  : this.id = id ?? DataID.create(),
         this.tree = RecordNode(name, const {});
 
-  DataType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
+  DataType asType({
+    dart.List<MemberID> path = const [],
+    dart.Map<MemberID, Type> assignments = const {},
+  }) =>
       DataType(id: id, assignments: assignments);
 
-  Object instantiate(final Object data) => tree.instantiate(data);
+  Object instantiate(Object data) => tree.instantiate(data);
+
+  Object followPath(Object targetObj, Iterable<MemberID> path) {
+    var targetTree = this.tree;
+    for (final pathElem in path) {
+      if (targetTree is RecordNode) {
+        targetTree = targetTree.elements[pathElem]!;
+        targetObj = (targetObj as Dict<MemberID, Object>)[pathElem].unwrap!;
+      } else if (targetTree is UnionNode) {
+        targetTree = targetTree.elements[pathElem]!;
+        final unionTag = (targetObj as UnionTag);
+        assert(unionTag.tag == pathElem);
+        targetObj = unionTag.value;
+      } else {
+        throw Exception(
+          'DataType following path [${path.join(", ")}] has inconsistent path with referenced DataDef',
+        );
+      }
+    }
+    return targetObj;
+  }
 }
 
 @reify
@@ -467,6 +492,22 @@ abstract class TypeTree {
     } else {
       return data;
     }
+  }
+
+  TypeTree followPath(Iterable<MemberID> path) {
+    var targetTree = this;
+    for (final pathElem in path) {
+      if (targetTree is RecordNode) {
+        targetTree = targetTree.elements[pathElem]!;
+      } else if (targetTree is UnionNode) {
+        targetTree = targetTree.elements[pathElem]!;
+      } else {
+        throw Exception(
+          'DataType following path [${path.join(", ")}] has inconsistent path with referenced DataDef',
+        );
+      }
+    }
+    return targetTree;
   }
 }
 
@@ -588,6 +629,43 @@ class InterfaceAccess extends Expr {
   }
 }
 
+class UnionAccess extends Expr {
+  final Expr target;
+  final MemberID member;
+
+  UnionAccess(this.member, {this.target = thisExpr});
+
+  @override
+  Type evalType(Ctx ctx) {
+    final targetType = target.evalType(ctx) as DataType;
+    if (targetType.assignments.containsKey(member)) {
+      return targetType.assignments[member]!;
+    }
+    final targetTree =
+        ctx.db.get(targetType.id).whenPresent.read(ctx).tree.followPath(targetType.path);
+
+    final resultNode = (targetTree as UnionNode).elements[member]!;
+    if (resultNode is LeafNode) {
+      return resultNode.type;
+    } else {
+      return DataType(
+        id: targetType.id,
+        path: [...targetType.path, member],
+        assignments: targetType.assignments,
+      );
+    }
+  }
+
+  @override
+  Object eval(Ctx ctx) {
+    final targetValue = target.eval(ctx);
+    final targetType = target.evalType(ctx) as DataType;
+    final dataDef = ctx.db.get(targetType.id).whenPresent.read(ctx);
+
+    return dataDef.followPath(targetValue, [...targetType.path, member]);
+  }
+}
+
 class RecordAccess extends Expr {
   final Expr target;
   final MemberID member;
@@ -600,15 +678,28 @@ class RecordAccess extends Expr {
     if (targetType.assignments.containsKey(member)) {
       return targetType.assignments[member]!;
     }
-    return ((ctx.db.get(targetType.id).whenPresent.read(ctx).tree as RecordNode).elements[member]!
-            as LeafNode)
-        .type;
+    final targetTree =
+        ctx.db.get(targetType.id).whenPresent.read(ctx).tree.followPath(targetType.path);
+
+    final resultNode = (targetTree as RecordNode).elements[member]!;
+    if (resultNode is LeafNode) {
+      return resultNode.type;
+    } else {
+      return DataType(
+        id: targetType.id,
+        path: [...targetType.path, member],
+        assignments: targetType.assignments,
+      );
+    }
   }
 
   @override
   Object eval(Ctx ctx) {
     final targetValue = target.eval(ctx);
-    return (targetValue as Dict<MemberID, Object>)[member].unwrap!;
+    final targetType = target.evalType(ctx) as DataType;
+    final dataDef = ctx.db.get(targetType.id).whenPresent.read(ctx);
+
+    return dataDef.followPath(targetValue, [...targetType.path, member]);
   }
 }
 
