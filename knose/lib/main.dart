@@ -40,6 +40,7 @@ Widget myApp() {
                 searchRoute: (_) => generateSearchRoute(ctx.withDB(db)),
               );
             }
+            return null;
           },
         ),
       ),

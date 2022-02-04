@@ -121,6 +121,8 @@ Widget _pageWidget(
                       instance,
                     );
                     focusForID(widgetID(GetCursor(instance)).read(Ctx.empty)).requestFocus();
+
+                    return null;
                   },
                 ),
                 DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
@@ -129,6 +131,8 @@ Widget _pageWidget(
                       widgets.remove(index);
                     }
                     focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty)).requestFocus();
+
+                    return null;
                   },
                 ),
               },

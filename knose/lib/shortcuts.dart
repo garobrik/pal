@@ -41,6 +41,7 @@ class GoBackAction extends ContextAction<GoBackIntent> {
     if (context == null) return null;
     final navigator = Navigator.of(context);
     if (navigator.canPop()) navigator.maybePop();
+    return null;
   }
 }
 
@@ -48,18 +49,20 @@ class UnfocusFieldIntent extends Intent {
   const UnfocusFieldIntent();
 }
 
-class UnfocusFieldAction extends TextEditingAction<UnfocusFieldIntent> {
+class UnfocusFieldAction extends Action<UnfocusFieldIntent> {
   @override
   Object? invoke(covariant UnfocusFieldIntent intent, [BuildContext? context]) {
     primaryFocus?.unfocus();
+    return null;
   }
 }
 
 class NextFocusFieldIntent extends Intent {}
 
-class NextFocusFieldAction extends TextEditingAction<NextFocusFieldIntent> {
+class NextFocusFieldAction extends Action<NextFocusFieldIntent> {
   @override
   Object? invoke(covariant NextFocusFieldIntent intent, [BuildContext? context]) {
     primaryFocus?.nextFocus();
+    return null;
   }
 }

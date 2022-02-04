@@ -78,6 +78,7 @@ Widget _listWidget(
                           final instance = widget.defaultInstance(ctx, textWidget);
                           widgets.insert(index + 1, instance);
                           focusForID(widgetID(Cursor(instance)).read(Ctx.empty)).requestFocus();
+                          return null;
                         },
                       ),
                       DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
@@ -92,6 +93,7 @@ Widget _listWidget(
                               const DeleteNodeIntent(),
                             );
                           }
+                          return null;
                         },
                       ),
                     },

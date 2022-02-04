@@ -62,6 +62,7 @@ Widget _deferredDropdown(
 
   useEffect(() {
     if (isOpen.read(Ctx.empty)) dropdownFocus?.requestFocus();
+    return null;
   }, []);
 
   useEffect(() {
