@@ -197,7 +197,7 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
   @override
   S read(Ctx ctx) {
     final currentState = lens.get(state.currentState);
-    ctx.reader?.handleDispose(listen((_, __, ___) => ctx.reader!.onChanged()));
+    ctx.reader?.handleDispose(state.listen(lens.path, (_, __, ___) => ctx.reader!.onChanged()));
     return currentState;
   }
 
