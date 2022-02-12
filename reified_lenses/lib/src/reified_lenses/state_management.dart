@@ -5,8 +5,11 @@ import 'reified_lenses.dart';
 
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor;
-  factory GetCursor.compute(S Function(Ctx) computation,
-          {required Ctx ctx, bool compare = false}) =>
+  factory GetCursor.compute(
+    S Function(Ctx) computation, {
+    required Ctx ctx,
+    bool compare = false,
+  }) =>
       StateCursor(_ComputedState(computation, ctx: ctx, compare: compare), Getter.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
@@ -189,10 +192,7 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
   Getter<T, S> get lens;
 
   @override
-  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) => StateCursor(
-        state,
-        this.lens.thenGet(Getter(getter.path, getter.get)),
-      );
+  GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) => StateCursor(state, lens.then(getter));
 
   @override
   S read(Ctx ctx) {

@@ -93,10 +93,11 @@ abstract class Getter<T, S> {
 
   S get(T t);
   Path get path;
+}
 
-  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) {
-    return Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
-  }
+extension GetterCompositions<T, S> on Getter<T, S> {
+  Getter<T, S2> then<S2>(Getter<S, S2> getter) =>
+      Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
 }
 
 @immutable
@@ -115,17 +116,13 @@ abstract class Lens<T, S> implements Getter<T, S> {
     });
     return DiffResult(newT, diff.prepend(path));
   }
+}
 
+extension LensCompositions<T, S> on Lens<T, S> {
   Lens<T, S2> then<S2>(Lens<S, S2> lens) => Lens(
         path.followedBy(lens.path),
         (t) => lens.get(get(t)),
         (t, f) => mut(t, (s) => lens.mut(s, f)),
-      );
-
-  @override
-  Getter<T, S2> thenGet<S2>(Getter<S, S2> getter) => Getter(
-        path.followedBy(getter.path),
-        (t) => getter.get(get(t)),
       );
 }
 
@@ -172,22 +169,8 @@ class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
   T get(T t) => t;
 
   @override
-  Lens<T, S2> then<S2>(Lens<T, S2> lens) => lens;
-
-  @override
-  Getter<T, S2> thenGet<S2>(Getter<T, S2> getter) => getter;
-
-  @override
   T mut(T t, T Function(T) f) => f(t);
 
   @override
   DiffResult<T> mutDiff(T t, DiffResult<T> Function(T p1) f) => f(t);
-}
-
-extension GetterNullability<T, S> on Getter<T, S?> {
-  Getter<T, S> get nonnull => thenGet(Getter(const [], (s) => s!));
-}
-
-extension LensNullability<T, S> on Lens<T, S?> {
-  Lens<T, S> get nonnull => then(Lens<S?, S>(const [], (s) => s!, (s, f) => f(s!)));
 }
