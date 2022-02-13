@@ -28,19 +28,17 @@ final pageDataDef = pal.DataDef(
           pal.List(
             pal.RecordAccess(
               pageComputedTypeID,
-              target: pal.UnionAccess(pageComputedID, target: pal.RecordAccess(pageModeID)),
+              target: pal.UnionAccess(pageComputedID, pal.RecordAccess(pageModeID)),
             ),
           ),
         ),
         pageComputedFnID: pal.LeafNode(
           'fn',
-          pal.FunctionType(
+          pal.FnType(
             returnType: widget.instance,
-            target: pal.cursorType(
-              pal.RecordAccess(
-                pageComputedTypeID,
-                target: pal.UnionAccess(pageComputedID, target: pal.RecordAccess(pageModeID)),
-              ),
+            target: pal.RecordAccess(
+              pageComputedTypeID,
+              target: pal.UnionAccess(pageComputedID, pal.RecordAccess(pageModeID)),
             ),
           ),
         )
@@ -66,83 +64,91 @@ Widget _pageWidget(
   Cursor<Object> data, {
   required Ctx ctx,
 }) {
-  final widgets = data.recordAccess(pageModeID).dataCases(ctx, {
-    pageLiteralID: (obj) => obj.cast<Vec<Object>>(),
-  });
-  GetCursor<widget.ID> widgetID(GetCursor<Object> widgetDef) => GetCursor.compute(
-        (ctx) => widgetDef.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx),
-        ctx: ctx,
-      );
+  return data.recordAccess(pageModeID).dataCases(ctx, {
+    pageLiteralID: (unionValue) {
+      final widgets = unionValue.cast<Vec<Object>>();
 
-  final focusForID = useMemoized(() {
-    final foci = <pal.ID, FocusNode>{};
-    return (pal.ID id) {
-      if (widgetID(widgets[0]).read(ctx) == id) {
-        return ctx.defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
-      }
-      return foci.putIfAbsent(id, () => FocusNode());
-    };
-  });
+      GetCursor<widget.ID> widgetID(GetCursor<Object> widgetDef) => GetCursor.compute(
+            (ctx) => widgetDef.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx),
+            ctx: ctx,
+          );
 
-  return TextButton(
-    onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
-    style: ButtonStyle(
-      backgroundColor: MaterialStateProperty.resolveWith(
-        (states) => states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
-            ? Theme.of(context).colorScheme.surface
-            : Theme.of(context).colorScheme.surface,
-      ),
-      elevation: MaterialStateProperty.resolveWith(
-        (states) =>
-            states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty ? 2 : 2,
-      ),
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      // onReorder: (old, nu) {
-      //   page.nodeViews.atomically((nodeViews) {
-      //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
-      //     nodeViews.remove(nu < old ? old + 1 : old);
-      //   });
-      // },
-      children: [
-        for (final index in range(widgets.length.read(ctx)))
-          Padding(
-            key: ValueKey(widgetID(widgets[index]).read(ctx)),
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Actions(
-              actions: {
-                NewNodeBelowIntent: NewNodeBelowAction(
-                  onInvoke: (_) {
-                    final instance = widget.defaultInstance(ctx, textWidget);
+      final focusForID = useMemoized(() {
+        final foci = <pal.ID, FocusNode>{};
+        return (pal.ID id) {
+          if (widgetID(widgets[0]).read(ctx) == id) {
+            return ctx.defaultFocus ?? foci.putIfAbsent(id, () => FocusNode());
+          }
+          return foci.putIfAbsent(id, () => FocusNode());
+        };
+      });
 
-                    widgets.insert(
-                      index + 1,
-                      instance,
-                    );
-                    focusForID(widgetID(GetCursor(instance)).read(Ctx.empty)).requestFocus();
-
-                    return null;
-                  },
-                ),
-                DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
-                  onInvoke: (_) {
-                    if (widgets.length.read(Ctx.empty) > 1) {
-                      widgets.remove(index);
-                    }
-                    focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty)).requestFocus();
-
-                    return null;
-                  },
-                ),
-              },
-              child: WidgetRenderer(
-                ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
-                instance: widgets[index],
-              ),
-            ),
+      return TextButton(
+        onPressed: () => Actions.maybeInvoke(context, const NewNodeBelowIntent()),
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.resolveWith(
+            (states) =>
+                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+                    ? Theme.of(context).colorScheme.surface
+                    : Theme.of(context).colorScheme.surface,
           ),
-      ],
-    ),
-  );
+          elevation: MaterialStateProperty.resolveWith(
+            (states) =>
+                states.intersection({MaterialState.focused, MaterialState.hovered}).isNotEmpty
+                    ? 2
+                    : 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          // onReorder: (old, nu) {
+          //   page.nodeViews.atomically((nodeViews) {
+          //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));
+          //     nodeViews.remove(nu < old ? old + 1 : old);
+          //   });
+          // },
+          children: [
+            for (final index in range(widgets.length.read(ctx)))
+              Padding(
+                key: ValueKey(widgetID(widgets[index]).read(ctx)),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Actions(
+                  actions: {
+                    NewNodeBelowIntent: NewNodeBelowAction(
+                      onInvoke: (_) {
+                        final instance = widget.defaultInstance(ctx, textWidget);
+
+                        widgets.insert(
+                          index + 1,
+                          instance,
+                        );
+                        focusForID(widgetID(GetCursor(instance)).read(Ctx.empty)).requestFocus();
+
+                        return null;
+                      },
+                    ),
+                    DeleteNodeIntent: CallbackAction<DeleteNodeIntent>(
+                      onInvoke: (_) {
+                        if (widgets.length.read(Ctx.empty) > 1) {
+                          widgets.remove(index);
+                        }
+                        focusForID(widgetID(widgets[max(index - 1, 0)]).read(Ctx.empty))
+                            .requestFocus();
+
+                        return null;
+                      },
+                    ),
+                  },
+                  child: WidgetRenderer(
+                    ctx: ctx.withDefaultFocus(focusForID(widgetID(widgets[index]).read(ctx))),
+                    instance: widgets[index],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+    pageComputedID: (_) => const Text('hi'),
+  });
 }

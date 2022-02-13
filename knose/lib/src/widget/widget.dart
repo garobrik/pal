@@ -25,7 +25,7 @@ final def = pal.DataDef.record(
     pal.Member(
       id: buildID,
       name: 'build',
-      type: pal.FunctionType(
+      type: pal.FnType(
         returnType: flutterWidgetDef.asType(),
         target: pal.cursorType(pal.RecordAccess(typeID)),
       ),

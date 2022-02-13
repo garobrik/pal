@@ -125,7 +125,7 @@ Widget _columnConfigurationDropdown(
   final focusForImpl = useMemoized(() {
     final foci = <String, FocusNode>{};
     return (Cursor<pal.Value> impl, Ctx ctx) {
-      return foci.putIfAbsent(model.columnImplGetName(impl, ctx: ctx), () => FocusNode());
+      return foci.putIfAbsent(model.columnImplGetName(ctx, impl), () => FocusNode());
     };
   });
 
@@ -151,7 +151,7 @@ Widget _columnConfigurationDropdown(
                     ReaderWidget(
                       ctx: ctx,
                       builder: (_, ctx) {
-                        return Text(model.columnImplGetName(Cursor(type), ctx: ctx));
+                        return Text(model.columnImplGetName(ctx, Cursor(type)));
                       },
                     )
                   ]),
@@ -185,18 +185,24 @@ Optional<Widget> columnSpecificConfiguration(
   Cursor<model.Column> column, {
   required Ctx ctx,
 }) {
-  final impl = column.impl;
-  final getConfig = impl.interfaceAccess(ctx, model.columnImpl, model.columnImplGetConfigID)
-      as model.ColumnGetConfigFn;
-  final currentType = impl.type.read(ctx);
-  return getConfig(
-    impl.thenOpt(OptLens(
-      const [],
-      (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
-      (t, f) => f(t),
-    )),
-    ctx: ctx,
-  );
+  final palImpl = pal.findImpl(
+    ctx,
+    model.columnImplDef.asType(
+      {model.columnImplImplementerID: column.impl.type.read(ctx)},
+    ),
+  )!;
+  final getConfig = palImpl.interfaceAccess(ctx, model.columnImplGetConfigID);
+  final currentType = column.impl.type.read(ctx);
+  return getConfig.callFn(
+    ctx,
+    column.impl
+        .thenOpt<pal.Value>(OptLens(
+          const [],
+          (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
+          (t, f) => f(t),
+        ))
+        .value,
+  ) as Optional<Widget>;
   // (model.Column linkColumn) {
   //   final state = CursorProvider.of<model.State>(context);
   //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;

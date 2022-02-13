@@ -23,35 +23,13 @@ abstract class Type {
 }
 
 @reify
-class Value extends Type with _ValueMixin implements Expr {
+class Value extends Type with _ValueMixin {
   @override
   final Type type;
   @override
   final Object value;
 
   const Value(this.type, this.value);
-
-  @override
-  Type evalType(Ctx ctx) => type;
-
-  @override
-  Object eval(Ctx ctx) {
-    if (this.type is TypeType) {
-      if (value is DataType) {
-        return DataType(
-          id: (value as DataType).id,
-          path: (value as DataType).path,
-          assignments: (value as DataType).assignments.map(
-                (key, value) => MapEntry(
-                  key,
-                  value is Expr ? value.eval(ctx) as Type : value,
-                ),
-              ),
-        );
-      }
-    }
-    return value;
-  }
 
   @override
   String toString() => 'PalValue($value: $type)';
@@ -77,7 +55,7 @@ extension Assignable on Type {
 }
 
 bool assignable(Ctx ctx, Type a, Type b) {
-  if (b is Any || b is TypeType || b is Unit) {
+  if (b is TypeType || b is Unit) {
     return true;
   } else if (a is Union) {
     return a.types.every((aType) => aType.assignableTo(ctx, b));
@@ -87,17 +65,13 @@ bool assignable(Ctx ctx, Type a, Type b) {
     return b.types.every((bType) => a.assignableTo(ctx, bType));
   } else if (a is Intersection) {
     return a.types.any((aType) => aType.assignableTo(ctx, b));
-  } else if (a is Expr) {
-    return (a.eval(ctx) as Type).assignableTo(ctx, b);
-  } else if (b is Expr) {
-    return a.assignableTo(ctx, b.eval(ctx) as Type);
   } else if (b is List) {
     if (a is List) {
-      return a.type.assignableTo(ctx, b.type);
+      return (a.type as Type).assignableTo(ctx, b.type as Type);
     } else if (a is Value) {
       if (a.type is! List) return false;
       for (final value in a.value as dart.List<Type>) {
-        if (!value.assignableTo(ctx, b.type)) return false;
+        if (!value.assignableTo(ctx, b.type as Type)) return false;
       }
       return true;
     } else {
@@ -105,41 +79,34 @@ bool assignable(Ctx ctx, Type a, Type b) {
     }
   } else if (b is Map) {
     if (a is Map) {
-      return a.key.assignableTo(ctx, b.key) && a.value.assignableTo(ctx, b.value);
+      return (a.key as Type).assignableTo(ctx, b.key as Type) &&
+          (a.value as Type).assignableTo(ctx, b.value as Type);
     } else if (a is Value) {
       if (a.type is! Map) return false;
       for (final entry in (a.value as dart.Map<Value, Type>).entries) {
-        if (!entry.key.type.assignableTo(ctx, b.key)) return false;
-        if (!entry.value.assignableTo(ctx, b.value)) return false;
+        if (!entry.key.type.assignableTo(ctx, b.key as Type)) return false;
+        if (!entry.value.assignableTo(ctx, b.value as Type)) return false;
       }
       return true;
     } else {
       return false;
     }
-  } else if (b is FunctionType) {
-    if (a is! FunctionType) return false;
-    if (!a.returnType.assignableTo(ctx, b.returnType)) {
+  } else if (b is FnType) {
+    if (a is! FnType) return false;
+    if (!(a.returnType as Type).assignableTo(ctx, b.returnType as Type)) {
       return false;
     }
 
-    return b.target.assignableTo(ctx, a.target);
+    return (b.target as Type).assignableTo(ctx, a.target as Type);
   } else if (b is InterfaceType) {
     if (a is InterfaceType && a.id == b.id) {
-      if (b.assignments.entries.every((entry) => a.assignments[entry.key] == entry.value)) {
+      if (b.assignments.entries.every(
+        (entry) => (a.assignments[entry.key] as Type).assignableTo(ctx, entry.value as Type),
+      )) {
         return true;
       }
     }
-
-    final implementation = ctx.db.find<Impl>(
-      ctx: ctx,
-      namespace: ImplID.namespace,
-      predicate: (impl) {
-        final implementer = impl.implementer.read(ctx);
-        if (!a.assignableTo(ctx, implementer)) return false;
-        return impl.implemented.read(ctx).assignableTo(ctx, b);
-      },
-    );
-    return implementation.unwrap != null;
+    return false;
   } else if (b is DataType) {
     if (a is DataType && a.id == b.id) {
       if (b.assignments.entries.every((entry) => a.assignments[entry.key] == entry.value)) {
@@ -180,33 +147,10 @@ bool assignable(Ctx ctx, Type a, Type b) {
   }
 }
 
-class Any extends Type {
-  const Any._();
-  @override
-  String toString() => 'Any';
-
-  @override
-  bool get isConcrete => false;
-}
-
-const any = Any._();
-
-class ThisType extends Type {
-  const ThisType._();
-
-  @override
-  String toString() => 'This';
-
-  @override
-  bool get isConcrete => false;
-}
-
-const thisType = ThisType._();
-
 @reify
 class List extends Type with _ListMixin {
   @override
-  final Type type;
+  final Object type;
 
   const List(this.type);
 
@@ -220,9 +164,9 @@ class List extends Type with _ListMixin {
 @reify
 class Map extends Type with _MapMixin {
   @override
-  final Type key;
+  final Object key;
   @override
-  final Type value;
+  final Object value;
 
   const Map(this.key, this.value);
 
@@ -317,11 +261,11 @@ class Unit extends Type {
 
 const unit = Unit._();
 
-class FunctionType extends Type {
-  final Type target;
-  final Type returnType;
+class FnType extends Type {
+  final Object target;
+  final Object returnType;
 
-  const FunctionType({
+  const FnType({
     this.target = unit,
     this.returnType = unit,
   });
@@ -337,7 +281,7 @@ class MemberID extends UUID<MemberID> {}
 
 class InterfaceType extends Type {
   final InterfaceID id;
-  final dart.Map<MemberID, Type> assignments;
+  final dart.Map<MemberID, Object> assignments;
 
   InterfaceType({required this.id, this.assignments = const {}});
 
@@ -367,19 +311,28 @@ class InterfaceDef {
   })  : this.id = id ?? InterfaceID.create(),
         members = {for (final member in members) member.id: member};
 
-  InterfaceType asType([dart.Map<MemberID, Type> assignments = const {}]) =>
+  InterfaceType asType([dart.Map<MemberID, Object> assignments = const {}]) =>
       InterfaceType(id: id, assignments: assignments);
 }
 
-class DataType extends Type {
+class DataType extends Type implements Traversible {
   final DataID id;
   final dart.List<MemberID> path;
-  final dart.Map<MemberID, Type> assignments;
+  final dart.Map<MemberID, Object> assignments;
 
   DataType({required this.id, this.path = const [], this.assignments = const {}});
 
   @override
   bool get isConcrete => true;
+
+  @override
+  Object traverse(Object Function(Object) f) {
+    return DataType(
+      id: id,
+      path: path,
+      assignments: {for (final entry in assignments.entries) entry.key: doTraverse(entry.value, f)},
+    );
+  }
 }
 
 class DataID extends ID<DataDef> {
@@ -425,7 +378,7 @@ class DataDef {
 
   DataType asType({
     dart.List<MemberID> path = const [],
-    dart.Map<MemberID, Type> assignments = const {},
+    dart.Map<MemberID, Object> assignments = const {},
   }) =>
       DataType(id: id, assignments: assignments);
 
@@ -468,6 +421,26 @@ abstract class TypeTree {
   final String name;
 
   const TypeTree({required this.name});
+
+  Object traverse(Object data, Object Function(Object) f) {
+    if (this is UnionNode) {
+      final unionTag = data as UnionTag;
+      return UnionTag(
+        unionTag.tag,
+        (this as UnionNode).elements[unionTag.tag]!.traverse(unionTag.value, f),
+      );
+    } else if (this is RecordNode) {
+      final map = data as Dict<MemberID, Object>;
+      final recordNode = this as RecordNode;
+
+      return Dict({
+        for (final entry in map.entries)
+          entry.key: recordNode.elements[entry.key]!.traverse(entry.value, f),
+      });
+    } else {
+      return f(data);
+    }
+  }
 
   Object instantiate(final Object data) {
     if (this is UnionNode) {
@@ -524,15 +497,8 @@ class RecordNode extends TypeTree {
   const RecordNode(String name, this.elements) : super(name: name);
 }
 
-class DataTreeElement {
-  final String name;
-  final TypeTree node;
-
-  const DataTreeElement(this.name, this.node);
-}
-
 class LeafNode extends TypeTree {
-  final Type type;
+  final Object type;
 
   const LeafNode(String name, this.type) : super(name: name);
 }
@@ -540,7 +506,7 @@ class LeafNode extends TypeTree {
 class Member {
   final MemberID id;
   final String name;
-  final Type type;
+  final Object type;
 
   Member({MemberID? id, required this.name, required this.type}) : id = id ?? MemberID();
 }
@@ -550,170 +516,25 @@ class Impl with _ImplMixin {
   @override
   final ImplID id;
   @override
-  final Type implementer;
-  @override
   final InterfaceType implemented;
   @override
-  final dart.Map<MemberID, Expr> implementations;
+  final Dict<MemberID, Expr> implementations;
 
   Impl({
     ImplID? id,
-    required this.implementer,
     required this.implemented,
     required this.implementations,
   }) : this.id = id ?? ImplID.create();
 }
 
-abstract class Expr extends Type {
-  const Expr();
-
-  Type evalType(Ctx ctx);
-  Object eval(Ctx ctx);
-
-  @override
-  bool get isConcrete => false;
-}
-
-class ThisExpr extends Expr {
-  const ThisExpr._();
-
-  @override
-  Type evalType(Ctx ctx) => ctx.thisValue.type;
-
-  @override
-  Object eval(Ctx ctx) => ctx.thisValue.value;
-}
-
-const thisExpr = ThisExpr._();
-
-extension _ThisCtxExtension on Ctx {
-  Value get thisValue => get<_ThisCtx>()!.thisCtx;
-  Ctx withThis(Value value) => withElement(_ThisCtx(value));
-}
-
-class _ThisCtx extends CtxElement {
-  final Value thisCtx;
-
-  const _ThisCtx(this.thisCtx);
-}
-
-class InterfaceAccess extends Expr {
-  final Expr target;
-  final InterfaceType iface;
-  final MemberID member;
-
-  InterfaceAccess({
-    required this.member,
-    this.target = thisExpr,
-    required this.iface,
-  });
-
-  @override
-  Type evalType(Ctx ctx) {
-    {
-      final assignment = iface.assignments[member];
-      if (assignment != null) {
-        return assignment;
-      }
-    }
-    return ctx.db.get(iface.id).whenPresent.read(ctx).members[member]!.type;
-  }
-
-  @override
-  Object eval(Ctx ctx) {
-    final targetType = target.evalType(ctx);
-    final targetValue = target.eval(ctx);
-    assert(targetType.assignableTo(ctx, iface));
-    final impl = findImpl(ctx, targetType, iface);
-    assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx.withThis(Value(targetType, targetValue)));
-  }
-}
-
-class UnionAccess extends Expr {
-  final Expr target;
-  final MemberID member;
-
-  UnionAccess(this.member, {this.target = thisExpr});
-
-  @override
-  Type evalType(Ctx ctx) {
-    final targetType = target.evalType(ctx) as DataType;
-    if (targetType.assignments.containsKey(member)) {
-      return targetType.assignments[member]!;
-    }
-    final targetTree =
-        ctx.db.get(targetType.id).whenPresent.read(ctx).tree.followPath(targetType.path);
-
-    final resultNode = (targetTree as UnionNode).elements[member]!;
-    if (resultNode is LeafNode) {
-      return resultNode.type;
-    } else {
-      return DataType(
-        id: targetType.id,
-        path: [...targetType.path, member],
-        assignments: targetType.assignments,
-      );
-    }
-  }
-
-  @override
-  Object eval(Ctx ctx) {
-    final targetValue = target.eval(ctx);
-    final targetType = target.evalType(ctx) as DataType;
-    final dataDef = ctx.db.get(targetType.id).whenPresent.read(ctx);
-
-    return dataDef.followPath(targetValue, [...targetType.path, member]);
-  }
-}
-
-class RecordAccess extends Expr {
-  final Expr target;
-  final MemberID member;
-
-  RecordAccess(this.member, {this.target = thisExpr});
-
-  @override
-  Type evalType(Ctx ctx) {
-    final targetType = target.evalType(ctx) as DataType;
-    if (targetType.assignments.containsKey(member)) {
-      return targetType.assignments[member]!;
-    }
-    final targetTree =
-        ctx.db.get(targetType.id).whenPresent.read(ctx).tree.followPath(targetType.path);
-
-    final resultNode = (targetTree as RecordNode).elements[member]!;
-    if (resultNode is LeafNode) {
-      return resultNode.type;
-    } else {
-      return DataType(
-        id: targetType.id,
-        path: [...targetType.path, member],
-        assignments: targetType.assignments,
-      );
-    }
-  }
-
-  @override
-  Object eval(Ctx ctx) {
-    final targetValue = target.eval(ctx);
-    final targetType = target.evalType(ctx) as DataType;
-    final dataDef = ctx.db.get(targetType.id).whenPresent.read(ctx);
-
-    return dataDef.followPath(targetValue, [...targetType.path, member]);
-  }
-}
-
-Impl? findImpl(Ctx ctx, Type implementer, InterfaceType iface) {
-  final maybeImpl = ctx.db.find<Impl>(
-    ctx: ctx,
-    namespace: ImplID.namespace,
-    predicate: (impl) {
-      if (!implementer.assignableTo(ctx, impl.implementer.read(ctx))) return false;
-      return impl.implemented.read(ctx).assignableTo(ctx, iface);
-    },
-  );
-  return maybeImpl.unwrap?.read(ctx);
+Cursor<Impl>? findImpl(Ctx ctx, InterfaceType iface) {
+  return ctx.db
+      .find<Impl>(
+        ctx: ctx,
+        namespace: ImplID.namespace,
+        predicate: (impl) => iface.assignableTo(ctx, impl.implemented.read(ctx)),
+      )
+      .unwrap;
 }
 
 extension PalValueGetCursorExtensions on GetCursor<Object> {
@@ -740,11 +561,7 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     ));
   }
 
-  Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
-    final impl = findImpl(ctx, this.palType().read(ctx), type);
-    assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx);
-  }
+  Object interfaceAccess(Ctx ctx, MemberID member) => this.read(ctx).interfaceAccess(ctx, member);
 
   GetCursor<Type> palType() {
     return this.cast<Value>().type;
@@ -776,11 +593,7 @@ extension PalValueCursorExtensions on Cursor<Object> {
     ));
   }
 
-  Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
-    final impl = findImpl(ctx, this.palType().read(ctx), type);
-    assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx.withThis(this.read(ctx) as Value));
-  }
+  Object interfaceAccess(Ctx ctx, MemberID member) => this.read(ctx).interfaceAccess(ctx, member);
 
   Cursor<Type> palType() {
     return this.cast<Value>().type;
@@ -791,7 +604,13 @@ extension PalValueCursorExtensions on Cursor<Object> {
   }
 }
 
+typedef DartFnType = Object Function(Ctx ctx, Object arg);
+
 extension PalValueExtensions on Object {
+  Optional<Object> mapAccess(Object key) {
+    return (this as Dict<Object, Object>)[key];
+  }
+
   Object recordAccess(MemberID member) {
     return (this as Dict<MemberID, Object>)[member].unwrap!;
   }
@@ -801,9 +620,18 @@ extension PalValueExtensions on Object {
     return cases[caseObj.first]!(caseObj.second as V);
   }
 
-  Object interfaceAccess<V extends Object>(Ctx ctx, InterfaceType ifaceType, MemberID member) {
-    final impl = findImpl(ctx, (this as Value).type, ifaceType);
-    assert(impl != null);
-    return impl!.implementations[member]!.eval(ctx.withThis(this as Value));
+  Object interfaceAccess(Ctx ctx, MemberID member) {
+    return (this as Impl).implementations[member].unwrap!.eval(ctx.withThisImpl(this as Impl));
+  }
+
+  Object callFn(Ctx ctx, Object arg) {
+    if (this is Function) {
+      return (this as Object Function(Ctx, Object))(ctx, arg);
+    } else if (this is FnExpr) {
+      final fnExpr = this as FnExpr;
+      return fnExpr.body.eval(ctx.withFnArg(fnExpr.type, arg));
+    } else {
+      throw Exception('Tried to call unexpected type ${this.runtimeType} as pal function.');
+    }
   }
 }

@@ -24,9 +24,12 @@ Widget _linkField(
     if (row == null || tableID == null) return null;
     final table = ctx.db.get(tableID).whenPresent;
     final column = table.columns[table.titleColumn.read(ctx)].whenPresent;
-    final getData = column.impl.interfaceAccess(ctx, model.columnImpl, model.columnImplGetDataID)
-        as model.ColumnGetDataFn;
-    final data = getData(Dict({'row': row, 'impl': column.impl}), ctx: ctx);
+    final palImpl = pal.findImpl(
+      ctx,
+      model.columnImplDef.asType({model.columnImplImplementerID: column.impl.type.read(ctx)}),
+    )!;
+    final getData = palImpl.interfaceAccess(ctx, model.columnImplGetDataID);
+    final data = getData.callFn(ctx, Dict({'row': row, 'impl': column.impl})) as Cursor<Object>;
     return data.cast<Optional<Object>>().optionalCast<String>().read(ctx).unwrap;
   }
 

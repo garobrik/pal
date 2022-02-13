@@ -252,12 +252,12 @@ class _TableDatum extends Datum {
     final rowID = rowCtx.rowID;
     final table = ctx.db.get(tableID);
     final column = table.whenPresent.columns[columnID].whenPresent;
-    final getData = column.impl.interfaceAccess(
+    final palImpl = pal.findImpl(
       ctx,
-      columnImpl,
-      columnImplGetDataID,
-    ) as ColumnGetDataFn;
-    return getData(Dict({'rowID': rowID, 'impl': column.impl}), ctx: ctx);
+      columnImplDef.asType({columnImplImplementerID: column.impl.type.read(ctx)}),
+    );
+    final getData = palImpl!.interfaceAccess(ctx, columnImplGetDataID);
+    return getData.callFn(ctx, Dict({'rowID': rowID, 'impl': column.impl})) as Cursor<Object>;
   }
 
   @override
@@ -268,19 +268,20 @@ class _TableDatum extends Datum {
 
   @override
   pal.Type type(Ctx ctx) {
-    return ctx.db
-        .get(tableID)
-        .whenPresent
-        .columns[columnID]
-        .whenPresent
-        .impl
-        .interfaceAccess(ctx, columnImpl, columnImplDataID) as pal.Type;
+    final column = ctx.db.get(tableID).whenPresent.columns[columnID].whenPresent;
+    final palImpl = pal.findImpl(
+      ctx,
+      columnImplDef.asType({columnImplImplementerID: column.impl.type.read(ctx)}),
+    );
+    return palImpl!
+        .interfaceAccess(ctx, columnImplDataTypeID)
+        .callFn(ctx, column.impl.value.read(ctx)) as pal.Type;
   }
 }
 
 pal.Value valueColumn(
   pal.Type valueType,
-  Widget Function(Cursor<Object> rowData, {required Ctx ctx}) getWidget,
+  Widget Function(Ctx ctx, Object rowData) getWidget,
 ) {
   return pal.Value(
     valueColumnDef.asType(),
@@ -306,7 +307,7 @@ final valueColumnDef = pal.DataDef.record(name: 'ValueColumn', members: [
   pal.Member(
     id: valueColumnGetWidgetID,
     name: 'getWidget',
-    type: pal.FunctionType(
+    type: pal.FnType(
       returnType: widget.flutterWidgetDef.asType(),
       target: pal.cursorType(pal.RecordAccess(valueColumnTypeID)),
     ),
@@ -314,43 +315,47 @@ final valueColumnDef = pal.DataDef.record(name: 'ValueColumn', members: [
 ]);
 
 final valueColumnImpl = pal.Impl(
-  implementer: valueColumnDef.asType(),
-  implemented: columnImplDef.asType(),
-  implementations: {
-    columnImplDataID: pal.Value(pal.type, pal.optionType(pal.RecordAccess(valueColumnTypeID))),
-    columnImplGetNameID: pal.Value(
-      columnImplGetNameType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) =>
-          '${arg.value.recordAccess(valueColumnTypeID).read(ctx)} Column',
+  implemented: columnImplDef.asType({columnImplImplementerID: valueColumnDef.asType()}),
+  implementations: Dict({
+    columnImplDataTypeID: pal.FnExpr(
+      pal.FnType(target: valueColumnDef.asType(), returnType: pal.type),
+      pal.Literal(pal.type, pal.optionType(pal.RecordAccess(valueColumnTypeID, target: pal.fnArg))),
     ),
-    columnImplGetDataID: pal.Value(
+    columnImplGetNameID: pal.Literal(
+      columnImplGetNameType,
+      (Ctx ctx, Object arg) =>
+          '${(arg as Cursor<Object>).palValue().recordAccess(valueColumnTypeID).read(ctx)} Column',
+    ),
+    columnImplGetDataID: pal.Literal(
       columnImplGetDataType,
-      (Dict<String, Object> dict, {required Ctx ctx}) {
-        final colImpl = dict['impl'].unwrap! as Cursor<Object>;
-        final rowID = dict['rowID'].unwrap! as RowID;
+      (Ctx ctx, Object arg) {
+        final colImpl = arg.mapAccess('impl').unwrap! as Cursor<Object>;
+        final rowID = arg.mapAccess('rowID').unwrap! as RowID;
         final valueMap = colImpl.palValue().recordAccess(valueColumnValuesID);
         return valueMap.mapAccess(rowID).upcast<Object>();
       },
     ),
-    columnImplGetWidgetID: pal.Value(
+    columnImplGetWidgetID: pal.Literal(
       columnImplGetWidgetType,
-      (Dict<String, Cursor<Object>> args, {required Ctx ctx}) {
-        final impl = args['impl'].unwrap!;
-        final getWidget = impl.palValue().recordAccess(valueColumnGetWidgetID).read(ctx) as Widget
-            Function(Cursor<Object>, {required Ctx ctx});
-        return getWidget(args['rowData'].unwrap!, ctx: ctx);
+      (Ctx ctx, Object args) {
+        final impl = args.mapAccess('impl').unwrap! as Cursor<Object>;
+        final getWidget = impl.palValue().recordAccess(valueColumnGetWidgetID).read(ctx);
+        return getWidget.callFn(ctx, args.mapAccess('rowData').unwrap!);
       },
     ),
-    columnImplGetConfigID: pal.Value(
+    columnImplGetConfigID: pal.Literal(
       columnImplGetConfigType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) => const Optional<Widget>.none(),
+      (Ctx _, Object __) => const Optional<Widget>.none(),
     ),
-  },
+  }),
 );
 
-final textColumn = valueColumn(pal.text, StringField.new);
-final numberColumn = valueColumn(pal.number, NumField.new);
-final booleanColumn = valueColumn(pal.boolean, BoolCell.new);
+final textColumn =
+    valueColumn(pal.text, (ctx, obj) => StringField(obj as Cursor<Object>, ctx: ctx));
+final numberColumn =
+    valueColumn(pal.number, (ctx, obj) => NumField(obj as Cursor<Object>, ctx: ctx));
+final booleanColumn =
+    valueColumn(pal.boolean, (ctx, obj) => BoolCell(obj as Cursor<Object>, ctx: ctx));
 final dataColumn = pal.Value(
   dataColumnDef.asType(),
   Dict({dataColumnTypeID: pal.text, dataColumnValuesID: const Dict<Object, Object>()}),
@@ -371,43 +376,46 @@ final dataColumnDef = pal.DataDef.record(
 );
 
 final dataColumnImpl = pal.Impl(
-  implementer: dataColumnDef.asType(),
-  implemented: columnImplDef.asType(),
-  implementations: {
-    columnImplDataID: pal.Value(pal.type, pal.optionType(pal.RecordAccess(dataColumnTypeID))),
-    columnImplGetNameID: pal.Value(
-      columnImplGetNameType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) => 'Data Column',
+  implemented: columnImplDef.asType({columnImplImplementerID: dataColumnDef.asType()}),
+  implementations: Dict({
+    columnImplDataTypeID: pal.FnExpr(
+      pal.FnType(target: dataColumnDef.asType(), returnType: pal.type),
+      pal.Literal(pal.type, pal.optionType(pal.RecordAccess(dataColumnTypeID, target: pal.fnArg))),
     ),
-    columnImplGetDataID: pal.Value(
+    columnImplGetNameID: pal.Literal(
+      columnImplGetNameType,
+      (Ctx _, Object __) => 'Data Column',
+    ),
+    columnImplGetDataID: pal.Literal(
       columnImplGetDataType,
-      (Dict<String, Object> dict, {required Ctx ctx}) {
-        final colImpl = dict['impl'].unwrap! as Cursor<Object>;
-        final rowID = dict['rowID'].unwrap! as RowID;
+      (Ctx ctx, Object arg) {
+        final colImpl = arg.mapAccess('impl').unwrap! as Cursor<Object>;
+        final rowID = arg.mapAccess('rowID').unwrap! as RowID;
         final valueMap = colImpl.palValue().recordAccess(dataColumnValuesID);
         return valueMap.mapAccess(rowID).upcast<Object>();
       },
     ),
-    columnImplGetWidgetID: pal.Value(
+    columnImplGetWidgetID: pal.Literal(
       columnImplGetWidgetType,
-      (Dict<String, Cursor<Object>> args, {required Ctx ctx}) {
+      (Ctx ctx, Object args) {
         return ReaderWidget(
           ctx: ctx,
           builder: (_, ctx) {
-            final type = args['impl'].unwrap!.palValue().recordAccess(dataColumnTypeID).read(ctx)
-                as pal.Type;
-            final value = args['rowData'].unwrap!.wrap(pal.optionType(type));
+            final colImpl = args.mapAccess('impl').unwrap! as Cursor<Object>;
+            final type = colImpl.palValue().recordAccess(dataColumnTypeID).read(ctx) as pal.Type;
+            final value =
+                (args.mapAccess('rowData').unwrap! as Cursor<Object>).wrap(pal.optionType(type));
             return DataCell(value: value, enabled: true, ctx: ctx);
           },
         );
       },
     ),
-    columnImplGetConfigID: pal.Value(
+    columnImplGetConfigID: pal.Literal(
       columnImplGetConfigType,
-      (Cursor<pal.Value> arg, {required Ctx ctx}) {
+      (Ctx ctx, Object arg) {
         return Optional(TypeSelector(
           // TODO: this is slightly incorrect, doesn't trigger change notif on the row data
-          arg.value.then(
+          (arg as Cursor<Object>).then(
             Lens(
               [
                 Vec(['[]', dataColumnTypeID])
@@ -431,84 +439,73 @@ final dataColumnImpl = pal.Impl(
         ));
       },
     ),
-  },
+  }),
 );
 
 final tableDef = pal.InterfaceDef(name: 'Table', members: []);
 final columnIDDef = pal.InterfaceDef(name: 'ColumnID', members: []);
 final rowIDDef = pal.InterfaceDef(name: 'RowID', members: []);
 
-final columnImplDataID = pal.MemberID();
+final columnImplImplementerID = pal.MemberID();
+final columnImplDataTypeID = pal.MemberID();
 final columnImplGetDataID = pal.MemberID();
 final columnImplGetWidgetID = pal.MemberID();
 final columnImplGetNameID = pal.MemberID();
 final columnImplGetConfigID = pal.MemberID();
 final columnImpl = pal.InterfaceType(id: pal.InterfaceID.create());
-final columnImplGetNameType =
-    pal.FunctionType(returnType: pal.text, target: pal.cursorType(pal.thisType));
-final columnImplGetDataType = pal.FunctionType(
+final columnImplGetNameType = pal.FnType(
+    returnType: pal.text,
+    target: pal.cursorType(pal.InterfaceAccess(member: columnImplImplementerID)));
+final columnImplGetDataType = pal.FnType(
   returnType: pal.cursorType(
-    pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
+    pal.InterfaceAccess(member: columnImplDataTypeID),
   ),
   target: pal.Value(
     const pal.Map(pal.text, pal.type),
-    Dict({'rowID': rowIDDef.asType(), 'impl': pal.cursorType(pal.thisType)}),
+    Dict({
+      'rowID': rowIDDef.asType(),
+      'impl': pal.cursorType(pal.InterfaceAccess(member: columnImplImplementerID))
+    }),
   ),
 );
-final columnImplGetWidgetType = pal.FunctionType(
+final columnImplGetWidgetType = pal.FnType(
   returnType: widget.flutterWidgetDef.asType(),
   target: pal.Value(
     const pal.Map(pal.text, pal.type),
     Dict({
       'rowData': pal.cursorType(
-        pal.InterfaceAccess(member: columnImplDataID, iface: columnImpl),
+        pal.InterfaceAccess(member: columnImplDataTypeID),
       ),
-      'impl': pal.cursorType(pal.thisType),
+      'impl': pal.cursorType(pal.InterfaceAccess(member: columnImplImplementerID)),
     }),
   ),
 );
 
-final columnImplGetConfigType = pal.FunctionType(
+final columnImplGetConfigType = pal.FnType(
   returnType: pal.optionType(widget.flutterWidgetDef.asType()),
-  target: pal.cursorType(pal.thisType),
+  target: pal.cursorType(pal.InterfaceAccess(member: columnImplImplementerID)),
 );
 
-String columnImplGetName(Cursor<pal.Value> impl, {required Ctx ctx}) {
-  final getName = impl.interfaceAccess(ctx, columnImpl, columnImplGetNameID) as ColumnGetNameFn;
-  return getName(impl, ctx: ctx);
+String columnImplGetName(Ctx ctx, Cursor<pal.Value> impl) {
+  final palImpl = pal.findImpl(
+    ctx,
+    columnImplDef.asType({columnImplImplementerID: impl.type.read(ctx)}),
+  )!;
+  return palImpl.interfaceAccess(ctx, columnImplGetNameID).callFn(ctx, impl) as String;
 }
 
 final columnImplDef = pal.InterfaceDef(
   id: columnImpl.id,
   name: 'ColumnImpl',
   members: [
-    pal.Member(id: columnImplDataID, name: 'dataType', type: pal.type),
+    pal.Member(id: columnImplImplementerID, name: 'implementer', type: pal.type),
+    pal.Member(id: columnImplDataTypeID, name: 'dataType', type: pal.type),
     pal.Member(id: columnImplGetNameID, name: 'getName', type: columnImplGetNameType),
     pal.Member(id: columnImplGetDataID, name: 'getData', type: columnImplGetDataType),
     pal.Member(id: columnImplGetWidgetID, name: 'getWidget', type: columnImplGetWidgetType),
     pal.Member(id: columnImplGetConfigID, name: 'getConfig', type: columnImplGetConfigType),
   ],
 );
-
-typedef ColumnGetNameFn = String Function(
-  Cursor<pal.Value> impl, {
-  required Ctx ctx,
-});
-
-typedef ColumnGetDataFn = Cursor<Object> Function(
-  Dict<String, Object>, {
-  required Ctx ctx,
-});
-
-typedef ColumnGetWidgetFn = Widget Function(
-  Dict<String, Cursor<Object>>, {
-  required Ctx ctx,
-});
-
-typedef ColumnGetConfigFn = Optional<Widget> Function(
-  Cursor<pal.Value> impl, {
-  required Ctx ctx,
-});
 
 final tableDB = () {
   final db = Cursor(const pal.DB());

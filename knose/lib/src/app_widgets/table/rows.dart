@@ -82,21 +82,18 @@ Widget _tableRow(
                       ctx: ctx,
                       builder: (_, ctx) {
                         final column = table.columns[columnID].whenPresent;
-                        final getWidget = column.impl.interfaceAccess(
+                        final palImpl = pal.findImpl(
                           ctx,
-                          model.columnImpl,
-                          model.columnImplGetWidgetID,
-                        ) as model.ColumnGetWidgetFn;
-                        final getData = column.impl.interfaceAccess(
-                          ctx,
-                          model.columnImpl,
-                          model.columnImplGetDataID,
-                        ) as model.ColumnGetDataFn;
-                        final data = getData(Dict({'rowID': rowID, 'impl': column.impl}), ctx: ctx);
-                        return getWidget(
-                          Dict({'rowData': data, 'impl': column.impl}),
-                          ctx: ctx,
-                        );
+                          model.columnImplDef.asType(
+                            {model.columnImplImplementerID: column.impl.type.read(ctx)},
+                          ),
+                        )!;
+                        final getWidget = palImpl.interfaceAccess(ctx, model.columnImplGetWidgetID);
+                        final getData = palImpl.interfaceAccess(ctx, model.columnImplGetDataID);
+                        final data =
+                            getData.callFn(ctx, Dict({'rowID': rowID, 'impl': column.impl}));
+                        return getWidget.callFn(ctx, Dict({'rowData': data, 'impl': column.impl}))
+                            as Widget;
                       },
                     ),
                   ),
