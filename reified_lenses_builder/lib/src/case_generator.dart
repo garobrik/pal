@@ -13,11 +13,17 @@ Class maybeGenerateCasesExtension(StringBuffer output, Class clazz) {
 
   if (cases.isNotEmpty) {
     Extension(
+      '${clazz.name}CasesGetCursorExtension',
+      Type('GetCursor', args: [clazz.type]),
+      params: clazz.params,
+      accessors: [_generateCaseGetter(clazz, cases)],
+      methods: [_generateCasesMethod(clazz, cases, 'GetCursor')],
+    ).declare(output);
+    Extension(
       '${clazz.name}CasesCursorExtension',
       Type('Cursor', args: [clazz.type]),
       params: clazz.params,
-      accessors: [_generateCaseGetter(clazz, cases)],
-      methods: [_generateCasesMethod(clazz, cases)],
+      methods: [_generateCasesMethod(clazz, cases, 'Cursor')],
     ).declare(output);
 
     final casesClassName = '${clazz.name}Case';
@@ -104,18 +110,18 @@ AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
       'caze',
       Type('GetCursor', args: [Type('${clazz.name}Case')]),
       body: '''
-        thenGet<${clazz.name}Case>(${OpticKind.getter.fieldCtor}(['case'], ($param) { $ifElsePart }))
+        thenGet<${clazz.name}Case>(${OpticKind.getter.fieldCtor}(const ['case'], ($param) { $ifElsePart }))
     ''',
     ),
   );
 }
 
-Method _generateCasesMethod(Class clazz, Iterable<Type> cases) {
+Method _generateCasesMethod(Class clazz, Iterable<Type> cases, String type) {
   final typeParam = clazz.newTypeParams(1).first;
   final params = cases.map(
     (caze) => Param(
       FunctionType(returnType: typeParam.type, requiredArgs: [
-        Type('Cursor', args: [caze])
+        Type(type, args: [caze])
       ]),
       _caseArgName(caze),
       isNamed: true,
