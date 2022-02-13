@@ -1,7 +1,6 @@
 import 'package:ctx/ctx.dart';
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
-import 'reified_lenses.dart';
 
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor;
@@ -13,6 +12,8 @@ abstract class GetCursor<S> {
       StateCursor(_ComputedState(computation, ctx: ctx, compare: compare), Getter.identity());
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
+
+  GetCursor<S1> thenOptGet<S1>(OptGetter<S, S1> getter, {String Function() errorMsg});
 
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
@@ -75,6 +76,8 @@ abstract class Cursor<S> implements GetCursor<S> {
 
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
+  Cursor<S1> thenOpt<S1>(OptLens<S, S1> getter, {String Function() errorMsg});
+
   void set(S s) => mut((_) => s);
   void mut(S Function(S) f) => mutResult((s) => DiffResult.allChanged(f(s)));
   void setResult(DiffResult<S> diff) => mutResult((_) => diff);
@@ -90,57 +93,36 @@ abstract class Cursor<S> implements GetCursor<S> {
 }
 
 extension GetCursorPartial<S> on GetCursor<S> {
-  GetCursor<S1> partial<S1>(
-          {required S1? Function(S) to, DiffResult<S1?> Function(S old, S nu, Diff)? update}) =>
-      StateCursor(
-        _PartialViewState(viewed: this, to: to, update: update),
-        Getter.identity(),
+  GetCursor<S1> cast<S1 extends S>() => thenOptGet(
+        OptGetter([], (s) => s is S1 ? Optional(s) : Optional.none()),
+        errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
       );
-
-  GetCursor<S1> cast<S1 extends S>() {
-    if (S1 == S) return this as GetCursor<S1>;
-    assert(
-      this.read(Ctx.empty) is S1,
-      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
-    );
-    return partial(
-      to: (s) => s is S1 ? s : null,
-      update: (_, nu, diff) => DiffResult(nu is S1 ? nu : null, diff),
-    );
-  }
 }
 
 extension CursorPartial<S> on Cursor<S> {
-  Cursor<S1> partial<S1>(
-          {required S1? Function(S) to,
-          required DiffResult<S> Function(DiffResult<S1>) from,
-          DiffResult<S1?> Function(S old, S nu, Diff)? update}) =>
+  Cursor<S1> partial<S1>({
+    required S1? Function(S) to,
+    required DiffResult<S> Function(DiffResult<S1>) from,
+    DiffResult<S1?> Function(S old, S nu, Diff)? update,
+  }) =>
       MutableStateCursor(
         _MutablePartialViewState(viewed: this, to: to, from: from, update: update),
         Lens.identity(),
       );
 
   Cursor<S1> cast<S1 extends S>() {
-    if (S1 == S) return this as Cursor<S1>;
-    assert(
-      this.read(Ctx.empty) is S1,
-      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S1',
-    );
-    return partial(
-      to: (s) => s is S1 ? s : null,
-      from: (s1) => s1,
-      update: (_, nu, diff) => DiffResult(nu is S1 ? nu : null, diff),
+    if (this is Cursor<S1>) return this as Cursor<S1>;
+
+    return thenOpt(
+      OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
+      errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
     );
   }
 
-  Cursor<S1> upcast<S1>() {
-    if (S1 == S) return this as Cursor<S1>;
-    return partial(
-      to: (s) => s as S1,
-      from: (s1) => DiffResult(s1.value as S, s1.diff),
-      update: (_, nu, diff) => DiffResult(nu as S1, diff),
-    );
-  }
+  Cursor<S1> upcast<S1>() => thenOpt(
+        OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1) as S),
+        errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
+      );
 }
 
 abstract class ListenableState<T> {
@@ -187,25 +169,41 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
   }
 }
 
+String _defaultThenOptErrorMsg() => 'Tried to compose an optional cursor with no current value.';
+
 abstract class StateCursorBase<T, S> implements GetCursor<S> {
   ListenableState<T> get state;
-  Getter<T, S> get lens;
+  OptGetter<T, S> get lens;
 
   @override
   GetCursor<S2> thenGet<S2>(Getter<S, S2> getter) => StateCursor(state, lens.then(getter));
 
   @override
+  GetCursor<S2> thenOptGet<S2>(OptGetter<S, S2> getter,
+      {String Function() errorMsg = _defaultThenOptErrorMsg}) {
+    final newGetter = lens.then(getter);
+    assert(newGetter.getOpt(state.currentState).isPresent, errorMsg());
+    return StateCursor(state, newGetter);
+  }
+
+  @override
   S read(Ctx ctx) {
-    final currentState = lens.get(state.currentState);
-    ctx.reader?.handleDispose(state.listen(lens.path, (_, __, ___) => ctx.reader!.onChanged()));
-    return currentState;
+    final currentState = lens.getOpt(state.currentState);
+    ctx.reader?.handleDispose(state.listen(lens.path, (_, nu, ___) {
+      if (lens.getOpt(nu).isPresent) ctx.reader!.onChanged();
+    }));
+    return currentState.unwrap!;
   }
 
   @override
   void Function() listen(void Function(S old, S nu, Diff diff) f) {
     return state.listen(
       lens.path,
-      (T old, T nu, Diff diff) => f(lens.get(old), lens.get(nu), diff.atPrefix(lens.path)),
+      (T old, T nu, Diff diff) {
+        lens
+            .getOpt(nu)
+            .ifPresent((nuS) => f(lens.getOpt(old).unwrap!, nuS, diff.atPrefix(lens.path)));
+      },
     );
   }
 
@@ -227,7 +225,7 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
       ];
     } else {
       return [
-        'StateCursor:${lens.path}:${stateString.first}',
+        'StateCursor:${[lens.path.join(" > ")]}:${stateString.first}',
         ...stateString.skip(1),
       ];
     }
@@ -238,7 +236,7 @@ class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
   @override
   final ListenableState<T> state;
   @override
-  final Getter<T, S> lens;
+  final OptGetter<T, S> lens;
 
   StateCursor(this.state, this.lens);
 }
@@ -248,13 +246,21 @@ class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
   @override
   final MutableListenableState<T> state;
   @override
-  final Lens<T, S> lens;
+  final OptLens<T, S> lens;
 
   MutableStateCursor(this.state, this.lens);
 
   @override
   Cursor<S2> then<S2>(Lens<S, S2> lens) {
     return MutableStateCursor(state, this.lens.then(lens));
+  }
+
+  @override
+  Cursor<S1> thenOpt<S1>(OptLens<S, S1> getter,
+      {String Function() errorMsg = _defaultThenOptErrorMsg}) {
+    final newLens = lens.then(getter);
+    assert(newLens.getOpt(state.currentState).isPresent, errorMsg());
+    return MutableStateCursor(state, newLens);
   }
 
   @override
@@ -271,6 +277,14 @@ class _ValueCursor<S> with GetCursor<S> {
 
   @override
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter) => _ValueCursor(getter.get(state));
+
+  @override
+  GetCursor<S1> thenOptGet<S1>(OptGetter<S, S1> getter,
+      {String Function() errorMsg = _defaultThenOptErrorMsg}) {
+    final newState = getter.getOpt(state);
+    assert(newState.isPresent, errorMsg());
+    return _ValueCursor(newState.unwrap!);
+  }
 
   @override
   void Function() listen(void Function(S old, S nu, Diff diff) f) {
@@ -405,31 +419,6 @@ abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
       ...viewedString.map((s) => '  ' + s),
       ')',
     ];
-  }
-}
-
-class _PartialViewState<T, S> with _PartialViewStateBase<T, S> {
-  @override
-  final GetCursor<T> viewed;
-  @override
-  final S? Function(T) to;
-  @override
-  final DiffResult<S?> Function(T old, T nu, Diff)? update;
-  @override
-  void Function()? disposeListener;
-
-  ListenableStateBase<S>? _stateVar;
-
-  _PartialViewState({
-    required this.viewed,
-    required this.to,
-    this.update,
-  });
-
-  @override
-  ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty))!);
-    return _stateVar!;
   }
 }
 
