@@ -79,6 +79,8 @@ class PathResult<T> {
   const PathResult(this.value, this.path);
 }
 
+typedef OptGetterF<T, S> = Optional<S> Function(T);
+
 typedef GetterF<T, S> = S Function(T);
 
 typedef MutaterF<T, S> = T Function(T, TransformF<S>);
@@ -87,12 +89,43 @@ typedef SetterF<T, S> = T Function(T, S);
 
 typedef TransformF<T> = T Function(T);
 
-abstract class Getter<T, S> {
+@immutable
+abstract class OptGetter<T, S> {
+  const factory OptGetter(Path path, OptGetterF<T, S> _getter) = _OptGetterImpl;
+
+  Path get path;
+  Optional<S> getOpt(T t);
+}
+
+@immutable
+abstract class Getter<T, S> implements OptGetter<T, S> {
   const factory Getter(Path path, GetterF<T, S> _getter) = _GetterImpl;
   static Getter<S, S> identity<S>() => _IdentityImpl();
 
   S get(T t);
-  Path get path;
+
+  @override
+  Optional<S> getOpt(T t) => Optional(get(t));
+}
+
+@immutable
+abstract class OptLens<T, S> implements OptGetter<T, S> {
+  const factory OptLens(Path path, OptGetterF<T, S> getF, MutaterF<T, S> mutF) = _OptLensImpl;
+  T mut(T t, S Function(S) f);
+}
+
+@immutable
+abstract class Lens<T, S> implements Getter<T, S>, OptLens<T, S> {
+  const factory Lens(Path path, GetterF<T, S> getF, MutaterF<T, S> mutF) = _LensImpl;
+  static Lens<T, T> identity<T>() => _IdentityImpl();
+
+  @override
+  Optional<S> getOpt(T t) => Optional(get(t));
+}
+
+extension OptGetterCompositions<T, S> on OptGetter<T, S> {
+  OptGetter<T, S2> then<S2>(OptGetter<S, S2> getter) =>
+      OptGetter(path.followedBy(getter.path), (t) => getOpt(t).flatMap(getter.getOpt));
 }
 
 extension GetterCompositions<T, S> on Getter<T, S> {
@@ -100,15 +133,15 @@ extension GetterCompositions<T, S> on Getter<T, S> {
       Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
 }
 
-@immutable
-abstract class Lens<T, S> implements Getter<T, S> {
-  const factory Lens(Path path, GetterF<T, S> getF, MutaterF<T, S> mutF) = _LensImpl;
-  static Lens<T, T> identity<T>() => _IdentityImpl();
-
-  T mut(T t, S Function(S) s);
+extension OptLensCompositions<T, S> on OptLens<T, S> {
+  OptLens<T, S2> then<S2>(OptLens<S, S2> lens) => OptLens(
+        path.followedBy(lens.path),
+        (t) => getOpt(t).flatMap(lens.getOpt),
+        (t, f) => mut(t, (s) => lens.mut(s, f)),
+      );
 
   DiffResult<T> mutDiff(T t, DiffResult<S> Function(S) f) {
-    late Diff diff;
+    Diff diff = const Diff();
     final newT = mut(t, (s) {
       final result = f(s);
       diff = result.diff;
@@ -127,6 +160,20 @@ extension LensCompositions<T, S> on Lens<T, S> {
 }
 
 @immutable
+class _OptGetterImpl<T, S> with OptGetter<T, S> {
+  final Path _path;
+  final OptGetterF<T, S> _getter;
+
+  const _OptGetterImpl(this._path, this._getter);
+
+  @override
+  Path get path => _path;
+
+  @override
+  Optional<S> getOpt(T t) => _getter(t);
+}
+
+@immutable
 class _GetterImpl<T, S> with Getter<T, S> {
   final Path _path;
   final GetterF<T, S> _getter;
@@ -138,6 +185,24 @@ class _GetterImpl<T, S> with Getter<T, S> {
 
   @override
   S get(T t) => _getter(t);
+}
+
+@immutable
+class _OptLensImpl<T, S> with OptLens<T, S> {
+  final Path _path;
+  final OptGetterF<T, S> _getF;
+  final MutaterF<T, S> _mutF;
+
+  const _OptLensImpl(this._path, this._getF, this._mutF);
+
+  @override
+  Path get path => _path;
+
+  @override
+  Optional<S> getOpt(T t) => _getF(t);
+
+  @override
+  T mut(T t, S Function(S) f) => _mutF(t, f);
 }
 
 @immutable
@@ -169,8 +234,8 @@ class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
   T get(T t) => t;
 
   @override
-  T mut(T t, T Function(T) f) => f(t);
+  Optional<T> getOpt(T t) => Optional(t);
 
   @override
-  DiffResult<T> mutDiff(T t, DiffResult<T> Function(T p1) f) => f(t);
+  T mut(T t, T Function(T) f) => f(t);
 }
