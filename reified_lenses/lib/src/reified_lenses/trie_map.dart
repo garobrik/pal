@@ -52,7 +52,7 @@ class TrieMap<K, V> extends Iterable<V> {
   }
 
   TrieMap<K, V> prepend(Iterable<K> key) {
-    if (key.isEmpty) return this;
+    if (key.isEmpty || this.isEmpty) return this;
     return TrieMap<K, V>(null, <K, TrieMap<K, V>>{key.last: this})
         .prepend(key.take(key.length - 1));
   }
