@@ -84,7 +84,7 @@ Widget _tableCellTextField<T>(
             contentPadding: padding2,
           ),
           onChanged: (newText) {
-            parse(newText).ifPresent<T>((t) => value.set(t));
+            parse(newText).ifPresent((t) => value.set(t));
           },
         ),
       ),

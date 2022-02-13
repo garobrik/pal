@@ -17,9 +17,12 @@ class Optional<Value> extends Iterable<Value> {
   Optional<T> map<T>(T Function(Value) toElement) =>
       _value == null ? Optional.none() : Optional(toElement(_value!));
 
+  Optional<T> flatMap<T>(Optional<T> Function(Value) toElement) =>
+      _value == null ? Optional.none() : toElement(_value!);
+
   bool get isPresent => _value != null;
 
-  void ifPresent<T>(void Function(Value) f) {
+  void ifPresent(void Function(Value) f) {
     if (_value != null) f(_value!);
   }
 
