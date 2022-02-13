@@ -188,7 +188,15 @@ Optional<Widget> columnSpecificConfiguration(
   final impl = column.impl;
   final getConfig = impl.interfaceAccess(ctx, model.columnImpl, model.columnImplGetConfigID)
       as model.ColumnGetConfigFn;
-  return getConfig(impl, ctx: ctx);
+  final currentType = impl.type.read(ctx);
+  return getConfig(
+    impl.thenOpt(OptLens(
+      const [],
+      (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
+      (t, f) => f(t),
+    )),
+    ctx: ctx,
+  );
   // (model.Column linkColumn) {
   //   final state = CursorProvider.of<model.State>(context);
   //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;

@@ -36,7 +36,23 @@ Widget _widgetRenderer(
   required Ctx ctx,
   required Cursor<Object> instance,
 }) {
-  final data = instance.recordAccess(widget.instanceDataID);
+  final currentName =
+      instance.recordAccess(widget.instanceWidgetID).recordAccess(widget.nameID).read(ctx);
+  final data = instance.recordAccess(widget.instanceDataID).thenOpt(OptLens<Object, Object>(
+        const [],
+        (t) {
+          if (currentName ==
+              instance
+                  .recordAccess(widget.instanceWidgetID)
+                  .recordAccess(widget.nameID)
+                  .read(Ctx.empty)) {
+            return Optional(t);
+          } else {
+            return const Optional.none();
+          }
+        },
+        (t, f) => f(t),
+      ));
   final build = instance
       .recordAccess(widget.instanceWidgetID)
       .recordAccess(widget.buildID)

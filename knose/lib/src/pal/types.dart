@@ -457,6 +457,7 @@ class UnionTag with _UnionTagMixin {
   @override
   final MemberID tag;
   @override
+  @skip
   final Object value;
 
   UnionTag(this.tag, this.value);
@@ -728,9 +729,15 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     return this.cast<Dict<MemberID, Object>>()[member].whenPresent;
   }
 
-  T dataCases<V extends Object, T>(Ctx ctx, dart.Map<MemberID, T Function(GetCursor<V>)> cases) {
-    final caseObj = this.cast<Pair<MemberID, Object>>();
-    return cases[caseObj.first.read(ctx)]!(caseObj.second.cast<V>());
+  T dataCases<T>(Ctx ctx, dart.Map<MemberID, T Function(GetCursor<Object>)> cases) {
+    final unionTag = this.cast<UnionTag>();
+    final currentTag = unionTag.tag.read(ctx);
+    return cases[currentTag]!(unionTag.thenOptGet(
+      OptGetter(
+        const ['value'],
+        (t) => t.tag == currentTag ? Optional(t.value) : const Optional.none(),
+      ),
+    ));
   }
 
   Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
@@ -759,7 +766,14 @@ extension PalValueCursorExtensions on Cursor<Object> {
 
   T dataCases<T>(Ctx ctx, dart.Map<MemberID, T Function(Cursor<Object>)> cases) {
     final unionTag = this.cast<UnionTag>();
-    return cases[unionTag.tag.read(ctx)]!(unionTag.value);
+    final currentTag = unionTag.tag.read(ctx);
+    return cases[currentTag]!(unionTag.thenOpt(
+      OptLens(
+        const ['value'],
+        (t) => t.tag == currentTag ? Optional(t.value) : const Optional.none(),
+        (t, f) => UnionTag(t.tag, f(t.value)),
+      ),
+    ));
   }
 
   Object interfaceAccess(Ctx ctx, InterfaceType type, MemberID member) {
