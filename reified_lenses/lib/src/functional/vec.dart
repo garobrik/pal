@@ -42,6 +42,9 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
     return Vec.from([..._values.take(index), ..._values.skip(index + 1)]);
   }
 
+  @override
+  Vec<T> map<T>(T Function(Value) f) => Vec.from(_values.map(f));
+
   Diff _remove_mutated(int index) => Diff(
         changed: PathSet.from({
           for (final j in range(length - 1, start: index)) [j],
