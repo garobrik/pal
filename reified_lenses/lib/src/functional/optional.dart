@@ -36,13 +36,10 @@ class Optional<Value> extends Iterable<Value> {
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
-  GetCursor<T> get whenPresent {
-    assert(this.read(Ctx.empty).unwrap != null);
-    return partial(
-      to: (t) => t.unwrap,
-      update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
-    );
-  }
+  GetCursor<T> get whenPresent => thenOptGet(
+        OptGetter(['value'], (t) => t),
+        errorMsg: () => 'Tried to unwrap optional value which is not present.',
+      );
 
   GetCursor<bool> get isPresent =>
       GetCursor.compute((ctx) => this.read(ctx).isPresent, ctx: Ctx.empty, compare: true);
@@ -50,31 +47,24 @@ extension GetCursorOptional<T> on GetCursor<Optional<T>> {
 
 extension CursorOptional<T> on Cursor<Optional<T>> {
   Cursor<T> get whenPresent {
-    assert(this.read(Ctx.empty).unwrap != null);
-    return partial(
-      to: (t) => t.unwrap,
-      from: (diff) => DiffResult(Optional(diff.value), diff.diff),
-      update: (old, nu, diff) => DiffResult(nu.unwrap, diff),
+    return thenOpt(
+      OptLens(['value'], (t) => t, (t, f) => t.map(f)),
+      errorMsg: () => 'Tried to unwrap optional value which is not present.',
     );
   }
 
   Cursor<T> orElse(T defaultValue) => then(Lens(
-        Path.empty(),
+        ['value'],
         (t) => t.orElse(defaultValue),
         (t, f) => Optional(f(t.orElse(defaultValue))),
       ));
 
-  Cursor<Optional<S>> optionalCast<S extends T>() {
-    if (S == T) return this as Cursor<Optional<S>>;
-    assert(
-      this.read(Ctx.empty).unwrap is S?,
-      'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S',
-    );
-    return partial(
-      to: (s) => s.unwrap is S? ? Optional.fromNullable(s.unwrap as S?) : null,
-      from: (s1) => s1,
-      update: (_, nu, diff) =>
-          DiffResult(nu.unwrap is S? ? Optional.fromNullable(nu.unwrap as S?) : null, diff),
-    );
-  }
+  Cursor<Optional<S>> optionalCast<S extends T>() => thenOpt(
+        OptLens(
+          [],
+          (t) => t.unwrap is S? ? Optional(Optional.fromNullable(t.unwrap as S?)) : Optional.none(),
+          (t, f) => f(t.map((t) => t as S)),
+        ),
+        errorMsg: () => 'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S',
+      );
 }
