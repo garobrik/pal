@@ -12,7 +12,7 @@ part 'text.g.dart';
 final textWidget = widget.def.instantiate({
   widget.nameID: 'Text',
   widget.typeID: widget.datumOr(pal.Union({pal.text, pal.optionType(pal.text)})),
-  widget.defaultDataID: ({required Ctx ctx}) => widget.datumOr.instantiate(
+  widget.defaultDataID: (Ctx ctx, Object _) => widget.datumOr.instantiate(
         type: pal.Union({pal.text, pal.optionType(pal.text)}),
         data: const pal.Value(pal.text, ''),
       ),
@@ -20,12 +20,8 @@ final textWidget = widget.def.instantiate({
 });
 
 @reader
-Widget _textWidget(
-  BuildContext context,
-  Cursor<Object> datumOrText, {
-  required Ctx ctx,
-}) {
-  final text = widget.evalDatumOr(ctx, datumOrText);
+Widget _textWidget(BuildContext context, Ctx ctx, Object datumOrText) {
+  final text = widget.evalDatumOr(ctx, datumOrText as Cursor<Object>);
 
   late final Widget child;
   if (ctx.widgetMode == widget.Mode.edit) {

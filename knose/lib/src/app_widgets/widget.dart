@@ -53,10 +53,8 @@ Widget _widgetRenderer(
         },
         (t, f) => f(t),
       ));
-  final build = instance
-      .recordAccess(widget.instanceWidgetID)
-      .recordAccess(widget.buildID)
-      .read(ctx) as widget.BuildFn;
+  final build =
+      instance.recordAccess(widget.instanceWidgetID).recordAccess(widget.buildID).read(ctx);
 
   final isOpen = useCursor(false);
   final dropdownFocus = useFocusNode();
@@ -80,7 +78,7 @@ Widget _widgetRenderer(
           ctx: ctx.withDefaultFocus(dropdownFocus),
           instance: instance,
         ),
-        child: build(data, ctx: ctx),
+        child: build.callFn(ctx, data) as Widget,
       ),
     ),
   );

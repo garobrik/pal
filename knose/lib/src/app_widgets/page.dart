@@ -51,7 +51,7 @@ final pageDataDef = pal.DataDef(
 final pageWidget = widget.def.instantiate({
   widget.nameID: 'Page',
   widget.typeID: pageDataDef.asType(),
-  widget.defaultDataID: ({required Ctx ctx}) => pageDataDef.instantiate({
+  widget.defaultDataID: (Ctx ctx, Object _) => pageDataDef.instantiate({
         pageModeID: pal.UnionTag(pageLiteralID, Vec([widget.defaultInstance(ctx, textWidget)])),
         pageTitleID: 'Untitled page',
       }),
@@ -59,12 +59,8 @@ final pageWidget = widget.def.instantiate({
 });
 
 @reader
-Widget _pageWidget(
-  BuildContext context,
-  Cursor<Object> data, {
-  required Ctx ctx,
-}) {
-  return data.recordAccess(pageModeID).dataCases(ctx, {
+Widget _pageWidget(BuildContext context, Ctx ctx, Object data) {
+  return (data as Cursor<Object>).recordAccess(pageModeID).dataCases(ctx, {
     pageLiteralID: (unionValue) {
       final widgets = unionValue.cast<Vec<Object>>();
 

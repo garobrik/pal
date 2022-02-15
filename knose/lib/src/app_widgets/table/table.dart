@@ -23,7 +23,7 @@ final tableDataDef = pal.DataDef.record(
 final tableWidget = widget.def.instantiate({
   widget.nameID: 'Table',
   widget.typeID: tableDataDef.asType(),
-  widget.defaultDataID: ({required Ctx ctx}) {
+  widget.defaultDataID: (Ctx ctx, Object _) {
     final table = model.Table.newDefault();
     ctx.db.update(table.id, table);
 
@@ -36,12 +36,8 @@ final tableWidget = widget.def.instantiate({
 });
 
 @reader
-Widget _mainTableWidget(
-  BuildContext context,
-  Cursor<Object> tableData, {
-  required Ctx ctx,
-}) {
-  final tableID = tableData.recordAccess(_tableID).read(ctx) as model.TableID;
+Widget _mainTableWidget(BuildContext context, Ctx ctx, Object tableData) {
+  final tableID = (tableData as Cursor<Object>).recordAccess(_tableID).read(ctx) as model.TableID;
   final table = ctx.db.get(tableID).whenPresent;
 
   return Container(

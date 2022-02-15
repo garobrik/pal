@@ -13,17 +13,13 @@ part 'list.g.dart';
 final listWidget = widget.def.instantiate({
   widget.nameID: 'List',
   widget.typeID: pal.List(widget.instance),
-  widget.defaultDataID: ({required Ctx ctx}) => Vec([widget.defaultInstance(ctx, textWidget)]),
+  widget.defaultDataID: (Ctx ctx, Object _) => Vec([widget.defaultInstance(ctx, textWidget)]),
   widget.buildID: ListWidget.new,
 });
 
 @reader
-Widget _listWidget(
-  BuildContext context,
-  Cursor<Object> list, {
-  required Ctx ctx,
-}) {
-  final widgets = list.cast<Vec<Object>>();
+Widget _listWidget(BuildContext context, Ctx ctx, Object list) {
+  final widgets = (list as Cursor<Object>).cast<Vec<Object>>();
 
   GetCursor<widget.ID> widgetID(GetCursor<Object> widgetDef) => GetCursor.compute(
         (ctx) => widgetDef.recordAccess(widget.instanceIDID).cast<widget.ID>().read(ctx),

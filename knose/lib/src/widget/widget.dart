@@ -68,11 +68,11 @@ final instanceDef = pal.DataDef.record(
 final flutterWidgetDef = pal.InterfaceDef(name: 'FlutterWidget', members: []);
 
 Object defaultInstance(Ctx ctx, Object widget) {
-  final defaultData = widget.recordAccess(defaultDataID) as DefaultDataFn;
+  final defaultData = widget.recordAccess(defaultDataID);
   return instanceDef.instantiate({
     instanceIDID: ID.create(),
     instanceWidgetID: widget,
-    instanceDataID: defaultData(ctx: ctx),
+    instanceDataID: defaultData.callFn(ctx, pal.unit),
   });
 }
 
