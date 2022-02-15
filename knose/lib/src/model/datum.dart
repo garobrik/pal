@@ -16,35 +16,5 @@ abstract class Datum {
 
   pal.Type type(Ctx ctx);
 
-  Cursor<Object>? build(Ctx ctx);
+  Cursor<Object>? value(Ctx ctx);
 }
-
-// @immutable
-// @reify
-// class Literal extends Datum with _LiteralMixin {
-//   const Literal({
-//     required this.typeData,
-//     required this.data,
-//     required this.fieldName,
-//   });
-
-//   @override
-//   final String fieldName;
-
-//   @override
-//   final Object data;
-
-//   @override
-//   final PalType typeData;
-
-//   @override
-//   PalType type(Ctx ctx) => typeData;
-
-//   @override
-//   Cursor<Object>? build(Reader reader, Ctx ctx) {
-//     return ctx.state.getNode(nodeView).fields[fieldName].whenPresent.cast<Literal>().data;
-//   }
-
-//   @override
-//   String name(Reader reader, Ctx ctx) => 'Literal';
-// }

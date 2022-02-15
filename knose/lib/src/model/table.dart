@@ -246,7 +246,7 @@ class _TableDatum extends Datum {
   const _TableDatum(this.tableID, this.columnID);
 
   @override
-  Cursor<Object>? build(Ctx ctx) {
+  Cursor<Object>? value(Ctx ctx) {
     final rowCtx = ctx.get<_RowCtx>();
     if (rowCtx == null) return null;
     final rowID = rowCtx.rowID;

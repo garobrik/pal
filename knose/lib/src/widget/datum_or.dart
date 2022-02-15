@@ -42,7 +42,7 @@ Cursor<Object>? evalDatumOr(Ctx ctx, Cursor<Object> datumOr) {
   return datumOr.recordAccess(datumOrDataID).dataCases(ctx, {
     datumOrDatumID: (obj) {
       final datum = obj.read(ctx) as model.Datum;
-      final result = datum.build(ctx);
+      final result = datum.value(ctx);
       final datumType = datum.type(ctx);
       final datumOrType = datumOr.recordAccess(datumOrTypeID).read(ctx) as pal.Type;
       if (datumType.isConcrete && !datumOrType.isConcrete) {
