@@ -103,10 +103,14 @@ abstract class Cursor<S> implements GetCursor<S> {
 }
 
 extension GetCursorPartial<S> on GetCursor<S> {
-  GetCursor<S1> cast<S1 extends S>() => thenOptGet(
-        OptGetter([], (s) => s is S1 ? Optional(s) : Optional.none()),
-        errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
-      );
+  GetCursor<S1> cast<S1 extends S>() {
+    if (this is GetCursor<S1>) return this as GetCursor<S1>;
+
+    return thenOpt(
+      OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
+      errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
+    );
+  }
 }
 
 extension CursorPartial<S> on Cursor<S> {

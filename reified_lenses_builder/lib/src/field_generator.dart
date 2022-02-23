@@ -20,21 +20,21 @@ Iterable<Optic> generateFieldOptics(
     return [
       Optic(
         kind: kind,
-        generateAccessors: (wrapper, parentKind) => [
+        generateAccessors: (wrapper) => [
           AccessorPair(
             f.name,
             getter: Getter(
               f.name,
               wrapper(f.type),
               body: call(
-                parentKind.thenMethod,
+                kind.thenMethod,
                 [
                   call(
-                      parentKind.fieldCtor,
+                      kind.fieldCtor,
                       [
                         "const ['${f.name}']",
                         '(_t) => _t.${f.name}',
-                        if (parentKind == OpticKind.lens)
+                        if (kind == OpticKind.lens)
                           '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
                       ],
                       typeArgs: f.type.typeEquals(Type.dynamic) ? [clazz.type, f.type] : [])

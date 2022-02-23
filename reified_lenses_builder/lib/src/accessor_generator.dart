@@ -33,18 +33,18 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
     return [
       Optic(
         kind: kind,
-        generateAccessors: (wrapper, parentKind) => [
+        generateAccessors: (wrapper) => [
           AccessorPair(a.name,
               getter: Getter(
                 a.name,
                 wrapper(getter.returnType),
-                body: call(parentKind.thenMethod, [
+                body: call(kind.thenMethod, [
                   call(
-                      parentKind.fieldCtor,
+                      kind.fieldCtor,
                       [
                         "const ['${a.name}']",
                         '(_t) => _t.${a.name}',
-                        if (parentKind == OpticKind.lens)
+                        if (kind == OpticKind.lens)
                           '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',
                       ],
                       typeArgs: a.getter!.returnType.typeEquals(Type.dynamic)

@@ -65,16 +65,16 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
         generateMethods: (wrapper, parentKind) {
           late final String body;
           if (mutatedBody == null) {
-            body = call(parentKind.fieldCtor, [
+            body = call(kind.fieldCtor, [
               pathExpression,
               '($stateArg) => $getBody',
-              if (parentKind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
+              if (kind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
             ]);
           } else {
-            body = call(parentKind.ctor, [
+            body = call(kind.ctor, [
               pathExpression,
               '($stateArg) => $getBody',
-              if (parentKind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
+              if (kind == OpticKind.lens) '($stateArg, $updateArg) => $mutBody',
             ]);
           }
 
@@ -83,7 +83,7 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
               m.name,
               returnType: wrapper(m.returnType!),
               isExpression: true,
-              body: call(parentKind.thenMethod, [body]),
+              body: call(kind.thenMethod, [body]),
               params: m.params,
               typeParams: m.typeParams,
             ),

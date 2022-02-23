@@ -98,7 +98,7 @@ class OpticComposer {
       wrapper(clazz.type),
       params: params,
       methods: opticsOfKind.expand((optic) => optic.generateMethods(wrapper, kind)),
-      accessors: opticsOfKind.expand((optic) => optic.generateAccessors(wrapper, kind)),
+      accessors: opticsOfKind.expand((optic) => optic.generateAccessors(wrapper)),
     );
   }
 }

@@ -36,8 +36,8 @@ class Optional<Value> extends Iterable<Value> {
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
-  GetCursor<T> get whenPresent => thenOptGet(
-        OptGetter(['value'], (t) => t),
+  GetCursor<T> get whenPresent => thenOpt(
+        OptLens(['value'], (t) => t, (t, f) => t.map(f)),
         errorMsg: () => 'Tried to unwrap optional value which is not present.',
       );
 

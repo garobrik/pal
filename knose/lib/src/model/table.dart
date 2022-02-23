@@ -324,7 +324,7 @@ final valueColumnImpl = pal.Impl(
     columnImplGetNameID: pal.Literal(
       columnImplGetNameType,
       (Ctx ctx, Object arg) =>
-          '${(arg as Cursor<Object>).palValue().recordAccess(valueColumnTypeID).read(ctx)} Column',
+          '${(arg as GetCursor<Object>).palValue().recordAccess(valueColumnTypeID).read(ctx)} Column',
     ),
     columnImplGetDataID: pal.Literal(
       columnImplGetDataType,

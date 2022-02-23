@@ -550,22 +550,25 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     return this.cast<Dict<MemberID, Object>>()[member].whenPresent;
   }
 
+  GetCursor<MemberID> get dataCase => this.cast<UnionTag>().tag;
+
   T dataCases<T>(Ctx ctx, dart.Map<MemberID, T Function(GetCursor<Object>)> cases) {
     final unionTag = this.cast<UnionTag>();
     final currentTag = unionTag.tag.read(ctx);
-    return cases[currentTag]!(unionTag.thenOptGet(
-      OptGetter(
+    return cases[currentTag]!(unionTag.thenOpt(
+      OptLens(
         const ['value'],
         (t) => t.tag == currentTag ? Optional(t.value) : const Optional.none(),
+        (t, f) => UnionTag(t.tag, f(t.value)),
       ),
     ));
   }
 
   Object interfaceAccess(Ctx ctx, MemberID member) => this.read(ctx).interfaceAccess(ctx, member);
 
-  GetCursor<Type> palType() {
-    return this.cast<Value>().type;
-  }
+  GetCursor<Type> palType() => this.cast<Value>().type;
+
+  GetCursor<Object> palValue() => this.cast<Value>().value;
 }
 
 extension PalValueCursorExtensions on Cursor<Object> {
@@ -595,13 +598,9 @@ extension PalValueCursorExtensions on Cursor<Object> {
 
   Object interfaceAccess(Ctx ctx, MemberID member) => this.read(ctx).interfaceAccess(ctx, member);
 
-  Cursor<Type> palType() {
-    return this.cast<Value>().type;
-  }
+  Cursor<Type> palType() => this.cast<Value>().type;
 
-  Cursor<Object> palValue() {
-    return this.cast<Value>().value;
-  }
+  Cursor<Object> palValue() => this.cast<Value>().value;
 }
 
 typedef DartFnType = Object Function(Ctx ctx, Object arg);
