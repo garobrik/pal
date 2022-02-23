@@ -11,7 +11,15 @@ abstract class GetCursor<S> {
   }) =>
       StateCursor(_ComputedState(computation, ctx: ctx, compare: compare), Getter.identity());
 
+  GetCursor<S1> then<S1>(Lens<S, S1> lens) => thenGet(lens);
+
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
+
+  GetCursor<S1> thenOpt<S1>(
+    OptLens<S, S1> lens, {
+    String Function() errorMsg = _defaultThenOptErrorMsg,
+  }) =>
+      thenOptGet(lens);
 
   GetCursor<S1> thenOptGet<S1>(OptGetter<S, S1> getter, {String Function() errorMsg});
 
@@ -74,8 +82,10 @@ abstract class Cursor<S> implements GetCursor<S> {
   factory Cursor.compute(Cursor<S> Function(Ctx) computation, {required Ctx ctx}) =>
       GetCursor.compute(computation, ctx: ctx).flatten;
 
+  @override
   Cursor<S2> then<S2>(Lens<S, S2> lens);
 
+  @override
   Cursor<S1> thenOpt<S1>(OptLens<S, S1> getter, {String Function() errorMsg});
 
   void set(S s) => mut((_) => s);
