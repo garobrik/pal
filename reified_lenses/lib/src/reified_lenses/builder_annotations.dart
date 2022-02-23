@@ -13,6 +13,12 @@ enum ReifiedKind {
   union,
 }
 
+class GetterAnnotation {
+  const GetterAnnotation();
+}
+
+const getter = GetterAnnotation();
+
 class ReifiedLens {
   final bool allFields;
   final ReifiedKind type;

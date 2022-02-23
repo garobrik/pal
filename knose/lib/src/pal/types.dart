@@ -408,6 +408,7 @@ class DataDef {
 @reify
 class UnionTag with _UnionTagMixin {
   @override
+  @getter
   final MemberID tag;
   @override
   @skip

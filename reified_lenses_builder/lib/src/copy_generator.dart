@@ -25,10 +25,14 @@ Pair<Class?, Iterable<Field>> maybeGenerateCopyWithExtension(StringBuffer output
 // the nifty undefined trick used here for capturing the difference between explicitly passing null
 // vs omitting an argument is copied from https://github.com/rrousselGit/freezed, thanks remi!
 Pair<Getter, Iterable<Field>> _generateConcreteCopyWithFunction(
-    Class clazz, Constructor constructor) {
-  final params = constructor.params
-      .map((p) => Param(p.type.withNullable(true), p.name, isNamed: true, isRequired: false));
-  final paramsAsObject = constructor.params.map(
+  Class clazz,
+  Constructor constructor,
+) {
+  final paramsNoSkip = constructor.params.where((p) {
+    final field = clazz.fields.firstWhere((f) => f.name == p.name);
+    return !field.hasAnnotation(Skip) && !field.hasAnnotation(GetterAnnotation);
+  }).map((p) => Param(p.type.withNullable(true), p.name, isNamed: true, isRequired: false));
+  final paramsAsObject = paramsNoSkip.map(
     (p) => Param(
       Type.object.withNullable(true),
       p.name,
@@ -37,10 +41,13 @@ Pair<Getter, Iterable<Field>> _generateConcreteCopyWithFunction(
       defaultValue: 'undefined',
     ),
   );
-  Type functionType = FunctionType.fromParams(returnType: constructor.parent.type, params: params);
+  Type functionType =
+      FunctionType.fromParams(returnType: constructor.parent.type, params: paramsNoSkip);
   final constructorArgs = constructor.params.map(
     (p) {
-      final body = '${p.name} == undefined ? this.${p.name} : ${p.name} as ${p.type}';
+      final skipField = clazz.fields.firstWhere((f) => f.name == p.name).hasAnnotation(Skip);
+      final body =
+          skipField ? p.name : '${p.name} == undefined ? this.${p.name} : ${p.name} as ${p.type}';
       return p.isNamed ? '${p.name}: $body,' : '$body,';
     },
   );
@@ -53,7 +60,7 @@ Pair<Getter, Iterable<Field>> _generateConcreteCopyWithFunction(
 
   return Pair(
     getter,
-    constructor.params.map((p) => clazz.fields.firstWhere((f) => f.name == p.name)),
+    paramsNoSkip.map((p) => clazz.fields.firstWhere((f) => f.name == p.name)),
   );
 }
 
@@ -80,12 +87,8 @@ Constructor? _findCopyConstructor(Class clazz) {
 
 bool _canCopyConstruct(Class clazz, Constructor constructor) {
   return constructor.params.every(
-        (p) => clazz.fields.any(
-          (f) =>
-              f.name == p.name &&
-              f.type.withNullable(false).typeEquals(p.type.withNullable(false)) &&
-              !f.hasAnnotation(Skip),
-        ),
+        (p) => clazz.fields.any((f) =>
+            f.name == p.name && f.type.withNullable(false).typeEquals(p.type.withNullable(false))),
       ) &&
       clazz.fields.where((f) => !f.hasAnnotation(Skip)).every(
             (f) => constructor.params.any(
