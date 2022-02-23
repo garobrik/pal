@@ -36,8 +36,8 @@ final tableWidget = widget.def.instantiate({
 });
 
 @reader
-Widget _mainTableWidget(BuildContext context, Ctx ctx, Object tableData) {
-  final tableID = (tableData as Cursor<Object>).recordAccess(_tableID).read(ctx) as model.TableID;
+Widget _mainTableWidget(BuildContext context, Ctx ctx, Object data) {
+  final tableID = (data as GetCursor<Object>).recordAccess(_tableID).read(ctx) as model.TableID;
   final table = ctx.db.get(tableID).whenPresent;
 
   return Container(
