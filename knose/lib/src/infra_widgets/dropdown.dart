@@ -8,6 +8,54 @@ import 'package:knose/infra_widgets.dart';
 part 'dropdown.g.dart';
 
 @reader
+Widget _dropdownMenu<T>(
+  BuildContext context, {
+  required Iterable<T> items,
+  required Widget Function(T) buildItem,
+  required Widget child,
+  required T currentItem,
+  required void Function(T) onItemSelected,
+  bool enabled = true,
+  ButtonStyle? style,
+  FocusNode? buttonFocus,
+  Offset offset = Offset.zero,
+  Alignment childAnchor = Alignment.bottomLeft,
+  Alignment dropdownAnchor = Alignment.topLeft,
+}) {
+  final focusNodeFor = useMemoized(() {
+    final foci = <T, FocusNode>{};
+    return (T item) {
+      return foci.putIfAbsent(item, () => FocusNode());
+    };
+  });
+
+  return TextButtonDropdown(
+    enabled: enabled,
+    style: style,
+    buttonFocus: buttonFocus,
+    dropdownFocus: focusNodeFor(currentItem),
+    offset: offset,
+    childAnchor: childAnchor,
+    dropdownAnchor: dropdownAnchor,
+    dropdown: IntrinsicWidth(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final item in items)
+            TextButton(
+              onPressed: () => onItemSelected(item),
+              focusNode: focusNodeFor(item),
+              child: buildItem(item),
+            )
+        ],
+      ),
+    ),
+    child: child,
+  );
+}
+
+@reader
 Widget _textButtonDropdown(
   BuildContext context, {
   required Widget child,
