@@ -19,7 +19,7 @@ abstract class GetCursor<S> {
     OptLens<S, S1> lens, {
     String Function() errorMsg = _defaultThenOptErrorMsg,
   }) =>
-      thenOptGet(lens);
+      thenOptGet(lens, errorMsg: errorMsg);
 
   GetCursor<S1> thenOptGet<S1>(OptGetter<S, S1> getter, {String Function() errorMsg});
 
