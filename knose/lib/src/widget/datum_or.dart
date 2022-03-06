@@ -83,7 +83,7 @@ Widget _editDatumOr({
               TextButton(
                 onPressed: () => datumOr.recordAccess(datumOrDataID).set(pal.UnionTag(
                       datumOrLiteralID,
-                      datumOr.recordAccess(datumOrDefaultID),
+                      datumOr.recordAccess(datumOrDefaultID).read(Ctx.empty),
                     )),
                 child: const Text('Literal'),
               )
