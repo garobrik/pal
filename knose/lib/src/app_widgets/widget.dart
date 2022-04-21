@@ -34,7 +34,7 @@ Route generateWidgetRoute(
 Widget _widgetRenderer(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<Object> instance,
+  required GetCursor<Object> instance,
 }) {
   final currentName =
       instance.recordAccess(widget.instanceWidgetID).recordAccess(widget.nameID).read(ctx);
@@ -62,7 +62,12 @@ Widget _widgetRenderer(
   return Actions(
     actions: {
       ConfigureNodeViewIntent: CallbackAction<ConfigureNodeViewIntent>(
-        onInvoke: (_) => isOpen.set(true),
+        onInvoke: (_) {
+          if (instance is Cursor<Object>) {
+            isOpen.set(true);
+          }
+          return null;
+        },
       ),
     },
     child: Shortcuts(
@@ -74,9 +79,12 @@ Widget _widgetRenderer(
         dropdownFocus: dropdownFocus,
         isOpen: isOpen,
         childAnchor: Alignment.bottomLeft,
-        dropdown: WidgetConfigWidget(
-          ctx: ctx.withDefaultFocus(dropdownFocus),
-          instance: instance,
+        dropdown: ReaderWidget(
+          ctx: ctx,
+          builder: (_, ctx) => WidgetConfigWidget(
+            ctx: ctx.withDefaultFocus(dropdownFocus),
+            instance: instance as Cursor<Object>,
+          ),
         ),
         child: build.callFn(ctx, data) as Widget,
       ),
@@ -102,36 +110,6 @@ Widget _widgetConfigWidget({
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // for (final fieldName in fields.mapKeys().read(ctx))
-        //   ReaderWidget(
-        //     ctx: ctx,
-        //     builder: (_, ctx) {
-        //       return TextButtonDropdown(
-        //         dropdown: IntrinsicWidth(
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.stretch,
-        //             children: [
-        //               for (final dataSource in ctx.ofType<model.DataSource>())
-        //                 for (final datum in dataSource.data.read(ctx))
-        //                   if (datum.type(ctx).assignableTo(
-        //                         ctx,
-        //                         fieldTypes.mapAccess(fieldName).whenPresent.read(ctx) as pal.Type,
-        //                       ))
-        //                     TextButton(
-        //                       onPressed: () => fields
-        //                           .mapAccess(fieldName)
-        //                           .set(Optional(pal.Value(pal.datumDef.asType(), datum))),
-        //                       child: Text(datum.name(ctx)),
-        //                     ),
-        //             ],
-        //           ),
-        //         ),
-        //         buttonFocus: firstFieldName == fieldName ? ctx.defaultFocus : null,
-        //         child: Text('$fieldName: ' //+ fields[fieldName].whenPresent.read(ctx).name(ctx),
-        //             ),
-        //       );
-        //     },
-        //   ),
         TextButtonDropdown(
           childAnchor: Alignment.topRight,
           dropdown: IntrinsicWidth(
