@@ -55,13 +55,21 @@ Cursor<Object>? evalDatumOr(Ctx ctx, Cursor<Object> datumOr) {
 }
 
 @reader
-Widget _editDatumOr({
+Widget _editDatumOr(
+  BuildContext context, {
   required Cursor<Object> datumOr,
   required Ctx ctx,
   ButtonStyle? style,
 }) {
   return TextButtonDropdown(
-    style: style,
+    style: (style ?? const ButtonStyle()).copyWith(
+      minimumSize: style?.minimumSize ??
+          MaterialStateProperty.all(
+            Size(0, Theme.of(context).buttonTheme.height),
+          ),
+      padding: style?.padding ??
+          MaterialStateProperty.all(const EdgeInsetsDirectional.only(start: 0, end: 0)),
+    ),
     dropdown: IntrinsicWidth(
       child: ReaderWidget(
         ctx: ctx,
