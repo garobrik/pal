@@ -163,7 +163,7 @@ class RecordAccess extends Expr {
   final Expr target;
   final MemberID member;
 
-  RecordAccess(this.member, {this.target = thisRecord});
+  const RecordAccess(this.member, {this.target = thisRecord});
 
   @override
   Type evalType(Ctx ctx) {

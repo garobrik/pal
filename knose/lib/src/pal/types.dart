@@ -570,6 +570,8 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
   GetCursor<Type> palType() => this.cast<Value>().type;
 
   GetCursor<Object> palValue() => this.cast<Value>().value;
+
+  Object callFn(Ctx ctx, Object arg) => this.read(ctx).callFn(ctx, arg);
 }
 
 extension PalValueCursorExtensions on Cursor<Object> {
