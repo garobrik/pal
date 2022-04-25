@@ -12,7 +12,12 @@ class DB with _DBMixin {
   const DB([this.cache = const Dict()]);
 
   DB merge(DB other) {
-    return DB(cache.merge(other.cache));
+    return DB(cache.merge(other.cache, onConflict: (a, b) => a.merge(b)));
+  }
+
+  @override
+  String toString() {
+    return cache.toString();
   }
 }
 
