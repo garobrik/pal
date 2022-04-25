@@ -9,3 +9,4 @@ export 'src/infra_widgets/divider.dart';
 export 'src/infra_widgets/inherited_value.dart';
 export 'src/infra_widgets/deferred_paint.dart';
 export 'src/infra_widgets/focus_trap.dart';
+export 'src/infra_widgets/aligned_widget_span.dart';

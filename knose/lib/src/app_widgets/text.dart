@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:knose/app_widgets.dart';
+import 'package:knose/infra_widgets.dart';
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
 
@@ -27,14 +28,7 @@ Widget _textWidget(BuildContext context, Ctx ctx, Object datumOrText) {
   if (ctx.widgetMode == widget.Mode.edit) {
     child = Text.rich(TextSpan(children: [
       const TextSpan(text: 'TextWidget(value: '),
-      WidgetSpan(
-        alignment: PlaceholderAlignment.baseline,
-        baseline: TextBaseline.alphabetic,
-        child: widget.EditDatumOr(
-          ctx: ctx,
-          datumOr: datumOrText,
-        ),
-      ),
+      AlignedWidgetSpan(widget.EditDatumOr(ctx: ctx, datumOr: datumOrText)),
       const TextSpan(text: ')'),
     ]));
   } else if (text != null) {
