@@ -21,7 +21,7 @@ Widget _reorderResizeable({
   final grabbedChild = useState<int?>(null);
   final animations = useCursor(const Dict<int, AnimationController>({}));
   useEffect(
-    () => () => animations.read(Ctx.empty).forEach((entry) => entry.value.dispose()),
+    () => () => animations.read(Ctx.empty).entries.forEach((entry) => entry.value.dispose()),
     [0],
   );
 
@@ -93,7 +93,7 @@ Widget _reorderResizeable({
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).entries.forEach((entry) => entry.value.value = 0);
           },
           onDragCompleted: () {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -101,7 +101,7 @@ Widget _reorderResizeable({
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).entries.forEach((entry) => entry.value.value = 0);
           },
           onDragEnd: (_) {
             if (grabbedPosition.value! != grabbedChild.value!) {
@@ -109,7 +109,7 @@ Widget _reorderResizeable({
             }
             grabbedPosition.value = null;
             grabbedChild.value = null;
-            animations.read(Ctx.empty).forEach((entry) => entry.value.value = 0);
+            animations.read(Ctx.empty).entries.forEach((entry) => entry.value.value = 0);
           },
           data: i,
           axis: direction,

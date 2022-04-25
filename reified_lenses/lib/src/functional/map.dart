@@ -5,15 +5,13 @@ part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.map)
-class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
-    with _DictMixin<Key, Value> {
+class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
   @override
   @skip
   final Map<Key, Value> _values;
 
   const Dict([this._values = const {}]);
 
-  @override
   @reify
   int get length => _values.length;
 
@@ -94,10 +92,7 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
   }
 
   @override
-  Iterator<MapEntry<Key, Value>> get iterator => _values.entries.iterator;
-
-  @override
-  Iterable<MapEntry<Key, Value>> get entries => this;
+  Iterable<MapEntry<Key, Value>> get entries => _values.entries;
 
   @override
   String toString() {
@@ -114,14 +109,31 @@ class Dict<Key extends Object, Value> extends Iterable<MapEntry<Key, Value>>
   bool operator ==(Object other) {
     if (other is! Dict<Key, Value>) return false;
     if (other.length != length) return false;
-    for (final pair in zip(this, other)) {
-      if (pair.first.key != pair.second.key || pair.first.value != pair.second.value) return false;
+    for (final entry in this.entries) {
+      if (other[entry.key] != Optional(entry.value)) return false;
     }
     return true;
   }
 
   @override
-  int get hashCode => hash(this);
+  int get hashCode =>
+      hash(<Pair<Key, Value>>[for (final entry in entries) Pair(entry.key, entry.value)]);
 
-  Dict<Key, Value> merge(Dict<Key, Value> other) => Dict(Map.of(_values)..addAll(other._values));
+  Dict<Key, Value> merge(Dict<Key, Value> other, {Value Function(Value, Value)? onConflict}) {
+    final newMap = <Key, Value>{};
+    for (final entry in this.entries) {
+      final otherValue = other[entry.key];
+      newMap[entry.key] = otherValue.cases(
+        some: (otherValue) =>
+            onConflict == null ? entry.value : onConflict(entry.value, otherValue),
+        none: () => entry.value,
+      );
+    }
+    newMap.addAll({
+      for (final entry in other.entries)
+        if (this[entry.key].isEmpty) entry.key: entry.value
+    });
+
+    return Dict(newMap);
+  }
 }
