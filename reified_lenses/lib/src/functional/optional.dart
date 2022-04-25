@@ -36,6 +36,12 @@ class Optional<Value> extends Iterable<Value> {
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
+  GetCursor<bool> get isEmpty => GetCursor.compute(
+        (ctx) => this.read(ctx).isEmpty,
+        ctx: Ctx.empty,
+        compare: true,
+      );
+
   GetCursor<T> get whenPresent => thenOpt(
         OptLens(['value'], (t) => t, (t, f) => t.map(f)),
         errorMsg: () => 'Tried to unwrap optional value which is not present.',
@@ -43,6 +49,18 @@ extension GetCursorOptional<T> on GetCursor<Optional<T>> {
 
   GetCursor<bool> get isPresent =>
       GetCursor.compute((ctx) => this.read(ctx).isPresent, ctx: Ctx.empty, compare: true);
+
+  T0 cases<T0>(
+    Ctx ctx, {
+    required T0 Function(GetCursor<T>) some,
+    required T0 Function() none,
+  }) {
+    if (this.isEmpty.read(ctx)) {
+      return none();
+    } else {
+      return some(this.whenPresent);
+    }
+  }
 }
 
 extension CursorOptional<T> on Cursor<Optional<T>> {
@@ -67,4 +85,16 @@ extension CursorOptional<T> on Cursor<Optional<T>> {
         ),
         errorMsg: () => 'Tried to cast cursor of current type ${this.type(Ctx.empty)} to $S',
       );
+
+  T0 cases<T0>(
+    Ctx ctx, {
+    required T0 Function(Cursor<T>) some,
+    required T0 Function() none,
+  }) {
+    if (this.isEmpty.read(ctx)) {
+      return none();
+    } else {
+      return some(this.whenPresent);
+    }
+  }
 }
