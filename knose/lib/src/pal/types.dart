@@ -20,6 +20,8 @@ abstract class Type {
   const Type();
 
   bool get isConcrete;
+
+  String string(Ctx ctx) => toString();
 }
 
 @reify
@@ -333,6 +335,11 @@ class DataType extends Type implements Traversible {
       assignments: {for (final entry in assignments.entries) entry.key: doTraverse(entry.value, f)},
     );
   }
+
+  @override
+  String string(Ctx ctx) {
+    return ctx.db.get(id).read(ctx).unwrap!.name;
+  }
 }
 
 class DataID extends ID<DataDef> {
@@ -402,6 +409,17 @@ class DataDef {
       }
     }
     return targetObj;
+  }
+
+  String memberName(MemberID member) {
+    final name = tree.memberName(member);
+    assert(name != null, 'Tried to look up unknown member $member in data def $name');
+    return name!;
+  }
+
+  @override
+  String toString() {
+    return 'DataDef(name: $name)';
   }
 }
 
@@ -483,6 +501,26 @@ abstract class TypeTree {
       }
     }
     return targetTree;
+  }
+
+  String? memberName(MemberID id) {
+    final tree = this;
+    late final dart.Map<MemberID, TypeTree> childMap;
+    if (tree is UnionNode) {
+      childMap = tree.elements;
+    } else if (tree is RecordNode) {
+      childMap = tree.elements;
+    } else {
+      childMap = const {};
+    }
+
+    for (final entry in childMap.entries) {
+      if (entry.key == id) return entry.value.name;
+      final childName = entry.value.memberName(id);
+      if (childName != null) return childName;
+    }
+
+    return null;
   }
 }
 
