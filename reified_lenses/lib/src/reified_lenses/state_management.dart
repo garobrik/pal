@@ -108,7 +108,7 @@ extension GetCursorPartial<S> on GetCursor<S> {
 
     return thenOpt(
       OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
-      errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
+      errorMsg: () => 'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
     );
   }
 }
@@ -129,13 +129,14 @@ extension CursorPartial<S> on Cursor<S> {
 
     return thenOpt(
       OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
-      errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
+      errorMsg: () => 'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
     );
   }
 
   Cursor<S1> upcast<S1>() => thenOpt(
         OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1) as S),
-        errorMsg: () => 'Tried to cast cursor of current type $S to $S1',
+        errorMsg: () =>
+            'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
       );
 }
 
