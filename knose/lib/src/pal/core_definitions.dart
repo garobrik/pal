@@ -12,6 +12,9 @@ final DB coreDB = () {
   for (final impl in _implementations) {
     db.update(impl.id, impl);
   }
+  for (final data in _data) {
+    db.update(data.id, data);
+  }
 
   return db.read(Ctx.empty);
 }();
@@ -21,6 +24,9 @@ final _interfaceTypes = <InterfaceDef>[
   cursorDef,
 ];
 final _implementations = <Impl>[];
+final _data = <DataDef>[
+  optionDef,
+];
 
 final memberIDDef = InterfaceDef(name: 'MemberID', members: []);
 
