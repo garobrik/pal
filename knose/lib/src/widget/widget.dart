@@ -1,4 +1,5 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/pal.dart' as pal;
 import 'package:flutter/widgets.dart' as flutter;
@@ -95,3 +96,16 @@ extension WidgetModeCtxExtension on Ctx {
   Ctx withWidgetMode(Mode mode) => withElement(_WidgetModeCtx(mode));
   Mode get widgetMode => get<_WidgetModeCtx>()?.mode ?? Mode.view;
 }
+
+final functionalWidget = def.instantiate({
+  nameID: 'FunctionalWidget',
+  typeID: pal.FnType(returnType: flutterWidgetDef.asType()),
+  defaultDataID: (Ctx ctx, Object _) => (Ctx ctx, Object _) => const Text('default'),
+  buildID: (Ctx ctx, Object fn) => (fn as GetCursor<Object>).callFn(ctx, pal.unit),
+});
+
+Object functional(Ctx ctx, Widget Function(Ctx) fn) =>
+    (defaultInstance(ctx, functionalWidget) as Dict<pal.MemberID, Object>).put(
+      instanceDataID,
+      (Ctx ctx, Object _) => fn(ctx),
+    );
