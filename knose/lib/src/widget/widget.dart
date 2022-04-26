@@ -21,7 +21,11 @@ final def = pal.DataDef.record(
   members: [
     pal.Member(id: nameID, name: 'name', type: pal.text),
     pal.Member(id: typeID, name: 'type', type: pal.type),
-    pal.Member(id: defaultDataID, name: 'defaultDataID', type: pal.RecordAccess(typeID)),
+    pal.Member(
+      id: defaultDataID,
+      name: 'defaultDataID',
+      type: pal.FnType(returnType: pal.RecordAccess(typeID)),
+    ),
     pal.Member(
       id: buildID,
       name: 'build',
