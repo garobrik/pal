@@ -16,8 +16,8 @@ Widget _stringField(
   return TableCellTextField(
     ctx: ctx,
     value: string,
-    toText: (Object value) => ((value as Optional<Object>).unwrap ?? '') as String,
-    parse: (text) => Optional(Optional(text)),
+    toText: (Object value) => value as String,
+    parse: (text) => Optional(text),
     expands: true,
     enabled: enabled,
   );

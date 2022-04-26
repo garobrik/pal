@@ -272,12 +272,15 @@ final valueColumnImpl = pal.Impl(
   }),
 );
 
-final textColumn =
-    valueColumn(pal.text, (ctx, obj) => StringField(obj as Cursor<Object>, ctx: ctx));
+final textColumn = valueColumn(
+  pal.text,
+  (ctx, obj) => StringField((obj as Cursor<Object>).cast<Optional<Object>>().orElse(''), ctx: ctx),
+);
 final numberColumn =
     valueColumn(pal.number, (ctx, obj) => NumField(obj as Cursor<Object>, ctx: ctx));
 final booleanColumn =
     valueColumn(pal.boolean, (ctx, obj) => BoolCell(obj as Cursor<Object>, ctx: ctx));
+
 final dataColumn = pal.Value(
   dataColumnDef.asType(),
   Dict({dataColumnTypeID: pal.text, dataColumnValuesID: const Dict<Object, Object>()}),
