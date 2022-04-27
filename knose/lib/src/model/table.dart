@@ -354,7 +354,11 @@ final listTableDataImpl = pal.Impl(
     ),
     tableDataGetConfigID: pal.Literal(
       tableDataGetConfigType,
-      (Ctx _, Object __) => const Optional<Widget>.none(),
+      (Ctx ctx, Object args) {
+        final column = args.mapAccess('column').unwrap! as Cursor<Column>;
+        final dataImpl = args.mapAccess('impl').unwrap! as Cursor<Object>;
+        return Optional(ListConfig(ctx: ctx, column: column, listImpl: dataImpl));
+      },
     ),
   }),
 );

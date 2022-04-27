@@ -200,13 +200,16 @@ Optional<Widget> columnSpecificConfiguration(
   final currentType = column.dataImpl.type.read(ctx);
   return getConfig.callFn(
     ctx,
-    column.dataImpl
-        .thenOpt<pal.Value>(OptLens(
-          const [],
-          (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
-          (t, f) => f(t),
-        ))
-        .value,
+    Dict({
+      'column': column,
+      'impl': column.dataImpl
+          .thenOpt<pal.Value>(OptLens(
+            const [],
+            (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
+            (t, f) => f(t),
+          ))
+          .value,
+    }),
   ) as Optional<Widget>;
 }
 
