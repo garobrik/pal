@@ -1,10 +1,11 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Table;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/table.dart' hide Column;
+import 'package:knose/table.dart' as table;
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
 
@@ -15,7 +16,7 @@ final _titleID = pal.MemberID();
 final tableRecordDef = pal.DataDef.record(
   name: 'TableData',
   members: [
-    pal.Member(id: _tableID, name: 'table', type: model.tableIDDef.asType()),
+    pal.Member(id: _tableID, name: 'table', type: tableIDDef.asType()),
     pal.Member(id: _titleID, name: 'title', type: pal.text),
   ],
 );
@@ -24,7 +25,7 @@ final tableWidget = widget.def.instantiate({
   widget.nameID: 'Table',
   widget.typeID: tableRecordDef.asType(),
   widget.defaultDataID: (Ctx ctx, Object _) {
-    final table = model.Table.newDefault();
+    final table = Table.newDefault();
     ctx.db.update(table.id, table);
 
     return tableRecordDef.instantiate({
@@ -37,7 +38,7 @@ final tableWidget = widget.def.instantiate({
 
 @reader
 Widget _mainTableWidget(BuildContext context, Ctx ctx, Object data) {
-  final tableID = (data as GetCursor<Object>).recordAccess(_tableID).read(ctx) as model.TableID;
+  final tableID = (data as GetCursor<Object>).recordAccess(_tableID).read(ctx) as TableID;
   final table = ctx.db.get(tableID).whenPresent;
 
   return Container(

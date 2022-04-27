@@ -1,9 +1,10 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Table;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/model.dart';
+import 'package:knose/table.dart' hide Column;
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -13,7 +14,7 @@ part 'config.g.dart';
 @reader
 Widget _tableConfig(
   BuildContext context, {
-  required Cursor<model.Table> table,
+  required Cursor<Table> table,
   required Ctx ctx,
 }) {
   return Row(
@@ -39,7 +40,7 @@ Widget _tableConfig(
                       onPressed: () => Navigator.pushNamed(
                         context,
                         '',
-                        arguments: model.WidgetRoute(
+                        arguments: WidgetRoute(
                           rowView.read(ctx),
                           ctx: ctx.withTable(table).withWidgetMode(widget.Mode.edit),
                         ),
@@ -58,7 +59,7 @@ Widget _tableConfig(
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.WidgetRoute(
+                    arguments: WidgetRoute(
                       widgetID,
                       ctx: ctx.withTable(table).withWidgetMode(widget.Mode.edit),
                     ),

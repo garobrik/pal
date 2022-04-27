@@ -6,6 +6,7 @@ import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
+import 'package:knose/table.dart' hide Column;
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
 

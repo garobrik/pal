@@ -1,10 +1,10 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Table;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:knose/app_widgets.dart';
 import 'package:reorderables/reorderables.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/model.dart';
+import 'package:knose/table.dart' hide Column;
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
 
@@ -13,7 +13,7 @@ part 'rows.g.dart';
 @reader
 Widget _tableRows({
   required Ctx ctx,
-  required Cursor<model.Table> table,
+  required Cursor<Table> table,
 }) {
   final scrollController = useScrollController();
 
@@ -41,8 +41,8 @@ Widget _tableRows({
 Widget _tableRow(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<model.Table> table,
-  required model.RowID rowID,
+  required Cursor<Table> table,
+  required RowID rowID,
   bool enabled = true,
   bool trailingNewColumnSpace = true,
 }) {
@@ -84,13 +84,12 @@ Widget _tableRow(
                         final column = table.columns[columnID].whenPresent;
                         final palImpl = pal.findImpl(
                           ctx,
-                          model.tableDataDef.asType(
-                            {model.tableDataImplementerID: column.dataImpl.type.read(ctx)},
+                          tableDataDef.asType(
+                            {tableDataImplementerID: column.dataImpl.type.read(ctx)},
                           ),
                         )!;
-                        final getWidget = palImpl.interfaceAccess(ctx, model.tableDataGetWidgetID);
-                        final getDefault =
-                            palImpl.interfaceAccess(ctx, model.tableDataGetDefaultID);
+                        final getWidget = palImpl.interfaceAccess(ctx, tableDataGetWidgetID);
+                        final getDefault = palImpl.interfaceAccess(ctx, tableDataGetDefaultID);
                         final defaultValue = getDefault.callFn(ctx, column.dataImpl.value);
                         return getWidget.callFn(
                           ctx,
@@ -140,7 +139,7 @@ Widget _openRowButton(
               Navigator.pushNamed(
                 context,
                 '',
-                arguments: model.WidgetRoute(
+                arguments: WidgetRoute(
                   widgetID,
                   ctx: ctx.withWidgetMode(widget.Mode.view),
                 ),

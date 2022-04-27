@@ -1,13 +1,13 @@
 import 'package:ctx/ctx.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
-import 'package:knose/app_widgets.dart';
+import 'package:knose/table.dart';
 import 'package:knose/model.dart';
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/uuid.dart';
 import 'package:knose/widget.dart' as widget;
 
-part 'table.g.dart';
+part 'core.g.dart';
 
 class TableID extends pal.ID<Table> {
   static const namespace = 'table';
@@ -205,159 +205,6 @@ class _TableDatum extends Datum {
   }
 }
 
-pal.Value valueTableData({
-  required pal.Type valueType,
-  required String name,
-  required Widget Function(Ctx ctx, Object rowData) getWidget,
-  required Object defaultValue,
-}) {
-  return pal.Value(
-    valueTableDataDef.asType(),
-    Dict({
-      valueTableDataTypeID: valueType,
-      valueTableDataNameID: name,
-      valueTableDataDefaultID: defaultValue,
-      valueTableDataGetWidgetID: getWidget,
-    }),
-  );
-}
-
-final valueTableDataTypeID = pal.MemberID();
-final valueTableDataNameID = pal.MemberID();
-final valueTableDataDefaultID = pal.MemberID();
-final valueTableDataGetWidgetID = pal.MemberID();
-final valueTableDataGetWidgetType = pal.MemberID();
-final valueTableDataDef = pal.DataDef.record(name: 'ValueTableData', members: [
-  pal.Member(id: valueTableDataTypeID, name: 'valueType', type: pal.type),
-  pal.Member(id: valueTableDataNameID, name: 'name', type: pal.text),
-  pal.Member(
-    id: valueTableDataDefaultID,
-    name: 'valueDefault',
-    type: pal.RecordAccess(valueTableDataTypeID),
-  ),
-  pal.Member(
-    id: valueTableDataGetWidgetID,
-    name: 'getWidget',
-    type: pal.FnType(
-      returnType: widget.flutterWidgetDef.asType(),
-      target: pal.cursorType(pal.RecordAccess(valueTableDataTypeID)),
-    ),
-  ),
-]);
-
-final valueTableDataImpl = pal.Impl(
-  implemented: tableDataDef.asType({tableDataImplementerID: valueTableDataDef.asType()}),
-  implementations: Dict({
-    tableDataGetTypeID: pal.Literal(
-      tableDataGetTypeType,
-      (Ctx ctx, Object arg) =>
-          (arg as GetCursor<Object>).recordAccess(valueTableDataTypeID).read(ctx),
-    ),
-    tableDataGetNameID: pal.Literal(
-      tableDataGetNameType,
-      (Ctx ctx, Object arg) =>
-          (arg as GetCursor<Object>).recordAccess(valueTableDataNameID).read(ctx),
-    ),
-    tableDataGetDefaultID: pal.Literal(
-      tableDataGetDefaultType,
-      (Ctx ctx, Object arg) =>
-          (arg as GetCursor<Object>).recordAccess(valueTableDataDefaultID).read(ctx),
-    ),
-    tableDataGetWidgetID: pal.Literal(
-      tableDataGetWidgetType,
-      (Ctx ctx, Object args) {
-        final impl = args.mapAccess('impl').unwrap! as Cursor<Object>;
-        final getWidget = impl.recordAccess(valueTableDataGetWidgetID).read(ctx);
-        return getWidget.callFn(ctx, args.mapAccess('rowData').unwrap!);
-      },
-    ),
-    tableDataGetConfigID: pal.Literal(
-      tableDataGetConfigType,
-      (Ctx _, Object __) => const Optional<Widget>.none(),
-    ),
-  }),
-);
-
-final textTableData = valueTableData(
-  valueType: pal.text,
-  name: 'Text',
-  getWidget: (ctx, obj) => StringField(obj as Cursor<Object>, ctx: ctx),
-  defaultValue: '',
-);
-final numberTableData = valueTableData(
-  valueType: pal.optionType(pal.number),
-  name: 'Number',
-  getWidget: (ctx, obj) => NumField(obj as Cursor<Object>, ctx: ctx),
-  defaultValue: const Optional<Object>.none(),
-);
-final booleanTableData = valueTableData(
-  valueType: pal.boolean,
-  name: 'Checkbox',
-  getWidget: (ctx, obj) => BoolCell(obj as Cursor<Object>, ctx: ctx),
-  defaultValue: false,
-);
-final listTableData = pal.Value(
-  listTableDataDef.asType(),
-  Dict<pal.MemberID, Object>({listTableDataElementID: textTableData}),
-);
-
-final listTableDataElementID = pal.MemberID();
-final listTableDataDef = pal.DataDef.record(name: 'ListTableData', members: [
-  pal.Member(id: listTableDataElementID, name: 'element', type: pal.Value),
-]);
-
-final listTableDataImpl = pal.Impl(
-  implemented: tableDataDef.asType({tableDataImplementerID: listTableDataDef.asType()}),
-  implementations: Dict({
-    tableDataGetTypeID: pal.Literal(
-      tableDataGetTypeType,
-      (Ctx ctx, Object arg) {
-        final impl = arg as GetCursor<Object>;
-        final elementDataImpl = impl.recordAccess(listTableDataElementID);
-        final palImpl = pal.findImpl(
-          ctx,
-          tableDataDef.asType({tableDataImplementerID: elementDataImpl.palType().read(ctx)}),
-        )!;
-        return pal.List(
-          palImpl.interfaceAccess(ctx, tableDataGetTypeID).callFn(ctx, elementDataImpl.palValue()),
-        );
-      },
-    ),
-    tableDataGetNameID: pal.Literal(
-      tableDataGetNameType,
-      (Ctx _, Object __) => 'List',
-    ),
-    tableDataGetDefaultID: pal.Literal(
-      tableDataGetDefaultType,
-      (Ctx _, Object __) => const Vec<Object>(),
-    ),
-    tableDataGetWidgetID: pal.Literal(
-      tableDataGetWidgetType,
-      (Ctx ctx, Object args) {
-        final impl = (args.mapAccess('impl').unwrap! as Cursor<Object>)
-            .recordAccess(listTableDataElementID)
-            .cast<pal.Value>();
-        final list = (args.mapAccess('rowData').unwrap! as Cursor<Object>);
-
-        return ListCell(
-          ctx: ctx,
-          list: list,
-          dataImpl: impl,
-          enabled: true,
-        );
-      },
-    ),
-    tableDataGetConfigID: pal.Literal(
-      tableDataGetConfigType,
-      (Ctx ctx, Object args) {
-        final column = args.mapAccess('column').unwrap! as Cursor<Column>;
-        final dataImpl = args.mapAccess('impl').unwrap! as Cursor<Object>;
-        return Optional(ListConfig(ctx: ctx, column: column, listImpl: dataImpl));
-      },
-    ),
-  }),
-);
-
 final tableDataImplementerID = pal.MemberID();
 final tableDataGetNameID = pal.MemberID();
 final tableDataGetTypeID = pal.MemberID();
@@ -413,24 +260,3 @@ final tableDataDef = pal.InterfaceDef(
     pal.Member(id: tableDataGetConfigID, name: 'getConfig', type: tableDataGetConfigType),
   ],
 );
-
-final tableDB = () {
-  final db = Cursor(const pal.DB());
-  for (final dataDef in _dataTypes) {
-    db.update(dataDef.id, dataDef);
-  }
-  for (final interface in _interfaceTypes) {
-    db.update(interface.id, interface);
-  }
-  for (final impl in _implementations) {
-    db.update(impl.id, impl);
-  }
-
-  return db.read(Ctx.empty);
-}();
-
-final _dataTypes = [valueTableDataDef, listTableDataDef];
-final _interfaceTypes = [
-  tableDataDef,
-];
-final _implementations = [valueTableDataImpl, listTableDataImpl];

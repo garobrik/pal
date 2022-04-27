@@ -1,27 +1,28 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Table;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
-import 'package:knose/model.dart' as model;
+import 'package:knose/table.dart' hide Column;
+import 'package:knose/table.dart' as pal_table;
 import 'package:knose/pal.dart' as pal;
 
 part 'header.g.dart';
 
 final columnTypes = [
-  model.textTableData,
-  model.booleanTableData,
-  model.numberTableData,
-  model.listTableData,
+  textTableData,
+  booleanTableData,
+  numberTableData,
+  listTableData,
 ];
 
 @reader
 Widget _tableHeader(
   BuildContext context,
-  Cursor<model.Table> table, {
+  Cursor<Table> table, {
   required Ctx ctx,
 }) {
-  final openColumns = useCursor(const Dict<model.ColumnID, bool>());
+  final openColumns = useCursor(const Dict<ColumnID, bool>());
 
   return Row(
     children: [
@@ -65,8 +66,8 @@ Widget _tableHeader(
 Widget _tableHeaderDropdown(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<model.Table> table,
-  required Cursor<model.Column> column,
+  required Cursor<Table> table,
+  required Cursor<pal_table.Column> column,
   required Cursor<bool> isOpen,
 }) {
   final textStyle = Theme.of(context).textTheme.bodyText1;
@@ -124,13 +125,13 @@ Widget _tableHeaderDropdown(
 Widget _columnConfigurationDropdown(
   BuildContext context, {
   required Ctx ctx,
-  required Cursor<model.Table> table,
-  required Cursor<model.Column> column,
+  required Cursor<Table> table,
+  required Cursor<pal_table.Column> column,
 }) {
   final focusForImpl = useMemoized(() {
     final foci = <String, FocusNode>{};
     return (Cursor<pal.Value> impl, Ctx ctx) {
-      return foci.putIfAbsent(model.tableDataGetName(ctx, impl), () => FocusNode());
+      return foci.putIfAbsent(tableDataGetName(ctx, impl), () => FocusNode());
     };
   });
 
@@ -156,7 +157,7 @@ Widget _columnConfigurationDropdown(
                     ReaderWidget(
                       ctx: ctx,
                       builder: (_, ctx) {
-                        return Text(model.tableDataGetName(ctx, Cursor(type)));
+                        return Text(tableDataGetName(ctx, Cursor(type)));
                       },
                     )
                   ]),
@@ -188,16 +189,16 @@ Widget _columnConfigurationDropdown(
 
 Optional<Widget> columnSpecificConfiguration(
   BuildContext context,
-  Cursor<model.Column> column, {
+  Cursor<pal_table.Column> column, {
   required Ctx ctx,
 }) {
   final palImpl = pal.findImpl(
     ctx,
-    model.tableDataDef.asType(
-      {model.tableDataImplementerID: column.dataImpl.type.read(ctx)},
+    tableDataDef.asType(
+      {tableDataImplementerID: column.dataImpl.type.read(ctx)},
     ),
   )!;
-  final getConfig = palImpl.interfaceAccess(ctx, model.tableDataGetConfigID);
+  final getConfig = palImpl.interfaceAccess(ctx, tableDataGetConfigID);
   final currentType = column.dataImpl.type.read(ctx);
   return getConfig.callFn(
     ctx,
@@ -216,12 +217,12 @@ Optional<Widget> columnSpecificConfiguration(
 
 @reader
 Widget _newColumnButton({
-  Cursor<model.Table>? table,
-  Cursor<Dict<model.ColumnID, bool>>? openColumns,
+  Cursor<Table>? table,
+  Cursor<Dict<ColumnID, bool>>? openColumns,
 }) {
   return ElevatedButton(
     onPressed: () {
-      final columnID = table?.addColumn(model.textTableData);
+      final columnID = table?.addColumn(textTableData);
       if (columnID != null) {
         openColumns?[columnID] = const Optional(true);
       }

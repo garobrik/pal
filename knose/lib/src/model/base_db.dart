@@ -1,5 +1,5 @@
 import 'package:knose/pal.dart' as pal;
-import 'package:knose/model.dart';
+import 'package:knose/table.dart';
 
 final baseDB = [
   pal.coreDB,
