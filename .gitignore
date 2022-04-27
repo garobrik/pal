@@ -2,3 +2,4 @@
 .packages
 pubspec.lock
 *.g.dart
+*.~undo-tree~
