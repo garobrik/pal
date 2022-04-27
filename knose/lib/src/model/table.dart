@@ -207,6 +207,7 @@ class _TableDatum extends Datum {
 
 pal.Value valueTableData({
   required pal.Type valueType,
+  required String name,
   required Widget Function(Ctx ctx, Object rowData) getWidget,
   required Object defaultValue,
 }) {
@@ -214,6 +215,7 @@ pal.Value valueTableData({
     valueTableDataDef.asType(),
     Dict({
       valueTableDataTypeID: valueType,
+      valueTableDataNameID: name,
       valueTableDataDefaultID: defaultValue,
       valueTableDataGetWidgetID: getWidget,
     }),
@@ -221,11 +223,13 @@ pal.Value valueTableData({
 }
 
 final valueTableDataTypeID = pal.MemberID();
+final valueTableDataNameID = pal.MemberID();
 final valueTableDataDefaultID = pal.MemberID();
 final valueTableDataGetWidgetID = pal.MemberID();
 final valueTableDataGetWidgetType = pal.MemberID();
 final valueTableDataDef = pal.DataDef.record(name: 'ValueTableData', members: [
   pal.Member(id: valueTableDataTypeID, name: 'valueType', type: pal.type),
+  pal.Member(id: valueTableDataNameID, name: 'name', type: pal.text),
   pal.Member(
     id: valueTableDataDefaultID,
     name: 'valueDefault',
@@ -252,7 +256,7 @@ final valueTableDataImpl = pal.Impl(
     tableDataGetNameID: pal.Literal(
       tableDataGetNameType,
       (Ctx ctx, Object arg) =>
-          '${(arg as GetCursor<Object>).recordAccess(valueTableDataTypeID).read(ctx)} Column',
+          (arg as GetCursor<Object>).recordAccess(valueTableDataNameID).read(ctx),
     ),
     tableDataGetDefaultID: pal.Literal(
       tableDataGetDefaultType,
@@ -276,16 +280,19 @@ final valueTableDataImpl = pal.Impl(
 
 final textTableData = valueTableData(
   valueType: pal.text,
+  name: 'Text',
   getWidget: (ctx, obj) => StringField(obj as Cursor<Object>, ctx: ctx),
   defaultValue: '',
 );
 final numberTableData = valueTableData(
   valueType: pal.optionType(pal.number),
+  name: 'Number',
   getWidget: (ctx, obj) => NumField(obj as Cursor<Object>, ctx: ctx),
   defaultValue: const Optional<Object>.none(),
 );
 final booleanTableData = valueTableData(
   valueType: pal.boolean,
+  name: 'Checkbox',
   getWidget: (ctx, obj) => BoolCell(obj as Cursor<Object>, ctx: ctx),
   defaultValue: false,
 );
@@ -318,23 +325,11 @@ final listTableDataImpl = pal.Impl(
     ),
     tableDataGetNameID: pal.Literal(
       tableDataGetNameType,
-      (Ctx ctx, Object arg) {
-        final impl = arg as GetCursor<Object>;
-        final elementDataImpl = impl.recordAccess(listTableDataElementID);
-        final palImpl = pal.findImpl(
-          ctx,
-          tableDataDef.asType({tableDataImplementerID: elementDataImpl.palType().read(ctx)}),
-        )!;
-        final elementName = palImpl
-            .interfaceAccess(ctx, tableDataGetNameID)
-            .callFn(ctx, elementDataImpl.palValue());
-
-        return 'List($elementName)';
-      },
+      (Ctx _, Object __) => 'List',
     ),
     tableDataGetDefaultID: pal.Literal(
       tableDataGetDefaultType,
-      (Ctx ctx, Object _) => const Vec<Object>(),
+      (Ctx _, Object __) => const Vec<Object>(),
     ),
     tableDataGetWidgetID: pal.Literal(
       tableDataGetWidgetType,
