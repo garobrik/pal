@@ -183,7 +183,7 @@ class _TableDatum extends Datum {
       tableDataDef.asType({tableDataImplementerID: column.dataImpl.type.read(ctx)}),
     );
     final getData = palImpl!.interfaceAccess(ctx, tableDataGetDefaultID);
-    final defaultData = getData.callFn(ctx, Dict({'rowID': rowID, 'impl': column.dataImpl}));
+    final defaultData = getData.callFn(ctx, column.dataImpl.value);
     return column.data[rowID].orElse(defaultData);
   }
 
