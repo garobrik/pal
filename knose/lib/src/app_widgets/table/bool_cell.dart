@@ -7,7 +7,7 @@ part 'bool_cell.g.dart';
 
 @reader
 Widget _boolCell(Cursor<Object> rowData, {required Ctx ctx, bool enabled = true}) {
-  final boolCursor = rowData.cast<Optional<Object>>().optionalCast<bool>().orElse(false);
+  final boolCursor = rowData.cast<bool>();
 
   return Checkbox(
     onChanged: !enabled ? null : (newValue) => boolCursor.set(newValue!),

@@ -12,7 +12,7 @@ part 'table.g.dart';
 
 final _tableID = pal.MemberID();
 final _titleID = pal.MemberID();
-final tableDataDef = pal.DataDef.record(
+final tableRecordDef = pal.DataDef.record(
   name: 'TableData',
   members: [
     pal.Member(id: _tableID, name: 'table', type: model.tableIDDef.asType()),
@@ -22,12 +22,12 @@ final tableDataDef = pal.DataDef.record(
 
 final tableWidget = widget.def.instantiate({
   widget.nameID: 'Table',
-  widget.typeID: tableDataDef.asType(),
+  widget.typeID: tableRecordDef.asType(),
   widget.defaultDataID: (Ctx ctx, Object _) {
     final table = model.Table.newDefault();
     ctx.db.update(table.id, table);
 
-    return tableDataDef.instantiate({
+    return tableRecordDef.instantiate({
       _tableID: table.id,
       _titleID: 'Untitled page',
     });

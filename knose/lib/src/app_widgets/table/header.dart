@@ -8,7 +8,12 @@ import 'package:knose/pal.dart' as pal;
 
 part 'header.g.dart';
 
-final columnTypes = [model.textColumn, model.booleanColumn, model.numberColumn, model.dataColumn];
+final columnTypes = [
+  model.textTableData,
+  model.booleanTableData,
+  model.numberTableData,
+  model.listTableData,
+];
 
 @reader
 Widget _tableHeader(
@@ -125,7 +130,7 @@ Widget _columnConfigurationDropdown(
   final focusForImpl = useMemoized(() {
     final foci = <String, FocusNode>{};
     return (Cursor<pal.Value> impl, Ctx ctx) {
-      return foci.putIfAbsent(model.columnImplGetName(ctx, impl), () => FocusNode());
+      return foci.putIfAbsent(model.tableDataGetName(ctx, impl), () => FocusNode());
     };
   });
 
@@ -136,7 +141,7 @@ Widget _columnConfigurationDropdown(
       TextButtonDropdown(
         childAnchor: Alignment.topRight,
         dropdownAnchor: Alignment.topLeft,
-        dropdownFocus: focusForImpl(column.impl, ctx),
+        dropdownFocus: focusForImpl(column.dataImpl, ctx),
         dropdown: IntrinsicWidth(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -151,7 +156,7 @@ Widget _columnConfigurationDropdown(
                     ReaderWidget(
                       ctx: ctx,
                       builder: (_, ctx) {
-                        return Text(model.columnImplGetName(ctx, Cursor(type)));
+                        return Text(model.tableDataGetName(ctx, Cursor(type)));
                       },
                     )
                   ]),
@@ -187,15 +192,15 @@ Optional<Widget> columnSpecificConfiguration(
 }) {
   final palImpl = pal.findImpl(
     ctx,
-    model.columnImplDef.asType(
-      {model.columnImplImplementerID: column.impl.type.read(ctx)},
+    model.tableDataDef.asType(
+      {model.tableDataImplementerID: column.dataImpl.type.read(ctx)},
     ),
   )!;
-  final getConfig = palImpl.interfaceAccess(ctx, model.columnImplGetConfigID);
-  final currentType = column.impl.type.read(ctx);
+  final getConfig = palImpl.interfaceAccess(ctx, model.tableDataGetConfigID);
+  final currentType = column.dataImpl.type.read(ctx);
   return getConfig.callFn(
     ctx,
-    column.impl
+    column.dataImpl
         .thenOpt<pal.Value>(OptLens(
           const [],
           (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
@@ -203,43 +208,6 @@ Optional<Widget> columnSpecificConfiguration(
         ))
         .value,
   ) as Optional<Widget>;
-  // (model.Column linkColumn) {
-  //   final state = CursorProvider.of<model.State>(context);
-  //   final tableID = column.columnConfig.read(ctx) as model.NodeID<model.Table>?;
-  //   final table = tableID == null ? null : state.getNode(tableID);
-  //   final tables = state.nodes.keys
-  //       .read(ctx)
-  //       .whereType<model.NodeID<model.Table>>()
-  //       .map((id) => state.getNode(id));
-
-  //   return [
-  //     ReaderWidget(builder: (_, reader) {
-  //       final isOpen = useCursor(false);
-
-  //       return DeferredDropdown(
-  //         isOpen: isOpen,
-  //         dropdown: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           crossAxisAlignment: CrossAxisAlignment.start,
-  //           children: [
-  //             for (final table in tables)
-  //               TextButton(
-  //                 onPressed: () {
-  //                   column.values.set(const Dict());
-  //                   // column.columnConfig.table.set(table.id.read(Ctx.empty));
-  //                 },
-  //                 child: Text(table.title.read(ctx)),
-  //               )
-  //           ],
-  //         ),
-  //         child: TextButton(
-  //           onPressed: () => isOpen.set(true),
-  //           child: Text(table == null ? 'Select table' : table.title.read(ctx)),
-  //         ),
-  //       );
-  //     }),
-  //   ];
-  // };
 }
 
 @reader
@@ -249,7 +217,7 @@ Widget _newColumnButton({
 }) {
   return ElevatedButton(
     onPressed: () {
-      final columnID = table?.addColumn(model.textColumn);
+      final columnID = table?.addColumn(model.textTableData);
       if (columnID != null) {
         openColumns?[columnID] = const Optional(true);
       }

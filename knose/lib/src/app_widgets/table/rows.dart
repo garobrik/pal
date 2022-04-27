@@ -84,16 +84,21 @@ Widget _tableRow(
                         final column = table.columns[columnID].whenPresent;
                         final palImpl = pal.findImpl(
                           ctx,
-                          model.columnImplDef.asType(
-                            {model.columnImplImplementerID: column.impl.type.read(ctx)},
+                          model.tableDataDef.asType(
+                            {model.tableDataImplementerID: column.dataImpl.type.read(ctx)},
                           ),
                         )!;
-                        final getWidget = palImpl.interfaceAccess(ctx, model.columnImplGetWidgetID);
-                        final getData = palImpl.interfaceAccess(ctx, model.columnImplGetDataID);
-                        final data =
-                            getData.callFn(ctx, Dict({'rowID': rowID, 'impl': column.impl}));
-                        return getWidget.callFn(ctx, Dict({'rowData': data, 'impl': column.impl}))
-                            as Widget;
+                        final getWidget = palImpl.interfaceAccess(ctx, model.tableDataGetWidgetID);
+                        final getDefault =
+                            palImpl.interfaceAccess(ctx, model.tableDataGetDefaultID);
+                        final defaultValue = getDefault.callFn(ctx, column.dataImpl.value);
+                        return getWidget.callFn(
+                          ctx,
+                          Dict({
+                            'rowData': column.data[rowID].orElse(defaultValue),
+                            'impl': column.dataImpl.value,
+                          }),
+                        ) as Widget;
                       },
                     ),
                   ),
