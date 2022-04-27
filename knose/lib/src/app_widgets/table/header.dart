@@ -172,9 +172,10 @@ Widget _columnConfigurationDropdown(
       if (column.id.read(ctx) != table.titleColumn.read(ctx))
         TextButton(
           onPressed: () {
-            table.columns.remove(column.id.read(Ctx.empty));
+            final idToDelete = column.id.read(Ctx.empty);
+            table.columns.remove(idToDelete);
             table.columnIDs.remove(
-              table.columnIDs.read(Ctx.empty).indexWhere((id) => id == column.id.read(Ctx.empty))!,
+              table.columnIDs.read(Ctx.empty).indexWhere((id) => id == idToDelete)!,
             );
           },
           child: Row(
