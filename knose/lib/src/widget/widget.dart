@@ -11,6 +11,13 @@ class ID extends pal.ID<Object> {
   ID.from(String key) : super.from(namespace, key);
 }
 
+class RootID extends pal.ID<Object> {
+  static const namespace = 'root_widgets';
+
+  RootID.create() : super.create(namespace: namespace);
+  RootID.from(String key) : super.from(namespace, key);
+}
+
 final idDef = pal.InterfaceDef(name: 'WidgetID', members: [pal.Member(name: 'id', type: pal.text)]);
 
 final nameID = pal.MemberID();
@@ -35,6 +42,23 @@ final def = pal.DataDef.record(
         target: pal.cursorType(pal.RecordAccess(typeID)),
       ),
     ),
+  ],
+);
+
+final rootIDDef =
+    pal.InterfaceDef(name: 'RootWidgetID', members: [pal.Member(name: 'id', type: pal.text)]);
+
+final rootIDID = pal.MemberID();
+final rootNameID = pal.MemberID();
+final rootTopLevelID = pal.MemberID();
+final rootInstanceID = pal.MemberID();
+final rootDef = pal.DataDef.record(
+  name: 'RootWidget',
+  members: [
+    pal.Member(id: rootIDID, name: 'id', type: rootIDDef.asType()),
+    pal.Member(id: rootNameID, name: 'name', type: pal.text),
+    pal.Member(id: rootTopLevelID, name: 'topLevel', type: pal.boolean),
+    pal.Member(id: rootInstanceID, name: 'instance', type: instanceDef.asType()),
   ],
 );
 
@@ -78,6 +102,28 @@ Object defaultInstance(Ctx ctx, Object widget) {
     instanceIDID: ID.create(),
     instanceWidgetID: widget,
     instanceDataID: defaultData.callFn(ctx, pal.unit),
+  });
+}
+
+Object rootInstance({
+  required Ctx ctx,
+  required Object widget,
+  required String name,
+  bool topLevel = true,
+}) {
+  final defaultData = widget.recordAccess(defaultDataID);
+
+  final instance = instanceDef.instantiate({
+    instanceIDID: ID.create(),
+    instanceWidgetID: widget,
+    instanceDataID: defaultData.callFn(ctx, pal.unit),
+  });
+
+  return rootDef.instantiate({
+    rootIDID: RootID.create(),
+    rootNameID: name,
+    rootTopLevelID: topLevel,
+    rootInstanceID: instance,
   });
 }
 

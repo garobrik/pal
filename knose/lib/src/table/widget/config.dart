@@ -31,10 +31,7 @@ Widget _tableConfig(
                   ctx: ctx,
                   builder: (_, ctx) {
                     final widgetDef = ctx.db.get(rowView.read(ctx)).whenPresent;
-                    final title = widgetDef
-                        .recordAccess(widget.instanceDataID)
-                        .recordAccess(pageTitleID)
-                        .read(ctx) as String;
+                    final title = widgetDef.recordAccess(widget.rootNameID).read(ctx) as String;
 
                     return TextButton(
                       onPressed: () => Navigator.pushNamed(
@@ -51,8 +48,13 @@ Widget _tableConfig(
                 ),
               TextButton(
                 onPressed: () {
-                  final newPage = widget.defaultInstance(ctx, pageWidget);
-                  final widgetID = newPage.recordAccess(widget.instanceIDID) as widget.ID;
+                  final newPage = widget.rootInstance(
+                    ctx: ctx,
+                    widget: pageWidget,
+                    name: 'Untitled row view',
+                    topLevel: false,
+                  );
+                  final widgetID = newPage.recordAccess(widget.rootIDID) as widget.RootID;
                   ctx.db.update(widgetID, newPage);
 
                   table.rowViews.add(widgetID);

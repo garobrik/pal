@@ -19,7 +19,6 @@ final pageComputedTypeID = pal.MemberID();
 final pageComputedDefaultID = pal.MemberID();
 final pageComputedDataID = pal.MemberID();
 final pageComputedWidgetID = pal.MemberID();
-final pageTitleID = pal.MemberID();
 final pageDataDef = pal.DataDef(
   tree: pal.RecordNode('PageData', {
     pageModeID: pal.UnionNode('mode', {
@@ -41,7 +40,6 @@ final pageDataDef = pal.DataDef(
         pageComputedWidgetID: pal.LeafNode('widget', widget.instance)
       }),
     }),
-    pageTitleID: const pal.LeafNode('title', pal.text),
   }),
 );
 
@@ -50,7 +48,6 @@ final pageWidget = widget.def.instantiate({
   widget.typeID: pageDataDef.asType(),
   widget.defaultDataID: (Ctx ctx, Object _) => pageDataDef.instantiate({
         pageModeID: pal.UnionTag(pageLiteralID, Vec([widget.defaultInstance(ctx, textWidget)])),
-        pageTitleID: 'Untitled page',
       }),
   widget.buildID: PageWidget.new,
 });
@@ -257,7 +254,7 @@ Widget _pageChildren(
       ),
     ),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.start,
       // onReorder: (old, nu) {
       //   page.nodeViews.atomically((nodeViews) {
       //     nodeViews.insert(nu < old ? nu : nu + 1, nodeViews[old].read(null));

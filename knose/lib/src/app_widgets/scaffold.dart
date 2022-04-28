@@ -40,8 +40,12 @@ Widget _mainScaffold(
               text: 'New page',
               icon: Icons.post_add,
               onPressed: () {
-                final newPage = widget.defaultInstance(ctx, pageWidget);
-                final widgetID = newPage.recordAccess(widget.instanceIDID) as widget.ID;
+                final newPage = widget.rootInstance(
+                  ctx: ctx,
+                  widget: pageWidget,
+                  name: 'Untitled page',
+                );
+                final widgetID = newPage.recordAccess(widget.rootIDID) as widget.RootID;
                 ctx.db.update(widgetID, newPage);
 
                 if (replaceRouteOnPush) {
@@ -69,8 +73,12 @@ Widget _mainScaffold(
               text: 'New table',
               icon: Icons.playlist_add,
               onPressed: () {
-                final newTable = widget.defaultInstance(ctx, tableWidget);
-                final widgetID = newTable.recordAccess(widget.instanceIDID) as widget.ID;
+                final newTable = widget.rootInstance(
+                  ctx: ctx,
+                  widget: tableWidget,
+                  name: 'Untitled table',
+                );
+                final widgetID = newTable.recordAccess(widget.rootIDID) as widget.RootID;
                 ctx.db.update(widgetID, newTable);
 
                 if (replaceRouteOnPush) {

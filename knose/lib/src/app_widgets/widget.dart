@@ -20,13 +20,50 @@ Route generateWidgetRoute(
     settings: RouteSettings(
       arguments: model.WidgetRoute(widgetID, ctx: ctx),
     ),
-    builder: (_) => MainScaffold(
+    builder: (_) => ReaderWidget(
       ctx: ctx,
-      body: WidgetRenderer(
-        ctx: ctx,
-        instance: ctx.db.get(widgetID).whenPresent,
-      ),
-      replaceRouteOnPush: false,
+      builder: (context, ctx) {
+        late final Cursor<String>? title;
+        late final Cursor<Object> instance;
+        if (widgetID is widget.RootID) {
+          final root = ctx.db.get(widgetID).whenPresent;
+          title = root.recordAccess(widget.rootNameID).cast<String>();
+          instance = root.recordAccess(widget.rootInstanceID);
+        } else if (widgetID is widget.ID) {
+          title = null;
+          instance = ctx.db.get(widgetID).whenPresent;
+        }
+
+        return MainScaffold(
+          ctx: ctx,
+          body: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (title != null)
+                  Container(
+                    padding: const EdgeInsetsDirectional.only(bottom: 20),
+                    child: IntrinsicWidth(
+                      child: BoundTextFormField(
+                        title,
+                        ctx: ctx,
+                        style: Theme.of(context).textTheme.headline6,
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: WidgetRenderer(
+                    ctx: ctx,
+                    instance: instance,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          replaceRouteOnPush: false,
+        );
+      },
     ),
   );
 }

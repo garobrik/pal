@@ -137,7 +137,7 @@ Widget _tableRow(
 Widget _openRowButton(
   BuildContext context, {
   GetCursor<bool> show = const GetCursor(false),
-  widget.ID? widgetID,
+  widget.RootID? widgetID,
   Ctx ctx = Ctx.empty,
 }) {
   return AnimatedOpacity(

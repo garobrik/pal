@@ -40,7 +40,7 @@ class Table with _TableMixin {
   @override
   final Vec<RowID> rowIDs;
   @override
-  final Vec<widget.ID> rowViews;
+  final Vec<widget.RootID> rowViews;
 
   Table({
     TableID? id,

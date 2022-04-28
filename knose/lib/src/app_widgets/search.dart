@@ -60,12 +60,12 @@ Widget _searchPage(
       ...ctx.db
           .where<Object>(
         ctx: ctx,
-        namespace: widget.ID.namespace,
-        predicate: (_) => true,
+        namespace: widget.RootID.namespace,
+        predicate: (root) => root.recordAccess(widget.rootTopLevelID).read(ctx) as bool,
       )
           .map((widgetDef) {
-        const title = 'temp';
-        final widgetID = widgetDef.recordAccess(widget.instanceIDID).read(ctx) as widget.ID;
+        final title = widgetDef.recordAccess(widget.rootNameID).read(ctx) as String;
+        final widgetID = widgetDef.recordAccess(widget.rootIDID).read(ctx) as pal.ID;
         return TextButton(
           key: ValueKey(widgetID),
           onPressed: () {
@@ -76,8 +76,8 @@ Widget _searchPage(
             );
           },
           child: Row(
-            children: const [
-              Icon(Icons.menu),
+            children: [
+              const Icon(Icons.menu),
               Text(title),
             ],
           ),
