@@ -3,7 +3,7 @@ import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 abstract class GetCursor<S> {
-  const factory GetCursor(S state) = _ValueCursor;
+  const factory GetCursor(S state) = _ValueCursor<S>;
   factory GetCursor.compute(
     S Function(Ctx) computation, {
     required Ctx ctx,
