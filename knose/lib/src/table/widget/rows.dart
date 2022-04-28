@@ -47,76 +47,87 @@ Widget _tableRow(
   bool trailingNewColumnSpace = true,
 }) {
   final isHovered = useCursor(false);
+  final hasFocus = useCursor(false);
+  final showOpenRowButton = GetCursor.compute(
+    (ctx) => isHovered.read(ctx) || hasFocus.read(ctx),
+    ctx: ctx,
+    compare: true,
+  );
 
-  return MouseRegion(
-    opaque: false,
-    onEnter: (_) => isHovered.set(true),
-    onHover: (_) => isHovered.set(true),
-    onExit: (_) => isHovered.set(false),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        ReaderWidget(
-          ctx: ctx,
-          builder: (_, ctx) => isHovered.read(ctx) && table.rowViews.length.read(ctx) > 0
-              ? OpenRowButton(
-                  widgetID: table.rowViews[0].read(ctx),
-                  ctx: ctx.withTable(table).withRow(rowID),
-                )
-              : const OpenRowButton(),
-        ),
-        Container(
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
-          child: IntrinsicHeight(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final columnID in table.columnIDs.read(ctx))
-                  Container(
-                    key: ValueKey(columnID),
-                    width: table.columns[columnID].whenPresent.width.read(ctx),
-                    decoration: const BoxDecoration(border: Border(right: BorderSide())),
-                    child: ReaderWidget(
-                      ctx: ctx,
-                      builder: (_, ctx) {
-                        final column = table.columns[columnID].whenPresent;
-                        final palImpl = pal.findImpl(
-                          ctx,
-                          tableDataDef.asType(
-                            {tableDataImplementerID: column.dataImpl.type.read(ctx)},
-                          ),
-                        )!;
-                        final getWidget = palImpl.interfaceAccess(ctx, tableDataGetWidgetID);
-                        final getDefault = palImpl.interfaceAccess(ctx, tableDataGetDefaultID);
-                        final defaultValue = getDefault.callFn(ctx, column.dataImpl.value);
-                        return getWidget.callFn(
-                          ctx,
-                          Dict({
-                            'rowData': column.data[rowID].orElse(defaultValue),
-                            'impl': column.dataImpl.value,
-                          }),
-                        ) as Widget;
-                      },
+  return Focus(
+    skipTraversal: true,
+    onFocusChange: hasFocus.set,
+    child: MouseRegion(
+      opaque: false,
+      onEnter: (_) => isHovered.set(true),
+      onHover: (_) => isHovered.set(true),
+      onExit: (_) => isHovered.set(false),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ReaderWidget(
+            ctx: ctx,
+            builder: (_, ctx) => table.rowViews.length.read(ctx) > 0
+                ? OpenRowButton(
+                    show: showOpenRowButton,
+                    widgetID: table.rowViews[0].read(ctx),
+                    ctx: ctx.withTable(table).withRow(rowID),
+                  )
+                : const OpenRowButton(),
+          ),
+          Container(
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final columnID in table.columnIDs.read(ctx))
+                    Container(
+                      key: ValueKey(columnID),
+                      width: table.columns[columnID].whenPresent.width.read(ctx),
+                      decoration: const BoxDecoration(border: Border(right: BorderSide())),
+                      child: ReaderWidget(
+                        ctx: ctx,
+                        builder: (_, ctx) {
+                          final column = table.columns[columnID].whenPresent;
+                          final palImpl = pal.findImpl(
+                            ctx,
+                            tableDataDef.asType(
+                              {tableDataImplementerID: column.dataImpl.type.read(ctx)},
+                            ),
+                          )!;
+                          final getWidget = palImpl.interfaceAccess(ctx, tableDataGetWidgetID);
+                          final getDefault = palImpl.interfaceAccess(ctx, tableDataGetDefaultID);
+                          final defaultValue = getDefault.callFn(ctx, column.dataImpl.value);
+                          return getWidget.callFn(
+                            ctx,
+                            Dict({
+                              'rowData': column.data[rowID].orElse(defaultValue),
+                              'impl': column.dataImpl.value,
+                            }),
+                          ) as Widget;
+                        },
+                      ),
                     ),
-                  ),
-                if (trailingNewColumnSpace)
-                  FocusTraversalGroup(
-                    descendantsAreFocusable: false,
-                    child: const Visibility(
-                      visible: false,
-                      maintainSize: true,
-                      maintainAnimation: true,
-                      maintainState: true,
-                      child: NewColumnButton(),
+                  if (trailingNewColumnSpace)
+                    FocusTraversalGroup(
+                      descendantsAreFocusable: false,
+                      child: const Visibility(
+                        visible: false,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: NewColumnButton(),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     ),
   );
 }
@@ -125,11 +136,13 @@ Widget _tableRow(
 @reader
 Widget _openRowButton(
   BuildContext context, {
+  GetCursor<bool> show = const GetCursor(false),
   widget.ID? widgetID,
   Ctx ctx = Ctx.empty,
 }) {
   return AnimatedOpacity(
-    opacity: widgetID != null ? 1 : 0,
+    alwaysIncludeSemantics: true,
+    opacity: widgetID != null && show.read(ctx) ? 1 : 0,
     duration: const Duration(milliseconds: 300),
     child: TextButton(
       style: ButtonStyle(padding: MaterialStateProperty.all(EdgeInsets.zero)),
