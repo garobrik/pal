@@ -1,7 +1,10 @@
 export 'src/table/core.dart';
 export 'src/table/value_data.dart';
 export 'src/table/list_data.dart';
+export 'src/table/link_data.dart';
 export 'src/table/widget.dart';
+
+import 'package:knose/src/table/link_data.dart';
 
 import 'src/table/core.dart';
 import 'src/table/value_data.dart';
@@ -26,6 +29,6 @@ final tableDB = () {
   return db.read(Ctx.empty);
 }();
 
-final _dataTypes = [valueTableDataDef, listTableDataDef];
+final _dataTypes = [valueTableDataDef, listTableDataDef, linkTableDataDef];
 final _interfaceTypes = [tableDataDef];
-final _implementations = [valueTableDataImpl, listTableDataImpl];
+final _implementations = [valueTableDataImpl, listTableDataImpl, linkTableDataImpl];

@@ -12,7 +12,7 @@ part 'list_data.g.dart';
 
 final listTableData = pal.Value(
   listTableDataDef.asType(),
-  Dict<pal.MemberID, Object>({listTableDataElementID: textTableData}),
+  listTableDataDef.instantiate({listTableDataElementID: textTableData}),
 );
 
 final listTableDataElementID = pal.MemberID();
@@ -57,7 +57,6 @@ final listTableDataImpl = pal.Impl(
           ctx: ctx,
           list: list,
           dataImpl: impl,
-          enabled: true,
         );
       },
     ),
@@ -76,7 +75,6 @@ final listTableDataImpl = pal.Impl(
 Widget _listCell({
   required Cursor<Object> list,
   required Cursor<pal.Value> dataImpl,
-  required bool enabled,
   required Ctx ctx,
 }) {
   final dropdownFocus = useFocusNode();
@@ -90,7 +88,6 @@ Widget _listCell({
 
   return CellDropdown(
     constrainHeight: false,
-    enabled: enabled,
     ctx: ctx,
     expands: true,
     dropdownFocus: dropdownFocus,

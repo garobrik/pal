@@ -17,6 +17,8 @@ class TableID extends pal.ID<Table> {
 }
 
 final tableIDDef = pal.DataDef.unit('TableID');
+final columnIDDef = pal.DataDef.unit('ColumnID');
+final rowIDDef = pal.DataDef.unit('RowID');
 
 class ColumnID extends UUID<ColumnID> {}
 

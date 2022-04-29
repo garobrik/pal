@@ -43,15 +43,16 @@ Widget _tableRow(
   required Ctx ctx,
   required Cursor<Table> table,
   required RowID rowID,
-  bool enabled = true,
-  bool trailingNewColumnSpace = true,
 }) {
   final isHovered = useCursor(false);
   final hasFocus = useCursor(false);
-  final showOpenRowButton = GetCursor.compute(
-    (ctx) => isHovered.read(ctx) || hasFocus.read(ctx),
-    ctx: ctx,
-    compare: true,
+  final showOpenRowButton = useMemoized(
+    () => GetCursor.compute(
+      (ctx) => ctx.widgetMode == widget.Mode.edit && isHovered.read(ctx) || hasFocus.read(ctx),
+      ctx: ctx,
+      compare: true,
+    ),
+    [ctx],
   );
 
   return Focus(
@@ -66,16 +67,17 @@ Widget _tableRow(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ReaderWidget(
-            ctx: ctx,
-            builder: (_, ctx) => table.rowViews.length.read(ctx) > 0
-                ? OpenRowButton(
-                    show: showOpenRowButton,
-                    widgetID: table.rowViews[0].read(ctx),
-                    ctx: ctx.withTable(table).withRow(rowID),
-                  )
-                : const OpenRowButton(),
-          ),
+          if (ctx.widgetMode == widget.Mode.edit)
+            ReaderWidget(
+              ctx: ctx,
+              builder: (_, ctx) => table.rowViews.length.read(ctx) > 0
+                  ? OpenRowButton(
+                      show: showOpenRowButton,
+                      widgetID: table.rowViews[0].read(ctx),
+                      ctx: ctx.withTable(table).withRow(rowID),
+                    )
+                  : const OpenRowButton(),
+            ),
           Container(
             decoration: const BoxDecoration(border: Border(bottom: BorderSide())),
             child: IntrinsicHeight(
@@ -111,7 +113,7 @@ Widget _tableRow(
                         },
                       ),
                     ),
-                  if (trailingNewColumnSpace)
+                  if (ctx.widgetMode == widget.Mode.edit)
                     FocusTraversalGroup(
                       descendantsAreFocusable: false,
                       child: const Visibility(

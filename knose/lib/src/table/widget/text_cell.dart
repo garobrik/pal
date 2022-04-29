@@ -11,7 +11,6 @@ Widget _stringField(
   BuildContext context,
   Cursor<Object> string, {
   required Ctx ctx,
-  bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
@@ -19,7 +18,6 @@ Widget _stringField(
     toText: (Object value) => value as String,
     parse: (text) => Optional(text),
     expands: true,
-    enabled: enabled,
   );
 }
 
@@ -28,7 +26,6 @@ Widget _numField(
   BuildContext context,
   Cursor<Object> number, {
   required Ctx ctx,
-  bool enabled = true,
 }) {
   return TableCellTextField(
     ctx: ctx,
@@ -39,7 +36,6 @@ Widget _numField(
       return Optional.fromNullable(num.tryParse(text)).map(Optional.new);
     },
     expands: false,
-    enabled: enabled,
   );
 }
 
@@ -51,7 +47,6 @@ Widget _tableCellTextField<T>(
   required String Function(T) toText,
   required Optional<T> Function(String) parse,
   required bool expands,
-  required bool enabled,
 }) {
   final textStyle = Theme.of(context).textTheme.bodyText2;
   const padding = EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);
@@ -65,7 +60,6 @@ Widget _tableCellTextField<T>(
 
   return CellDropdown(
     ctx: ctx,
-    enabled: enabled,
     dropdownFocus: dropdownFocus,
     expands: expands,
     dropdown: ScrollConfiguration(

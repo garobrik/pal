@@ -85,13 +85,19 @@ Widget _mainScaffold(
                   Navigator.pushReplacementNamed(
                     context,
                     '',
-                    arguments: model.WidgetRoute(widgetID),
+                    arguments: model.WidgetRoute(
+                      widgetID,
+                      ctx: ctx.withWidgetMode(widget.Mode.edit),
+                    ),
                   );
                 } else {
                   Navigator.pushNamed(
                     context,
                     '',
-                    arguments: model.WidgetRoute(widgetID),
+                    arguments: model.WidgetRoute(
+                      widgetID,
+                      ctx: ctx.withWidgetMode(widget.Mode.edit),
+                    ),
                   );
                 }
               },

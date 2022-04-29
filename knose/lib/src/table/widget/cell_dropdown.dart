@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
+import 'package:knose/widget.dart' as widget;
 
 part 'cell_dropdown.g.dart';
 
@@ -14,16 +15,19 @@ Widget _cellDropdown(
   required Ctx ctx,
   required Widget dropdown,
   required Widget child,
-  required bool enabled,
   ButtonStyle? style,
   FocusNode? dropdownFocus,
   bool expands = true,
   bool constrainHeight = true,
+  bool constrainWidth = true,
 }) {
-  final minWidth = useMemoized(() => expands ? 200.0 : 0.0, [expands]);
+  final minWidth = useMemoized(
+    () => expands ? (constrainWidth ? 200.0 : double.infinity) : 0.0,
+    [expands, constrainWidth],
+  );
 
   return TextButtonDropdown(
-    enabled: enabled,
+    enabled: ctx.widgetMode == widget.Mode.edit,
     modifyConstraints: (constraints) => BoxConstraints(
       minHeight: constraints.maxHeight + 2,
       maxHeight: constrainHeight ? constraints.maxHeight + 2 : double.infinity,

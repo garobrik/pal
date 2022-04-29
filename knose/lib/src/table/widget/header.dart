@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' hide Table;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';
+import 'package:knose/widget.dart' as widget;
 import 'package:knose/table.dart' hide Column;
 import 'package:knose/table.dart' as pal_table;
 import 'package:knose/pal.dart' as pal;
@@ -14,6 +15,7 @@ final columnTypes = [
   booleanTableData,
   numberTableData,
   listTableData,
+  linkTableData,
 ];
 
 @reader
@@ -53,11 +55,12 @@ Widget _tableHeader(
             ),
         ],
       ),
-      NewColumnButton(
-        table: table,
-        openColumns: openColumns,
-        key: UniqueKey(),
-      ),
+      if (ctx.widgetMode == widget.Mode.edit)
+        NewColumnButton(
+          table: table,
+          openColumns: openColumns,
+          key: UniqueKey(),
+        ),
     ],
   );
 }
@@ -106,11 +109,12 @@ Widget _tableHeaderDropdown(
         padding: MaterialStateProperty.all(padding),
         alignment: Alignment.centerLeft,
       ),
-      onPressed: column.id.read(ctx) == table.titleColumn.read(ctx)
-          ? null
-          : () {
-              isOpen.mut((b) => !b);
-            },
+      onPressed:
+          ctx.widgetMode == widget.Mode.view || column.id.read(ctx) == table.titleColumn.read(ctx)
+              ? null
+              : () {
+                  isOpen.mut((b) => !b);
+                },
       child: Text(
         column.title.read(ctx),
         style: textStyle,

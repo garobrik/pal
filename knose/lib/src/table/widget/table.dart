@@ -11,23 +11,23 @@ import 'package:knose/widget.dart' as widget;
 
 part 'table.g.dart';
 
-final _tableID = pal.MemberID();
-final tableRecordDef = pal.DataDef.record(
+final tableRefIDID = pal.MemberID();
+final tableRefDef = pal.DataDef.record(
   name: 'TableData',
   members: [
-    pal.Member(id: _tableID, name: 'table', type: tableIDDef.asType()),
+    pal.Member(id: tableRefIDID, name: 'table', type: tableIDDef.asType()),
   ],
 );
 
 final tableWidget = widget.def.instantiate({
   widget.nameID: 'Table',
-  widget.typeID: tableRecordDef.asType(),
+  widget.typeID: tableRefDef.asType(),
   widget.defaultDataID: (Ctx ctx, Object _) {
     final table = Table.newDefault();
     ctx.db.update(table.id, table);
 
-    return tableRecordDef.instantiate({
-      _tableID: table.id,
+    return tableRefDef.instantiate({
+      tableRefIDID: table.id,
     });
   },
   widget.buildID: MainTableWidget.new,
@@ -35,18 +35,19 @@ final tableWidget = widget.def.instantiate({
 
 @reader
 Widget _mainTableWidget(BuildContext context, Ctx ctx, Object data) {
-  final tableID = (data as GetCursor<Object>).recordAccess(_tableID).read(ctx) as TableID;
+  final tableID = (data as GetCursor<Object>).recordAccess(tableRefIDID).read(ctx) as TableID;
   final table = ctx.db.get(tableID).whenPresent;
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        children: [
-          const OpenRowButton(),
-          TableConfig(ctx: ctx, table: table),
-        ],
-      ),
+      if (ctx.widgetMode == widget.Mode.edit)
+        Row(
+          children: [
+            const OpenRowButton(),
+            TableConfig(ctx: ctx, table: table),
+          ],
+        ),
       Expanded(
         child: Scrollable2D(
           child: IntrinsicWidth(
@@ -69,20 +70,21 @@ Widget _mainTableWidget(BuildContext context, Ctx ctx, Object data) {
                   ],
                 ),
                 TableRows(ctx: ctx, table: table),
-                Row(
-                  children: [
-                    const OpenRowButton(),
-                    ElevatedButton(
-                      onPressed: () => table.addRow(),
-                      focusNode: ctx.defaultFocus,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: const [Icon(Icons.add), Text('New row')],
+                if (ctx.widgetMode == widget.Mode.edit)
+                  Row(
+                    children: [
+                      const OpenRowButton(),
+                      ElevatedButton(
+                        onPressed: () => table.addRow(),
+                        focusNode: ctx.defaultFocus,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: const [Icon(Icons.add), Text('New row')],
+                        ),
                       ),
-                    ),
-                  ],
-                )
+                    ],
+                  )
               ],
             ),
           ),
