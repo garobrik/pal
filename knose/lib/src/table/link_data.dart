@@ -13,8 +13,8 @@ part 'link_data.g.dart';
 final linkTableData = pal.Value(
   linkTableDataDef.asType(),
   linkTableDataDef.instantiate({
-    linkTableDataTableID: const Optional<Object>.none(),
-    linkTableDataColumnID: const Optional<Object>.none(),
+    linkTableDataTableID: const Optional<TableID>.none(),
+    linkTableDataColumnID: const Optional<ColumnID>.none(),
   }),
 );
 
@@ -39,15 +39,15 @@ final linkTableDataImpl = pal.Impl(
       tableDataGetTypeType,
       (Ctx ctx, Object arg) {
         final impl = arg as GetCursor<Object>;
-        final tableID = impl.recordAccess(linkTableDataTableID).read(ctx) as Optional<Object>;
+        final tableID = impl.recordAccess(linkTableDataTableID).read(ctx) as Optional<TableID>;
         if (tableID.isEmpty) return pal.unit;
 
-        final table = ctx.db.get(tableID.unwrap! as TableID).whenPresent;
+        final table = ctx.db.get(tableID.unwrap!).whenPresent;
 
-        final columnID = impl.recordAccess(linkTableDataColumnID).read(ctx) as Optional<Object>;
+        final columnID = impl.recordAccess(linkTableDataColumnID).read(ctx) as Optional<ColumnID>;
         if (columnID.isEmpty) return rowRefDef.asType();
 
-        final columnData = table.columns[columnID.unwrap! as ColumnID].whenPresent.dataImpl;
+        final columnData = table.columns[columnID.unwrap!].whenPresent.dataImpl;
         final columnDataImpl = pal.findImpl(
           ctx,
           tableDataDef.asType({tableDataImplementerID: columnData.palType().read(ctx)}),
