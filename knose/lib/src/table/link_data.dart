@@ -39,15 +39,15 @@ final linkTableDataImpl = pal.Impl(
       tableDataGetTypeType,
       (Ctx ctx, Object arg) {
         final impl = arg as GetCursor<Object>;
-        final tableID = impl.recordAccess(linkTableDataTableID).read(ctx) as Optional<TableID>;
+        final tableID = impl.recordAccess(linkTableDataTableID).read(ctx) as Optional<Object>;
         if (tableID.isEmpty) return pal.unit;
 
-        final table = ctx.db.get(tableID.unwrap!).whenPresent;
+        final table = ctx.db.get(tableID.unwrap! as TableID).whenPresent;
 
-        final columnID = impl.recordAccess(linkTableDataColumnID).read(ctx) as Optional<ColumnID>;
+        final columnID = impl.recordAccess(linkTableDataColumnID).read(ctx) as Optional<Object>;
         if (columnID.isEmpty) return rowRefDef.asType();
 
-        final columnData = table.columns[columnID.unwrap!].whenPresent.dataImpl;
+        final columnData = table.columns[columnID.unwrap! as ColumnID].whenPresent.dataImpl;
         final columnDataImpl = pal.findImpl(
           ctx,
           tableDataDef.asType({tableDataImplementerID: columnData.palType().read(ctx)}),
