@@ -96,11 +96,11 @@ Widget _linkCell({
   final child = ReaderWidget(
     ctx: ctx,
     builder: (_, ctx) {
-      if (tableID.isEmpty) return const SizedBox.expand();
+      if (tableID.isEmpty) return Container();
       final table = ctx.db.get(tableID.unwrap! as TableID).whenPresent;
 
       final rowID = link.recordAccess(rowRefRowID).read(ctx) as Optional<Object>;
-      if (rowID.isEmpty) return const SizedBox.expand();
+      if (rowID.isEmpty) return Container();
 
       final titleColumn = table.columns[table.titleColumn.read(ctx)].whenPresent;
 
