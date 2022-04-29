@@ -52,6 +52,7 @@ Widget _tableConfig(
                     ctx: ctx,
                     widget: pageWidget,
                     name: 'Untitled row view',
+                    mode: const Optional<widget.Mode>.none(),
                     topLevel: false,
                   );
                   final widgetID = newPage.recordAccess(widget.rootIDID) as widget.RootID;

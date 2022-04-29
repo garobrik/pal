@@ -44,6 +44,7 @@ Widget _mainScaffold(
                   ctx: ctx,
                   widget: pageWidget,
                   name: 'Untitled page',
+                  mode: const Optional(widget.Mode.view),
                 );
                 final widgetID = newPage.recordAccess(widget.rootIDID) as widget.RootID;
                 ctx.db.update(widgetID, newPage);
@@ -54,7 +55,7 @@ Widget _mainScaffold(
                     '',
                     arguments: model.WidgetRoute(
                       widgetID,
-                      ctx: ctx.withWidgetMode(widget.Mode.view),
+                      ctx: ctx,
                     ),
                   );
                 } else {
@@ -63,7 +64,7 @@ Widget _mainScaffold(
                     '',
                     arguments: model.WidgetRoute(
                       widgetID,
-                      ctx: ctx.withWidgetMode(widget.Mode.view),
+                      ctx: ctx,
                     ),
                   );
                 }
@@ -77,6 +78,7 @@ Widget _mainScaffold(
                   ctx: ctx,
                   widget: tableWidget,
                   name: 'Untitled table',
+                  mode: const Optional(widget.Mode.edit),
                 );
                 final widgetID = newTable.recordAccess(widget.rootIDID) as widget.RootID;
                 ctx.db.update(widgetID, newTable);
@@ -87,7 +89,7 @@ Widget _mainScaffold(
                     '',
                     arguments: model.WidgetRoute(
                       widgetID,
-                      ctx: ctx.withWidgetMode(widget.Mode.edit),
+                      ctx: ctx,
                     ),
                   );
                 } else {
@@ -96,7 +98,7 @@ Widget _mainScaffold(
                     '',
                     arguments: model.WidgetRoute(
                       widgetID,
-                      ctx: ctx.withWidgetMode(widget.Mode.edit),
+                      ctx: ctx,
                     ),
                   );
                 }

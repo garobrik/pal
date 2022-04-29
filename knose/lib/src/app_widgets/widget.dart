@@ -25,14 +25,19 @@ Route generateWidgetRoute(
       builder: (context, ctx) {
         late final Cursor<String>? title;
         late final Cursor<Object> instance;
+        late final widget.Mode mode;
         if (widgetID is widget.RootID) {
           final root = ctx.db.get(widgetID).whenPresent;
           title = root.recordAccess(widget.rootNameID).cast<String>();
           instance = root.recordAccess(widget.rootInstanceID);
+          mode = (root.recordAccess(widget.rootModeID).read(ctx) as Optional<widget.Mode>)
+              .orElse(ctx.widgetMode);
         } else if (widgetID is widget.ID) {
           title = null;
           instance = ctx.db.get(widgetID).whenPresent;
+          mode = ctx.widgetMode;
         }
+        ctx = ctx.withWidgetMode(mode);
 
         return MainScaffold(
           ctx: ctx,

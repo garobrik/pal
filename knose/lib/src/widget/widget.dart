@@ -51,6 +51,7 @@ final rootIDDef =
 final rootIDID = pal.MemberID();
 final rootNameID = pal.MemberID();
 final rootTopLevelID = pal.MemberID();
+final rootModeID = pal.MemberID();
 final rootInstanceID = pal.MemberID();
 final rootDef = pal.DataDef.record(
   name: 'RootWidget',
@@ -58,6 +59,7 @@ final rootDef = pal.DataDef.record(
     pal.Member(id: rootIDID, name: 'id', type: rootIDDef.asType()),
     pal.Member(id: rootNameID, name: 'name', type: pal.text),
     pal.Member(id: rootTopLevelID, name: 'topLevel', type: pal.boolean),
+    pal.Member(id: rootModeID, name: 'mode', type: pal.optionType(modeDef.asType())),
     pal.Member(id: rootInstanceID, name: 'instance', type: instanceDef.asType()),
   ],
 );
@@ -109,6 +111,7 @@ Object rootInstance({
   required Ctx ctx,
   required Object widget,
   required String name,
+  required Optional<Mode> mode,
   bool topLevel = true,
 }) {
   final defaultData = widget.recordAccess(defaultDataID);
@@ -123,9 +126,12 @@ Object rootInstance({
     rootIDID: RootID.create(),
     rootNameID: name,
     rootTopLevelID: topLevel,
+    rootModeID: mode,
     rootInstanceID: instance,
   });
 }
+
+final modeDef = pal.DataDef.unit('WidgetMode');
 
 enum Mode {
   edit,
