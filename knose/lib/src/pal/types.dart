@@ -389,7 +389,8 @@ class DataDef {
   }) =>
       DataType(id: id, assignments: assignments);
 
-  Object instantiate(Object data) => tree.instantiate(data);
+  Object instantiate(Object data, {Iterable<MemberID> at = const []}) =>
+      tree.followPath(at).instantiate(data);
 
   Object followPath(Object targetObj, Iterable<MemberID> path) {
     var targetTree = this.tree;
