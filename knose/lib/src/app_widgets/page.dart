@@ -200,10 +200,12 @@ Widget _modeDropdown(Ctx ctx, Cursor<Object> data) {
             ));
       } else if (mode == pageComputedID) {
         final defaultTextWidget = Cursor(widget.defaultInstance(ctx, textWidget));
-        defaultTextWidget
-            .recordAccess(widget.instanceDataID)
-            .recordAccess(widget.datumOrDataID)
-            .set(pal.UnionTag(widget.datumOrDatumID, const _ListElemDatum()));
+
+        widget.setDatumOrDatum(
+          ctx: ctx,
+          datumOr: defaultTextWidget.recordAccess(widget.instanceDataID),
+          newDatum: const _ListElemDatum(),
+        );
 
         data.recordAccess(pageModeID).set(pal.UnionTag(
               pageComputedID,

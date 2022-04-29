@@ -26,13 +26,24 @@ final datumOrTypeID = pal.MemberID();
 final datumOrDataID = pal.MemberID();
 final datumOrDefaultID = pal.MemberID();
 final datumOrDatumID = pal.MemberID();
+final datumOrDatumDatumID = pal.MemberID();
+final datumOrDatumSubExprID = pal.MemberID();
 final datumOrLiteralID = pal.MemberID();
 final datumOrDef = pal.DataDef(
   tree: pal.RecordNode('DatumOr', {
     datumOrTypeID: const pal.LeafNode('type', pal.type),
     datumOrDefaultID: pal.LeafNode('defaultValue', pal.RecordAccess(datumOrTypeID)),
     datumOrDataID: pal.UnionNode('data', {
-      datumOrDatumID: pal.LeafNode('datum', pal.datumDef.asType()),
+      datumOrDatumID: pal.RecordNode('datum', {
+        datumOrDatumDatumID: pal.LeafNode('datum', pal.datumDef.asType()),
+        datumOrDatumSubExprID: pal.LeafNode(
+          'subExpr',
+          pal.FnType(
+            target: pal.unit,
+            returnType: pal.RecordAccess(datumOrTypeID),
+          ),
+        ),
+      }),
       datumOrLiteralID: pal.LeafNode('literal', pal.RecordAccess(datumOrTypeID)),
     }),
   }),
@@ -41,18 +52,43 @@ final datumOrDef = pal.DataDef(
 Cursor<Object>? evalDatumOr(Ctx ctx, Cursor<Object> datumOr) {
   return datumOr.recordAccess(datumOrDataID).dataCases(ctx, {
     datumOrDatumID: (obj) {
-      final datum = obj.read(ctx) as model.Datum;
-      final result = datum.value(ctx);
+      final datum = obj.recordAccess(datumOrDatumDatumID).read(ctx) as model.Datum;
+      final subExpr = obj.recordAccess(datumOrDatumSubExprID).read(ctx);
+      var datumValue = datum.value(ctx);
       final datumType = datum.type(ctx);
       final datumOrType = datumOr.recordAccess(datumOrTypeID).read(ctx) as pal.Type;
       if (datumType.isConcrete && !datumOrType.isConcrete) {
-        return result?.wrap(datumType);
+        datumValue = datumValue?.wrap(datumType);
       }
+      final result = datumValue == null ? null : subExpr.callFn(ctx, datumValue) as Cursor<Object>?;
+
       return result;
     },
     datumOrLiteralID: (obj) => obj,
   });
 }
+
+void setDatumOrDatum({
+  required Ctx ctx,
+  required Cursor<Object> datumOr,
+  required model.Datum newDatum,
+  Object subExpr = _id,
+}) {
+  datumOr.recordAccess(datumOrDataID).set(
+        pal.UnionTag(
+          datumOrDatumID,
+          datumOrDef.instantiate(
+            {
+              datumOrDatumDatumID: newDatum,
+              datumOrDatumSubExprID: _id,
+            },
+            at: [datumOrDataID, datumOrDatumID],
+          ),
+        ),
+      );
+}
+
+Object _id(Ctx ctx, Object o) => o;
 
 @reader
 Widget _editDatumOr(
@@ -83,9 +119,7 @@ Widget _editDatumOr(
                 for (final datum in dataSource.data.read(ctx))
                   if (datum.type(ctx).assignableTo(ctx, datumOrType))
                     TextButton(
-                      onPressed: () => datumOr
-                          .recordAccess(datumOrDataID)
-                          .set(pal.UnionTag(datumOrDatumID, datum)),
+                      onPressed: () => setDatumOrDatum(ctx: ctx, datumOr: datumOr, newDatum: datum),
                       child: Text(datum.name(ctx)),
                     ),
               TextButton(
@@ -102,7 +136,8 @@ Widget _editDatumOr(
     ),
     child: Text(
       datumOr.recordAccess(datumOrDataID).dataCases(ctx, {
-        datumOrDatumID: (obj) => (obj.read(ctx) as model.Datum).name(ctx),
+        datumOrDatumID: (obj) =>
+            (obj.recordAccess(datumOrDatumDatumID).read(ctx) as model.Datum).name(ctx),
         datumOrLiteralID: (_) => 'Literal',
       }),
     ),
