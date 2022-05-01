@@ -214,33 +214,6 @@ final tableDataGetDefaultID = pal.MemberID();
 final tableDataGetWidgetID = pal.MemberID();
 final tableDataGetConfigID = pal.MemberID();
 final tableData = pal.InterfaceType(id: pal.InterfaceID.create());
-final tableDataGetNameType = pal.FnType(
-  returnType: pal.text,
-  target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
-);
-final tableDataGetTypeType = pal.FnType(
-  returnType: pal.type,
-  target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
-);
-final tableDataGetDefaultType = pal.FnType(
-  returnType: pal.InterfaceAccess(member: tableDataGetTypeID),
-  target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
-);
-final tableDataGetWidgetType = pal.FnType(
-  returnType: widget.flutterWidgetDef.asType(),
-  target: pal.Value(
-    const pal.Map(pal.text, pal.type),
-    Dict({
-      'data': pal.cursorType(pal.InterfaceAccess(member: tableDataGetTypeID)),
-      'impl': pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
-    }),
-  ),
-);
-
-final tableDataGetConfigType = pal.FnType(
-  returnType: pal.optionType(widget.flutterWidgetDef.asType()),
-  target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
-);
 
 String tableDataGetName(Ctx ctx, Cursor<pal.Value> impl) {
   final palImpl = pal.findImpl(
@@ -255,10 +228,51 @@ final tableDataDef = pal.InterfaceDef(
   name: 'ColumnImpl',
   members: [
     pal.Member(id: tableDataImplementerID, name: 'implementer', type: pal.type),
-    pal.Member(id: tableDataGetNameID, name: 'getName', type: tableDataGetNameType),
-    pal.Member(id: tableDataGetTypeID, name: 'getType', type: tableDataGetTypeType),
-    pal.Member(id: tableDataGetDefaultID, name: 'getDefault', type: tableDataGetDefaultType),
-    pal.Member(id: tableDataGetWidgetID, name: 'getWidget', type: tableDataGetWidgetType),
-    pal.Member(id: tableDataGetConfigID, name: 'getConfig', type: tableDataGetConfigType),
+    pal.Member(
+      id: tableDataGetNameID,
+      name: 'getName',
+      type: pal.FnType(
+        returnType: pal.text,
+        target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
+      ),
+    ),
+    pal.Member(
+      id: tableDataGetTypeID,
+      name: 'getType',
+      type: pal.FnType(
+        returnType: pal.type,
+        target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
+      ),
+    ),
+    pal.Member(
+      id: tableDataGetDefaultID,
+      name: 'getDefault',
+      type: pal.FnType(
+        returnType: pal.InterfaceAccess(member: tableDataGetTypeID),
+        target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
+      ),
+    ),
+    pal.Member(
+      id: tableDataGetWidgetID,
+      name: 'getWidget',
+      type: pal.FnType(
+        returnType: widget.flutterWidgetDef.asType(),
+        target: pal.Value(
+          const pal.Map(pal.text, pal.type),
+          Dict({
+            'data': pal.cursorType(pal.InterfaceAccess(member: tableDataGetTypeID)),
+            'impl': pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
+          }),
+        ),
+      ),
+    ),
+    pal.Member(
+      id: tableDataGetConfigID,
+      name: 'getConfig',
+      type: pal.FnType(
+        returnType: pal.optionType(widget.flutterWidgetDef.asType()),
+        target: pal.cursorType(pal.InterfaceAccess(member: tableDataImplementerID)),
+      ),
+    ),
   ],
 );

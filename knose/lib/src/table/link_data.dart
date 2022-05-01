@@ -36,7 +36,7 @@ final linkTableDataImpl = pal.Impl(
   implemented: tableDataDef.asType({tableDataImplementerID: linkTableDataDef.asType()}),
   implementations: Dict({
     tableDataGetTypeID: pal.Literal(
-      tableDataGetTypeType,
+      tableDataDef.memberType(tableDataGetTypeID),
       (Ctx ctx, Object arg) {
         final impl = arg as GetCursor<Object>;
         final tableID = impl.recordAccess(linkTableDataTableID).read(ctx) as Optional<TableID>;
@@ -59,15 +59,15 @@ final linkTableDataImpl = pal.Impl(
       },
     ),
     tableDataGetNameID: pal.Literal(
-      tableDataGetNameType,
+      tableDataDef.memberType(tableDataGetNameID),
       (Ctx _, Object __) => 'Link',
     ),
     tableDataGetDefaultID: pal.Literal(
-      tableDataGetDefaultType,
+      tableDataDef.memberType(tableDataGetDefaultID),
       (Ctx _, Object __) => rowRefDef.instantiate({rowRefRowID: const Optional<Object>.none()}),
     ),
     tableDataGetWidgetID: pal.Literal(
-      tableDataGetWidgetType,
+      tableDataDef.memberType(tableDataGetWidgetID),
       (Ctx ctx, Object args) {
         final impl = (args.mapAccess('impl').unwrap! as Cursor<Object>);
         final rowRef = (args.mapAccess('rowData').unwrap! as Cursor<Object>);
@@ -76,7 +76,7 @@ final linkTableDataImpl = pal.Impl(
       },
     ),
     tableDataGetConfigID: pal.Literal(
-      tableDataGetConfigType,
+      tableDataDef.memberType(tableDataGetConfigID),
       (Ctx ctx, Object args) {
         final dataImpl = args.mapAccess('impl').unwrap! as Cursor<Object>;
         return Optional(LinkConfig(ctx: ctx, linkImpl: dataImpl));

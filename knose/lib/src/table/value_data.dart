@@ -49,22 +49,22 @@ final valueTableDataImpl = pal.Impl(
   implemented: tableDataDef.asType({tableDataImplementerID: valueTableDataDef.asType()}),
   implementations: Dict({
     tableDataGetTypeID: pal.Literal(
-      tableDataGetTypeType,
+      tableDataDef.memberType(tableDataGetTypeID),
       (Ctx ctx, Object arg) =>
           (arg as GetCursor<Object>).recordAccess(valueTableDataTypeID).read(ctx),
     ),
     tableDataGetNameID: pal.Literal(
-      tableDataGetNameType,
+      tableDataDef.memberType(tableDataGetNameID),
       (Ctx ctx, Object arg) =>
           (arg as GetCursor<Object>).recordAccess(valueTableDataNameID).read(ctx),
     ),
     tableDataGetDefaultID: pal.Literal(
-      tableDataGetDefaultType,
+      tableDataDef.memberType(tableDataGetDefaultID),
       (Ctx ctx, Object arg) =>
           (arg as GetCursor<Object>).recordAccess(valueTableDataDefaultID).read(ctx),
     ),
     tableDataGetWidgetID: pal.Literal(
-      tableDataGetWidgetType,
+      tableDataDef.memberType(tableDataGetWidgetID),
       (Ctx ctx, Object args) {
         final impl = args.mapAccess('impl').unwrap! as Cursor<Object>;
         final getWidget = impl.recordAccess(valueTableDataGetWidgetID).read(ctx);
@@ -72,7 +72,7 @@ final valueTableDataImpl = pal.Impl(
       },
     ),
     tableDataGetConfigID: pal.Literal(
-      tableDataGetConfigType,
+      tableDataDef.memberType(tableDataGetConfigID),
       (Ctx _, Object __) => const Optional<Widget>.none(),
     ),
   }),

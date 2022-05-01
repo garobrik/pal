@@ -24,7 +24,7 @@ final listTableDataImpl = pal.Impl(
   implemented: tableDataDef.asType({tableDataImplementerID: listTableDataDef.asType()}),
   implementations: Dict({
     tableDataGetTypeID: pal.Literal(
-      tableDataGetTypeType,
+      tableDataDef.memberType(tableDataGetTypeID),
       (Ctx ctx, Object arg) {
         final impl = arg as GetCursor<Object>;
         final elementDataImpl = impl.recordAccess(listTableDataElementID);
@@ -38,15 +38,15 @@ final listTableDataImpl = pal.Impl(
       },
     ),
     tableDataGetNameID: pal.Literal(
-      tableDataGetNameType,
+      tableDataDef.memberType(tableDataGetNameID),
       (Ctx _, Object __) => 'List',
     ),
     tableDataGetDefaultID: pal.Literal(
-      tableDataGetDefaultType,
+      tableDataDef.memberType(tableDataGetDefaultID),
       (Ctx _, Object __) => const Vec<Object>(),
     ),
     tableDataGetWidgetID: pal.Literal(
-      tableDataGetWidgetType,
+      tableDataDef.memberType(tableDataGetWidgetID),
       (Ctx ctx, Object args) {
         final impl = (args.mapAccess('impl').unwrap! as Cursor<Object>)
             .recordAccess(listTableDataElementID)
@@ -61,7 +61,7 @@ final listTableDataImpl = pal.Impl(
       },
     ),
     tableDataGetConfigID: pal.Literal(
-      tableDataGetConfigType,
+      tableDataDef.memberType(tableDataGetConfigID),
       (Ctx ctx, Object args) {
         final column = args.mapAccess('column').unwrap! as Cursor<table.Column>;
         final dataImpl = args.mapAccess('impl').unwrap! as Cursor<Object>;

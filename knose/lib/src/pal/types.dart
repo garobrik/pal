@@ -315,6 +315,8 @@ class InterfaceDef {
 
   InterfaceType asType([dart.Map<MemberID, Object> assignments = const {}]) =>
       InterfaceType(id: id, assignments: assignments);
+
+  Object memberType(MemberID member) => members[member]!.type;
 }
 
 class DataType extends Type implements Traversible {

@@ -14,17 +14,18 @@ Object doEval(Ctx ctx, Object object) {
 }
 
 class Literal extends Expr {
-  final Type type;
+  final Object type;
   final Object value;
 
   const Literal(this.type, this.value);
 
   @override
-  Type evalType(Ctx ctx) => type;
+  Type evalType(Ctx ctx) => doEval(ctx, type) as Type;
 
   @override
   Object eval(Ctx ctx) {
     final result = doTraverse(value, (obj) => doEval(ctx, obj));
+    final type = evalType(ctx);
     return type.isConcrete ? result : Value(type, result);
   }
 
