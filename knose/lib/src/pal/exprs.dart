@@ -75,19 +75,17 @@ class InterfaceAccess extends Expr {
   final Expr target;
   final MemberID member;
 
-  InterfaceAccess({
-    required this.member,
+  InterfaceAccess(
+    this.member, [
     this.target = thisImpl,
-  });
+  ]);
 
   @override
   Type evalType(Ctx ctx) {
     final ifaceType = target.evalType(ctx) as InterfaceType;
-    {
-      final assignment = ifaceType.assignments[member];
-      if (assignment != null) {
-        return doEval(ctx, assignment) as Type;
-      }
+    final assignment = ifaceType.assignments[member];
+    if (assignment != null) {
+      return doEval(ctx, assignment) as Type;
     }
     return doEval(ctx, ctx.db.get(ifaceType.id).whenPresent.read(ctx).members[member]!.type)
         as Type;
