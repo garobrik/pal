@@ -10,3 +10,4 @@ dependencies:
 
 dev_dependencies:
   test: "^1.19.3"
+  flutter_lints: "^1.0.4"

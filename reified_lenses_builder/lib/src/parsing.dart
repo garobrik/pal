@@ -766,9 +766,9 @@ class _ConcreteTypeImpl with ConcreteType {
   @override
   final analyzer_type.DartType? dartType;
 
-  const _ConcreteTypeImpl(this.name,
-      {this.args = const [], this.isNullable = false, this.isTypeParameter = false})
-      : dartType = null;
+  const _ConcreteTypeImpl(this.name, {this.args = const [], this.isNullable = false})
+      : dartType = null,
+        isTypeParameter = false;
   _ConcreteTypeImpl.fromDartType(LibraryElement usageContext, analyzer_type.DartType type)
       : name = qualifiedNameIn(type.element!, usageContext)!,
         args = (type is analyzer_type.ParameterizedType)

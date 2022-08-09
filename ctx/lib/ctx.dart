@@ -3,7 +3,7 @@ class Ctx {
 
   const Ctx._(this._elements);
 
-  static const empty = Ctx._(const {});
+  static const empty = Ctx._({});
 
   Ctx withElement<T extends CtxElement>(T element) => Ctx._(Map.of(_elements)..[T] = element);
   Ctx removeElement<T extends CtxElement>() => Ctx._(Map.of(_elements)..remove(T));
