@@ -33,6 +33,14 @@ class Optional<Value> extends Iterable<Value> {
 
   @override
   Iterator<Value> get iterator => _value == null ? <Value>[].iterator : [_value as Value].iterator;
+
+  @override
+  int get hashCode => hash(this);
+
+  @override
+  bool operator ==(Object other) {
+    return other is Optional<Value> && _value == other._value;
+  }
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
