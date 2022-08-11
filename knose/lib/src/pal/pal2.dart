@@ -1,0 +1,1125 @@
+import 'dart:core' as dart;
+import 'dart:core';
+import 'package:ctx/ctx.dart';
+import 'package:reified_lenses/reified_lenses.dart';
+import 'package:reified_lenses/reified_lenses.dart' as reified;
+import 'package:uuid/uuid.dart';
+
+// todo:
+// - fix thisdef (are we operating on the typedef, the type, or the actual thing?)
+// - do type properties properly (& fix FnType creation when done)
+// - test
+
+typedef Dict = reified.Dict<Object, Object>;
+typedef Vec = reified.Vec<Object>;
+
+class ID extends Comparable<ID> {
+  static final def = TypeDef.empty('ID');
+  static final type = TypeDef.asType(def);
+
+  static const _uuid = Uuid();
+
+  final String id;
+
+  ID() : id = _uuid.v4();
+
+  ID.from(this.id);
+
+  @override
+  bool operator ==(Object other) => other is ID && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() => '$runtimeType($id)';
+
+  @override
+  int compareTo(ID other) {
+    return id.compareTo(other.id);
+  }
+
+  dynamic toJson() => id;
+}
+
+abstract class TypeDef {
+  static final IDID = ID();
+  static final treeID = ID();
+
+  static Dict record(String name, dart.Map<ID, Dict> members, {ID? id}) =>
+      TypeDef.mk(TypeTree.record(name, members), id: id);
+  static Dict union(String name, dart.Map<ID, Dict> cases, {ID? id}) =>
+      TypeDef.mk(TypeTree.union(name, cases), id: id);
+  static Dict empty(String name, {ID? id}) => TypeDef.mk(TypeTree.empty(name), id: id);
+  static Dict unit(String name, {ID? id}) => TypeDef.mk(TypeTree.unit(name), id: id);
+
+  static Dict mk(Object tree, {ID? id}) => Dict({IDID: id ?? ID(), treeID: tree});
+
+  static Dict asType(Dict typeDef, {Vec properties = const Vec()}) => Type.mk(
+        typeDef[IDID].unwrap! as ID,
+        properties: properties,
+      );
+
+  static Object tree(Object typeDef) => (typeDef as Dict)[treeID].unwrap!;
+
+  static final def = TypeDef.record('TypeDef', {
+    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
+    treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
+  });
+  static final type = asType(def);
+}
+
+abstract class Type {
+  static final IDID = ID();
+  static final pathID = ID();
+  static final propertiesID = ID();
+
+  static final _typeID = ID();
+  static final def = TypeDef.record(
+    'Type',
+    {
+      IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
+      pathID: TypeTree.mk('path', Literal.mk(Type.type, List.type(ID.type))),
+      propertiesID: TypeTree.mk('properties', Literal.mk(Type.type, List.type(TypeProperty.type))),
+    },
+    id: _typeID,
+  );
+  static final type = Type.mk(_typeID);
+
+  static Dict mk(
+    ID id, {
+    Vec path = const Vec(),
+    Vec properties = const Vec(),
+  }) =>
+      Dict({IDID: id, pathID: path, propertiesID: properties});
+
+  static ID id(Object type) => (type as Dict)[IDID].unwrap! as ID;
+  static Vec path(Object type) => (type as Dict)[pathID].unwrap! as Vec;
+  static Vec properties(Object type) => (type as Dict)[propertiesID].unwrap! as Vec;
+}
+
+abstract class TypeProperty {
+  static final dataTypeID = ID();
+  static final appliesToID = ID();
+  static final hasID = ID();
+  static final interfaceID = ID();
+  static final interfaceDef = InterfaceDef.record(
+    'TypePropertyImpl',
+    {
+      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      appliesToID: TypeTree.mk(
+        'appliesTo',
+        Literal.mk(
+          Type.type,
+          Fn.type(
+            argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
+            returnType: Type.type,
+          ),
+        ),
+      ),
+      hasID: TypeTree.mk(
+        'has',
+        Fn.type(
+          argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
+          returnType: boolean,
+        ),
+      ),
+    },
+    id: interfaceID,
+  );
+
+  static Dict newImpl({
+    ID? id,
+    required Object dataType,
+    required Object appliesTo,
+    required Object has,
+  }) =>
+      ImplDef.mk(
+        id: id,
+        implemented: interfaceID,
+        members: Dict({dataTypeID: dataType, appliesToID: appliesTo, hasID: has}),
+      );
+
+  static final implID = ID();
+  static final dataID = ID();
+  static final typeDef = TypeDef.record('TypeProperty', {
+    implID: TypeTree.mk('impl', Literal.mk(Type.type, Impl.type(interfaceID))),
+    dataID: TypeTree.mk(
+      'data',
+      InterfaceAccess.mk(
+          target: RecordAccess.mk(target: thisDef, accessed: implID), member: dataTypeID),
+    ),
+  });
+  static final type = TypeDef.asType(typeDef);
+
+  static Dict mk(Object impl, Object data) => Dict({implID: impl, dataID: data});
+
+  static Object impl(Object typeProperty) => (typeProperty as Dict)[implID].unwrap!;
+  static Object data(Object typeProperty) => (typeProperty as Dict)[dataID].unwrap!;
+}
+
+abstract class MemberIs extends TypeProperty {
+  static final dataTypeID = ID();
+  static final pathID = ID();
+  static final equalToID = ID();
+
+  static final typeDef = TypeDef.record('MemberIs', {
+    dataTypeID: TypeTree.mk('dataType', Type.type),
+    pathID: TypeTree.mk('path', List.type(ID.type)),
+    equalToID: TypeTree.mk('equalTo', Expr.type),
+  });
+
+  static final implID = ID();
+  static final propImplDef = TypeProperty.newImpl(
+    id: implID,
+    dataType: TypeDef.asType(typeDef),
+    appliesTo: Fn.from(
+      Fn.type(argType: TypeDef.asType(typeDef), returnType: Type.type),
+      (argID) => RecordAccess.mk(target: thisDef, accessed: dataTypeID),
+    ),
+    has: Fn.from(
+      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      (argID) => Literal.mk(boolean, true),
+    ),
+  );
+  static final impl = Impl.mk(implID);
+
+  static Dict mk({required Dict dataType, required Object path, required Object equalTo}) =>
+      TypeProperty.mk(
+        impl,
+        Dict({
+          dataTypeID: dataType,
+          pathID: path,
+          equalToID: equalTo,
+        }),
+      );
+
+  static Vec path(Object memberIs) => (memberIs as Dict)[pathID].unwrap! as Vec;
+  static Object equalTo(Object memberIs) => (memberIs as Dict)[equalToID].unwrap!;
+}
+
+abstract class UnionTag {
+  static final tagID = ID();
+  static final valueID = ID();
+
+  static final def = TypeDef.record('UnionTag', {
+    tagID: TypeTree.mk('tag', ID.type),
+    valueID: TypeTree.mk('value', any),
+  });
+
+  static final type = TypeDef.asType(def);
+
+  static Dict mk(ID tag, Object value) => Dict({tagID: tag, valueID: value});
+
+  static ID tag(Object unionTag) => (unionTag as Dict)[tagID].unwrap! as ID;
+  static Object value(Object unionTag) => (unionTag as Dict)[valueID].unwrap!;
+}
+
+abstract class TypeTree {
+  static final nameID = ID();
+  static final treeID = ID();
+  static final recordID = ID();
+  static final unionID = ID();
+  static final leafID = ID();
+
+  static final _defID = ID();
+  static final def = TypeDef.record('TypeTree', {
+    nameID: TypeTree.mk('name', text),
+    treeID: TypeTree.union('tree', {
+      recordID: TypeTree.mk('record', Map.type(ID.type, TypeTree.type)),
+      unionID: TypeTree.mk('union', Map.type(ID.type, TypeTree.type)),
+      leafID: TypeTree.mk('leaf', Expr.type)
+    }),
+  });
+  static final type = Type.mk(_defID);
+
+  static Dict record(String name, dart.Map<ID, Dict> members) =>
+      Dict({nameID: name, treeID: UnionTag.mk(recordID, Dict(members))});
+  static Dict union(String name, dart.Map<ID, Dict> cases) =>
+      Dict({nameID: name, treeID: UnionTag.mk(unionID, Dict(cases))});
+  static Dict mk(String name, Object type) =>
+      Dict({nameID: name, treeID: UnionTag.mk(leafID, type)});
+  static Dict empty(String name) => TypeTree.union(name, const {});
+  static Dict unit(String name) => TypeTree.record(name, const {});
+
+  static Object tree(Object typeTree) {
+    return (typeTree as Dict)[treeID].unwrap!;
+  }
+
+  static Object treeCases(
+    Object typeTree, {
+    required Object Function(Dict) record,
+    required Object Function(Dict) union,
+    required Object Function(Dict) leaf,
+  }) {
+    final tree = TypeTree.tree(typeTree);
+    final tag = UnionTag.tag(tree);
+    final value = UnionTag.value(tree);
+    if (tag == recordID) {
+      return record(value as Dict);
+    } else if (tag == unionID) {
+      return union(value as Dict);
+    } else if (tag == leafID) {
+      return leaf(value as Dict);
+    } else {
+      throw Exception("unknown tree case");
+    }
+  }
+
+  static Object treeAt(Object typeTree, Vec path) {
+    if (path.isEmpty) {
+      return typeTree;
+    } else {
+      return treeCases(
+        typeTree,
+        record: (record) => treeAt(record[path.first].unwrap!, path.tail),
+        union: (union) => treeAt(union[path.first].unwrap!, path.tail),
+        leaf: (leaf) => throw Exception('tried to look up type tree at unknown location'),
+      );
+    }
+  }
+
+  static Object dataAt(Object typeTree, Object data, Vec path) {
+    if (path.isEmpty) {
+      return data;
+    } else {
+      return treeCases(
+        typeTree,
+        record: (record) => dataAt(
+          record[path.first].unwrap!,
+          (data as Dict)[path.first].unwrap!,
+          path.tail,
+        ),
+        union: (union) {
+          assert(UnionTag.tag(data) == path.first);
+          return dataAt(
+            union[path.first].unwrap!,
+            UnionTag.value(union),
+            path.tail,
+          );
+        },
+        leaf: (leaf) => throw Exception('tried to access data in type tree at unknown location'),
+      );
+    }
+  }
+}
+
+class InterfaceDef {
+  static final IDID = ID();
+  static final membersID = ID();
+
+  static final def = TypeDef.record('InterfaceDef', {
+    IDID: TypeTree.mk('id', ID.type),
+    membersID: TypeTree.mk('members', TypeTree.type),
+  });
+  static final type = Type.type;
+
+  static Dict mk(Dict members, {ID? id}) => Dict({IDID: id ?? ID(), membersID: members});
+  static Dict record(String name, dart.Map<ID, Dict> members, {ID? id}) =>
+      InterfaceDef.mk(TypeTree.record(name, members), id: id);
+  static Dict union(String name, dart.Map<ID, Dict> cases, {ID? id}) =>
+      InterfaceDef.mk(TypeTree.union(name, cases), id: id);
+
+  static ID id(Object ifaceDef) => (ifaceDef as Dict)[IDID].unwrap! as ID;
+}
+
+abstract class ImplDef {
+  static final IDID = ID();
+  static final implementedID = ID();
+  static final membersID = ID();
+
+  static final def = TypeDef.record('ImplDef', {
+    IDID: TypeTree.mk('id', ID.type),
+    implementedID: TypeTree.mk('implemented', ID.type),
+    membersID: TypeTree.mk('members', any),
+  });
+  static Dict type(ID implemented) => TypeDef.asType(
+        def,
+        properties: Vec([
+          MemberIs.mk(dataType: TypeDef.asType(def), path: Vec([IDID]), equalTo: implemented),
+        ]),
+      );
+
+  static Dict mk({ID? id, required ID implemented, required Object members}) =>
+      Dict({IDID: id ?? ID(), implementedID: implemented, membersID: members});
+
+  static Object members(Object implDef) => (implDef as Dict)[membersID].unwrap!;
+
+  static Dict asImpl(Object implDef) => Impl.mk((implDef as Dict)[IDID].unwrap! as ID);
+}
+
+abstract class Impl {
+  static final IDID = ID();
+
+  static final def = TypeDef.record('Impl', {IDID: TypeTree.mk('id', ID.type)});
+
+  static Dict mk(ID id) => Dict({IDID: id});
+
+  static Dict type(ID id) => TypeDef.asType(def);
+
+  static ID id(Object impl) => (impl as Dict)[IDID].unwrap! as ID;
+}
+
+abstract class Option {
+  static final dataTypeID = ID();
+  static final valueID = ID();
+  static final someID = ID();
+  static final noneID = ID();
+
+  static final def = TypeDef.record('Option', {
+    dataTypeID: TypeTree.mk('dataType', Type.type),
+    valueID: TypeTree.union('value', {
+      someID: TypeTree.mk('some', RecordAccess.mk(target: thisDef, accessed: dataTypeID)),
+      noneID: TypeTree.unit('none'),
+    }),
+  });
+
+  static Dict type(Dict dataType) => TypeDef.asType(
+        def,
+        properties: Vec([
+          MemberIs.mk(dataType: TypeDef.asType(def), path: Vec([dataTypeID]), equalTo: dataType)
+        ]),
+      );
+
+  static Object cases(
+    Object option, {
+    required Object Function(Object) some,
+    required Object Function() none,
+  }) {
+    final value = (option as Dict)[valueID].unwrap!;
+    return UnionTag.tag(value) == someID ? some(UnionTag.value(value)) : none();
+  }
+
+  static final _noneUnionTag = UnionTag.mk(noneID, const Dict());
+  static Dict mk(Dict dataType, [Object? value]) => Dict({
+        dataTypeID: dataType,
+        valueID: value == null ? _noneUnionTag : UnionTag.mk(someID, value),
+      });
+}
+
+class ExprImplDef extends ImplDef {
+  static final dataTypeID = ID();
+  static final evalTypeID = ID();
+  static final evalExprID = ID();
+
+  static final def = InterfaceDef.record('ExprImplDef', {
+    dataTypeID: TypeTree.mk('dataType', Type.type),
+    evalTypeID: TypeTree.mk(
+      'type',
+      Fn.type(
+        argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
+        returnType: Option.type(Type.type),
+      ),
+    ),
+    evalExprID: TypeTree.mk(
+      'eval',
+      Fn.type(argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID), returnType: any),
+    )
+  });
+
+  static final id = InterfaceDef.id(def);
+
+  static Dict mk({required Dict data, required Object type, required Object eval, ID? id}) =>
+      ImplDef.mk(
+        id: id ?? ID(),
+        implemented: ExprImplDef.id,
+        members: Dict({dataTypeID: data, evalTypeID: type, evalExprID: eval}),
+      );
+
+  static Object dataType(Object exprImpl) => (exprImpl as Dict)[dataTypeID].unwrap!;
+  static Object evalType(Object exprImpl) => (exprImpl as Dict)[evalTypeID].unwrap!;
+  static Object evalExpr(Object exprImpl) => (exprImpl as Dict)[evalExprID].unwrap!;
+}
+
+class Expr {
+  static final implID = ID();
+  static final dataID = ID();
+
+  static final _defID = ID();
+  static final def = TypeDef.record(
+    'Expr',
+    {
+      implID: TypeTree.mk('impl', Impl.type(ExprImplDef.id)),
+      dataID:
+          TypeTree.mk('data', InterfaceAccess.mk(target: thisDef, member: ExprImplDef.dataTypeID)),
+    },
+    id: _defID,
+  );
+
+  static final type = Type.mk(_defID);
+
+  static Dict mk({required Object data, required Object impl}) =>
+      Dict({dataID: data, implID: impl});
+
+  static Object data(Object expr) => (expr as Dict)[dataID].unwrap!;
+  static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
+  static Object evalType(Ctx ctx, Object expr) => eval(ctx, ExprImplDef.evalType(expr));
+  static Dict evalTypeFn = Fn.from(
+    Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+    (argID) => FnApp.mk(
+      InterfaceAccess.mk(
+        target: RecordAccess.mk(target: VarAccess.mk(argID), accessed: implID),
+        member: ExprImplDef.evalTypeID,
+      ),
+      RecordAccess.mk(target: VarAccess.mk(argID), accessed: dataID),
+    ),
+  );
+}
+
+class Assignable {
+  static final fromID = ID();
+  static final toID = ID();
+  static final whenID = ID();
+  static final whenFromID = ID();
+  static final whenToID = ID();
+  static final whenTargetDef = TypeDef.record('target', {
+    whenFromID: TypeTree.mk('from', unit),
+    whenToID: TypeTree.mk('to', unit),
+  });
+
+  static final def = InterfaceDef.record('Assignable', {
+    fromID: TypeTree.mk('from', Type.type),
+    toID: TypeTree.mk('to', Type.type),
+    whenID:
+        TypeTree.mk('when', Fn.type(returnType: boolean, argType: TypeDef.asType(whenTargetDef))),
+  });
+}
+
+class List {
+  static final typeID = ID();
+  static final valuesID = ID();
+  static final def = TypeDef.record('List', {
+    typeID: TypeTree.mk('type', type),
+    valuesID: TypeTree.empty('values'),
+  });
+
+  static Dict type(Dict type) => TypeDef.asType(def);
+
+  static Dict mk(Type type, Vec values) => Dict({typeID: type, valuesID: values});
+}
+
+class Map {
+  static final keyID = ID();
+  static final valueID = ID();
+  static final valuesID = ID();
+  static final def = TypeDef.record('Map', {
+    keyID: TypeTree.mk('key', Type.type),
+    valueID: TypeTree.mk('value', Type.type),
+    valuesID: TypeTree.empty('values'),
+  });
+
+  static Dict type(Dict key, Dict value) => TypeDef.asType(def);
+
+  static Dict mk(Type key, Type value, Dict values) =>
+      Dict({keyID: key, valueID: value, valuesID: values});
+}
+
+final anyDef = TypeDef.empty('Any');
+final any = TypeDef.asType(anyDef);
+final textDef = TypeDef.empty('Text');
+final text = TypeDef.asType(textDef);
+final numberDef = TypeDef.empty('Number');
+final number = TypeDef.asType(numberDef);
+final booleanDef = TypeDef.empty('Boolean');
+final boolean = TypeDef.asType(booleanDef);
+final unitDef = TypeDef.empty('Unit');
+final unit = TypeDef.asType(unitDef);
+
+abstract class Fn extends Expr {
+  static final argIDID = ID();
+  static final fnTypeID = ID();
+  static final argTypeID = ID();
+  static final returnTypeID = ID();
+  static final bodyID = ID();
+  static final palID = ID();
+  static final dartID = ID();
+
+  static final dataDef = TypeDef.mk(TypeTree.record('Fn', {
+    argIDID: TypeTree.mk('argID', ID.type),
+    fnTypeID: TypeTree.record('type', {
+      argTypeID: TypeTree.mk('argType', Type.type),
+      returnTypeID: TypeTree.mk('returnType', Type.type),
+    }),
+    bodyID: TypeTree.union('body', {
+      palID: TypeTree.mk('pal', Expr.type),
+      dartID: TypeTree.mk('dart', any),
+    }),
+  }));
+
+  static final _implID = ID();
+  static final exprImplDef = ExprImplDef.mk(
+    id: _implID,
+    data: TypeDef.asType(dataDef),
+    // TODO: need to validate body
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: (ctx, fn) {
+        return Fn.bodyCases(
+          fn,
+          pal: (body) {
+            final argID = Fn.argID(fn);
+            final argType = Fn.argType(fn);
+            final bodyType = typeCheck(ctx.withBinding(argID, Binding(argType)), body);
+            return Option.cases(
+              bodyType,
+              some: (bodyType) {
+                if (bodyType == returnType(fn)) {
+                  return Option.mk(Type.type, bodyType);
+                } else {
+                  return Option.mk(Type.type);
+                }
+              },
+              none: () => Option.mk(Type.type),
+            );
+          },
+          dart: (_) => _fnToType(fn),
+        );
+      },
+    ),
+    eval: Fn.from(
+      Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      (argID) => VarAccess.mk(argID),
+    ),
+  );
+  static final exprImpl = Impl.mk(_implID);
+
+  static Dict type({required Object argType, required Object returnType}) => TypeDef.asType(
+        dataDef,
+        properties: Vec([
+          MemberIs.mk(
+              dataType: TypeDef.asType(dataDef),
+              path: Vec([fnTypeID, argTypeID]),
+              equalTo: argType),
+          MemberIs.mk(
+            dataType: TypeDef.asType(dataDef),
+            path: Vec([fnTypeID, returnTypeID]),
+            equalTo: returnType,
+          ),
+        ]),
+      );
+
+  static Object _fnTypeToDict(Object type) {
+    final properties = Type.properties(type);
+    Object getType(ID memberID) {
+      final prop = properties.firstWhere((prop) {
+        if (Impl.id(TypeProperty.impl(prop)) != MemberIs.implID) return false;
+        return MemberIs.path(TypeProperty.data(prop)).last == memberID;
+      });
+      return MemberIs.equalTo(TypeProperty.data(prop));
+    }
+
+    return Dict({
+      for (final id in [argTypeID, returnTypeID]) id: getType(id)
+    });
+  }
+
+  static Object _fnToType(Object fn) => Fn.type(argType: argType(fn), returnType: returnType(fn));
+
+  static Dict mk({ID? argID, required Object type, required Dict body}) => Expr.mk(
+        data: Dict({
+          argIDID: argID ?? ID(),
+          fnTypeID: _fnTypeToDict(type),
+          bodyID: UnionTag.mk(palID, body)
+        }),
+        impl: exprImpl,
+      );
+
+  static Dict dart({ID? argID, required Dict type, required Object Function(Ctx, Object) body}) =>
+      Expr.mk(
+        data: Dict({
+          argIDID: argID ?? ID(),
+          fnTypeID: _fnTypeToDict(type),
+          bodyID: UnionTag.mk(dartID, body)
+        }),
+        impl: exprImpl,
+      );
+
+  static Dict from(Dict type, Dict Function(ID) body) {
+    final argID = ID();
+    return Fn.mk(argID: argID, type: type, body: body(argID));
+  }
+
+  static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
+  static Object fnType(Object fn) => (fn as Dict)[fnTypeID].unwrap!;
+  static Object argType(Object fn) => (fnType(fn) as Dict)[argTypeID].unwrap!;
+  static Object returnType(Object fn) => (fnType(fn) as Dict)[returnTypeID].unwrap!;
+  static Object body(Object fn) => (fn as Dict)[bodyID].unwrap!;
+  static Object bodyCases(
+    Object fn, {
+    required Object Function(Object) pal,
+    required Object Function(Object) dart,
+  }) {
+    final body = (fn as Dict)[bodyID].unwrap!;
+    if (UnionTag.tag(body) == palID) {
+      return pal(UnionTag.value(body));
+    } else {
+      return dart(UnionTag.value(body));
+    }
+  }
+}
+
+abstract class FnApp extends Expr {
+  static final fnID = ID();
+  static final argID = ID();
+
+  static final dataDef = TypeDef.mk(TypeTree.record('FnApp', {
+    fnID: TypeTree.mk('fn', Expr.type),
+    argID: TypeTree.mk('arg', Expr.type),
+  }));
+
+  static final exprImplDef = ExprImplDef.mk(
+    data: TypeDef.asType(dataDef),
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      // TODO: need to eval the fn expr
+      body: (ctx, fnApp) {
+        final fnExpr = fn(fnApp);
+        return Option.cases(
+          typeCheck(ctx, fnExpr),
+          none: () => Option.mk(Type.type),
+          some: (fnType) {
+            final fnData = Expr.data(fnExpr);
+            return Option.cases(
+              typeCheck(ctx, arg(fnApp)),
+              none: () => Option.mk(Type.type),
+              some: (argType) {
+                if (argType == Fn.argType(fnData)) {
+                  return Option.mk(Type.type, Fn.returnType(fnData));
+                } else {
+                  return Option.mk(Type.type);
+                }
+              },
+            );
+          },
+        );
+      },
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, data) {
+        final fn = eval(ctx, FnApp.fn(data));
+        final arg = eval(ctx, FnApp.arg(data));
+        return Fn.bodyCases(
+          fn,
+          pal: (body) => eval(
+            ctx.withBinding(Fn.argID(fn), Binding(Fn.argType(fn), Optional(arg))),
+            body,
+          ),
+          dart: (body) => (body as Object Function(Ctx, Object))(ctx, arg),
+        );
+      },
+    ),
+  );
+  static final exprImpl = ImplDef.asImpl(exprImplDef);
+
+  static Dict mk(Object fn, Object arg) =>
+      Expr.mk(data: Dict({fnID: fn, argID: arg}), impl: exprImpl);
+
+  static Object fn(Object fnApp) => (fnApp as Dict)[fnID].unwrap!;
+  static Object arg(Object fnApp) => (fnApp as Dict)[argID].unwrap!;
+}
+
+abstract class InterfaceAccess extends Expr {
+  static final targetID = ID();
+  static final memberID = ID();
+
+  static final dataDef = TypeDef.mk(TypeTree.record('InterfaceAccess', {
+    targetID: TypeTree.mk('target', Expr.type),
+    memberID: TypeTree.mk('member', ID.type),
+  }));
+
+  static final _implID = ID();
+  static final exprImplDef = ExprImplDef.mk(
+    data: TypeDef.asType(dataDef),
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: (ctx, arg) {
+        return Option.cases(
+          typeCheck(ctx, InterfaceAccess.target(arg)),
+          none: () => Option.mk(Type.type),
+          some: (targetType) {
+            final targetTypeDef = ctx.getType(Type.id(targetType));
+            final path = Type.path(targetType);
+            final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), path);
+            return TypeTree.treeCases(
+              treeAt,
+              leaf: (_) => Option.mk(Type.type),
+              union: (_) => Option.mk(Type.type),
+              record: (recordNode) {
+                final member = InterfaceAccess.member(arg);
+                final subTree = recordNode[member].unwrap!;
+                return Option.mk(
+                  Type.type,
+                  TypeTree.treeCases(
+                    subTree,
+                    record: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
+                    union: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
+                    leaf: (leafNode) => eval(
+                      ctx.withThisDef(
+                        (targetType as Dict).put(Type.pathID, const Vec()),
+                      ),
+                      leafNode,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, data) {
+        final implDef = ctx.getImpl(Impl.id(eval(ctx, target(data))));
+        return (ImplDef.members(implDef) as Dict)[member(data)].unwrap!;
+      },
+    ),
+  );
+  static final exprImpl = Impl.mk(_implID);
+
+  static Dict mk({required Object target, required Object member}) =>
+      Expr.mk(data: Dict({targetID: target, memberID: member}), impl: exprImpl);
+
+  static Object target(Object interfaceAccess) => (interfaceAccess as Dict)[targetID].unwrap!;
+  static ID member(Object interfaceAccess) => (interfaceAccess as Dict)[memberID].unwrap! as ID;
+}
+
+abstract class Construct extends Expr {
+  static final dataTypeID = ID();
+  static final treeID = ID();
+
+  static final dataDef = TypeDef.mk(TypeTree.record('Construct', {
+    dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+    treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
+  }));
+  static final type = TypeDef.asType(dataDef);
+
+  static final implID = ID();
+  static final implDef = ExprImplDef.mk(
+    id: implID,
+    data: TypeDef.asType(dataDef),
+    // TODO: validate anything at all
+    type: Fn.from(
+      Fn.type(argType: TypeDef.asType(dataDef), returnType: Option.type(Type.type)),
+      (varID) => Construct.mk(
+        Option.type(Type.type),
+        Dict({
+          Option.dataTypeID: Literal.mk(Type.type, Type.type),
+          Option.valueID: UnionTag.mk(
+            Option.someID,
+            RecordAccess.mk(target: VarAccess.mk(varID), accessed: dataTypeID),
+          ),
+        }),
+      ),
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, arg) {
+        Object doConstruct(Object typeTree, Object dataTree) {
+          return TypeTree.treeCases(
+            typeTree,
+            record: (record) {
+              return Dict({
+                for (final elem in (dataTree as Dict).entries)
+                  elem.key: doConstruct(record[elem.key].unwrap!, elem.value)
+              });
+            },
+            union: (union) {
+              return UnionTag.mk(
+                UnionTag.tag(dataTree),
+                doConstruct(union[UnionTag.tag(dataTree)].unwrap!, UnionTag.value(dataTree)),
+              );
+            },
+            leaf: (_) {
+              return eval(ctx, dataTree);
+            },
+          );
+        }
+
+        return doConstruct(TypeDef.tree(ctx.getType(Type.id(dataType(arg)))), tree(arg));
+      },
+    ),
+  );
+  static final impl = Impl.mk(implID);
+
+  static Object dataType(Object construct) => (construct as Dict)[dataTypeID].unwrap!;
+  static Object tree(Object construct) => (construct as Dict)[treeID].unwrap!;
+
+  static Dict mk(Dict dataType, Object tree) => Expr.mk(
+        impl: impl,
+        data: Dict({dataTypeID: dataType, treeID: tree}),
+      );
+}
+
+abstract class RecordAccess extends Expr {
+  static final targetID = ID();
+  static final memberID = ID();
+
+  static final dataDef = TypeDef.mk(TypeTree.record('RecordAccess', {
+    targetID: TypeTree.mk('target', Expr.type),
+    memberID: TypeTree.mk('accessed', ID.type),
+  }));
+
+  static final exprImplID = ID();
+  static final exprImplDef = ExprImplDef.mk(
+    id: exprImplID,
+    data: TypeDef.asType(dataDef),
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: (ctx, arg) {
+        return Option.cases(
+          typeCheck(ctx, RecordAccess.target(arg)),
+          none: () => Option.mk(Type.type),
+          some: (targetType) {
+            final targetTypeDef = ctx.getType(Type.id(targetType));
+            final path = Type.path(targetType);
+            final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), path);
+            return TypeTree.treeCases(
+              treeAt,
+              leaf: (_) => Option.mk(Type.type),
+              union: (_) => Option.mk(Type.type),
+              record: (recordNode) {
+                final member = RecordAccess.member(arg);
+                final subTree = recordNode[member].unwrap!;
+                return Option.mk(
+                  Type.type,
+                  TypeTree.treeCases(
+                    subTree,
+                    record: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
+                    union: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
+                    leaf: (leafNode) => eval(
+                      ctx.withThisDef(
+                        (targetType as Dict).put(Type.pathID, const Vec()),
+                      ),
+                      leafNode,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, data) {
+        return (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
+      },
+    ),
+  );
+  static final exprImpl = Impl.mk(exprImplID);
+
+  static Dict mk({required Object target, required Object accessed}) => Expr.mk(
+        data: Dict({targetID: target, memberID: accessed}),
+        impl: exprImpl,
+      );
+
+  static Object target(Object dataAccess) => (dataAccess as Dict)[targetID].unwrap!;
+  static ID member(Object dataAccess) => (dataAccess as Dict)[memberID].unwrap! as ID;
+}
+
+abstract class Literal extends Expr {
+  static final typeID = ID();
+  static final valueID = ID();
+
+  static final dataDef = TypeDef.record('Literal', {
+    typeID: TypeTree.mk('type', Type.type),
+    valueID: TypeTree.mk('value', RecordAccess.mk(target: thisDef, accessed: typeID)),
+  });
+
+  static final _implID = ID();
+  static final exprImplDef = ExprImplDef.mk(
+    id: _implID,
+    data: TypeDef.asType(dataDef),
+    // needs data constructor expr
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: (ctx, lit) => Option.mk(Type.type, (lit as Dict)[typeID].unwrap!),
+    ),
+    eval: Fn.from(
+      Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      (argID) => RecordAccess.mk(target: VarAccess.mk(argID), accessed: valueID),
+    ),
+  );
+  static final exprImpl = Impl.mk(_implID);
+
+  static Dict mk(Object type, Object value) =>
+      Expr.mk(impl: exprImpl, data: Dict({typeID: type, valueID: value}));
+}
+
+abstract class VarAccess extends Expr {
+  static final IDID = ID();
+  static final dataDef = TypeDef.record('VarAccess', {IDID: TypeTree.mk('id', ID.type)});
+  static final exprImplDef = ExprImplDef.mk(
+    data: TypeDef.asType(dataDef),
+    type: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: (ctx, arg) => Option.mk(Type.type, ctx.getBinding(VarAccess.id(arg)).type),
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, arg) => ctx.getBinding(VarAccess.id(arg)).value.unwrap!,
+    ),
+  );
+  static final exprImpl = ImplDef.asImpl(exprImplDef);
+
+  static Dict mk(ID varID) => Expr.mk(data: Dict({IDID: varID}), impl: exprImpl);
+
+  static ID id(Object varAccess) => (varAccess as Dict)[IDID].unwrap! as ID;
+}
+
+abstract class ThisDef extends Expr {
+  static final dataDef = TypeDef.unit('ThisDef');
+  static final _implID = ID();
+  static final exprImplDef = ExprImplDef.mk(
+    id: _implID,
+    data: TypeDef.asType(dataDef),
+    type: Fn.mk(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+      body: Literal.mk(Type.type, TypeDef.type),
+    ),
+    eval: Fn.dart(
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (ctx, _) => ctx.thisDef,
+    ),
+  );
+  static final exprImpl = Impl.mk(_implID);
+
+  static Dict _() => Expr.mk(data: const Dict(), impl: exprImpl);
+}
+
+final thisDef = ThisDef._();
+
+class ThisDefCtx extends CtxElement {
+  final Object thisDef;
+  const ThisDefCtx(this.thisDef);
+}
+
+extension CtxThisDef on Ctx {
+  Ctx withThisDef(Object thisDef) => withElement(ThisDefCtx(thisDef));
+  Object get thisDef => get<ThisDefCtx>()!.thisDef;
+}
+
+class TypeCtx extends CtxElement {
+  final Dict types;
+  final Dict impls;
+  const TypeCtx({this.types = const Dict(), this.impls = const Dict()});
+
+  TypeCtx withType(ID id, Object type) => TypeCtx(
+        types: types.put(id, type),
+        impls: impls,
+      );
+
+  TypeCtx withImpl(ID id, Object impl) => TypeCtx(
+        types: types,
+        impls: impls.put(id, impl),
+      );
+}
+
+extension CtxType on Ctx {
+  Ctx withType(ID id, Object type) =>
+      withElement((get<TypeCtx>() ?? const TypeCtx()).withType(id, type));
+  Object getType(ID id) => (get<TypeCtx>() ?? const TypeCtx()).types[id].unwrap!;
+
+  Ctx withImpl(ID id, Object impl) =>
+      withElement((get<TypeCtx>() ?? const TypeCtx()).withImpl(id, impl));
+  Object getImpl(ID id) => (get<TypeCtx>() ?? const TypeCtx()).impls[id].unwrap!;
+}
+
+class Binding {
+  final Object type;
+  final Optional<Object> value;
+
+  const Binding(this.type, [this.value = const Optional.none()]);
+}
+
+class BindingCtx extends CtxElement {
+  final reified.Dict<ID, Binding> bindings;
+
+  const BindingCtx([this.bindings = const reified.Dict()]);
+}
+
+extension CtxBinding on Ctx {
+  Ctx withBinding(ID id, Binding binding) =>
+      withElement(BindingCtx((get<BindingCtx>() ?? const BindingCtx()).bindings.put(id, binding)));
+  Binding getBinding(ID id) => (get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap!;
+}
+
+final coreCtx = Ctx.empty.withElement(TypeCtx(
+  types: Dict({
+    Type.id(ID.type): ID.def,
+    Type.id(Type.type): Type.def,
+    Type.id(TypeDef.type): TypeDef.def,
+    Type.id(TypeTree.type): TypeTree.def,
+    Type.id(UnionTag.type): UnionTag.def,
+    Type.id(InterfaceDef.type): InterfaceDef.def,
+    Type.id(ImplDef.type(ID())): ImplDef.def,
+    Type.id(Impl.type(ID())): Impl.def,
+    Type.id(Expr.type): Expr.def,
+    Type.id(List.type(any)): List.def,
+    Type.id(Map.type(any, any)): Map.def,
+    Type.id(Construct.type): Construct.dataDef,
+    Type.id(Option.type(any)): Option.def,
+    Type.id(ID.type): ID.def,
+  }),
+  impls: Dict({
+    // exprs
+    Impl.id(VarAccess.exprImpl): VarAccess.exprImplDef,
+    Impl.id(Literal.exprImpl): Literal.exprImplDef,
+    Impl.id(InterfaceAccess.exprImpl): InterfaceAccess.exprImplDef,
+    Impl.id(Construct.impl): Construct.implDef,
+    Impl.id(RecordAccess.exprImpl): RecordAccess.exprImplDef,
+    Impl.id(Fn.exprImpl): Fn.exprImplDef,
+    Impl.id(FnApp.exprImpl): FnApp.exprImplDef,
+    Impl.id(ThisDef.exprImpl): ThisDef.exprImplDef,
+    // type properties
+    Impl.id(MemberIs.impl): MemberIs.propImplDef,
+  }),
+));
+
+Object eval(Ctx ctx, Object expr) {
+  final data = Expr.data(expr);
+  final implDef = (ctx.getImpl(Impl.id(Expr.impl(expr))) as Dict)[ImplDef.membersID].unwrap!;
+  final dataType = ExprImplDef.dataType(implDef);
+  final evalExprFn = Expr.data(ExprImplDef.evalExpr(implDef));
+  return Fn.bodyCases(
+    evalExprFn,
+    pal: (bodyExpr) {
+      return eval(
+          ctx.withBinding(Fn.argID(evalExprFn), Binding(dataType, Optional(data))), bodyExpr);
+    },
+    dart: (bodyFn) {
+      return (bodyFn as Object Function(Ctx, Object))(ctx, data);
+    },
+  );
+}
+
+Object typeCheck(Ctx ctx, Object expr) {
+  final data = Expr.data(expr);
+
+  final dataType = eval(
+    ctx,
+    InterfaceAccess.mk(
+      target: Literal.mk(Impl.type(ExprImplDef.id), Expr.impl(expr)),
+      member: ExprImplDef.dataTypeID,
+    ),
+  );
+
+  final evalTypeFn = eval(
+    ctx,
+    InterfaceAccess.mk(
+      target: Literal.mk(Impl.type(ExprImplDef.id), Expr.impl(expr)),
+      member: ExprImplDef.evalTypeID,
+    ),
+  );
+
+  return eval(
+    ctx,
+    FnApp.mk(
+      evalTypeFn,
+      Literal.mk(dataType, data),
+    ),
+  );
+}
