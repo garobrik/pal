@@ -28,9 +28,9 @@ void generateMutations(StringBuffer output, Class clazz) {
         typeParams: mutation.typeParams,
         body: '''
         mutResult(
-          (_obj) => DiffResult(
-            ${mutation.invokeFromParams("_obj")},
-            ${mutated.invokeFromParams("_obj")},
+          (obj) => DiffResult(
+            ${mutation.invokeFromParams("obj")},
+            ${mutated.invokeFromParams("obj")},
           ),
         );
       ''',

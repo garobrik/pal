@@ -33,9 +33,9 @@ Iterable<Optic> generateFieldOptics(
                       kind.fieldCtor,
                       [
                         "const ['${f.name}']",
-                        '(_t) => _t.${f.name}',
+                        '(t) => t.${f.name}',
                         if (kind == OpticKind.lens)
-                          '(_t, _f) => _t.copyWith(${f.name}: _f(_t.${f.name}))'
+                          '(t, f) => t.copyWith(${f.name}: f(t.${f.name}))'
                       ],
                       typeArgs: f.type.typeEquals(Type.dynamic) ? [clazz.type, f.type] : [])
                 ],

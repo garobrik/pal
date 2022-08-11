@@ -47,14 +47,14 @@ String? qualifiedNameIn(Element element, LibraryElement usageContext) {
   if (element.library == null) return element.name;
   if (!element.library!.topLevelElements.contains(element)) return element.name;
   if (element.library! == usageContext) return element.name;
-  final potentialImports = usageContext.imports.where(
+  final potentialImports = usageContext.libraryImports.where(
     (import) {
       return import.prefix != null &&
-          import.namespace.getPrefixed(import.prefix!.name, element.name!) == element;
+          import.namespace.getPrefixed(import.prefix!.element.name, element.name!) == element;
     },
   );
   if (potentialImports.isNotEmpty) {
-    return '${potentialImports.first.prefix!.name}.${element.name}';
+    return '${potentialImports.first.prefix!.element.name}.${element.name}';
   }
   return element.name;
 }
@@ -95,8 +95,8 @@ abstract class DefinitionHolder<E extends Element> extends ElementAnalogue<E> {
     late final Iterable<Field>? superFields;
     if (interface != null) {
       superFields = interface.allSupertypes.expand<Field>((superType) sync* {
-        final superDefinedFields = superType.element.fields.where((field) => !field.isSynthetic);
-        final asInstance = interface.asInstanceOf(superType.element);
+        final superDefinedFields = superType.element2.fields.where((field) => !field.isSynthetic);
+        final asInstance = interface.asInstanceOf(superType.element2);
         if (asInstance == null) {
           yield* superDefinedFields.map((f) => Field.fromElement(usageContext, f));
           return;
@@ -552,7 +552,7 @@ abstract class Type {
     final resolvedLibrary = libraryResult.element;
     log.info(' resolvedLibrary.name: ${resolvedLibrary.name}');
     log.info(' resolvedLibrary: ${resolvedLibrary.source.uri}');
-    final resolvedClass = resolvedLibrary.getType(name);
+    final resolvedClass = resolvedLibrary.getClass(name);
     if (resolvedClass == null) {
       throw UnresolvableTypeException(importURI, name);
     }
@@ -770,8 +770,10 @@ class _ConcreteTypeImpl with ConcreteType {
       : dartType = null,
         isTypeParameter = false;
   _ConcreteTypeImpl.fromDartType(LibraryElement usageContext, analyzer_type.DartType type)
-      : name = qualifiedNameIn(type.element!, usageContext)!,
-        args = (type is analyzer_type.ParameterizedType)
+      : name = type is analyzer_type.InterfaceType
+            ? qualifiedNameIn(type.element2, usageContext)!
+            : type.getDisplayString(withNullability: false),
+        args = type is analyzer_type.ParameterizedType
             ? type.typeArguments.map((a) => Type.fromDartType(usageContext, a))
             : [],
         isNullable = type.nullabilitySuffix == NullabilitySuffix.question,

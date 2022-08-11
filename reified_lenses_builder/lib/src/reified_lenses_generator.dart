@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:source_gen/source_gen.dart';
 import 'package:reified_lenses/annotations.dart';
@@ -31,7 +32,8 @@ class ReifiedLensesGenerator extends Generator {
     ];
 
     final reifiedClasses = reifiedClassesWithCases.where((clazz) {
-      final parentAnnotation = clazz.extendedType?.dartType!.element?.getAnnotation(ReifiedKind);
+      final parentAnnotation =
+          (clazz.extendedType?.dartType as InterfaceType?)?.element2.getAnnotation(ReifiedKind);
       if (parentAnnotation == null) return true;
       return ReifiedKind.union.index !=
           parentAnnotation.read('type').objectValue.getField('index')!.toIntValue();

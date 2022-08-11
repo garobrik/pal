@@ -106,7 +106,7 @@ class TrieMap<K, V> extends Iterable<V> {
     }
 
     if (_value != null) {
-      yield MapEntry(Iterable.empty(), _value!);
+      yield MapEntry(Iterable.empty(), _value as V);
     }
     for (final childEntry in _children.entries) {
       yield* childEntry.value.entries().map(

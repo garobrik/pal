@@ -295,7 +295,7 @@ String callString(String callee, String args, {Iterable<Type> typeArgs = const [
 String lambda(Iterable<String> params, Iterable<String> body) {
   final intro = '(${params.join(", ")})';
   if (body.length == 1) return '$intro => ${body.first}';
-  return '$intro { ${body.map((s) => s + "; ")}}';
+  return '$intro { ${body.map((s) => "$s; ")}}';
 }
 
 extension TypeParamsGenerating on Iterable<TypeParam> {
@@ -406,5 +406,5 @@ String switchCase(String switched, Map<String, String> casesBodies, {String? def
 String statements(Iterable<String> statements) => statements.map((s) => '$s;').join('\n');
 
 String map(Map<String, String> entries) {
-  return "{${entries.entries.map<String>((entry) => entry.key + ': ' + entry.value).join(', ')}}";
+  return "{${entries.entries.map<String>((entry) => '${entry.key}: ${entry.value}').join(', ')}}";
 }

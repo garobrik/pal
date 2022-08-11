@@ -95,7 +95,7 @@ Method _generateConcreteCasesMethod(Class clazz, Iterable<Type> cases) {
 }
 
 AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
-  final param = Param(clazz.type, '_value');
+  final param = Param(clazz.type, 'value');
   final ifElsePart = ifElse(
     {
       for (final caze in cases)
@@ -179,8 +179,7 @@ Field _generateValues(Class clazz, Iterable<Type> cases) {
     isStatic: true,
     isConst: true,
     type: Type('List', args: [Type('${clazz.name}Case')]),
-    initializer:
-        '[' + cases.map((caze) => '${clazz.name}Case.${_caseArgName(caze)},').join(' ') + ']',
+    initializer: '[${cases.map((caze) => '${clazz.name}Case.${_caseArgName(caze)},').join(' ')}]',
   );
 }
 
@@ -202,7 +201,7 @@ Method _generateEachCases(Class clazz, Iterable<Type> cases) {
     returnType: Type('List', args: [typeParam.type]),
     params: params,
     isExpression: true,
-    body: '[' + params.map((p) => '${p.name}(),').join(' ') + ']',
+    body: '[${params.map((p) => '${p.name}(),').join(' ')}]',
   );
 }
 

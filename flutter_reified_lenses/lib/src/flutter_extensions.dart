@@ -74,7 +74,7 @@ class ReaderWidget extends StatefulWidget {
   const ReaderWidget({required this.builder, required this.ctx, Key? key}) : super(key: key);
 
   @override
-  _ReaderWidgetState createState() => _ReaderWidgetState();
+  State createState() => _ReaderWidgetState();
 }
 
 class _ReaderWidgetState extends State<ReaderWidget> implements Reader {

@@ -43,9 +43,8 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
                       kind.fieldCtor,
                       [
                         "const ['${a.name}']",
-                        '(_t) => _t.${a.name}',
-                        if (kind == OpticKind.lens)
-                          '(_t, _f) => _t.${mutater!.name}(_f(_t.${a.name}))',
+                        '(t) => t.${a.name}',
+                        if (kind == OpticKind.lens) '(t, f) => t.${mutater!.name}(f(t.${a.name}))',
                       ],
                       typeArgs: a.getter!.returnType.typeEquals(Type.dynamic)
                           ? [clazz.type, a.getter!.returnType]

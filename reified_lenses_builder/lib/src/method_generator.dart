@@ -35,8 +35,8 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
 
     final kind = mutater == null ? OpticKind.getter : OpticKind.lens;
     final isFunctionalUpdate = updateParam != null && updateParam.type is FunctionType;
-    const stateArg = '_t';
-    const updateArg = '_s';
+    const stateArg = 't';
+    const updateArg = 's';
     final getBody = m.invokeFromParams(stateArg, typeArgs: m.typeParams.map((tp) => tp.type));
     // TODO: this isFunctionalUpdate case can fail when a generic type has its argument cast upwards
     final mutBody = mutater?.invokeFromParams(
@@ -94,9 +94,9 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
                 params: [m.params.first, updateParam!],
                 body: '''
                   mutResult(
-                    (_obj) => DiffResult(
-                      ${mutater!.invokeFromParams("_obj")},
-                      ${mutated == null ? "Diff(changed: PathSet.from({$pathExpression}),)" : mutated.invokeFromParams("_obj")},
+                    (obj) => DiffResult(
+                      ${mutater!.invokeFromParams("obj")},
+                      ${mutated == null ? "Diff(changed: PathSet.from({$pathExpression}),)" : mutated.invokeFromParams("obj")},
                     ),
                   );
                 ''',

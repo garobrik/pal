@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/element/type.dart' as analyzer;
 import 'package:reified_lenses/annotations.dart';
 
 import 'parsing.dart';
@@ -120,8 +121,13 @@ String checkedToJsonCall(Type? type, String arg) {
     return arg;
   }
 
-  final typeSystem = dartType.element?.library?.typeSystem;
-  final typeProvider = dartType.element?.library?.typeProvider;
+  final element = (dartType is analyzer.InterfaceType)
+      ? dartType.element2
+      : dartType is analyzer.TypeParameterType
+          ? dartType.element
+          : null;
+  final typeSystem = element?.library?.typeSystem;
+  final typeProvider = element?.library?.typeProvider;
   if (typeSystem == null || typeProvider == null) {
     return fullDynamicCheck;
   }

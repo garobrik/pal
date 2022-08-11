@@ -91,7 +91,7 @@ typedef TransformF<T> = T Function(T);
 
 @immutable
 abstract class OptGetter<T, S> {
-  const factory OptGetter(Path path, OptGetterF<T, S> _getter) = _OptGetterImpl;
+  const factory OptGetter(Path path, OptGetterF<T, S> getter) = _OptGetterImpl;
 
   Path get path;
   Optional<S> getOpt(T t);
@@ -99,7 +99,7 @@ abstract class OptGetter<T, S> {
 
 @immutable
 abstract class Getter<T, S> implements OptGetter<T, S> {
-  const factory Getter(Path path, GetterF<T, S> _getter) = _GetterImpl;
+  const factory Getter(Path path, GetterF<T, S> getter) = _GetterImpl;
   static Getter<S, S> identity<S>() => _IdentityImpl();
 
   S get(T t);

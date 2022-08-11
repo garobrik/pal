@@ -217,7 +217,7 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
       (T old, T nu, Diff diff) {
         lens
             .getOpt(nu)
-            .ifPresent((nuS) => f(lens.getOpt(old).unwrap!, nuS, diff.atPrefix(lens.path)));
+            .ifPresent((nuS) => f(lens.getOpt(old).unwrap as S, nuS, diff.atPrefix(lens.path)));
       },
     );
   }
@@ -298,7 +298,7 @@ class _ValueCursor<S> with GetCursor<S> {
       {String Function() errorMsg = _defaultThenOptErrorMsg}) {
     final newState = getter.getOpt(state);
     assert(newState.isPresent, errorMsg());
-    return _ValueCursor(newState.unwrap!);
+    return _ValueCursor(newState.unwrap as S1);
   }
 
   @override
@@ -412,7 +412,7 @@ abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
       }
 
       if (result.value != null) {
-        _state.transformAndNotify((_) => DiffResult(result.value!, result.diff));
+        _state.transformAndNotify((_) => DiffResult(result.value as S, result.diff));
       }
     });
 
@@ -431,7 +431,7 @@ abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
     return [
       'View<$T as $S>(',
       '  ${currentState.runtimeType}',
-      ...viewedString.map((s) => '  ' + s),
+      ...viewedString.map((s) => '  $s'),
       ')',
     ];
   }
@@ -461,7 +461,7 @@ class _MutablePartialViewState<T, S>
 
   @override
   ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty))!);
+    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty)) as S);
     return _stateVar!;
   }
 
@@ -519,7 +519,7 @@ abstract class _FlattenStateBase<T> implements ListenableState<T> {
     return [
       'Flatten<$T>(current:',
       '  ${currentState.runtimeType}',
-      ...viewedString.map((s) => '  ' + s),
+      ...viewedString.map((s) => '  $s'),
       ')',
     ];
   }

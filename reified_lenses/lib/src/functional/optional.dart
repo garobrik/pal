@@ -11,19 +11,19 @@ class Optional<Value> extends Iterable<Value> {
   Value? get unwrap => _value;
 
   T cases<T>({required T Function(Value) some, required T Function() none}) =>
-      _value == null ? none() : some(_value!);
+      _value == null ? none() : some(_value as Value);
 
   @override
   Optional<T> map<T>(T Function(Value) toElement) =>
-      _value == null ? Optional.none() : Optional(toElement(_value!));
+      _value == null ? Optional.none() : Optional(toElement(_value as Value));
 
   Optional<T> flatMap<T>(Optional<T> Function(Value) toElement) =>
-      _value == null ? Optional.none() : toElement(_value!);
+      _value == null ? Optional.none() : toElement(_value as Value);
 
   bool get isPresent => _value != null;
 
   void ifPresent(void Function(Value) f) {
-    if (_value != null) f(_value!);
+    if (_value != null) f(_value as Value);
   }
 
   Value orElse(Value v) => _value == null ? v : _value!;
@@ -32,7 +32,7 @@ class Optional<Value> extends Iterable<Value> {
   String toString() => _value == null ? 'Optional.none' : 'Optional($_value)';
 
   @override
-  Iterator<Value> get iterator => _value == null ? <Value>[].iterator : [_value!].iterator;
+  Iterator<Value> get iterator => _value == null ? <Value>[].iterator : [_value as Value].iterator;
 }
 
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {

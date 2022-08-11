@@ -18,6 +18,8 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
   @reify
   int get length => _values.length;
 
+  Vec<Value> get tail => Vec(_values.sublist(1));
+
   @reify
   Value operator [](int i) => _values[i];
   Vec<Value> mut_array_op(int i, Value update) => Vec.from(this).._values[i] = update;
@@ -36,6 +38,8 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
           ['length']
         }),
       );
+
+  Vec<Value> add(Value v) => insert(length, v);
 
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
