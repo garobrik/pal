@@ -2,7 +2,8 @@ import 'package:test/test.dart';
 import 'package:knose/src/pal/pal2.dart';
 
 final sillyID = ID();
-final sillyRecordDef = TypeDef.record('silly', {sillyID: TypeTree.mk('silly', number)});
+final sillyRecordDef =
+    TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
 
 final testCtx = coreCtx.withType(Type.id(TypeDef.asType(sillyRecordDef)), sillyRecordDef);
 
