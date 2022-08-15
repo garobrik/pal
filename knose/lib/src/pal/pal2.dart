@@ -115,20 +115,12 @@ abstract class Type {
 
 abstract class TypeProperty {
   static final dataTypeID = ID();
-  static final appliesToID = ID();
   static final hasID = ID();
   static final interfaceID = ID();
   static final interfaceDef = InterfaceDef.record(
     'TypePropertyImpl',
     {
       dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-      appliesToID: TypeTree.mk(
-        'appliesTo',
-        Fn.typeExpr(
-          argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
-          returnType: Literal.mk(Type.type, Type.type),
-        ),
-      ),
       hasID: TypeTree.mk(
         'has',
         Fn.typeExpr(
@@ -143,13 +135,12 @@ abstract class TypeProperty {
   static Dict newImpl({
     ID? id,
     required Object dataType,
-    required Object appliesTo,
     required Object has,
   }) =>
       ImplDef.mk(
         id: id,
         implemented: interfaceID,
-        members: Dict({dataTypeID: dataType, appliesToID: appliesTo, hasID: has}),
+        members: Dict({dataTypeID: dataType, hasID: has}),
       );
 
   static final implID = ID();
@@ -173,25 +164,19 @@ abstract class TypeProperty {
   static Object data(Object typeProperty) => (typeProperty as Dict)[dataID].unwrap!;
 }
 
-abstract class MemberIs extends TypeProperty {
+abstract class Equals extends TypeProperty {
   static final dataTypeID = ID();
-  static final pathID = ID();
   static final equalToID = ID();
 
-  static final typeDef = TypeDef.record('MemberIs', {
+  static final typeDef = TypeDef.record('Equals', {
     dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-    pathID: TypeTree.mk('path', Literal.mk(Type.type, List.type(ID.type))),
-    equalToID: TypeTree.mk('equalTo', Literal.mk(Type.type, Expr.type)),
+    equalToID: TypeTree.mk('equalTo', InterfaceAccess.mk(target: thisDef, member: dataTypeID)),
   });
 
   static final implID = ID();
   static final propImplDef = TypeProperty.newImpl(
     id: implID,
     dataType: TypeDef.asType(typeDef),
-    appliesTo: Fn.from(
-      Fn.type(argType: TypeDef.asType(typeDef), returnType: Type.type),
-      (argID) => RecordAccess.mk(target: thisDef, accessed: dataTypeID),
-    ),
     has: Fn.from(
       Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
       (argID) => Literal.mk(boolean, true),
@@ -199,31 +184,75 @@ abstract class MemberIs extends TypeProperty {
   );
   static final impl = Impl.mk(implID);
 
-  static Dict mk({required Dict dataType, required Object path, required Object equalTo}) =>
-      TypeProperty.mk(
-        impl,
-        Dict({
-          dataTypeID: dataType,
-          pathID: path,
-          equalToID: equalTo,
-        }),
+  static Dict mk(Object dataType, Object equalTo) =>
+      TypeProperty.mk(impl, Dict({dataTypeID: dataType, equalToID: equalTo}));
+
+  static Dict mkExpr(Object dataType, Object equalTo) => TypeProperty.mkExpr(
+        Literal.mk(Impl.type(implID), impl),
+        Construct.mk(TypeDef.asType(typeDef), Dict({dataTypeID: dataType, equalToID: equalTo})),
       );
 
-  static Dict mkExpr({required Dict dataType, required Object path, required Object equalTo}) =>
-      TypeProperty.mkExpr(
+  static Object equalTo(Object memberIs) => (memberIs as Dict)[equalToID].unwrap!;
+}
+
+abstract class ImplHas extends TypeProperty {
+  static final propertyID = ID();
+
+  static final typeDef = TypeDef.record('ImplHas', {
+    propertyID: TypeTree.mk('property', Literal.mk(Type.type, TypeProperty.type)),
+  });
+
+  static final implID = ID();
+  static final propImplDef = TypeProperty.newImpl(
+    id: implID,
+    dataType: TypeDef.asType(typeDef),
+    has: Fn.from(
+      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      (argID) => Literal.mk(boolean, true),
+    ),
+  );
+  static final impl = Impl.mk(implID);
+
+  static Dict mk({required Object property}) => TypeProperty.mk(impl, Dict({propertyID: property}));
+
+  static Dict mkExpr({required Object property}) => TypeProperty.mkExpr(
         Literal.mk(Impl.type(implID), impl),
-        Construct.mk(
-          TypeDef.asType(typeDef),
-          Dict({
-            dataTypeID: dataType,
-            pathID: path,
-            equalToID: equalTo,
-          }),
-        ),
+        Construct.mk(TypeDef.asType(typeDef), Dict({propertyID: property})),
+      );
+
+  static Object property(Object memberIs) => (memberIs as Dict)[propertyID].unwrap!;
+}
+
+abstract class MemberHas extends TypeProperty {
+  static final pathID = ID();
+  static final propertyID = ID();
+
+  static final typeDef = TypeDef.record('MemberHas', {
+    pathID: TypeTree.mk('path', Literal.mk(Type.type, List.type(ID.type))),
+    propertyID: TypeTree.mk('property', Literal.mk(Type.type, TypeProperty.type)),
+  });
+
+  static final implID = ID();
+  static final propImplDef = TypeProperty.newImpl(
+    id: implID,
+    dataType: TypeDef.asType(typeDef),
+    has: Fn.from(
+      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      (argID) => Literal.mk(boolean, true),
+    ),
+  );
+  static final impl = Impl.mk(implID);
+
+  static Dict mk({required Object path, required Object property}) =>
+      TypeProperty.mk(impl, Dict({pathID: path, propertyID: property}));
+
+  static Dict mkExpr({required Object path, required Object property}) => TypeProperty.mkExpr(
+        Literal.mk(Impl.type(implID), impl),
+        Construct.mk(TypeDef.asType(typeDef), Dict({pathID: path, propertyID: property})),
       );
 
   static Vec path(Object memberIs) => (memberIs as Dict)[pathID].unwrap! as Vec;
-  static Object equalTo(Object memberIs) => (memberIs as Dict)[equalToID].unwrap!;
+  static Object property(Object memberIs) => (memberIs as Dict)[propertyID].unwrap!;
 }
 
 abstract class UnionTag {
@@ -349,6 +378,7 @@ class InterfaceDef {
       InterfaceDef.mk(TypeTree.union(name, cases), id: id);
 
   static ID id(Object ifaceDef) => (ifaceDef as Dict)[IDID].unwrap! as ID;
+  static Object members(Object ifaceDef) => (ifaceDef as Dict)[membersID].unwrap!;
 }
 
 abstract class ImplDef {
@@ -364,7 +394,7 @@ abstract class ImplDef {
   static Dict type(ID implemented) => TypeDef.asType(
         def,
         properties: Vec([
-          MemberIs.mk(dataType: TypeDef.asType(def), path: Vec([IDID]), equalTo: implemented),
+          MemberHas.mk(path: Vec([IDID]), property: Equals.mk(ID.type, implemented)),
         ]),
       );
 
@@ -384,7 +414,13 @@ abstract class Impl {
 
   static Dict mk(ID id) => Dict({IDID: id});
 
-  static Dict type(ID id) => TypeDef.asType(def);
+  static Dict type(ID id, {Vec properties = const Vec()}) => TypeDef.asType(
+        def,
+        properties: Vec([
+          MemberHas.mk(path: Vec([IDID]), property: Equals.mk(ID.type, id)),
+          ...properties.map((property) => ImplHas.mk(property: property)),
+        ]),
+      );
 
   static ID id(Object impl) => (impl as Dict)[IDID].unwrap! as ID;
 }
@@ -406,7 +442,10 @@ abstract class Option {
   static Dict type(Dict dataType) => TypeDef.asType(
         def,
         properties: Vec([
-          MemberIs.mk(dataType: TypeDef.asType(def), path: Vec([dataTypeID]), equalTo: dataType)
+          MemberHas.mk(
+            path: Vec([dataTypeID]),
+            property: Equals.mk(Type.type, dataType),
+          )
         ]),
       );
 
@@ -566,10 +605,9 @@ class List {
 
   static Dict type(Dict type) => TypeDef.asType(def,
       properties: Vec([
-        MemberIs.mk(
-          dataType: TypeDef.asType(def),
+        MemberHas.mk(
           path: Vec([typeID]),
-          equalTo: Literal.mk(Type.type, type),
+          property: Equals.mk(Type.type, type),
         )
       ]));
 
@@ -667,14 +705,13 @@ abstract class Fn extends Expr {
   static Dict type({required Object argType, required Object returnType}) => TypeDef.asType(
         dataDef,
         properties: Vec([
-          MemberIs.mk(
-              dataType: TypeDef.asType(dataDef),
-              path: Vec([fnTypeID, argTypeID]),
-              equalTo: argType),
-          MemberIs.mk(
-            dataType: TypeDef.asType(dataDef),
+          MemberHas.mk(
+            path: Vec([fnTypeID, argTypeID]),
+            property: Equals.mk(Type.type, argType),
+          ),
+          MemberHas.mk(
             path: Vec([fnTypeID, returnTypeID]),
-            equalTo: returnType,
+            property: Equals.mk(Type.type, returnType),
           ),
         ]),
       );
@@ -684,15 +721,13 @@ abstract class Fn extends Expr {
         properties: List.mkExpr(
           TypeProperty.type,
           Vec([
-            MemberIs.mkExpr(
-              dataType: Literal.mk(Type.type, TypeDef.asType(dataDef)),
+            MemberHas.mkExpr(
               path: Literal.mk(List.type(ID.type), Vec([fnTypeID, argTypeID])),
-              equalTo: argType,
+              property: Equals.mkExpr(Literal.mk(Type.type, Type.type), argType),
             ),
-            MemberIs.mkExpr(
-              dataType: Literal.mk(Type.type, TypeDef.asType(dataDef)),
+            MemberHas.mkExpr(
               path: Literal.mk(List.type(ID.type), Vec([fnTypeID, returnTypeID])),
-              equalTo: returnType,
+              property: Equals.mkExpr(Literal.mk(Type.type, Type.type), returnType),
             ),
           ]),
         ),
@@ -702,10 +737,10 @@ abstract class Fn extends Expr {
     final properties = Type.properties(type);
     Object getType(ID memberID) {
       final prop = properties.firstWhere((prop) {
-        if (Impl.id(TypeProperty.impl(prop)) != MemberIs.implID) return false;
-        return MemberIs.path(TypeProperty.data(prop)).last == memberID;
+        if (Impl.id(TypeProperty.impl(prop)) != MemberHas.implID) return false;
+        return MemberHas.path(TypeProperty.data(prop)).last == memberID;
       });
-      return MemberIs.equalTo(TypeProperty.data(prop));
+      return Equals.equalTo(TypeProperty.data(MemberHas.property(TypeProperty.data(prop))));
     }
 
     return Dict({
@@ -838,11 +873,20 @@ abstract class InterfaceAccess extends Expr {
           typeCheck(ctx, InterfaceAccess.target(arg)),
           none: () => Option.mk(Type.type),
           some: (targetType) {
-            final targetTypeDef = ctx.getType(Type.id(targetType));
-            final path = Type.path(targetType);
-            final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), path);
+            final interfaceEqualsProp = Type.properties(targetType).firstWhere(
+              (prop) =>
+                  Impl.id(TypeProperty.impl(prop)) == MemberHas.implID &&
+                  MemberHas.path(TypeProperty.data(prop)) == Vec([Impl.IDID]) &&
+                  Impl.id(TypeProperty.impl(MemberHas.property(TypeProperty.data(prop)))) ==
+                      Equals.implID,
+            );
+            final implemented = Equals.equalTo(
+              TypeProperty.data(MemberHas.property(TypeProperty.data(interfaceEqualsProp))),
+            );
+            final targetInterfaceDef = ctx.getInterface(implemented as ID);
+            final implID = ID();
             return TypeTree.treeCases(
-              treeAt,
+              InterfaceDef.members(targetInterfaceDef),
               leaf: (_) => Option.mk(Type.type),
               union: (_) => Option.mk(Type.type),
               record: (recordNode) {
@@ -852,12 +896,28 @@ abstract class InterfaceAccess extends Expr {
                   Type.type,
                   TypeTree.treeCases(
                     subTree,
-                    record: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
-                    union: (_) => (targetType as Dict).put(Type.pathID, path.add(member)),
+                    record: (_) => Option.mk(Type.type),
+                    union: (_) => Option.mk(Type.type),
                     leaf: (leafNode) => eval(
-                      ctx.withThisDef(
-                        (targetType as Dict).put(Type.pathID, const Vec()),
-                      ),
+                      ctx.withThisDef(Impl.mk(implID)).withImpl(
+                            implID,
+                            ImplDef.mk(
+                              id: implID,
+                              implemented: implemented,
+                              members: Dict({
+                                for (final prop in (Type.properties(targetType)))
+                                  if (Impl.id(TypeProperty.impl(prop)) == ImplHas.implID)
+                                    for (final prop in [ImplHas.property(TypeProperty.data(prop))])
+                                      if (Impl.id(TypeProperty.impl(prop)) == MemberHas.implID)
+                                        for (final equals in [
+                                          TypeProperty.data(
+                                              MemberHas.property(TypeProperty.data(prop)))
+                                        ])
+                                          MemberHas.path(TypeProperty.data(prop)).first:
+                                              Equals.equalTo(equals),
+                              }),
+                            ),
+                          ),
                       leafNode,
                     ),
                   ),
@@ -1107,16 +1167,30 @@ extension CtxThisDef on Ctx {
 class TypeCtx extends CtxElement {
   final Dict types;
   final Dict impls;
-  const TypeCtx({this.types = const Dict(), this.impls = const Dict()});
+  final Dict interfaces;
+
+  const TypeCtx({
+    this.types = const Dict(),
+    this.impls = const Dict(),
+    this.interfaces = const Dict(),
+  });
 
   TypeCtx withType(ID id, Object type) => TypeCtx(
         types: types.put(id, type),
         impls: impls,
+        interfaces: interfaces,
       );
 
   TypeCtx withImpl(ID id, Object impl) => TypeCtx(
         types: types,
         impls: impls.put(id, impl),
+        interfaces: interfaces,
+      );
+
+  TypeCtx withInterface(ID id, Object interface) => TypeCtx(
+        types: types,
+        impls: impls,
+        interfaces: interfaces.put(id, interface),
       );
 }
 
@@ -1124,6 +1198,10 @@ extension CtxType on Ctx {
   Ctx withType(ID id, Object type) =>
       withElement((get<TypeCtx>() ?? const TypeCtx()).withType(id, type));
   Object getType(ID id) => (get<TypeCtx>() ?? const TypeCtx()).types[id].unwrap!;
+
+  Ctx withInterface(ID id, Object interface) =>
+      withElement((get<TypeCtx>() ?? const TypeCtx()).withInterface(id, interface));
+  Object getInterface(ID id) => (get<TypeCtx>() ?? const TypeCtx()).interfaces[id].unwrap!;
 
   Ctx withImpl(ID id, Object impl) =>
       withElement((get<TypeCtx>() ?? const TypeCtx()).withImpl(id, impl));
@@ -1166,6 +1244,10 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Type.id(Option.type(any)): Option.def,
     Type.id(ID.type): ID.def,
   }),
+  interfaces: Dict({
+    ExprImplDef.id: ExprImplDef.def,
+    TypeProperty.interfaceID: TypeProperty.interfaceDef,
+  }),
   impls: Dict({
     // exprs
     Impl.id(VarAccess.exprImpl): VarAccess.exprImplDef,
@@ -1177,7 +1259,7 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Impl.id(FnApp.exprImpl): FnApp.exprImplDef,
     Impl.id(ThisDef.exprImpl): ThisDef.exprImplDef,
     // type properties
-    Impl.id(MemberIs.impl): MemberIs.propImplDef,
+    Impl.id(MemberHas.impl): MemberHas.propImplDef,
   }),
 ));
 

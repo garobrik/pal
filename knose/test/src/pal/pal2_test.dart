@@ -49,4 +49,44 @@ void main() {
     final result = eval(testCtx, expr);
     expect(result, equals(0));
   });
+
+  test('InterfaceAccess + ThisDef', () {
+    final ifaceID = ID();
+    final dataTypeID = ID();
+    final valueID = ID();
+    final interfaceDef = InterfaceDef.mk(
+      TypeTree.record('iface', {
+        dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+        valueID: TypeTree.mk('value', InterfaceAccess.mk(target: thisDef, member: dataTypeID)),
+      }),
+      id: ifaceID,
+    );
+
+    final implID = ID();
+    final implDef = ImplDef.mk(
+      id: implID,
+      implemented: ifaceID,
+      members: Dict({dataTypeID: number, valueID: 0}),
+    );
+
+    final thisCtx = coreCtx.withImpl(implID, implDef).withInterface(ifaceID, interfaceDef);
+
+    final expr = InterfaceAccess.mk(
+      target: Literal.mk(
+        Impl.type(
+          ifaceID,
+          properties: Vec([
+            MemberHas.mk(path: Vec([dataTypeID]), property: Equals.mk(Type.type, number))
+          ]),
+        ),
+        Impl.mk(implID),
+      ),
+      member: valueID,
+    );
+    final type = typeCheck(thisCtx, expr);
+    expect(type, equals(Option.mk(Type.type, number)));
+
+    final result = eval(thisCtx, expr);
+    expect(result, equals(0));
+  });
 }
