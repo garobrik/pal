@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:knose/src/pal/pal2.dart';
+import 'package:knose/src/pal2/lang.dart';
 
 final sillyID = ID();
 final sillyRecordDef =

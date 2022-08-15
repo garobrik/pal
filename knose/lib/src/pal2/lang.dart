@@ -132,7 +132,7 @@ abstract class TypeProperty {
     id: interfaceID,
   );
 
-  static Dict newImpl({
+  static Dict mkImpl({
     ID? id,
     required Object dataType,
     required Object has,
@@ -174,7 +174,7 @@ abstract class Equals extends TypeProperty {
   });
 
   static final implID = ID();
-  static final propImplDef = TypeProperty.newImpl(
+  static final propImplDef = TypeProperty.mkImpl(
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
@@ -203,7 +203,7 @@ abstract class ImplHas extends TypeProperty {
   });
 
   static final implID = ID();
-  static final propImplDef = TypeProperty.newImpl(
+  static final propImplDef = TypeProperty.mkImpl(
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
@@ -233,7 +233,7 @@ abstract class MemberHas extends TypeProperty {
   });
 
   static final implID = ID();
-  static final propImplDef = TypeProperty.newImpl(
+  static final propImplDef = TypeProperty.mkImpl(
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
@@ -473,54 +473,53 @@ abstract class Option {
       );
 }
 
-class ExprImplDef extends ImplDef {
+abstract class Expr {
   static final dataTypeID = ID();
   static final evalTypeID = ID();
   static final evalExprID = ID();
 
-  static final def = InterfaceDef.record('ExprImplDef', {
-    dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-    evalTypeID: TypeTree.mk(
-      'type',
-      Fn.typeExpr(
-        argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
-        returnType: Literal.mk(Type.type, Option.type(Type.type)),
+  static final interfaceID = ID();
+  static final interfaceDef = InterfaceDef.record(
+    'ExprImplDef',
+    {
+      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      evalTypeID: TypeTree.mk(
+        'type',
+        Fn.typeExpr(
+          argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
+          returnType: Literal.mk(Type.type, Option.type(Type.type)),
+        ),
       ),
-    ),
-    evalExprID: TypeTree.mk(
-      'eval',
-      Fn.typeExpr(
-        argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
-        returnType: Literal.mk(Type.type, any),
-      ),
-    )
-  });
+      evalExprID: TypeTree.mk(
+        'eval',
+        Fn.typeExpr(
+          argType: InterfaceAccess.mk(target: thisDef, member: dataTypeID),
+          returnType: Literal.mk(Type.type, any),
+        ),
+      )
+    },
+    id: interfaceID,
+  );
 
-  static final id = InterfaceDef.id(def);
-
-  static Dict mk({required Dict data, required Object type, required Object eval, ID? id}) =>
+  static Dict mkImpl({required Dict data, required Object type, required Object eval, ID? id}) =>
       ImplDef.mk(
         id: id ?? ID(),
-        implemented: ExprImplDef.id,
+        implemented: interfaceID,
         members: Dict({dataTypeID: data, evalTypeID: type, evalExprID: eval}),
       );
 
   static Object dataType(Object exprImpl) => (exprImpl as Dict)[dataTypeID].unwrap!;
   static Object evalType(Object exprImpl) => (exprImpl as Dict)[evalTypeID].unwrap!;
   static Object evalExpr(Object exprImpl) => (exprImpl as Dict)[evalExprID].unwrap!;
-}
 
-class Expr {
   static final implID = ID();
   static final dataID = ID();
-
   static final _defID = ID();
   static final def = TypeDef.record(
     'Expr',
     {
-      implID: TypeTree.mk('impl', Literal.mk(Type.type, Impl.type(ExprImplDef.id))),
-      dataID:
-          TypeTree.mk('data', InterfaceAccess.mk(target: thisDef, member: ExprImplDef.dataTypeID)),
+      implID: TypeTree.mk('impl', Literal.mk(Type.type, Impl.type(Expr.interfaceID))),
+      dataID: TypeTree.mk('data', InterfaceAccess.mk(target: thisDef, member: Expr.dataTypeID)),
     },
     id: _defID,
   );
@@ -532,13 +531,12 @@ class Expr {
 
   static Object data(Object expr) => (expr as Dict)[dataID].unwrap!;
   static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
-  static Object evalType(Ctx ctx, Object expr) => eval(ctx, ExprImplDef.evalType(expr));
   static Dict evalTypeFn = Fn.from(
     Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
     (argID) => FnApp.mk(
       InterfaceAccess.mk(
         target: RecordAccess.mk(target: VarAccess.mk(argID), accessed: implID),
-        member: ExprImplDef.evalTypeID,
+        member: Expr.evalTypeID,
       ),
       RecordAccess.mk(target: VarAccess.mk(argID), accessed: dataID),
     ),
@@ -587,7 +585,7 @@ class List {
     },
     id: mkExprID,
   );
-  static final mkExprImpl = ExprImplDef.mk(
+  static final mkExprImpl = Expr.mkImpl(
     data: List.type(Expr.type),
     type: Fn.from(
       Fn.type(argType: List.type(Expr.type), returnType: Type.type),
@@ -666,7 +664,7 @@ abstract class Fn extends Expr {
   }));
 
   static final _implID = ID();
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     id: _implID,
     data: TypeDef.asType(dataDef),
     // TODO: need to validate body
@@ -802,7 +800,7 @@ abstract class FnApp extends Expr {
     argID: TypeTree.mk('arg', Literal.mk(Type.type, Expr.type)),
   }));
 
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -864,7 +862,7 @@ abstract class InterfaceAccess extends Expr {
   }));
 
   static final _implID = ID();
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -956,7 +954,7 @@ abstract class Construct extends Expr {
   static final type = TypeDef.asType(dataDef);
 
   static final implID = ID();
-  static final implDef = ExprImplDef.mk(
+  static final implDef = Expr.mkImpl(
     id: implID,
     data: TypeDef.asType(dataDef),
     // TODO: validate anything at all
@@ -1022,7 +1020,7 @@ abstract class RecordAccess extends Expr {
   }));
 
   static final exprImplID = ID();
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     id: exprImplID,
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
@@ -1090,7 +1088,7 @@ abstract class Literal extends Expr {
   });
 
   static final _implID = ID();
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     id: _implID,
     data: TypeDef.asType(dataDef),
     // needs data constructor expr
@@ -1114,7 +1112,7 @@ abstract class VarAccess extends Expr {
   static final dataDef = TypeDef.record('VarAccess', {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
   });
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -1135,7 +1133,7 @@ abstract class VarAccess extends Expr {
 abstract class ThisDef extends Expr {
   static final dataDef = TypeDef.unit('ThisDef');
   static final _implID = ID();
-  static final exprImplDef = ExprImplDef.mk(
+  static final exprImplDef = Expr.mkImpl(
     id: _implID,
     data: TypeDef.asType(dataDef),
     type: Fn.mk(
@@ -1245,7 +1243,7 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Type.id(ID.type): ID.def,
   }),
   interfaces: Dict({
-    ExprImplDef.id: ExprImplDef.def,
+    Expr.interfaceID: Expr.interfaceDef,
     TypeProperty.interfaceID: TypeProperty.interfaceDef,
   }),
   impls: Dict({
@@ -1266,8 +1264,8 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
 Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);
   final implDef = (ctx.getImpl(Impl.id(Expr.impl(expr))) as Dict)[ImplDef.membersID].unwrap!;
-  final dataType = ExprImplDef.dataType(implDef);
-  final evalExprFn = Expr.data(ExprImplDef.evalExpr(implDef));
+  final dataType = Expr.dataType(implDef);
+  final evalExprFn = Expr.data(Expr.evalExpr(implDef));
   return Fn.bodyCases(
     evalExprFn,
     pal: (bodyExpr) {
@@ -1286,16 +1284,16 @@ Object typeCheck(Ctx ctx, Object expr) {
   final dataType = eval(
     ctx,
     InterfaceAccess.mk(
-      target: Literal.mk(Impl.type(ExprImplDef.id), Expr.impl(expr)),
-      member: ExprImplDef.dataTypeID,
+      target: Literal.mk(Impl.type(Expr.interfaceID), Expr.impl(expr)),
+      member: Expr.dataTypeID,
     ),
   );
 
   final evalTypeFn = eval(
     ctx,
     InterfaceAccess.mk(
-      target: Literal.mk(Impl.type(ExprImplDef.id), Expr.impl(expr)),
-      member: ExprImplDef.evalTypeID,
+      target: Literal.mk(Impl.type(Expr.interfaceID), Expr.impl(expr)),
+      member: Expr.evalTypeID,
     ),
   );
 
