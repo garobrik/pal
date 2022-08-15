@@ -8,10 +8,68 @@ final sillyRecordDef =
 final testCtx = coreCtx.withType(Type.id(TypeDef.asType(sillyRecordDef)), sillyRecordDef);
 
 void main() {
+  test('TypeCheckFn', () {
+    final varFn = Fn.from(
+      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      (argID) => Var.mk(argID),
+    );
+
+    final result = eval(testCtx, FnApp.mk(varFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
+    expect(result, equals(Literal.mk(number, 0)));
+
+    final implFn = Fn.from(
+      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      (argID) => RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+    );
+
+    final result2 = eval(testCtx, FnApp.mk(implFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
+    expect(result2, equals(Literal.exprImpl));
+
+    final ifaceFn = Fn.from(
+      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      (argID) => InterfaceAccess.mk(
+        target: RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+        member: Expr.evalTypeID,
+      ),
+    );
+
+    final result3 = eval(testCtx, FnApp.mk(ifaceFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
+    expect(
+      result3,
+      equals((ImplDef.members(Literal.exprImplDef) as Dict)[Expr.evalTypeID].unwrap!),
+    );
+
+    final dataFn = Fn.from(
+      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      (argID) => RecordAccess.mk(target: Var.mk(argID), member: Expr.dataID),
+    );
+
+    final result4 = eval(testCtx, FnApp.mk(dataFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
+    expect(
+      result4,
+      equals(Dict({Literal.typeID: number, Literal.valueID: 0})),
+    );
+
+    final typeCheckFn = Fn.from(
+      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      (argID) => FnApp.mk(
+        InterfaceAccess.mk(
+          target: RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+          member: Expr.evalTypeID,
+        ),
+        RecordAccess.mk(target: Var.mk(argID), member: Expr.dataID),
+      ),
+    );
+
+    final result5 =
+        eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
+    expect(result5, equals(Option.mk(Type.type, number)));
+  });
+
   test('RecordAccess + Literal', () {
     final expr = RecordAccess.mk(
       target: Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
-      accessed: sillyID,
+      member: sillyID,
     );
 
     final type = typeCheck(testCtx, expr);
@@ -38,7 +96,7 @@ void main() {
     final expr = FnApp.mk(
       Fn.from(
         Fn.type(argType: TypeDef.asType(sillyRecordDef), returnType: number),
-        (argID) => RecordAccess.mk(target: VarAccess.mk(argID), accessed: sillyID),
+        (argID) => RecordAccess.mk(target: Var.mk(argID), member: sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
     );
