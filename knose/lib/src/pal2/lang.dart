@@ -374,7 +374,7 @@ abstract class TypeTree {
   }
 }
 
-class InterfaceDef {
+abstract class InterfaceDef {
   static final IDID = ID('ID');
   static final membersID = ID('members');
 
@@ -558,7 +558,7 @@ abstract class Expr {
   );
 }
 
-class Assignable {
+abstract class Assignable {
   static final fromID = ID('from');
   static final toID = ID('to');
   static final whenID = ID('when');
@@ -581,7 +581,7 @@ class Assignable {
   });
 }
 
-class List {
+abstract class List {
   static final typeID = ID('type');
   static final valuesID = ID('values');
   static final def = TypeDef.record('List', {
@@ -852,13 +852,15 @@ abstract class FnApp extends Expr {
           typeCheck(ctx, fnExpr),
           none: () => Option.mk(Type.type),
           some: (fnType) {
-            final fnData = Expr.data(fnExpr);
             return Option.cases(
               typeCheck(ctx, arg(fnApp)),
               none: () => Option.mk(Type.type),
               some: (argType) {
-                if (argType == Fn.argType(fnData)) {
-                  return Option.mk(Type.type, Fn.returnType(fnData));
+                if (argType == Type.memberEquals(fnType, [Fn.fnTypeID, Fn.argTypeID])) {
+                  return Option.mk(
+                    Type.type,
+                    Type.memberEquals(fnType, [Fn.fnTypeID, Fn.returnTypeID]),
+                  );
                 } else {
                   return Option.mk(Type.type);
                 }

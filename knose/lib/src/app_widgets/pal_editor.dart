@@ -30,6 +30,7 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
     }
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text.rich(
           TextSpan(children: [
@@ -40,7 +41,14 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
                 ),
               ).toString(),
             ),
-            const TextSpan(text: ' -> '),
+            const WidgetSpan(
+              alignment: PlaceholderAlignment.bottom,
+              baseline: TextBaseline.ideographic,
+              child: Icon(
+                Icons.arrow_right_alt,
+                size: 16,
+              ),
+            ),
             TextSpan(
               text: TypeTree.name(
                 TypeDef.tree(
@@ -55,12 +63,32 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
       ],
     );
   } else if (impl.read(ctx) == FnApp.exprImpl) {
-    return Text.rich(TextSpan(children: [
-      AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.fnID])),
-      const TextSpan(text: '('),
-      AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.argID])),
-      const TextSpan(text: ')'),
-    ]));
+    if (data[FnApp.fnID][Expr.implID].read(ctx) == Var.exprImpl) {
+      return Text.rich(TextSpan(children: [
+        AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.fnID])),
+        const TextSpan(text: '('),
+        AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.argID])),
+        const TextSpan(text: ')'),
+      ]));
+    } else {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('apply('),
+          Container(
+            padding: const EdgeInsetsDirectional.only(start: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ExprEditor(ctx, data[FnApp.fnID]),
+                ExprEditor(ctx, data[FnApp.argID]),
+              ],
+            ),
+          ),
+          const Text(')'),
+        ],
+      );
+    }
   } else if (impl.read(ctx) == InterfaceAccess.exprImpl) {
     final targetType = typeCheck(ctx, data[InterfaceAccess.targetID].read(ctx));
     return Text.rich(TextSpan(children: [
