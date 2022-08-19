@@ -112,6 +112,16 @@ abstract class Type {
   static ID id(Object type) => (type as Dict)[IDID].unwrap! as ID;
   static Vec path(Object type) => (type as Dict)[pathID].unwrap! as Vec;
   static Vec properties(Object type) => (type as Dict)[propertiesID].unwrap! as Vec;
+  static Object memberEquals(Object type, dart.List<ID> path) {
+    return properties(type).expand<Object>((property) {
+      if (TypeProperty.impl(property) != MemberHas.impl) return [];
+      final memberHas = TypeProperty.data(property);
+      if (MemberHas.path(memberHas) != Vec(path)) return [];
+      final memberHasProp = MemberHas.property(memberHas);
+      if (TypeProperty.impl(memberHasProp) != Equals.impl) return [];
+      return [Equals.equalTo(TypeProperty.data(memberHasProp))];
+    }).first;
+  }
 }
 
 abstract class TypeProperty {
@@ -252,8 +262,8 @@ abstract class MemberHas extends TypeProperty {
         Construct.mk(TypeDef.asType(typeDef), Dict({pathID: path, propertyID: property})),
       );
 
-  static Vec path(Object memberIs) => (memberIs as Dict)[pathID].unwrap! as Vec;
-  static Object property(Object memberIs) => (memberIs as Dict)[propertyID].unwrap!;
+  static Vec path(Object memberHas) => (memberHas as Dict)[pathID].unwrap! as Vec;
+  static Object property(Object memberHas) => (memberHas as Dict)[propertyID].unwrap!;
 }
 
 abstract class UnionTag {
@@ -300,15 +310,14 @@ abstract class TypeTree {
   static Dict empty(String name) => TypeTree.union(name, const {});
   static Dict unit(String name) => TypeTree.record(name, const {});
 
-  static Object tree(Object typeTree) {
-    return (typeTree as Dict)[treeID].unwrap!;
-  }
+  static Object name(Object typeTree) => (typeTree as Dict)[nameID].unwrap!;
+  static Object tree(Object typeTree) => (typeTree as Dict)[treeID].unwrap!;
 
-  static Object treeCases(
+  static T treeCases<T>(
     Object typeTree, {
-    required Object Function(Dict) record,
-    required Object Function(Dict) union,
-    required Object Function(Dict) leaf,
+    required T Function(Dict) record,
+    required T Function(Dict) union,
+    required T Function(Dict) leaf,
   }) {
     final tree = TypeTree.tree(typeTree);
     final tag = UnionTag.tag(tree);
@@ -450,10 +459,10 @@ abstract class Option {
         ]),
       );
 
-  static Object cases(
+  static T cases<T>(
     Object option, {
-    required Object Function(Object) some,
-    required Object Function() none,
+    required T Function(Object) some,
+    required T Function() none,
   }) {
     final value = (option as Dict)[valueID].unwrap!;
     return UnionTag.tag(value) == someID ? some(UnionTag.value(value)) : none();
@@ -678,7 +687,7 @@ abstract class Fn extends Expr {
           pal: (body) {
             final argID = Fn.argID(fn);
             final argType = Fn.argType(fn);
-            final bodyType = typeCheck(ctx.withBinding(argID, Binding(argType)), body);
+            final bodyType = typeCheck(ctx.withBinding(argID, Binding(type: argType)), body);
             return Option.cases(
               bodyType,
               some: (bodyType) {
@@ -837,7 +846,7 @@ abstract class FnApp extends Expr {
         return Fn.bodyCases(
           fn,
           pal: (body) => eval(
-            ctx.withBinding(Fn.argID(fn), Binding(Fn.argType(fn), Optional(arg))),
+            ctx.withBinding(Fn.argID(fn), Binding(type: Fn.argType(fn), value: Optional(arg))),
             body,
           ),
           dart: (body) => (body as Object Function(Ctx, Object))(ctx, arg),
@@ -873,16 +882,7 @@ abstract class InterfaceAccess extends Expr {
           typeCheck(ctx, InterfaceAccess.target(arg)),
           none: () => Option.mk(Type.type),
           some: (targetType) {
-            final interfaceEqualsProp = Type.properties(targetType).firstWhere(
-              (prop) =>
-                  Impl.id(TypeProperty.impl(prop)) == MemberHas.implID &&
-                  MemberHas.path(TypeProperty.data(prop)) == Vec([Impl.IDID]) &&
-                  Impl.id(TypeProperty.impl(MemberHas.property(TypeProperty.data(prop)))) ==
-                      Equals.implID,
-            );
-            final implemented = Equals.equalTo(
-              TypeProperty.data(MemberHas.property(TypeProperty.data(interfaceEqualsProp))),
-            );
+            final implemented = Type.memberEquals(targetType, [Impl.IDID]);
             final targetInterfaceDef = ctx.getInterface(implemented as ID);
             final implID = ID();
             return TypeTree.treeCases(
@@ -1210,9 +1210,10 @@ extension CtxType on Ctx {
 
 class Binding {
   final Object type;
+  final String name;
   final Optional<Object> value;
 
-  const Binding(this.type, [this.value = const Optional.none()]);
+  const Binding({required this.type, this.name = 'var', this.value = const Optional.none()});
 }
 
 class BindingCtx extends CtxElement {
@@ -1243,6 +1244,7 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Type.id(Construct.type): Construct.dataDef,
     Type.id(Option.type(any)): Option.def,
     Type.id(ID.type): ID.def,
+    Type.id(number): numberDef,
   }),
   interfaces: Dict({
     Expr.interfaceID: Expr.interfaceDef,
@@ -1272,7 +1274,9 @@ Object eval(Ctx ctx, Object expr) {
     evalExprFn,
     pal: (bodyExpr) {
       return eval(
-          ctx.withBinding(Fn.argID(evalExprFn), Binding(dataType, Optional(data))), bodyExpr);
+        ctx.withBinding(Fn.argID(evalExprFn), Binding(type: dataType, value: Optional(data))),
+        bodyExpr,
+      );
     },
     dart: (bodyFn) {
       return (bodyFn as Object Function(Ctx, Object))(ctx, data);

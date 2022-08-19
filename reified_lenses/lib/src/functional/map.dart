@@ -18,6 +18,8 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
   @reify
   Iterable<Key> get keys => _values.keys;
 
+  Iterable<Key> get values => _values.keys;
+
   @reify
   Optional<Value> operator [](Key key) => Optional.fromNullable(_values[key]);
   Dict<Key, Value> mut_array_op(Key key, Optional<Value> update) => update.cases(
