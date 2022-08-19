@@ -22,6 +22,7 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
           data[Fn.argIDID].read(ctx) as ID,
           Binding(
             type: data[Fn.fnTypeID][Fn.argTypeID].read(ctx),
+            name: data[Fn.argNameID].read(ctx) as String,
           ),
         ),
         data[Fn.bodyID][UnionTag.valueID],

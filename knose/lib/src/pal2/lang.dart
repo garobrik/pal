@@ -189,8 +189,9 @@ abstract class Equals extends TypeProperty {
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
-      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
-      (argID) => Literal.mk(boolean, true),
+      argName: 'equalsData',
+      type: Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      body: (_) => Literal.mk(boolean, true),
     ),
   );
   static final impl = Impl.mk(implID);
@@ -218,8 +219,9 @@ abstract class ImplHas extends TypeProperty {
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
-      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
-      (argID) => Literal.mk(boolean, true),
+      argName: 'implHasData',
+      type: Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      body: (_) => Literal.mk(boolean, true),
     ),
   );
   static final impl = Impl.mk(implID);
@@ -248,8 +250,9 @@ abstract class MemberHas extends TypeProperty {
     id: implID,
     dataType: TypeDef.asType(typeDef),
     has: Fn.from(
-      Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
-      (argID) => Literal.mk(boolean, true),
+      argName: 'memberHasData',
+      type: Fn.type(argType: TypeDef.asType(typeDef), returnType: boolean),
+      body: (_) => Literal.mk(boolean, true),
     ),
   );
   static final impl = Impl.mk(implID);
@@ -543,13 +546,14 @@ abstract class Expr {
   static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
 
   static Dict typeCheckFn = Fn.from(
-    Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-    (argID) => FnApp.mk(
+    argName: 'expr',
+    type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+    body: (arg) => FnApp.mk(
       InterfaceAccess.mk(
-        target: RecordAccess.mk(target: Var.mk(argID), member: implID),
+        target: RecordAccess.mk(target: arg, member: implID),
         member: evalTypeID,
       ),
-      RecordAccess.mk(target: Var.mk(argID), member: dataID),
+      RecordAccess.mk(target: arg, member: dataID),
     ),
   );
 }
@@ -599,14 +603,16 @@ class List {
   static final mkExprImpl = Expr.mkImpl(
     data: List.type(Expr.type),
     type: Fn.from(
-      Fn.type(argType: List.type(Expr.type), returnType: Type.type),
+      argName: 'mkListData',
+      type: Fn.type(argType: List.type(Expr.type), returnType: Type.type),
       // TODO: actually validate
-      (argID) => Option.someExpr(
+      body: (arg) => Option.someExpr(
         Type.type,
-        RecordAccess.mk(target: Var.mk(argID), member: mkTypeID),
+        RecordAccess.mk(target: arg, member: mkTypeID),
       ),
     ),
     eval: Fn.dart(
+      argName: 'mkListData',
       type: Fn.type(argType: List.type(Expr.type), returnType: List.type(any)),
       body: (ctx, arg) => ((arg as Dict)[mkValuesID] as Vec).map((expr) => eval(ctx, expr)),
     ),
@@ -655,6 +661,7 @@ final unit = TypeDef.asType(unitDef);
 
 abstract class Fn extends Expr {
   static final argIDID = ID('argID');
+  static final argNameID = ID('argName');
   static final fnTypeID = ID('fnType');
   static final argTypeID = ID('argType');
   static final returnTypeID = ID('returnType');
@@ -664,6 +671,7 @@ abstract class Fn extends Expr {
 
   static final dataDef = TypeDef.mk(TypeTree.record('Fn', {
     argIDID: TypeTree.mk('argID', Literal.mk(Type.type, ID.type)),
+    argNameID: TypeTree.mk('argName', Literal.mk(Type.type, text)),
     fnTypeID: TypeTree.record('type', {
       argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Type.type)),
       returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, Type.type)),
@@ -680,6 +688,7 @@ abstract class Fn extends Expr {
     data: TypeDef.asType(dataDef),
     // TODO: need to validate body
     type: Fn.dart(
+      argName: 'fnData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: (ctx, fn) {
         return Fn.bodyCases(
@@ -687,7 +696,8 @@ abstract class Fn extends Expr {
           pal: (body) {
             final argID = Fn.argID(fn);
             final argType = Fn.argType(fn);
-            final bodyType = typeCheck(ctx.withBinding(argID, Binding(type: argType)), body);
+            final bodyType = typeCheck(
+                ctx.withBinding(argID, Binding(type: argType, name: Fn.argName(fn))), body);
             return Option.cases(
               bodyType,
               some: (bodyType) {
@@ -705,8 +715,9 @@ abstract class Fn extends Expr {
       },
     ),
     eval: Fn.from(
-      Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
-      (argID) => Var.mk(argID),
+      argName: 'fnData',
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (arg) => arg,
     ),
   );
   static final exprImpl = Impl.mk(_implID);
@@ -759,31 +770,49 @@ abstract class Fn extends Expr {
 
   static Object _fnToType(Object fn) => Fn.type(argType: argType(fn), returnType: returnType(fn));
 
-  static Dict mk({ID? argID, required Object type, required Dict body}) => Expr.mk(
+  static Dict mk({
+    ID? argID,
+    required String argName,
+    required Object type,
+    required Object body,
+  }) =>
+      Expr.mk(
         data: Dict({
           argIDID: argID ?? ID(),
+          argNameID: argName,
           fnTypeID: _fnTypeToDict(type),
           bodyID: UnionTag.mk(palID, body)
         }),
         impl: exprImpl,
       );
 
-  static Dict dart({ID? argID, required Dict type, required Object Function(Ctx, Object) body}) =>
+  static Dict dart({
+    ID? argID,
+    required String argName,
+    required Dict type,
+    required Object Function(Ctx, Object) body,
+  }) =>
       Expr.mk(
         data: Dict({
           argIDID: argID ?? ID(),
+          argNameID: argName,
           fnTypeID: _fnTypeToDict(type),
           bodyID: UnionTag.mk(dartID, body)
         }),
         impl: exprImpl,
       );
 
-  static Dict from(Dict type, Dict Function(ID) body) {
+  static Dict from({
+    required String argName,
+    required Dict type,
+    required Object Function(Object) body,
+  }) {
     final argID = ID();
-    return Fn.mk(argID: argID, type: type, body: body(argID));
+    return Fn.mk(argID: argID, argName: argName, type: type, body: body(Var.mk(argID)));
   }
 
   static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
+  static String argName(Object fn) => (fn as Dict)[argNameID].unwrap! as String;
   static Object fnType(Object fn) => (fn as Dict)[fnTypeID].unwrap!;
   static Object argType(Object fn) => (fnType(fn) as Dict)[argTypeID].unwrap!;
   static Object returnType(Object fn) => (fnType(fn) as Dict)[returnTypeID].unwrap!;
@@ -814,6 +843,7 @@ abstract class FnApp extends Expr {
   static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
+      argName: 'fnAppData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       // TODO: need to eval the fn expr
       body: (ctx, fnApp) {
@@ -839,6 +869,7 @@ abstract class FnApp extends Expr {
       },
     ),
     eval: Fn.dart(
+      argName: 'fnAppData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, data) {
         final fn = eval(ctx, FnApp.fn(data));
@@ -846,7 +877,10 @@ abstract class FnApp extends Expr {
         return Fn.bodyCases(
           fn,
           pal: (body) => eval(
-            ctx.withBinding(Fn.argID(fn), Binding(type: Fn.argType(fn), value: Optional(arg))),
+            ctx.withBinding(
+              Fn.argID(fn),
+              Binding(type: Fn.argType(fn), name: Fn.argName(fn), value: Optional(arg)),
+            ),
             body,
           ),
           dart: (body) => (body as Object Function(Ctx, Object))(ctx, arg),
@@ -876,6 +910,7 @@ abstract class InterfaceAccess extends Expr {
   static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
+      argName: 'ifaceAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: (ctx, arg) {
         return Option.cases(
@@ -929,6 +964,7 @@ abstract class InterfaceAccess extends Expr {
       },
     ),
     eval: Fn.dart(
+      argName: 'ifaceAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, data) {
         final implDef = ctx.getImpl(Impl.id(eval(ctx, target(data))));
@@ -961,19 +997,21 @@ abstract class Construct extends Expr {
     data: TypeDef.asType(dataDef),
     // TODO: validate anything at all
     type: Fn.from(
-      Fn.type(argType: TypeDef.asType(dataDef), returnType: Option.type(Type.type)),
-      (varID) => Construct.mk(
+      argName: 'constructData',
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Option.type(Type.type)),
+      body: (arg) => Construct.mk(
         Option.type(Type.type),
         Dict({
           Option.dataTypeID: Literal.mk(Type.type, Type.type),
           Option.valueID: UnionTag.mk(
             Option.someID,
-            RecordAccess.mk(target: Var.mk(varID), member: dataTypeID),
+            RecordAccess.mk(target: arg, member: dataTypeID),
           ),
         }),
       ),
     ),
     eval: Fn.dart(
+      argName: 'constructData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, arg) {
         Object doConstruct(Object typeTree, Object dataTree) {
@@ -1026,6 +1064,7 @@ abstract class RecordAccess extends Expr {
     id: exprImplID,
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
+      argName: 'recordAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: (ctx, arg) {
         return Option.cases(
@@ -1063,6 +1102,7 @@ abstract class RecordAccess extends Expr {
       },
     ),
     eval: Fn.dart(
+      argName: 'recordAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, data) {
         return (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
@@ -1095,12 +1135,14 @@ abstract class Literal extends Expr {
     data: TypeDef.asType(dataDef),
     // needs data constructor expr
     type: Fn.dart(
+      argName: 'literalData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: (ctx, lit) => Option.mk(Type.type, (lit as Dict)[typeID].unwrap!),
     ),
     eval: Fn.from(
-      Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
-      (argID) => RecordAccess.mk(target: Var.mk(argID), member: valueID),
+      argName: 'literalData',
+      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+      body: (arg) => RecordAccess.mk(target: arg, member: valueID),
     ),
   );
   static final exprImpl = Impl.mk(_implID);
@@ -1117,10 +1159,12 @@ abstract class Var extends Expr {
   static final exprImplDef = Expr.mkImpl(
     data: TypeDef.asType(dataDef),
     type: Fn.dart(
+      argName: 'varData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: (ctx, arg) => Option.mk(Type.type, ctx.getBinding(Var.id(arg)).type),
     ),
     eval: Fn.dart(
+      argName: 'varData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, arg) => ctx.getBinding(Var.id(arg)).value.unwrap!,
     ),
@@ -1139,10 +1183,12 @@ abstract class ThisDef extends Expr {
     id: _implID,
     data: TypeDef.asType(dataDef),
     type: Fn.mk(
+      argName: '_',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
       body: Literal.mk(Type.type, TypeDef.type),
     ),
     eval: Fn.dart(
+      argName: '_',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, _) => ctx.thisDef,
     ),
@@ -1213,7 +1259,7 @@ class Binding {
   final String name;
   final Optional<Object> value;
 
-  const Binding({required this.type, this.name = 'var', this.value = const Optional.none()});
+  const Binding({required this.type, required this.name, this.value = const Optional.none()});
 }
 
 class BindingCtx extends CtxElement {
@@ -1274,7 +1320,10 @@ Object eval(Ctx ctx, Object expr) {
     evalExprFn,
     pal: (bodyExpr) {
       return eval(
-        ctx.withBinding(Fn.argID(evalExprFn), Binding(type: dataType, value: Optional(data))),
+        ctx.withBinding(
+          Fn.argID(evalExprFn),
+          Binding(type: dataType, name: Fn.argName(evalExprFn), value: Optional(data)),
+        ),
         bodyExpr,
       );
     },

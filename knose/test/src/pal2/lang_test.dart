@@ -10,25 +10,28 @@ final testCtx = coreCtx.withType(Type.id(TypeDef.asType(sillyRecordDef)), sillyR
 void main() {
   test('TypeCheckFn', () {
     final varFn = Fn.from(
-      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      (argID) => Var.mk(argID),
+      argName: 'arg',
+      type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      body: (arg) => arg,
     );
 
     final result = eval(testCtx, FnApp.mk(varFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(result, equals(Literal.mk(number, 0)));
 
     final implFn = Fn.from(
-      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      (argID) => RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+      argName: 'arg',
+      type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      body: (arg) => RecordAccess.mk(target: arg, member: Expr.implID),
     );
 
     final result2 = eval(testCtx, FnApp.mk(implFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(result2, equals(Literal.exprImpl));
 
     final ifaceFn = Fn.from(
-      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      (argID) => InterfaceAccess.mk(
-        target: RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+      argName: 'arg',
+      type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      body: (arg) => InterfaceAccess.mk(
+        target: RecordAccess.mk(target: arg, member: Expr.implID),
         member: Expr.evalTypeID,
       ),
     );
@@ -40,8 +43,9 @@ void main() {
     );
 
     final dataFn = Fn.from(
-      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      (argID) => RecordAccess.mk(target: Var.mk(argID), member: Expr.dataID),
+      argName: 'arg',
+      type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      body: (arg) => RecordAccess.mk(target: arg, member: Expr.dataID),
     );
 
     final result4 = eval(testCtx, FnApp.mk(dataFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
@@ -51,13 +55,14 @@ void main() {
     );
 
     final typeCheckFn = Fn.from(
-      Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      (argID) => FnApp.mk(
+      argName: 'arg',
+      type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
+      body: (arg) => FnApp.mk(
         InterfaceAccess.mk(
-          target: RecordAccess.mk(target: Var.mk(argID), member: Expr.implID),
+          target: RecordAccess.mk(target: arg, member: Expr.implID),
           member: Expr.evalTypeID,
         ),
-        RecordAccess.mk(target: Var.mk(argID), member: Expr.dataID),
+        RecordAccess.mk(target: arg, member: Expr.dataID),
       ),
     );
 
@@ -95,8 +100,9 @@ void main() {
   test('Fn + FnApp + VarAccess', () {
     final expr = FnApp.mk(
       Fn.from(
-        Fn.type(argType: TypeDef.asType(sillyRecordDef), returnType: number),
-        (argID) => RecordAccess.mk(target: Var.mk(argID), member: sillyID),
+        argName: 'arg',
+        type: Fn.type(argType: TypeDef.asType(sillyRecordDef), returnType: number),
+        body: (arg) => RecordAccess.mk(target: arg, member: sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
     );
