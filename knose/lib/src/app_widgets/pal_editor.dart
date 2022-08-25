@@ -1,5 +1,6 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Placeholder;
+import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/src/pal2/lang.dart';
@@ -18,13 +19,11 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
     } else {
       body = ExprEditor(
-        ctx.withBinding(
-          data[Fn.argIDID].read(ctx) as ID,
-          Binding(
-            type: data[Fn.fnTypeID][Fn.argTypeID].read(ctx),
-            name: data[Fn.argNameID].read(ctx) as String,
-          ),
-        ),
+        ctx.withBinding(Binding(
+          id: data[Fn.argIDID].read(ctx) as ID,
+          type: data[Fn.fnTypeID][Fn.argTypeID].read(ctx),
+          name: data[Fn.argNameID].read(ctx) as String,
+        )),
         data[Fn.bodyID][UnionTag.valueID],
       );
     }
@@ -188,7 +187,7 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
             buildItem: (tag) => Text(TypeTree.name(union[tag]).toString()),
             onItemSelected: (newTag) {},
             child: Row(children: [
-              Text('${TypeTree.name(union[currentTag])}'),
+              Text(TypeTree.name(union[currentTag])),
               const Icon(Icons.arrow_drop_down)
             ]),
           );
@@ -211,6 +210,80 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
     }
 
     return createChild(TypeDef.tree(typeDef), data[Construct.treeID]);
+  } else if (impl.read(ctx) == Placeholder.exprImpl) {
+    return ReaderWidget(
+      ctx: ctx,
+      builder: (_, ctx) {
+        final inputText = useCursor('');
+        final isOpen = useCursor(false);
+        useEffect(
+          () => inputText.listen((old, nu, diff) {
+            if (old.isEmpty && nu.isNotEmpty) isOpen.set(true);
+            if (old.isNotEmpty && nu.isEmpty) isOpen.set(false);
+          }),
+        );
+        return DeferredDropdown(
+          isOpen: isOpen,
+          dropdown: ReaderWidget(
+            ctx: ctx,
+            builder: (_, ctx) {
+              final possibleExprs = useMemoized(
+                () => [
+                  for (final binding in ctx.getBindings) Var.mk(binding.id),
+                  for (final typeDef in ctx.getTypes)
+                    Construct.mk(
+                      TypeDef.asType(typeDef),
+                      TypeTree.instantiate(TypeDef.tree(typeDef), placeholder),
+                    ),
+                ],
+                [ctx],
+              );
+              return Column(
+                children: [
+                  for (final possibleExpr in possibleExprs)
+                    TextButton(
+                      onPressed: () => expr.set(possibleExpr),
+                      child: Text(
+                        Expr.impl(possibleExpr) == Var.exprImpl
+                            ? ctx.getBinding(Var.id(Expr.data(possibleExpr))).name
+                            : TypeTree.name(
+                                TypeDef.tree(
+                                  ctx.getType(Type.id(Construct.dataType(Expr.data(possibleExpr)))),
+                                ),
+                              ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          child: Focus(
+            skipTraversal: false,
+            onKeyEvent: (node, event) {
+              if (event.logicalKey == LogicalKeyboardKey.enter) {
+                final currentText = inputText.read(Ctx.empty);
+                final tryNum = num.tryParse(currentText);
+                if (tryNum != null) {
+                  expr.set(Literal.mk(number, tryNum));
+                }
+
+                final tryString = currentText.substring(1, currentText.length - 2);
+                if (currentText.startsWith("'") &&
+                    currentText.endsWith("'") &&
+                    !tryString.contains("'")) {
+                  expr.set(Literal.mk(text, tryString));
+                }
+
+                return KeyEventResult.handled;
+              }
+
+              return KeyEventResult.ignored;
+            },
+            child: BoundTextFormField(inputText, ctx: ctx),
+          ),
+        );
+      },
+    );
   } else {
     throw Exception('unknown expr!!');
   }
