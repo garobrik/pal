@@ -18,7 +18,7 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
   @reify
   Iterable<Key> get keys => _values.keys;
 
-  Iterable<Key> get values => _values.keys;
+  Iterable<Value> get values => _values.values;
 
   @reify
   Optional<Value> operator [](Key key) => Optional.fromNullable(_values[key]);
@@ -138,4 +138,7 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
 
     return Dict(newMap);
   }
+
+  Dict<Key, Value2> mapValues<Value2>(Value2 Function(Key k, Value v) fn) =>
+      Dict(_values.map((key, value) => MapEntry(key, fn(key, value))));
 }
