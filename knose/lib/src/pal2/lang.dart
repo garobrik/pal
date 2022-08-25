@@ -14,7 +14,7 @@ typedef Dict = reified.Dict<Object, Object>;
 typedef Vec = reified.Vec<Object>;
 
 class ID extends Comparable<ID> {
-  static final def = TypeDef.empty('ID');
+  static final def = TypeDef.unit('ID');
   static final type = TypeDef.asType(def);
 
   static const _uuid = Uuid();
@@ -51,13 +51,13 @@ abstract class TypeDef {
       TypeDef.mk(TypeTree.record(name, members), id: id);
   static Dict union(String name, dart.Map<ID, Dict> cases, {ID? id}) =>
       TypeDef.mk(TypeTree.union(name, cases), id: id);
-  static Dict empty(String name, {ID? id}) => TypeDef.mk(TypeTree.empty(name), id: id);
   static Dict unit(String name, {ID? id}) => TypeDef.mk(TypeTree.unit(name), id: id);
 
-  static Dict mk(Object tree, {ID? id}) => Dict({IDID: id ?? ID(), treeID: tree});
+  static Dict mk(Object tree, {ID? id}) =>
+      Dict({IDID: id ?? ID(TypeTree.name(tree)), treeID: tree});
 
-  static Dict asType(Dict typeDef, {Vec properties = const Vec()}) => Type.mk(
-        typeDef[IDID].unwrap! as ID,
+  static Object asType(Object typeDef, {Vec properties = const Vec()}) => Type.mk(
+        (typeDef as Dict)[IDID].unwrap! as ID,
         properties: properties,
       );
 
@@ -76,7 +76,7 @@ abstract class Type {
   static final pathID = ID('path');
   static final propertiesID = ID('properties');
 
-  static final _typeID = ID('_type');
+  static final _typeID = ID('Type');
   static final def = TypeDef.record(
     'Type',
     {
@@ -95,10 +95,10 @@ abstract class Type {
   }) =>
       Dict({IDID: id, pathID: path, propertiesID: properties});
 
-  static Dict mkExpr(
+  static Object mkExpr(
     ID id, {
-    Dict? path,
-    Dict? properties,
+    Object? path,
+    Object? properties,
   }) =>
       Construct.mk(
         Type.type,
@@ -168,7 +168,7 @@ abstract class TypeProperty {
 
   static Dict mk(Object impl, Object data) => Dict({implID: impl, dataID: data});
 
-  static Dict mkExpr(Object impl, Object data) =>
+  static Object mkExpr(Object impl, Object data) =>
       Construct.mk(type, Dict({implID: impl, dataID: data}));
 
   static Object impl(Object typeProperty) => (typeProperty as Dict)[implID].unwrap!;
@@ -199,7 +199,7 @@ abstract class Equals extends TypeProperty {
   static Dict mk(Object dataType, Object equalTo) =>
       TypeProperty.mk(impl, Dict({dataTypeID: dataType, equalToID: equalTo}));
 
-  static Dict mkExpr(Object dataType, Object equalTo) => TypeProperty.mkExpr(
+  static Object mkExpr(Object dataType, Object equalTo) => TypeProperty.mkExpr(
         Literal.mk(Impl.type(implID), impl),
         Construct.mk(TypeDef.asType(typeDef), Dict({dataTypeID: dataType, equalToID: equalTo})),
       );
@@ -226,9 +226,10 @@ abstract class ImplHas extends TypeProperty {
   );
   static final impl = Impl.mk(implID);
 
-  static Dict mk({required Object property}) => TypeProperty.mk(impl, Dict({propertyID: property}));
+  static Object mk({required Object property}) =>
+      TypeProperty.mk(impl, Dict({propertyID: property}));
 
-  static Dict mkExpr({required Object property}) => TypeProperty.mkExpr(
+  static Object mkExpr({required Object property}) => TypeProperty.mkExpr(
         Literal.mk(Impl.type(implID), impl),
         Construct.mk(TypeDef.asType(typeDef), Dict({propertyID: property})),
       );
@@ -257,10 +258,10 @@ abstract class MemberHas extends TypeProperty {
   );
   static final impl = Impl.mk(implID);
 
-  static Dict mk({required Object path, required Object property}) =>
+  static Object mk({required Object path, required Object property}) =>
       TypeProperty.mk(impl, Dict({pathID: path, propertyID: property}));
 
-  static Dict mkExpr({required Object path, required Object property}) => TypeProperty.mkExpr(
+  static Object mkExpr({required Object path, required Object property}) => TypeProperty.mkExpr(
         Literal.mk(Impl.type(implID), impl),
         Construct.mk(TypeDef.asType(typeDef), Dict({pathID: path, propertyID: property})),
       );
@@ -293,16 +294,20 @@ abstract class TypeTree {
   static final unionID = ID('union');
   static final leafID = ID('leaf');
 
-  static final _defID = ID('_def');
-  static final def = TypeDef.record('TypeTree', {
-    nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
-    treeID: TypeTree.union('tree', {
-      recordID: TypeTree.mk('record', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
-      unionID: TypeTree.mk('union', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
-      leafID: TypeTree.mk('leaf', Literal.mk(Type.type, Expr.type))
-    }),
-  });
-  static final type = Type.mk(_defID);
+  static final id = ID('TypeTree');
+  static final def = TypeDef.record(
+    'TypeTree',
+    {
+      nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
+      treeID: TypeTree.union('tree', {
+        recordID: TypeTree.mk('record', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
+        unionID: TypeTree.mk('union', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
+        leafID: TypeTree.mk('leaf', Literal.mk(Type.type, Expr.type))
+      }),
+    },
+    id: id,
+  );
+  static final type = Type.mk(id);
 
   static Dict record(String name, dart.Map<ID, Dict> members) =>
       Dict({nameID: name, treeID: UnionTag.mk(recordID, Dict(members))});
@@ -310,10 +315,9 @@ abstract class TypeTree {
       Dict({nameID: name, treeID: UnionTag.mk(unionID, Dict(cases))});
   static Dict mk(String name, Object type) =>
       Dict({nameID: name, treeID: UnionTag.mk(leafID, type)});
-  static Dict empty(String name) => TypeTree.union(name, const {});
   static Dict unit(String name) => TypeTree.record(name, const {});
 
-  static Object name(Object typeTree) => (typeTree as Dict)[nameID].unwrap!;
+  static String name(Object typeTree) => (typeTree as Dict)[nameID].unwrap! as String;
   static Object tree(Object typeTree) => (typeTree as Dict)[treeID].unwrap!;
 
   static T treeCases<T>(
@@ -372,6 +376,18 @@ abstract class TypeTree {
       );
     }
   }
+
+  static Object instantiate(Object typeTree, Object data) {
+    return treeCases(
+      typeTree,
+      record: (record) => record.mapValues((k, v) => instantiate(v, data)),
+      union: (union) => UnionTag.mk(
+        union.entries.first.key as ID,
+        instantiate(union.entries.first.value, data),
+      ),
+      leaf: (leaf) => data,
+    );
+  }
 }
 
 abstract class InterfaceDef {
@@ -382,7 +398,7 @@ abstract class InterfaceDef {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
     membersID: TypeTree.mk('members', Literal.mk(Type.type, TypeTree.type)),
   });
-  static final type = Type.type;
+  static final type = TypeDef.asType(def);
 
   static Dict mk(Dict members, {ID? id}) => Dict({IDID: id ?? ID(), membersID: members});
   static Dict record(String name, dart.Map<ID, Dict> members, {ID? id}) =>
@@ -404,7 +420,7 @@ abstract class ImplDef {
     implementedID: TypeTree.mk('implemented', Literal.mk(Type.type, ID.type)),
     membersID: TypeTree.mk('members', Literal.mk(Type.type, any)),
   });
-  static Dict type(ID implemented) => TypeDef.asType(
+  static Object type(ID implemented) => TypeDef.asType(
         def,
         properties: Vec([
           MemberHas.mk(path: Vec([IDID]), property: Equals.mk(ID.type, implemented)),
@@ -427,7 +443,7 @@ abstract class Impl {
 
   static Dict mk(ID id) => Dict({IDID: id});
 
-  static Dict type(ID id, {Vec properties = const Vec()}) => TypeDef.asType(
+  static Object type(ID id, {Vec properties = const Vec()}) => TypeDef.asType(
         def,
         properties: Vec([
           MemberHas.mk(path: Vec([IDID]), property: Equals.mk(ID.type, id)),
@@ -452,7 +468,7 @@ abstract class Option {
     }),
   });
 
-  static Dict type(Dict dataType) => TypeDef.asType(
+  static Object type(Object dataType) => TypeDef.asType(
         def,
         properties: Vec([
           MemberHas.mk(
@@ -477,11 +493,19 @@ abstract class Option {
         valueID: value == null ? _noneUnionTag : UnionTag.mk(someID, value),
       });
 
-  static Dict someExpr(Dict dataType, Object value) => Construct.mk(
+  static Object someExpr(Object dataType, Object value) => Construct.mk(
         Option.type(dataType),
         Dict({
           dataTypeID: Literal.mk(Type.type, dataType),
           valueID: UnionTag.mk(someID, value),
+        }),
+      );
+
+  static Object noneExpr(Dict dataType) => Construct.mk(
+        Option.type(dataType),
+        Dict({
+          dataTypeID: Literal.mk(Type.type, dataType),
+          valueID: UnionTag.mk(noneID, const Dict()),
         }),
       );
 }
@@ -514,7 +538,12 @@ abstract class Expr {
     id: interfaceID,
   );
 
-  static Dict mkImpl({required Dict data, required Object type, required Object eval, ID? id}) =>
+  static Object mkImpl({
+    required Object data,
+    required Object type,
+    required Object eval,
+    ID? id,
+  }) =>
       ImplDef.mk(
         id: id ?? ID(),
         implemented: interfaceID,
@@ -545,7 +574,7 @@ abstract class Expr {
   static Object data(Object expr) => (expr as Dict)[dataID].unwrap!;
   static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
 
-  static Dict typeCheckFn = Fn.from(
+  static Object typeCheckFn = Fn.from(
     argName: 'expr',
     type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
     body: (arg) => FnApp.mk(
@@ -586,7 +615,7 @@ abstract class List {
   static final valuesID = ID('values');
   static final def = TypeDef.record('List', {
     typeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
-    valuesID: TypeTree.empty('values'),
+    valuesID: TypeTree.unit('values'),
   });
 
   static final mkExprID = ID('mkExpr');
@@ -618,7 +647,7 @@ abstract class List {
     ),
   );
 
-  static Dict type(Dict type) => TypeDef.asType(def,
+  static Object type(Object type) => TypeDef.asType(def,
       properties: Vec([
         MemberHas.mk(
           path: Vec([typeID]),
@@ -628,7 +657,7 @@ abstract class List {
 
   static Dict mk(Dict type, Vec values) => Dict({typeID: type, valuesID: values});
 
-  static Dict mkExpr(Dict type, Vec values) =>
+  static Object mkExpr(Object type, Vec values) =>
       Expr.mk(impl: Impl.mk(mkExprID), data: Dict({mkTypeID: type, mkValuesID: values}));
 }
 
@@ -639,25 +668,27 @@ class Map {
   static final def = TypeDef.record('Map', {
     keyID: TypeTree.mk('key', Literal.mk(Type.type, Type.type)),
     valueID: TypeTree.mk('value', Literal.mk(Type.type, Type.type)),
-    valuesID: TypeTree.empty('values'),
+    valuesID: TypeTree.unit('values'),
   });
 
-  static Dict type(Dict key, Dict value) => TypeDef.asType(def);
+  static Object type(Object key, Object value) => TypeDef.asType(def);
 
-  static Dict mk(Type key, Type value, Dict values) =>
+  static Object mk(Type key, Type value, Object values) =>
       Dict({keyID: key, valueID: value, valuesID: values});
 }
 
-final anyDef = TypeDef.empty('Any');
+final anyDef = TypeDef.unit('Any');
 final any = TypeDef.asType(anyDef);
-final textDef = TypeDef.empty('Text');
+final textDef = TypeDef.unit('Text');
 final text = TypeDef.asType(textDef);
-final numberDef = TypeDef.empty('Number');
+final numberDef = TypeDef.unit('Number');
 final number = TypeDef.asType(numberDef);
-final booleanDef = TypeDef.empty('Boolean');
+final booleanDef = TypeDef.unit('Boolean');
 final boolean = TypeDef.asType(booleanDef);
-final unitDef = TypeDef.empty('Unit');
+final unitDef = TypeDef.unit('Unit');
 final unit = TypeDef.asType(unitDef);
+final bottomDef = TypeDef.mk(TypeTree.union('Bottom', const {}));
+final bottom = TypeDef.asType(bottomDef);
 
 abstract class Fn extends Expr {
   static final argIDID = ID('argID');
@@ -697,7 +728,9 @@ abstract class Fn extends Expr {
             final argID = Fn.argID(fn);
             final argType = Fn.argType(fn);
             final bodyType = typeCheck(
-                ctx.withBinding(argID, Binding(type: argType, name: Fn.argName(fn))), body);
+              ctx.withBinding(Binding(id: argID, type: argType, name: Fn.argName(fn))),
+              body,
+            );
             return Option.cases(
               bodyType,
               some: (bodyType) {
@@ -722,7 +755,7 @@ abstract class Fn extends Expr {
   );
   static final exprImpl = Impl.mk(_implID);
 
-  static Dict type({required Object argType, required Object returnType}) => TypeDef.asType(
+  static Object type({required Object argType, required Object returnType}) => TypeDef.asType(
         dataDef,
         properties: Vec([
           MemberHas.mk(
@@ -736,7 +769,7 @@ abstract class Fn extends Expr {
         ]),
       );
 
-  static Dict typeExpr({required Object argType, required Object returnType}) => Type.mkExpr(
+  static Object typeExpr({required Object argType, required Object returnType}) => Type.mkExpr(
         TypeDef.id(dataDef),
         properties: List.mkExpr(
           TypeProperty.type,
@@ -786,10 +819,10 @@ abstract class Fn extends Expr {
         impl: exprImpl,
       );
 
-  static Dict dart({
+  static Object dart({
     ID? argID,
     required String argName,
-    required Dict type,
+    required Object type,
     required Object Function(Ctx, Object) body,
   }) =>
       Expr.mk(
@@ -802,9 +835,9 @@ abstract class Fn extends Expr {
         impl: exprImpl,
       );
 
-  static Dict from({
+  static Object from({
     required String argName,
-    required Dict type,
+    required Object type,
     required Object Function(Object) body,
   }) {
     final argID = ID();
@@ -879,10 +912,12 @@ abstract class FnApp extends Expr {
         return Fn.bodyCases(
           fn,
           pal: (body) => eval(
-            ctx.withBinding(
-              Fn.argID(fn),
-              Binding(type: Fn.argType(fn), name: Fn.argName(fn), value: Optional(arg)),
-            ),
+            ctx.withBinding(Binding(
+              id: Fn.argID(fn),
+              type: Fn.argType(fn),
+              name: Fn.argName(fn),
+              value: Optional(arg),
+            )),
             body,
           ),
           dart: (body) => (body as Object Function(Ctx, Object))(ctx, arg),
@@ -1046,7 +1081,7 @@ abstract class Construct extends Expr {
   static Object dataType(Object construct) => (construct as Dict)[dataTypeID].unwrap!;
   static Object tree(Object construct) => (construct as Dict)[treeID].unwrap!;
 
-  static Dict mk(Dict dataType, Object tree) => Expr.mk(
+  static Object mk(Object dataType, Object tree) => Expr.mk(
         impl: impl,
         data: Dict({dataTypeID: dataType, treeID: tree}),
       );
@@ -1273,6 +1308,7 @@ extension CtxType on Ctx {
   Ctx withType(ID id, Object type) =>
       withElement((get<TypeCtx>() ?? const TypeCtx()).withType(id, type));
   Object getType(ID id) => (get<TypeCtx>() ?? const TypeCtx()).types[id].unwrap!;
+  Iterable<Object> get getTypes => (get<TypeCtx>() ?? const TypeCtx()).types.values;
 
   Ctx withInterface(ID id, Object interface) =>
       withElement((get<TypeCtx>() ?? const TypeCtx()).withInterface(id, interface));
@@ -1284,11 +1320,17 @@ extension CtxType on Ctx {
 }
 
 class Binding {
+  final ID id;
   final Object type;
   final String name;
   final Optional<Object> value;
 
-  const Binding({required this.type, required this.name, this.value = const Optional.none()});
+  const Binding({
+    required this.id,
+    required this.type,
+    required this.name,
+    this.value = const Optional.none(),
+  });
 }
 
 class BindingCtx extends CtxElement {
@@ -1298,9 +1340,11 @@ class BindingCtx extends CtxElement {
 }
 
 extension CtxBinding on Ctx {
-  Ctx withBinding(ID id, Binding binding) =>
-      withElement(BindingCtx((get<BindingCtx>() ?? const BindingCtx()).bindings.put(id, binding)));
+  Ctx withBinding(Binding binding) => withElement(
+        BindingCtx((get<BindingCtx>() ?? const BindingCtx()).bindings.put(binding.id, binding)),
+      );
   Binding getBinding(ID id) => (get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap!;
+  Iterable<Binding> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
 final coreCtx = Ctx.empty.withElement(TypeCtx(
@@ -1335,6 +1379,7 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Impl.id(Fn.exprImpl): Fn.exprImplDef,
     Impl.id(FnApp.exprImpl): FnApp.exprImplDef,
     Impl.id(ThisDef.exprImpl): ThisDef.exprImplDef,
+    Impl.id(Placeholder.exprImpl): Placeholder.exprImplDef,
     // type properties
     Impl.id(MemberHas.impl): MemberHas.propImplDef,
   }),
@@ -1349,10 +1394,12 @@ Object eval(Ctx ctx, Object expr) {
     evalExprFn,
     pal: (bodyExpr) {
       return eval(
-        ctx.withBinding(
-          Fn.argID(evalExprFn),
-          Binding(type: dataType, name: Fn.argName(evalExprFn), value: Optional(data)),
-        ),
+        ctx.withBinding(Binding(
+          id: Fn.argID(evalExprFn),
+          type: dataType,
+          name: Fn.argName(evalExprFn),
+          value: Optional(data),
+        )),
         bodyExpr,
       );
     },
