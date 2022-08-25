@@ -1212,6 +1212,33 @@ extension CtxThisDef on Ctx {
   Object get thisDef => get<ThisDefCtx>()!.thisDef;
 }
 
+abstract class Placeholder extends Expr {
+  static final typeDef = TypeDef.unit('Placeholder');
+
+  static final exprImplDef = Expr.mkImpl(
+    data: TypeDef.asType(typeDef),
+    type: Fn.from(
+      argName: '_',
+      type: Fn.type(
+        argType: TypeDef.asType(typeDef),
+        returnType: Option.type(Type.type),
+      ),
+      body: (_) => Option.noneExpr(Type.type),
+    ),
+    eval: Fn.dart(
+      argName: '_',
+      type: Fn.type(
+        argType: TypeDef.asType(typeDef),
+        returnType: bottom,
+      ),
+      body: (_, __) => throw Exception("don't evaluate a placeholder u fool!"),
+    ),
+  );
+  static final exprImpl = ImplDef.asImpl(exprImplDef);
+}
+
+final placeholder = Expr.mk(data: const Dict(), impl: Placeholder.exprImpl);
+
 class TypeCtx extends CtxElement {
   final Dict types;
   final Dict impls;
