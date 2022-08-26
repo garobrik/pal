@@ -5,11 +5,6 @@ import 'package:reified_lenses/reified_lenses.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
 import 'package:uuid/uuid.dart';
 
-// todo:
-// - fix thisdef (are we operating on the typedef, the type, or the actual thing?)
-// - do type properties properly (& fix FnType creation when done)
-// - test
-
 typedef Dict = reified.Dict<Object, Object>;
 typedef Vec = reified.Vec<Object>;
 
@@ -717,7 +712,6 @@ abstract class Fn extends Expr {
   static final exprImplDef = Expr.mkImpl(
     id: _implID,
     data: TypeDef.asType(dataDef),
-    // TODO: need to validate body
     type: Fn.dart(
       argName: 'fnData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -811,7 +805,7 @@ abstract class Fn extends Expr {
   }) =>
       Expr.mk(
         data: Dict({
-          argIDID: argID ?? ID(),
+          argIDID: argID ?? ID(argName),
           argNameID: argName,
           fnTypeID: _fnTypeToDict(type),
           bodyID: UnionTag.mk(palID, body)
@@ -827,7 +821,7 @@ abstract class Fn extends Expr {
   }) =>
       Expr.mk(
         data: Dict({
-          argIDID: argID ?? ID(),
+          argIDID: argID ?? ID(argName),
           argNameID: argName,
           fnTypeID: _fnTypeToDict(type),
           bodyID: UnionTag.mk(dartID, body)
@@ -840,7 +834,7 @@ abstract class Fn extends Expr {
     required Object type,
     required Object Function(Object) body,
   }) {
-    final argID = ID();
+    final argID = ID(argName);
     return Fn.mk(argID: argID, argName: argName, type: type, body: body(Var.mk(argID)));
   }
 
@@ -1032,20 +1026,39 @@ abstract class Construct extends Expr {
   static final implDef = Expr.mkImpl(
     id: implID,
     data: TypeDef.asType(dataDef),
-    // TODO: validate anything at all
-    type: Fn.from(
+    type: Fn.dart(
       argName: 'constructData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Option.type(Type.type)),
-      body: (arg) => Construct.mk(
-        Option.type(Type.type),
-        Dict({
-          Option.dataTypeID: Literal.mk(Type.type, Type.type),
-          Option.valueID: UnionTag.mk(
-            Option.someID,
-            RecordAccess.mk(target: arg, member: dataTypeID),
-          ),
-        }),
-      ),
+      body: (ctx, arg) {
+        final typeDef = ctx.getType(Type.id(dataType(arg)));
+        bool valid(Object typeTree, Object data) {
+          return TypeTree.treeCases(
+            typeTree,
+            record: (record) {
+              if (record.length != (data as Dict).length) return false;
+              return record.entries.every((entry) => valid(entry.value, data[entry.key].unwrap!));
+            },
+            union: (union) {
+              if (!(data as Dict).containsKey(UnionTag.tagID)) return false;
+              if (!union.containsKey(UnionTag.tag(data))) return false;
+              return union[UnionTag.tag(data)]
+                  .map((subTree) => valid(subTree, UnionTag.value(data)))
+                  .orElse(false);
+            },
+            leaf: (typeExpr) => Option.cases(
+              typeCheck(ctx, data),
+              some: (type) => eval(ctx.withThisDef(dataType(arg)), typeExpr) == type,
+              none: () => false,
+            ),
+          );
+        }
+
+        if (valid(TypeDef.tree(typeDef), tree(arg))) {
+          return Option.mk(Type.type, dataType(arg));
+        } else {
+          return Option.mk(Type.type);
+        }
+      },
     ),
     eval: Fn.dart(
       argName: 'constructData',
@@ -1364,6 +1377,8 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     Type.id(Option.type(any)): Option.def,
     Type.id(ID.type): ID.def,
     Type.id(number): numberDef,
+    Type.id(text): textDef,
+    Type.id(TypeDef.asType(Fn.dataDef)): Fn.dataDef,
   }),
   interfaces: Dict({
     Expr.interfaceID: Expr.interfaceDef,

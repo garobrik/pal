@@ -141,4 +141,6 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
 
   Dict<Key, Value2> mapValues<Value2>(Value2 Function(Key k, Value v) fn) =>
       Dict(_values.map((key, value) => MapEntry(key, fn(key, value))));
+
+  bool containsKey(Key key) => _values.containsKey(key);
 }
