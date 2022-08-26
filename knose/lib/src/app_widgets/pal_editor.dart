@@ -9,7 +9,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 part 'pal_editor.g.dart';
 
 @reader
-Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
+Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   final impl = expr[Expr.implID];
   final data = expr[Expr.dataID];
 
@@ -161,6 +161,7 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
         typeTree,
         record: (record) {
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (final entry in record.entries)
                 if (TypeTree.treeCases(
@@ -175,41 +176,69 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
                     child: createChild(entry.value, dataTree[entry.key]),
                   ),
                 ] else
-                  Text.rich(TextSpan(children: [TextSpan(text: '${TypeTree.name(entry.value)}:')])),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: '${TypeTree.name(entry.value)}:'),
+                        AlignedWidgetSpan(createChild(entry.value, dataTree[entry.key]))
+                      ],
+                    ),
+                  ),
             ],
           );
         },
         union: (union) {
-          final currentTag = dataTree[UnionTag.tagID];
-          final dropdown = DropdownMenu<Object>(
-            items: [...union.keys],
-            currentItem: currentTag,
-            buildItem: (tag) => Text(TypeTree.name(union[tag]).toString()),
-            onItemSelected: (newTag) {},
-            child: Row(children: [
-              Text(TypeTree.name(union[currentTag])),
-              const Icon(Icons.arrow_drop_down)
-            ]),
-          );
-          return Column(children: [
-            Text.rich(TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')])),
-            Container(
-              padding: const EdgeInsetsDirectional.only(start: 10),
-              child: createChild(union[currentTag], dataTree[UnionTag.valueID]),
+          final currentTag = dataTree[UnionTag.tagID].read(ctx);
+          final dropdown = IntrinsicWidth(
+            child: DropdownMenu<Object>(
+              style: ButtonStyle(
+                padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
+                minimumSize: MaterialStateProperty.all(Size.zero),
+              ),
+              items: [...union.keys],
+              currentItem: currentTag,
+              buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
+              onItemSelected: (newTag) {},
+              child: Row(children: [
+                Text(TypeTree.name(union[currentTag].unwrap!)),
+                // const Icon(Icons.arrow_drop_down)
+              ]),
             ),
-            const Text(')')
-          ]);
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text.rich(
+                TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
+              ),
+              Container(
+                padding: const EdgeInsetsDirectional.only(start: 10),
+                child: createChild(union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
+              ),
+              const Text(')')
+            ],
+          );
         },
         leaf: (leaf) {
           return Text.rich(TextSpan(children: [
-            TextSpan(text: '${TypeTree.name(leaf)}: '),
+            // TextSpan(text: '${TypeTree.name(typeTree)}: '),
             AlignedWidgetSpan(ExprEditor(ctx, dataTree)),
           ]));
         },
       );
     }
 
-    return createChild(TypeDef.tree(typeDef), data[Construct.treeID]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
+        Container(
+          padding: const EdgeInsetsDirectional.only(start: 10),
+          child: createChild(TypeDef.tree(typeDef), data[Construct.treeID]),
+        ),
+        const Text(')'),
+      ],
+    );
   } else if (impl.read(ctx) == Placeholder.exprImpl) {
     return ReaderWidget(
       ctx: ctx,
@@ -267,7 +296,7 @@ Widget exprEditor(Ctx ctx, Cursor<Object> expr) {
                   expr.set(Literal.mk(number, tryNum));
                 }
 
-                final tryString = currentText.substring(1, currentText.length - 2);
+                final tryString = currentText.substring(1, currentText.length - 1);
                 if (currentText.startsWith("'") &&
                     currentText.endsWith("'") &&
                     !tryString.contains("'")) {
