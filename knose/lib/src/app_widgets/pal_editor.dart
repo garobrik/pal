@@ -201,7 +201,8 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
               buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
               onItemSelected: (newTag) {
                 dataTree.set(
-                  UnionTag.mk(newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, data)),
+                  UnionTag.mk(
+                      newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, placeholder)),
                 );
               },
               child: Row(children: [
@@ -335,10 +336,17 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       builder: (context, ctx) {
         return Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
-            ),
-          ),
+              // border: Border.all(
+              //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
+              // ),
+              borderRadius: const BorderRadius.all(Radius.circular(3)),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 8,
+                  color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
+                  blurStyle: BlurStyle.outer,
+                )
+              ]),
           child: child,
         );
       },
