@@ -13,6 +13,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   final impl = expr[Expr.implID];
   final data = expr[Expr.dataID];
 
+  late final Widget child;
   if (impl.read(ctx) == Fn.exprImpl) {
     late final Widget body;
     if (data[Fn.bodyID][UnionTag.tagID].read(ctx) == Fn.dartID) {
@@ -28,7 +29,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       );
     }
 
-    return Column(
+    child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text.rich(
@@ -63,14 +64,14 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
     );
   } else if (impl.read(ctx) == FnApp.exprImpl) {
     if (data[FnApp.fnID][Expr.implID].read(ctx) == Var.exprImpl) {
-      return Text.rich(TextSpan(children: [
+      child = Text.rich(TextSpan(children: [
         AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.fnID])),
         const TextSpan(text: '('),
         AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.argID])),
         const TextSpan(text: ')'),
       ]));
     } else {
-      return Column(
+      child = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('apply('),
@@ -90,7 +91,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
     }
   } else if (impl.read(ctx) == InterfaceAccess.exprImpl) {
     final targetType = typeCheck(ctx, data[InterfaceAccess.targetID].read(ctx));
-    return Text.rich(TextSpan(children: [
+    child = Text.rich(TextSpan(children: [
       AlignedWidgetSpan(ExprEditor(ctx, data[InterfaceAccess.targetID])),
       const TextSpan(text: '.'),
       Option.cases(
@@ -119,7 +120,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
     ]));
   } else if (impl.read(ctx) == RecordAccess.exprImpl) {
     final targetType = typeCheck(ctx, data[RecordAccess.targetID].read(ctx));
-    return Text.rich(TextSpan(children: [
+    child = Text.rich(TextSpan(children: [
       AlignedWidgetSpan(ExprEditor(ctx, data[RecordAccess.targetID])),
       const TextSpan(text: '.'),
       Option.cases(
@@ -148,11 +149,11 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   } else if (impl.read(ctx) == Var.exprImpl) {
     final varID = data[Var.IDID].read(ctx);
     final binding = ctx.getBinding(varID as ID);
-    return Text(binding.name);
+    child = Text(binding.name);
   } else if (impl.read(ctx) == Literal.exprImpl) {
-    return Text(data[Literal.valueID].read(ctx).toString());
+    child = Text(data[Literal.valueID].read(ctx).toString());
   } else if (impl.read(ctx) == ThisDef.exprImpl) {
-    return const Text('this');
+    child = const Text('this');
   } else if (impl.read(ctx) == Construct.impl) {
     final typeDef = ctx.getType(data[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
@@ -198,7 +199,11 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
               items: [...union.keys],
               currentItem: currentTag,
               buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
-              onItemSelected: (newTag) {},
+              onItemSelected: (newTag) {
+                dataTree.set(
+                  UnionTag.mk(newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, data)),
+                );
+              },
               child: Row(children: [
                 Text(TypeTree.name(union[currentTag].unwrap!)),
                 // const Icon(Icons.arrow_drop_down)
@@ -228,7 +233,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       );
     }
 
-    return Column(
+    child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
@@ -240,7 +245,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       ],
     );
   } else if (impl.read(ctx) == Placeholder.exprImpl) {
-    return ReaderWidget(
+    child = ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
         final inputText = useCursor('');
@@ -316,6 +321,29 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   } else {
     throw Exception('unknown expr!!');
   }
+
+  return Focus(
+    onKeyEvent: (node, event) {
+      if (node.hasPrimaryFocus && event.logicalKey == LogicalKeyboardKey.backspace) {
+        expr.set(placeholder);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    },
+    child: ReaderWidget(
+      ctx: ctx,
+      builder: (context, ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
+            ),
+          ),
+          child: child,
+        );
+      },
+    ),
+  );
 }
 
 // @reader
