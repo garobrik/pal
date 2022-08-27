@@ -670,6 +670,56 @@ class Map {
 
   static Object mk(Type key, Type value, Object values) =>
       Dict({keyID: key, valueID: value, valuesID: values});
+
+  static final mkExprID = ID('mkExpr');
+  static final mkKeyID = ID('mkKey');
+  static final mkValueID = ID('mkValue');
+  static final mkEntriesID = ID('mkValues');
+  static final exprDataDef = TypeDef.record(
+    'MkMap',
+    {
+      mkKeyID: TypeTree.mk('key', Literal.mk(Type.type, Type.type)),
+      mkValueID: TypeTree.mk('value', Literal.mk(Type.type, Type.type)),
+      mkEntriesID: TypeTree.mk('entries', Literal.mk(Type.type, List.type(List.type(Expr.type)))),
+    },
+    id: mkExprID,
+  );
+  static final mkType = Type.mk(mkExprID);
+
+  static final mkExprImpl = Expr.mkImpl(
+    data: List.type(Expr.type),
+    type: Fn.dart(
+      argName: 'mkMapData',
+      type: Fn.type(argType: mkType, returnType: Type.type),
+      body: (ctx, arg) {
+        final keyType = (arg as Dict)[mkKeyID].unwrap!;
+        final valueType = arg[mkValueID].unwrap!;
+
+        for (final entry in arg[mkEntriesID].unwrap as Vec) {
+          if (typeCheck(ctx, (entry as Vec)[0]) != Option.mk(Type.type, keyType)) {
+            return Option.mk(Type.type);
+          }
+          if (typeCheck(ctx, entry[1]) != Option.mk(Type.type, valueType)) {
+            return Option.mk(Type.type);
+          }
+        }
+        return Option.mk(
+          Type.type,
+          Map.type(keyType, valueType),
+        );
+      },
+    ),
+    eval: Fn.dart(
+      argName: 'mkMapData',
+      type: Fn.type(argType: List.type(Expr.type), returnType: List.type(any)),
+      body: (ctx, arg) => Dict({
+        for (final entry in (arg as Dict)[mkEntriesID] as Vec)
+          eval(ctx, (entry as Vec)[0]): eval(ctx, entry[1])
+      }),
+    ),
+  );
+  static Object mkExpr(Type key, Type value, Object values) =>
+      Dict({keyID: key, valueID: value, valuesID: values});
 }
 
 final anyDef = TypeDef.unit('Any');
