@@ -20,7 +20,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
     } else {
       body = ExprEditor(
-        ctx.withBinding(Binding(
+        ctx.withBinding(Binding.mk(
           id: data[Fn.argIDID].read(ctx) as ID,
           type: data[Fn.fnTypeID][Fn.argTypeID].read(ctx),
           name: data[Fn.argNameID].read(ctx) as String,
@@ -149,7 +149,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   } else if (impl.read(ctx) == Var.exprImpl) {
     final varID = data[Var.IDID].read(ctx);
     final binding = ctx.getBinding(varID as ID);
-    child = Text(binding.name);
+    child = Text(Binding.name(binding));
   } else if (impl.read(ctx) == Literal.exprImpl) {
     child = Text(data[Literal.valueID].read(ctx).toString());
   } else if (impl.read(ctx) == ThisDef.exprImpl) {
@@ -264,7 +264,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
             builder: (_, ctx) {
               final possibleExprs = useMemoized(
                 () => [
-                  for (final binding in ctx.getBindings) Var.mk(binding.id),
+                  for (final binding in ctx.getBindings) Var.mk(Binding.id(binding)),
                   for (final typeDef in ctx.getTypes)
                     Construct.mk(
                       TypeDef.asType(typeDef),
@@ -280,7 +280,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
                       onPressed: () => expr.set(possibleExpr),
                       child: Text(
                         Expr.impl(possibleExpr) == Var.exprImpl
-                            ? ctx.getBinding(Var.id(Expr.data(possibleExpr))).name
+                            ? Binding.name(ctx.getBinding(Var.id(Expr.data(possibleExpr))))
                             : TypeTree.name(
                                 TypeDef.tree(
                                   ctx.getType(Type.id(Construct.dataType(Expr.data(possibleExpr)))),
