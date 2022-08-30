@@ -5,6 +5,16 @@ extension IterableEquality<V> on Iterable<V> {
       length == other.length && zip(this, other).every((pair) => pair.first == pair.second);
 }
 
+extension IterableIntersperse<V> on Iterable<V> {
+  Iterable<V> intersperse(V separator) sync* {
+    if (this.isNotEmpty) yield this.first;
+    for (final value in this.skip(1)) {
+      yield separator;
+      yield value;
+    }
+  }
+}
+
 int hash(Iterable iterable) {
   int result = 1;
   for (final value in iterable) {

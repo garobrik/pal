@@ -1,12 +1,219 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
 import 'package:flutter/services.dart';
-import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict;
+import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/src/pal2/lang.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'pal_editor.g.dart';
+
+@reader
+Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
+  return FocusTraversalGroup(
+    policy: HierarchicalOrderTraversalPolicy(),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: module[Module.definitionsID]
+          .cast<Vec>()
+          .values(ctx)
+          .map<Widget>((moduleDef) {
+            return ReaderWidget(
+              ctx: ctx,
+              builder: (_, ctx) {
+                final impl = moduleDef[ModuleDef.implID].read(ctx);
+                if (impl == TypeDef.moduleDefImpl) {
+                  final name =
+                      moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID].read(ctx);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('type $name {'),
+                      Container(
+                        padding: const EdgeInsetsDirectional.only(start: 10),
+                        child: TypeTreeEditor(
+                          ctx.withThisDef(
+                            Type.mk(moduleDef[ModuleDef.dataID][TypeDef.IDID].read(ctx) as ID),
+                          ),
+                          moduleDef[ModuleDef.dataID][TypeDef.treeID],
+                        ),
+                      ),
+                      const Text('}'),
+                    ],
+                  );
+                } else if (impl == InterfaceDef.moduleDefImpl) {
+                  final name = moduleDef[ModuleDef.dataID][InterfaceDef.membersID][TypeTree.nameID]
+                      .read(ctx);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('interface $name {'),
+                      Container(
+                        padding: const EdgeInsetsDirectional.only(start: 10),
+                        child: TypeTreeEditor(
+                            ctx, moduleDef[ModuleDef.dataID][InterfaceDef.membersID]),
+                      ),
+                      const Text('}'),
+                    ],
+                  );
+                } else if (impl == ImplDef.moduleDefImpl) {
+                  final interfaceDef = ctx.getInterface(
+                    moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+                  );
+                  return Option.cases(
+                    Option.mk(InterfaceDef.type, interfaceDef),
+                    // Binding.value(
+                    //   ctx.getInterface(
+                    //     moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+                    //   ),
+                    // ),
+                    none: () => const Text('unknown interface'),
+                    some: (interfaceDef) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('impl of ${TypeTree.name(InterfaceDef.members(interfaceDef))} {'),
+                          Container(
+                            padding: const EdgeInsetsDirectional.only(start: 10),
+                            child: DataTreeEditor(
+                              ctx,
+                              InterfaceDef.members(interfaceDef),
+                              moduleDef[ModuleDef.dataID][ImplDef.membersID],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                } else {
+                  throw Exception('unknown ModuleDef impl $impl');
+                }
+              },
+            );
+          })
+          .intersperse(const Divider())
+          .toList(),
+    ),
+  );
+}
+
+@reader
+Widget _typeTreeEditor(Ctx ctx, Cursor<Object> typeTree) {
+  final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
+  if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
+    final subTree = typeTree[TypeTree.treeID][UnionTag.valueID].cast<Dict>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final key in subTree.keys.read(ctx)) ...[
+          Text.rich(TextSpan(children: [
+            if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                TypeTree.unionID)
+              const TextSpan(text: 'union '),
+            if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                TypeTree.recordID)
+              const TextSpan(text: 'record '),
+            AlignedWidgetSpan(
+              IntrinsicWidth(
+                child: BoundTextFormField(
+                  subTree[key].whenPresent[TypeTree.nameID].cast<String>(),
+                  ctx: ctx,
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsetsDirectional.zero,
+                  ),
+                ),
+              ),
+            ),
+            const TextSpan(text: ':'),
+          ])),
+          Container(
+            padding: const EdgeInsetsDirectional.only(start: 10),
+            child: TypeTreeEditor(ctx, subTree[key].whenPresent),
+          ),
+        ]
+      ],
+    );
+  } else if (tag == TypeTree.leafID) {
+    return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
+  } else {
+    throw Exception('unknown type tree union case');
+  }
+}
+
+@reader
+Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
+  return TypeTree.treeCases(
+    typeTree,
+    record: (record) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final entry in record.entries)
+            if (TypeTree.treeCases(
+              entry.value,
+              record: (_) => true,
+              union: (union) => true,
+              leaf: (_) => true,
+            )) ...[
+              Text('${TypeTree.name(entry.value)}:'),
+              Container(
+                padding: const EdgeInsetsDirectional.only(start: 10),
+                child: DataTreeEditor(ctx, entry.value, dataTree[entry.key]),
+              ),
+            ] else
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: '${TypeTree.name(entry.value)}: '),
+                    AlignedWidgetSpan(DataTreeEditor(ctx, entry.value, dataTree[entry.key]))
+                  ],
+                ),
+              ),
+        ],
+      );
+    },
+    union: (union) {
+      final currentTag = dataTree[UnionTag.tagID].read(ctx);
+      final dropdown = IntrinsicWidth(
+        child: DropdownMenu<Object>(
+          style: ButtonStyle(
+            padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
+            minimumSize: MaterialStateProperty.all(Size.zero),
+          ),
+          items: [...union.keys],
+          currentItem: currentTag,
+          buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
+          onItemSelected: (newTag) {
+            dataTree.set(
+              UnionTag.mk(newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, placeholder)),
+            );
+          },
+          child: Row(children: [
+            Text(TypeTree.name(union[currentTag].unwrap!)),
+            // const Icon(Icons.arrow_drop_down)
+          ]),
+        ),
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
+          ),
+          Container(
+            padding: const EdgeInsetsDirectional.only(start: 10),
+            child: DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
+          ),
+          const Text(')')
+        ],
+      );
+    },
+    leaf: (leaf) {
+      return ExprEditor(ctx, dataTree);
+    },
+  );
+}
 
 @reader
 Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
@@ -106,6 +313,10 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
             record: (record) => record,
           );
           return AlignedWidgetSpan(DropdownMenu<Object>(
+            style: ButtonStyle(
+              padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
+              minimumSize: MaterialStateProperty.all(Size.zero),
+            ),
             items: record.keys,
             currentItem: data[InterfaceAccess.memberID].read(ctx),
             buildItem: (memberID) => Text(TypeTree.name(record[memberID].unwrap!).toString()),
@@ -120,6 +331,7 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
     ]));
   } else if (impl.read(ctx) == RecordAccess.exprImpl) {
     final targetType = typeCheck(ctx, data[RecordAccess.targetID].read(ctx));
+
     child = Text.rich(TextSpan(children: [
       AlignedWidgetSpan(ExprEditor(ctx, data[RecordAccess.targetID])),
       const TextSpan(text: '.'),
@@ -134,12 +346,16 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
             record: (record) => record,
           );
           return AlignedWidgetSpan(DropdownMenu<Object>(
+            style: ButtonStyle(
+              padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
+              minimumSize: MaterialStateProperty.all(Size.zero),
+            ),
             items: record.keys,
-            currentItem: data[InterfaceAccess.memberID].read(ctx),
+            currentItem: data[RecordAccess.memberID].read(ctx),
             buildItem: (memberID) => Text(TypeTree.name(record[memberID].unwrap!).toString()),
-            onItemSelected: (key) => data[InterfaceAccess.memberID].set(key),
+            onItemSelected: (key) => data[RecordAccess.memberID].set(key),
             child: Text(
-              TypeTree.name(record[data[InterfaceAccess.memberID].read(ctx)].unwrap!).toString(),
+              TypeTree.name(record[data[RecordAccess.memberID].read(ctx)].unwrap!).toString(),
             ),
           ));
         },
@@ -157,90 +373,13 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
   } else if (impl.read(ctx) == Construct.impl) {
     final typeDef = ctx.getType(data[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
-    Widget createChild(Object typeTree, Cursor<Object> dataTree) {
-      return TypeTree.treeCases(
-        typeTree,
-        record: (record) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final entry in record.entries)
-                if (TypeTree.treeCases(
-                  entry.value,
-                  record: (_) => true,
-                  union: (union) => true,
-                  leaf: (_) => false,
-                )) ...[
-                  Text('${TypeTree.name(entry.value)}:'),
-                  Container(
-                    padding: const EdgeInsetsDirectional.only(start: 10),
-                    child: createChild(entry.value, dataTree[entry.key]),
-                  ),
-                ] else
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '${TypeTree.name(entry.value)}:'),
-                        AlignedWidgetSpan(createChild(entry.value, dataTree[entry.key]))
-                      ],
-                    ),
-                  ),
-            ],
-          );
-        },
-        union: (union) {
-          final currentTag = dataTree[UnionTag.tagID].read(ctx);
-          final dropdown = IntrinsicWidth(
-            child: DropdownMenu<Object>(
-              style: ButtonStyle(
-                padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
-                minimumSize: MaterialStateProperty.all(Size.zero),
-              ),
-              items: [...union.keys],
-              currentItem: currentTag,
-              buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
-              onItemSelected: (newTag) {
-                dataTree.set(
-                  UnionTag.mk(
-                      newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, placeholder)),
-                );
-              },
-              child: Row(children: [
-                Text(TypeTree.name(union[currentTag].unwrap!)),
-                // const Icon(Icons.arrow_drop_down)
-              ]),
-            ),
-          );
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
-                TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
-              ),
-              Container(
-                padding: const EdgeInsetsDirectional.only(start: 10),
-                child: createChild(union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
-              ),
-              const Text(')')
-            ],
-          );
-        },
-        leaf: (leaf) {
-          return Text.rich(TextSpan(children: [
-            // TextSpan(text: '${TypeTree.name(typeTree)}: '),
-            AlignedWidgetSpan(ExprEditor(ctx, dataTree)),
-          ]));
-        },
-      );
-    }
-
     child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
         Container(
           padding: const EdgeInsetsDirectional.only(start: 10),
-          child: createChild(TypeDef.tree(typeDef), data[Construct.treeID]),
+          child: DataTreeEditor(ctx, TypeDef.tree(typeDef), data[Construct.treeID]),
         ),
         const Text(')'),
       ],
@@ -319,8 +458,18 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
         );
       },
     );
+  } else if (impl.read(ctx) == List.mkExprImpl) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final child in data[List.mkValuesID].cast<Vec>().values(ctx)) ...[
+          ExprEditor(ctx, child),
+          const Divider(),
+        ]
+      ],
+    );
   } else {
-    throw Exception('unknown expr!!');
+    throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
 
   return Focus(
@@ -336,17 +485,18 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
       builder: (context, ctx) {
         return Container(
           decoration: BoxDecoration(
-              // border: Border.all(
-              //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
-              // ),
-              borderRadius: const BorderRadius.all(Radius.circular(3)),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 8,
-                  color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
-                  blurStyle: BlurStyle.outer,
-                )
-              ]),
+            // border: Border.all(
+            //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
+            // ),
+            borderRadius: const BorderRadius.all(Radius.circular(3)),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 8,
+                color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
+                blurStyle: BlurStyle.outer,
+              )
+            ],
+          ),
           child: child,
         );
       },
@@ -418,4 +568,18 @@ Widget _exprEditor(Ctx ctx, Cursor<Object> expr) {
 
 extension _PalAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
+}
+
+class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
+    with DirectionalFocusTraversalPolicyMixin {
+  @override
+  Iterable<FocusNode> sortDescendants(Iterable<FocusNode> descendants, FocusNode currentNode) {
+    final sorted = [...descendants];
+    mergeSort(sorted, compare: (FocusNode node1, FocusNode node2) {
+      if (node1.ancestors.contains(node2)) return 1;
+      if (node2.ancestors.contains(node1)) return -1;
+      return 0;
+    });
+    return sorted;
+  }
 }
