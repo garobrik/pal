@@ -39,7 +39,7 @@ Widget _testThingy(Ctx ctx) {
 }
 
 @reader
-Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
+Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
   return Column(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +47,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
       Text.rich(
         TextSpan(children: [
           const TextSpan(text: 'module '),
-          _inlineTextField(context, ctx, module[Module.nameID].cast<String>()),
+          _inlineTextField(ctx, module[Module.nameID].cast<String>()),
           const TextSpan(text: ' {'),
         ]),
       ),
@@ -68,13 +68,16 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
                         builder: (_, ctx) {
                           final impl = moduleDef[ModuleDef.implID].read(ctx);
                           if (impl == TypeDef.moduleDefImpl) {
-                            final name = moduleDef[ModuleDef.dataID][TypeDef.treeID]
-                                    [TypeTree.nameID]
-                                .read(ctx);
+                            final name =
+                                moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('type $name {'),
+                                Text.rich(TextSpan(children: [
+                                  const TextSpan(text: 'type '),
+                                  _inlineTextField(ctx, name.cast<String>()),
+                                  const TextSpan(text: ' {'),
+                                ])),
                                 Container(
                                   padding: const EdgeInsetsDirectional.only(start: 10),
                                   child: TypeTreeEditor(
@@ -90,12 +93,15 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
                             );
                           } else if (impl == InterfaceDef.moduleDefImpl) {
                             final name = moduleDef[ModuleDef.dataID][InterfaceDef.membersID]
-                                    [TypeTree.nameID]
-                                .read(ctx);
+                                [TypeTree.nameID];
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('interface $name {'),
+                                Text.rich(TextSpan(children: [
+                                  const TextSpan(text: 'interface '),
+                                  _inlineTextField(ctx, name.cast<String>()),
+                                  const TextSpan(text: ' {'),
+                                ])),
                                 Container(
                                   padding: const EdgeInsetsDirectional.only(start: 10),
                                   child: TypeTreeEditor(
@@ -156,7 +162,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
 }
 
 @reader
-Widget _typeTreeEditor(BuildContext context, Ctx ctx, Cursor<Object> typeTree) {
+Widget _typeTreeEditor(Ctx ctx, Cursor<Object> typeTree) {
   final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
   if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
     final subTree = typeTree[TypeTree.treeID][UnionTag.valueID].cast<Dict>();
@@ -171,11 +177,7 @@ Widget _typeTreeEditor(BuildContext context, Ctx ctx, Cursor<Object> typeTree) {
             if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
                 TypeTree.recordID)
               const TextSpan(text: 'record '),
-            _inlineTextField(
-              context,
-              ctx,
-              subTree[key].whenPresent[TypeTree.nameID].cast<String>(),
-            ),
+            _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
             const TextSpan(text: ':'),
           ])),
           Container(
@@ -293,7 +295,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         Text.rich(
           TextSpan(children: [
             const TextSpan(text: '('),
-            _inlineTextField(context, ctx, data[Fn.argNameID].cast<String>()),
+            _inlineTextField(ctx, data[Fn.argNameID].cast<String>()),
             const TextSpan(text: ': '),
             TextSpan(
                 text: TypeTree.name(
@@ -567,16 +569,18 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   );
 }
 
-InlineSpan _inlineTextField(BuildContext context, Ctx ctx, Cursor<String> text) {
+InlineSpan _inlineTextField(Ctx ctx, Cursor<String> text) {
   return AlignedWidgetSpan(
     IntrinsicWidth(
-      child: BoundTextFormField(
-        text,
-        ctx: ctx,
-        decoration: const InputDecoration(
-          contentPadding: EdgeInsetsDirectional.all(2),
+      child: Builder(
+        builder: (context) => BoundTextFormField(
+          text,
+          ctx: ctx,
+          decoration: const InputDecoration(
+            contentPadding: EdgeInsetsDirectional.all(2),
+          ),
+          style: Theme.of(context).textTheme.bodyText2,
         ),
-        style: Theme.of(context).textTheme.bodyText2,
       ),
     ),
   );
