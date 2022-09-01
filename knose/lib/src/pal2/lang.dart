@@ -51,6 +51,25 @@ abstract class Module {
 
   static Object mk({ID? id, required String name, required Vec definitions}) =>
       Dict({IDID: id ?? ID(), nameID: name, definitionsID: definitions});
+
+  static Ctx load(Ctx evalCtx, Ctx targetCtx, Object module) {
+    final bindings = ((module as Dict)[definitionsID].unwrap! as Vec).expand((moduleDef) {
+      return eval(
+        evalCtx,
+        FnApp.mk(
+          InterfaceAccess.mk(
+            target: RecordAccess.mk(
+              target: Literal.mk(ModuleDef.type, moduleDef),
+              member: ModuleDef.implID,
+            ),
+            member: ModuleDef.bindingsID,
+          ),
+          RecordAccess.mk(target: Literal.mk(ModuleDef.type, moduleDef), member: ModuleDef.dataID),
+        ),
+      ) as Vec;
+    });
+    return bindings.fold(targetCtx, (ctx, binding) => ctx.withBinding(binding));
+  }
 }
 
 abstract class ModuleDef extends InterfaceDef {
@@ -60,11 +79,12 @@ abstract class ModuleDef extends InterfaceDef {
   static final interfaceDef = InterfaceDef.record('ModuleDef', {
     dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
     bindingTypesID: TypeTree.mk(
-        'bindingTypes',
-        Fn.typeExpr(
-          argType: RecordAccess.mk(target: thisDef, member: dataTypeID),
-          returnType: Literal.mk(Type.type, List.type(Binding.type)),
-        )),
+      'bindingTypes',
+      Fn.typeExpr(
+        argType: RecordAccess.mk(target: thisDef, member: dataTypeID),
+        returnType: Literal.mk(Type.type, List.type(Binding.type)),
+      ),
+    ),
     bindingsID: TypeTree.mk(
       'bindings',
       Fn.typeExpr(
@@ -654,6 +674,8 @@ abstract class ImplDef {
 
     return recurse(InterfaceDef.members(interfaceDef), ImplDef.members(implDef));
   }
+
+  static ID id(Object impl) => (impl as Dict)[IDID].unwrap! as ID;
 }
 
 abstract class Impl {
@@ -885,7 +907,7 @@ abstract class List {
     eval: Fn.dart(
       argName: 'mkListData',
       type: Fn.type(argType: TypeDef.asType(exprDataDef), returnType: List.type(any)),
-      body: (ctx, arg) => ((arg as Dict)[mkValuesID] as Vec).map((expr) => eval(ctx, expr)),
+      body: (ctx, arg) => ((arg as Dict)[mkValuesID].unwrap! as Vec).map((expr) => eval(ctx, expr)),
     ),
   );
   static final mkExprImpl = ImplDef.asImpl(mkExprImplDef);
@@ -934,7 +956,7 @@ class Map {
   );
   static final mkType = Type.mk(mkExprID);
 
-  static final mkExprImpl = Expr.mkImpl(
+  static final mkExprImplDef = Expr.mkImpl(
     data: List.type(Expr.type),
     type: Fn.dart(
       argName: 'mkMapData',
@@ -1758,6 +1780,10 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
         ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, ThisDef.exprImplDef),
     Impl.id(Placeholder.exprImpl):
         ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
+    Impl.id(List.mkExprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, List.mkExprImplDef),
+    ImplDef.id(Map.mkExprImplDef):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Map.mkExprImplDef),
     // type properties
     Impl.id(MemberHas.impl):
         ImplDef.asImplObj(_bootstrapCtx, TypeProperty.interfaceDef, MemberHas.propImplDef),
@@ -1832,7 +1858,7 @@ final coreModule = Module.mk(
     ImplDef.mkDef(List.mkExprImplDef),
     TypeDef.mkDef(Map.def),
     TypeDef.mkDef(Map.exprDataDef),
-    ImplDef.mkDef(Map.mkExprImpl),
+    ImplDef.mkDef(Map.mkExprImplDef),
     TypeDef.mkDef(anyDef),
     TypeDef.mkDef(textDef),
     TypeDef.mkDef(numberDef),
