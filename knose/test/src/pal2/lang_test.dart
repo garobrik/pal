@@ -39,7 +39,7 @@ void main() {
     final result3 = eval(testCtx, FnApp.mk(ifaceFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(
       result3,
-      equals((ImplDef.members(Literal.exprImplDef) as Dict)[Expr.evalTypeID].unwrap!),
+      equals(Expr.data((ImplDef.members(Literal.exprImplDef) as Dict)[Expr.evalTypeID].unwrap!)),
     );
 
     final dataFn = Fn.from(
@@ -115,25 +115,26 @@ void main() {
   });
 
   test('InterfaceAccess + ThisDef', () {
-    final ifaceID = ID();
-    final dataTypeID = ID();
-    final valueID = ID();
+    final ifaceID = ID('testIface');
+    final dataTypeID = ID('testDataType');
+    final valueID = ID('testValue');
     final interfaceDef = InterfaceDef.mk(
-      TypeTree.record('iface', {
+      TypeTree.record('testIface', {
         dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
         valueID: TypeTree.mk('value', InterfaceAccess.mk(target: thisDef, member: dataTypeID)),
       }),
       id: ifaceID,
     );
 
-    final implID = ID();
+    final implID = ID('testImpl');
     final implDef = ImplDef.mk(
       id: implID,
       implemented: ifaceID,
-      members: Dict({dataTypeID: number, valueID: 0}),
+      members: Dict({dataTypeID: Literal.mk(Type.type, number), valueID: Literal.mk(number, 0)}),
     );
 
-    final thisCtx = coreCtx.withImpl(implID, implDef).withInterface(ifaceID, interfaceDef);
+    final implObj = ImplDef.asImplObj(coreCtx, interfaceDef, implDef);
+    final thisCtx = coreCtx.withImpl(implID, implObj).withInterface(ifaceID, interfaceDef);
 
     final expr = InterfaceAccess.mk(
       target: Literal.mk(

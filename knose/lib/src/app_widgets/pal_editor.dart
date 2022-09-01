@@ -82,6 +82,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                               moduleDef[ModuleDef.dataID][ImplDef.membersID],
                             ),
                           ),
+                          const Text('}'),
                         ],
                       );
                     },

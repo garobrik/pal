@@ -264,7 +264,7 @@ abstract class TypeProperty {
       ImplDef.mk(
         id: id,
         implemented: interfaceID,
-        members: Dict({dataTypeID: dataType, hasID: has}),
+        members: Dict({dataTypeID: Literal.mk(Type.type, dataType), hasID: has}),
       );
 
   static final implID = ID('impl');
@@ -639,6 +639,21 @@ abstract class ImplDef {
   static final moduleDefImpl = ImplDef.asImpl(moduleDefImplDef);
 
   static Object mkDef(Object def) => ModuleDef.mk(impl: moduleDefImpl, data: def);
+
+  static Object asImplObj(Ctx ctx, Object interfaceDef, Object implDef) {
+    Object recurse(Object typeTree, Object dataTree) {
+      return TypeTree.treeCases(
+        typeTree,
+        record: (record) => record.mapValues(
+          (k, v) => recurse(v, (dataTree as Dict)[k].unwrap!),
+        ),
+        union: (union) => throw Exception('impl unionnnn'),
+        leaf: (leaf) => eval(ctx, dataTree),
+      );
+    }
+
+    return recurse(InterfaceDef.members(interfaceDef), ImplDef.members(implDef));
+  }
 }
 
 abstract class Impl {
@@ -764,7 +779,11 @@ abstract class Expr {
       ImplDef.mk(
         id: id ?? ID(),
         implemented: interfaceID,
-        members: Dict({dataTypeID: data, evalTypeID: Expr.data(type), evalExprID: Expr.data(eval)}),
+        members: Dict({
+          dataTypeID: Literal.mk(Type.type, data),
+          evalTypeID: type,
+          evalExprID: eval,
+        }),
       );
 
   static Object dataType(Object exprImpl) => (exprImpl as Dict)[dataTypeID].unwrap!;
@@ -853,10 +872,10 @@ abstract class List {
     id: mkExprTypeDefID,
   );
   static final mkExprImplDef = Expr.mkImpl(
-    data: List.type(Expr.type),
+    data: TypeDef.asType(exprDataDef),
     type: Fn.from(
       argName: 'mkListData',
-      type: Fn.type(argType: List.type(Expr.type), returnType: Type.type),
+      type: Fn.type(argType: TypeDef.asType(exprDataDef), returnType: Type.type),
       // TODO: actually validate
       body: (arg) => Option.someExpr(
         Type.type,
@@ -865,7 +884,7 @@ abstract class List {
     ),
     eval: Fn.dart(
       argName: 'mkListData',
-      type: Fn.type(argType: List.type(Expr.type), returnType: List.type(any)),
+      type: Fn.type(argType: TypeDef.asType(exprDataDef), returnType: List.type(any)),
       body: (ctx, arg) => ((arg as Dict)[mkValuesID] as Vec).map((expr) => eval(ctx, expr)),
     ),
   );
@@ -988,48 +1007,55 @@ abstract class Fn extends Expr {
   }));
 
   static final _implID = ID('FnExprImpl');
+  static final typeFn = Fn.dart(
+    argName: 'fnData',
+    type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+    body: (ctx, fn) {
+      return Fn.bodyCases(
+        fn,
+        pal: (body) {
+          final argID = Fn.argID(fn);
+          final argType = Fn.argType(fn);
+          final bodyType = typeCheck(
+            ctx.withBinding(Binding.mk(id: argID, type: argType, name: Fn.argName(fn))),
+            body,
+          );
+          return Option.cases(
+            bodyType,
+            some: (bodyType) {
+              if (bodyType == returnType(fn)) {
+                return Option.mk(
+                  Type.type,
+                  Fn.type(argType: argType, returnType: returnType(fn)),
+                );
+              } else {
+                return Option.mk(Type.type);
+              }
+            },
+            none: () => Option.mk(Type.type),
+          );
+        },
+        dart: (_) => Option.mk(Type.type, _fnToType(fn)),
+      );
+    },
+  );
+  static final evalFn = Fn.dart(
+    argName: 'fnData',
+    type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+    body: (ctx, arg) => arg,
+  );
   static final exprImplDef = Expr.mkImpl(
     id: _implID,
     data: TypeDef.asType(dataDef),
-    type: Fn.dart(
-      argName: 'fnData',
-      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
-      body: (ctx, fn) {
-        return Fn.bodyCases(
-          fn,
-          pal: (body) {
-            final argID = Fn.argID(fn);
-            final argType = Fn.argType(fn);
-            final bodyType = typeCheck(
-              ctx.withBinding(Binding.mk(id: argID, type: argType, name: Fn.argName(fn))),
-              body,
-            );
-            return Option.cases(
-              bodyType,
-              some: (bodyType) {
-                if (bodyType == returnType(fn)) {
-                  return Option.mk(
-                    Type.type,
-                    Fn.type(argType: argType, returnType: returnType(fn)),
-                  );
-                } else {
-                  return Option.mk(Type.type);
-                }
-              },
-              none: () => Option.mk(Type.type),
-            );
-          },
-          dart: (_) => Option.mk(Type.type, _fnToType(fn)),
-        );
-      },
-    ),
-    eval: Fn.from(
-      argName: 'fnData',
-      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
-      body: (arg) => arg,
-    ),
+    type: typeFn,
+    eval: evalFn,
   );
   static final exprImpl = Impl.mk(_implID);
+  static final exprImplObj = Dict({
+    Expr.dataTypeID: TypeDef.asType(dataDef),
+    Expr.evalTypeID: Expr.data(typeFn),
+    Expr.evalExprID: Expr.data(evalFn)
+  });
 
   static Object type({required Object argType, required Object returnType}) => TypeDef.asType(
         dataDef,
@@ -1249,22 +1275,18 @@ abstract class InterfaceAccess extends Expr {
                     leaf: (leafNode) => eval(
                       ctx.withThisDef(Impl.mk(implID)).withImpl(
                             implID,
-                            ImplDef.mk(
-                              id: implID,
-                              implemented: implemented,
-                              members: Dict({
-                                for (final prop in (Type.properties(targetType)))
-                                  if (Impl.id(TypeProperty.impl(prop)) == ImplHas.implID)
-                                    for (final prop in [ImplHas.property(TypeProperty.data(prop))])
-                                      if (Impl.id(TypeProperty.impl(prop)) == MemberHas.implID)
-                                        for (final equals in [
-                                          TypeProperty.data(
-                                              MemberHas.property(TypeProperty.data(prop)))
-                                        ])
-                                          MemberHas.path(TypeProperty.data(prop)).first:
-                                              Equals.equalTo(equals),
-                              }),
-                            ),
+                            Dict({
+                              for (final prop in (Type.properties(targetType)))
+                                if (Impl.id(TypeProperty.impl(prop)) == ImplHas.implID)
+                                  for (final prop in [ImplHas.property(TypeProperty.data(prop))])
+                                    if (Impl.id(TypeProperty.impl(prop)) == MemberHas.implID)
+                                      for (final equals in [
+                                        TypeProperty.data(
+                                            MemberHas.property(TypeProperty.data(prop)))
+                                      ])
+                                        MemberHas.path(TypeProperty.data(prop)).first:
+                                            Equals.equalTo(equals),
+                            }),
                           ),
                       leafNode,
                     ),
@@ -1280,8 +1302,8 @@ abstract class InterfaceAccess extends Expr {
       argName: 'ifaceAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, data) {
-        final implDef = ctx.getImpl(Impl.id(eval(ctx, target(data))));
-        return (ImplDef.members(implDef) as Dict)[member(data)].unwrap!;
+        final impl = ctx.getImpl(Impl.id(eval(ctx, target(data))));
+        return (impl as Dict)[member(data)].unwrap!;
       },
     ),
   );
@@ -1461,22 +1483,24 @@ abstract class Literal extends Expr {
     valueID: TypeTree.mk('value', RecordAccess.mk(target: thisDef, member: typeID)),
   });
 
-  static final _implID = ID('LiteralExprImpl');
-  static final exprImplDef = Expr.mkImpl(
-    id: _implID,
-    data: TypeDef.asType(dataDef),
-    // needs data constructor expr
-    type: Fn.dart(
-      argName: 'literalData',
-      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
-      body: (ctx, lit) => Option.mk(Type.type, (lit as Dict)[typeID].unwrap!),
-    ),
-    eval: Fn.from(
-      argName: 'literalData',
-      type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
-      body: (arg) => RecordAccess.mk(target: arg, member: valueID),
-    ),
+  static final typeFn = Fn.from(
+    argName: 'literalData',
+    type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
+    body: (arg) => Option.someExpr(Type.type, RecordAccess.mk(target: arg, member: typeID)),
   );
+  static final evalFn = Fn.dart(
+    argName: 'literalData',
+    type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
+    body: (ctx, arg) => (arg as Dict)[valueID].unwrap!,
+  );
+  static final _implID = ID('LiteralExprImpl');
+  static final exprImplDef =
+      Expr.mkImpl(id: _implID, data: TypeDef.asType(dataDef), type: typeFn, eval: evalFn);
+  static final exprImplObj = Dict({
+    Expr.dataTypeID: TypeDef.asType(dataDef),
+    Expr.evalTypeID: Expr.data(typeFn),
+    Expr.evalExprID: Expr.data(evalFn),
+  });
   static final exprImpl = Impl.mk(_implID);
 
   static Dict mk(Object type, Object value) =>
@@ -1671,6 +1695,12 @@ extension CtxBinding on Ctx {
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
+final _bootstrapCtx = Ctx.empty.withElement(TypeCtx(
+  impls: Dict({
+    Impl.id(Literal.exprImpl): Literal.exprImplObj,
+    Impl.id(Fn.exprImpl): Fn.exprImplObj,
+  }),
+));
 final coreCtx = Ctx.empty.withElement(TypeCtx(
   types: Dict({
     Type.id(ID.type): ID.def,
@@ -1701,6 +1731,11 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
     TypeDef.id(ThisDef.dataDef): ThisDef.dataDef,
     TypeDef.id(ImplHas.typeDef): ImplHas.typeDef,
     TypeDef.id(Binding.def): Binding.def,
+    TypeDef.id(List.exprDataDef): List.exprDataDef,
+    TypeDef.id(Map.exprDataDef): Map.exprDataDef,
+    TypeDef.id(FnApp.dataDef): FnApp.dataDef,
+    TypeDef.id(Var.dataDef): Var.dataDef,
+    TypeDef.id(Placeholder.typeDef): Placeholder.typeDef,
   }),
   interfaces: Dict({
     Expr.interfaceID: Expr.interfaceDef,
@@ -1709,27 +1744,36 @@ final coreCtx = Ctx.empty.withElement(TypeCtx(
   }),
   impls: Dict({
     // exprs
-    Impl.id(Var.exprImpl): Var.exprImplDef,
-    Impl.id(Literal.exprImpl): Literal.exprImplDef,
-    Impl.id(InterfaceAccess.exprImpl): InterfaceAccess.exprImplDef,
-    Impl.id(Construct.impl): Construct.implDef,
-    Impl.id(RecordAccess.exprImpl): RecordAccess.exprImplDef,
-    Impl.id(Fn.exprImpl): Fn.exprImplDef,
-    Impl.id(FnApp.exprImpl): FnApp.exprImplDef,
-    Impl.id(ThisDef.exprImpl): ThisDef.exprImplDef,
-    Impl.id(Placeholder.exprImpl): Placeholder.exprImplDef,
+    Impl.id(Var.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Var.exprImplDef),
+    Impl.id(Literal.exprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Literal.exprImplDef),
+    Impl.id(InterfaceAccess.exprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, InterfaceAccess.exprImplDef),
+    Impl.id(Construct.impl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Construct.implDef),
+    Impl.id(RecordAccess.exprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, RecordAccess.exprImplDef),
+    Impl.id(Fn.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Fn.exprImplDef),
+    Impl.id(FnApp.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, FnApp.exprImplDef),
+    Impl.id(ThisDef.exprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, ThisDef.exprImplDef),
+    Impl.id(Placeholder.exprImpl):
+        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
     // type properties
-    Impl.id(MemberHas.impl): MemberHas.propImplDef,
+    Impl.id(MemberHas.impl):
+        ImplDef.asImplObj(_bootstrapCtx, TypeProperty.interfaceDef, MemberHas.propImplDef),
     // module defs
-    Impl.id(TypeDef.moduleDefImpl): TypeDef.moduleDefImplDef,
-    Impl.id(InterfaceDef.moduleDefImpl): InterfaceDef.moduleDefImplDef,
-    Impl.id(ImplDef.moduleDefImpl): ImplDef.moduleDefImplDef,
+    Impl.id(TypeDef.moduleDefImpl):
+        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, TypeDef.moduleDefImplDef),
+    Impl.id(InterfaceDef.moduleDefImpl):
+        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, InterfaceDef.moduleDefImplDef),
+    Impl.id(ImplDef.moduleDefImpl):
+        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, ImplDef.moduleDefImplDef),
   }),
 ));
 
 Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);
-  final implDef = (ctx.getImpl(Impl.id(Expr.impl(expr))) as Dict)[ImplDef.membersID].unwrap!;
+  final implDef = ctx.getImpl(Impl.id(Expr.impl(expr)));
   final dataType = Expr.dataType(implDef);
   final evalExprFn = Expr.evalExpr(implDef);
   return Fn.bodyCases(
@@ -1784,8 +1828,10 @@ final coreModule = Module.mk(
     TypeDef.mkDef(Expr.def),
     InterfaceDef.mkDef(Expr.interfaceDef),
     TypeDef.mkDef(List.def),
+    TypeDef.mkDef(List.exprDataDef),
     ImplDef.mkDef(List.mkExprImplDef),
     TypeDef.mkDef(Map.def),
+    TypeDef.mkDef(Map.exprDataDef),
     ImplDef.mkDef(Map.mkExprImpl),
     TypeDef.mkDef(anyDef),
     TypeDef.mkDef(textDef),
