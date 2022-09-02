@@ -14,7 +14,7 @@ class Pair<A, B> with _PairMixin<A, B> {
   Pair(this.first, this.second);
 
   @override
-  int get hashCode => hash(<dynamic>[first, second]);
+  int get hashCode => Object.hash(first, second);
 
   @override
   bool operator ==(Object other) {

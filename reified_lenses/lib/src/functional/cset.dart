@@ -35,5 +35,5 @@ class CSet<Value> extends Iterable<Value> with _CSetMixin<Value> {
   }
 
   @override
-  int get hashCode => hash(this);
+  int get hashCode => Object.hashAllUnordered(this);
 }

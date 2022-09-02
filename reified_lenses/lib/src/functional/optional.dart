@@ -35,7 +35,7 @@ class Optional<Value> extends Iterable<Value> {
   Iterator<Value> get iterator => _value == null ? <Value>[].iterator : [_value as Value].iterator;
 
   @override
-  int get hashCode => hash(this);
+  int get hashCode => Object.hashAll(this);
 
   @override
   bool operator ==(Object other) {

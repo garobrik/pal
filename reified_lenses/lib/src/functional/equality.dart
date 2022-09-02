@@ -15,14 +15,6 @@ extension IterableIntersperse<V> on Iterable<V> {
   }
 }
 
-int hash(Iterable iterable) {
-  int result = 1;
-  for (final value in iterable) {
-    result = 31 * result + value.hashCode;
-  }
-  return result;
-}
-
 bool mapEquals(Map a, Map b) {
   if (a.length != b.length) {
     return false;

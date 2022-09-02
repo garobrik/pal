@@ -27,7 +27,7 @@ Widget _reorderResizeable({
 
   final tickerProvider = useTickerProvider();
 
-  AnimationController _makeAnimation() => AnimationController(
+  AnimationController makeAnimation() => AnimationController(
         vsync: tickerProvider,
         duration: const Duration(milliseconds: 0),
       );
@@ -70,7 +70,7 @@ Widget _reorderResizeable({
             }
           }
 
-          animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
+          animations[i].mut((controller) => Optional(controller.unwrap ?? makeAnimation()));
           animations[i]
               .whenPresent
               .read(Ctx.empty)
@@ -84,7 +84,7 @@ Widget _reorderResizeable({
           onDragStarted: () {
             grabbedChild.value = i;
             grabbedPosition.value = i;
-            animations[i].mut((controller) => Optional(controller.unwrap ?? _makeAnimation()));
+            animations[i].mut((controller) => Optional(controller.unwrap ?? makeAnimation()));
             animations[i].read(Ctx.empty).unwrap!.value = 1.0;
           },
           onDraggableCanceled: (_, __) {
@@ -123,7 +123,7 @@ Widget _reorderResizeable({
       ),
   ];
 
-  Widget _makeTransition(int index) => ReaderWidget(
+  Widget makeTransition(int index) => ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) {
           final animation = animations[index].read(ctx);
@@ -143,7 +143,7 @@ Widget _reorderResizeable({
     if (grabbedPosition.value == null) {
       childrenToPass.add(draggableChildren[i]);
     } else if (grabbedPosition.value == i) {
-      childrenToPass.add(_makeTransition(grabbedChild.value!));
+      childrenToPass.add(makeTransition(grabbedChild.value!));
     } else {
       late final int actualIndex;
       if (grabbedChild.value! < grabbedPosition.value!) {
@@ -162,7 +162,7 @@ Widget _reorderResizeable({
         actualIndex = i;
       }
 
-      Widget transition = _makeTransition(actualIndex);
+      Widget transition = makeTransition(actualIndex);
       childrenToPass.addAll(
         i < grabbedPosition.value!
             ? [transition, draggableChildren[actualIndex]]
@@ -248,7 +248,7 @@ class WidthAndOffset {
       other is WidthAndOffset && width == other.width && offset == other.offset;
 
   @override
-  int get hashCode => hashValues(width, offset);
+  int get hashCode => Object.hash(width, offset);
 }
 
 @optionalTypeArgs
@@ -267,5 +267,5 @@ class _ReorderableChildGlobalKey extends GlobalObjectKey {
   }
 
   @override
-  int get hashCode => hashValues(subKey, widgetIdentifier);
+  int get hashCode => Object.hash(subKey, widgetIdentifier);
 }

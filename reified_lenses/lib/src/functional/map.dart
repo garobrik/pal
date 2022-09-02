@@ -118,8 +118,9 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
   }
 
   @override
-  int get hashCode =>
-      hash(<Pair<Key, Value>>[for (final entry in entries) Pair(entry.key, entry.value)]);
+  int get hashCode => Object.hashAll([
+        for (final entry in entries) ...[entry.key, entry.value]
+      ]);
 
   Dict<Key, Value> merge(Dict<Key, Value> other, {Value Function(Value, Value)? onConflict}) {
     final newMap = <Key, Value>{};

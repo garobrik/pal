@@ -69,7 +69,7 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
   }
 
   @override
-  int get hashCode => hash(this);
+  int get hashCode => Object.hashAll(this);
 }
 
 extension IterableExtension<V> on Iterable<V> {
