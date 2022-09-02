@@ -78,9 +78,8 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                                   _inlineTextField(ctx, name.cast<String>()),
                                   const TextSpan(text: ' {'),
                                 ])),
-                                Container(
-                                  padding: const EdgeInsetsDirectional.only(start: 10),
-                                  child: TypeTreeEditor(
+                                InsetChild(
+                                  TypeTreeEditor(
                                     ctx.withThisDef(
                                       Type.mk(moduleDef[ModuleDef.dataID][TypeDef.IDID].read(ctx)
                                           as ID),
@@ -102,9 +101,8 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                                   _inlineTextField(ctx, name.cast<String>()),
                                   const TextSpan(text: ' {'),
                                 ])),
-                                Container(
-                                  padding: const EdgeInsetsDirectional.only(start: 10),
-                                  child: TypeTreeEditor(
+                                InsetChild(
+                                  TypeTreeEditor(
                                     ctx,
                                     moduleDef[ModuleDef.dataID][InterfaceDef.membersID],
                                   ),
@@ -130,9 +128,8 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                                   children: [
                                     Text(
                                         'impl of ${TypeTree.name(InterfaceDef.members(interfaceDef))} {'),
-                                    Container(
-                                      padding: const EdgeInsetsDirectional.only(start: 10),
-                                      child: DataTreeEditor(
+                                    InsetChild(
+                                      DataTreeEditor(
                                         ctx,
                                         InterfaceDef.members(interfaceDef),
                                         moduleDef[ModuleDef.dataID][ImplDef.membersID],
@@ -180,9 +177,8 @@ Widget _typeTreeEditor(Ctx ctx, Cursor<Object> typeTree) {
             _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
             const TextSpan(text: ':'),
           ])),
-          Container(
-            padding: const EdgeInsetsDirectional.only(start: 10),
-            child: TypeTreeEditor(ctx, subTree[key].whenPresent),
+          InsetChild(
+            TypeTreeEditor(ctx, subTree[key].whenPresent),
           ),
         ]
       ],
@@ -210,9 +206,8 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
               leaf: (_) => true,
             )) ...[
               Text('${TypeTree.name(entry.value)}:'),
-              Container(
-                padding: const EdgeInsetsDirectional.only(start: 10),
-                child: DataTreeEditor(ctx, entry.value, dataTree[entry.key]),
+              InsetChild(
+                DataTreeEditor(ctx, entry.value, dataTree[entry.key]),
               ),
             ] else
               Text.rich(
@@ -254,9 +249,8 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
           Text.rich(
             TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
           ),
-          Container(
-            padding: const EdgeInsetsDirectional.only(start: 10),
-            child: DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
+          InsetChild(
+            DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
           ),
           const Text(')')
         ],
@@ -322,7 +316,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
             const TextSpan(text: ' {'),
           ]),
         ),
-        Container(padding: const EdgeInsetsDirectional.only(start: 10), child: body),
+        InsetChild(body),
         const Text('}'),
       ],
     );
@@ -339,9 +333,8 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text('apply('),
-          Container(
-            padding: const EdgeInsetsDirectional.only(start: 10),
-            child: Column(
+          InsetChild(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ExprEditor(ctx, data[FnApp.fnID]),
@@ -434,9 +427,8 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
-        Container(
-          padding: const EdgeInsetsDirectional.only(start: 10),
-          child: DataTreeEditor(ctx, TypeDef.tree(typeDef), data[Construct.treeID]),
+        InsetChild(
+          DataTreeEditor(ctx, TypeDef.tree(typeDef), data[Construct.treeID]),
         ),
         const Text(')'),
       ],
@@ -569,6 +561,17 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   );
 }
 
+@reader
+Widget _insetChild(Widget child) {
+  return Container(
+    decoration: const BoxDecoration(
+      border: Border(left: BorderSide(color: Colors.black12)),
+    ),
+    padding: const EdgeInsetsDirectional.only(start: 10),
+    child: child,
+  );
+}
+
 InlineSpan _inlineTextField(Ctx ctx, Cursor<String> text) {
   return AlignedWidgetSpan(
     IntrinsicWidth(
@@ -585,68 +588,6 @@ InlineSpan _inlineTextField(Ctx ctx, Cursor<String> text) {
     ),
   );
 }
-
-// @reader
-// Widget dataEditor(Ctx ctx, Object type, Cursor<Object> data) {
-//   final implID = expr[Expr.implID][Impl.IDID];
-//   final data = expr[Expr.dataID];
-//   final dataType = (ImplDef.members(ctx.getImpl(implID.read(ctx) as ID)) as Dict)[Expr.dataTypeID];
-//   final dataTypeDef = ctx.getType(Type.id(dataType));
-
-//   Widget createChild(Object typeTree, Cursor<Object> data) {
-//     return TypeTree.treeCases(
-//       typeTree,
-//       record: (record) {
-//         return Column(
-//           children: [
-//             for (final entry in record.entries)
-//               if (TypeTree.treeCases(
-//                 entry.value,
-//                 record: (_) => true,
-//                 union: (union) => true,
-//                 leaf: (_) => false,
-//               )) ...[
-//                 Text('${TypeTree.name(entry.value)}:'),
-//                 Container(
-//                   padding: const EdgeInsetsDirectional.only(start: 10),
-//                   child: createChild(entry.value, data[entry.key]),
-//                 ),
-//               ]
-//           ],
-//         );
-//       },
-//       union: (union) {
-//         final currentTag = data[UnionTag.tagID];
-//         final dropdown = DropdownMenu<Object>(
-//           items: [...union.keys],
-//           currentItem: currentTag,
-//           buildItem: (tag) => Text(TypeTree.name(union[tag]).toString()),
-//           onItemSelected: (newTag) {},
-//           child: Row(children: [
-//             Text('${TypeTree.name(union[currentTag])}'),
-//             const Icon(Icons.arrow_drop_down)
-//           ]),
-//         );
-//         return Column(children: [
-//           Text.rich(TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')])),
-//           Container(
-//             padding: const EdgeInsetsDirectional.only(start: 10),
-//             child: createChild(union[currentTag], data[UnionTag.valueID]),
-//           ),
-//           const Text(')')
-//         ]);
-//       },
-//       leaf: (leaf) {
-//         return
-//       },
-//     );
-//   }
-
-//   return createChild(TypeDef.tree(dataTypeDef), data);
-// }
-
-// @reader
-// Widget valueEditor(Ctx ctx, Object type, Cursor<Object> value) {}
 
 extension _PalAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
