@@ -710,7 +710,9 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
     mergeSort(sorted, compare: (FocusNode node1, FocusNode node2) {
       if (node1.ancestors.contains(node2)) return 1;
       if (node2.ancestors.contains(node1)) return -1;
-      return 0;
+      return ReadingOrderTraversalPolicy().sortDescendants([node1, node2], node1).first == node1
+          ? -1
+          : 1;
     });
     return sorted;
   }
