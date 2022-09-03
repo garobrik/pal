@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
@@ -40,6 +42,7 @@ Widget _testThingy(Ctx ctx) {
 
 @reader
 Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
+  final definitions = module[Module.definitionsID].cast<Vec>();
   return Column(
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,103 +55,146 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
         ]),
       ),
       Expanded(
-        child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsetsDirectional.only(start: 10),
-            child: FocusTraversalGroup(
-              policy: HierarchicalOrderTraversalPolicy(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: module[Module.definitionsID]
-                    .cast<Vec>()
-                    .values(ctx)
-                    .map<Widget>((moduleDef) {
-                      return ReaderWidget(
-                        ctx: ctx,
-                        builder: (_, ctx) {
-                          final impl = moduleDef[ModuleDef.implID].read(ctx);
-                          if (impl == TypeDef.moduleDefImpl) {
-                            final name =
-                                moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'type '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  TypeTreeEditor(
-                                    ctx.withThisDef(
-                                      Type.mk(moduleDef[ModuleDef.dataID][TypeDef.IDID].read(ctx)
-                                          as ID),
-                                    ),
-                                    moduleDef[ModuleDef.dataID][TypeDef.treeID],
-                                  ),
+        child: InsetChild(
+          FocusTraversalGroup(
+            policy: HierarchicalOrderTraversalPolicy(),
+            child: ListView.separated(
+              itemCount: definitions.length.read(ctx),
+              shrinkWrap: true,
+              separatorBuilder: (context, index) => ReaderWidget(
+                ctx: ctx,
+                builder: (context, ctx) {
+                  final isOpen = useCursor(false);
+                  final leftProportion = useCursor(0.0);
+                  return MouseRegion(
+                    onEnter: (hoverEvent) {
+                      isOpen.set(true);
+                      leftProportion.set(hoverEvent.localPosition.dx);
+                    },
+                    onHover: (hoverEvent) {
+                      isOpen.set(true);
+                      leftProportion.set(hoverEvent.localPosition.dx);
+                    },
+                    onExit: (_) => isOpen.set(false),
+                    child: Stack(
+                      alignment: AlignmentDirectional.center,
+                      fit: StackFit.passthrough,
+                      children: [
+                        const Divider(height: 20),
+                        if (isOpen.read(ctx))
+                          Positioned(
+                            left: max(0, leftProportion.read(ctx) - 50),
+                            child: Material(
+                              child: TextButton.icon(
+                                onPressed: () => definitions.insert(
+                                  index + 1,
+                                  TypeDef.mkDef(TypeDef.unit('unnamed')),
                                 ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (impl == InterfaceDef.moduleDefImpl) {
-                            final name = moduleDef[ModuleDef.dataID][InterfaceDef.membersID]
-                                [TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'interface '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  TypeTreeEditor(
-                                    ctx,
-                                    moduleDef[ModuleDef.dataID][InterfaceDef.membersID],
-                                  ),
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add definition'),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              itemBuilder: (context, index) {
+                final moduleDef = definitions[index];
+                final impl = moduleDef[ModuleDef.implID].read(ctx);
+                late final Cursor<Object> id;
+                if (impl == TypeDef.moduleDefImpl) {
+                  id = moduleDef[ModuleDef.dataID][TypeDef.IDID];
+                } else if (impl == InterfaceDef.moduleDefImpl) {
+                  id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
+                } else if (impl == ImplDef.moduleDefImpl) {
+                  id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
+                } else {
+                  throw Exception('unknown moduledef impl');
+                }
+                return ReaderWidget(
+                  key: ValueKey(id.read(ctx)),
+                  ctx: ctx,
+                  builder: (_, ctx) {
+                    final impl = moduleDef[ModuleDef.implID].read(ctx);
+                    if (impl == TypeDef.moduleDefImpl) {
+                      final name = moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'type '),
+                            _inlineTextField(ctx, name.cast<String>()),
+                            const TextSpan(text: ' {'),
+                          ])),
+                          InsetChild(
+                            TypeTreeEditor(
+                              ctx.withThisDef(
+                                Type.mk(moduleDef[ModuleDef.dataID][TypeDef.IDID].read(ctx) as ID),
+                              ),
+                              moduleDef[ModuleDef.dataID][TypeDef.treeID],
+                            ),
+                          ),
+                          const Text('}'),
+                        ],
+                      );
+                    } else if (impl == InterfaceDef.moduleDefImpl) {
+                      final name =
+                          moduleDef[ModuleDef.dataID][InterfaceDef.membersID][TypeTree.nameID];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'interface '),
+                            _inlineTextField(ctx, name.cast<String>()),
+                            const TextSpan(text: ' {'),
+                          ])),
+                          InsetChild(
+                            TypeTreeEditor(
+                              ctx,
+                              moduleDef[ModuleDef.dataID][InterfaceDef.membersID],
+                            ),
+                          ),
+                          const Text('}'),
+                        ],
+                      );
+                    } else if (impl == ImplDef.moduleDefImpl) {
+                      final interfaceDef = ctx.getInterface(
+                        moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+                      );
+                      return Option.cases(
+                        Option.mk(InterfaceDef.type, interfaceDef),
+                        // Binding.value(
+                        //   ctx.getInterface(
+                        //     moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+                        //   ),
+                        // ),
+                        none: () => const Text('unknown interface'),
+                        some: (interfaceDef) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'impl of ${TypeTree.name(InterfaceDef.members(interfaceDef))} {'),
+                              InsetChild(
+                                DataTreeEditor(
+                                  ctx,
+                                  InterfaceDef.members(interfaceDef),
+                                  moduleDef[ModuleDef.dataID][ImplDef.membersID],
                                 ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (impl == ImplDef.moduleDefImpl) {
-                            final interfaceDef = ctx.getInterface(
-                              moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                            );
-                            return Option.cases(
-                              Option.mk(InterfaceDef.type, interfaceDef),
-                              // Binding.value(
-                              //   ctx.getInterface(
-                              //     moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                              //   ),
-                              // ),
-                              none: () => const Text('unknown interface'),
-                              some: (interfaceDef) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        'impl of ${TypeTree.name(InterfaceDef.members(interfaceDef))} {'),
-                                    InsetChild(
-                                      DataTreeEditor(
-                                        ctx,
-                                        InterfaceDef.members(interfaceDef),
-                                        moduleDef[ModuleDef.dataID][ImplDef.membersID],
-                                      ),
-                                    ),
-                                    const Text('}'),
-                                  ],
-                                );
-                              },
-                            );
-                          } else {
-                            throw Exception('unknown ModuleDef impl $impl');
-                          }
+                              ),
+                              const Text('}'),
+                            ],
+                          );
                         },
                       );
-                    })
-                    .intersperse(const Divider())
-                    .toList(),
-              ),
+                    } else {
+                      throw Exception('unknown ModuleDef impl $impl');
+                    }
+                  },
+                );
+              },
             ),
           ),
         ),
