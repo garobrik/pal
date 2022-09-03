@@ -43,22 +43,22 @@ Widget _testThingy(Ctx ctx) {
 @reader
 Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
   final definitions = module[Module.definitionsID].cast<Vec>();
-  return Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text.rich(
-        TextSpan(children: [
-          const TextSpan(text: 'module '),
-          _inlineTextField(ctx, module[Module.nameID].cast<String>()),
-          const TextSpan(text: ' {'),
-        ]),
-      ),
-      Expanded(
-        child: InsetChild(
-          FocusTraversalGroup(
-            policy: HierarchicalOrderTraversalPolicy(),
-            child: ListView.separated(
+  return FocusTraversalGroup(
+    policy: HierarchicalOrderTraversalPolicy(),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(children: [
+            const TextSpan(text: 'module '),
+            _inlineTextField(ctx, module[Module.nameID].cast<String>()),
+            const TextSpan(text: ' {'),
+          ]),
+        ),
+        Expanded(
+          child: InsetChild(
+            ListView.separated(
               itemCount: definitions.length.read(ctx),
               shrinkWrap: true,
               separatorBuilder: (context, index) => ReaderWidget(
@@ -198,9 +198,9 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
             ),
           ),
         ),
-      ),
-      const Text('}'),
-    ],
+        const Text('}'),
+      ],
+    ),
   );
 }
 
@@ -310,6 +310,8 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
 
 @reader
 Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
+  final placeholderFocusNode = useFocusNode();
+  final wrapperFocusNode = useFocusNode();
   final impl = expr[Expr.implID];
   final data = expr[Expr.dataID];
 
@@ -480,7 +482,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       ],
     );
   } else if (impl.read(ctx) == Placeholder.exprImpl) {
-    child = ReaderWidget(
+    return ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
         final inputText = useCursor('');
@@ -511,7 +513,10 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                 children: [
                   for (final possibleExpr in possibleExprs)
                     TextButton(
-                      onPressed: () => expr.set(possibleExpr),
+                      onPressed: () {
+                        expr.set(possibleExpr);
+                        wrapperFocusNode.requestFocus();
+                      },
                       child: ReaderWidget(
                         ctx: ctx,
                         builder: (_, ctx) {
@@ -542,6 +547,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                 final tryNum = num.tryParse(currentText);
                 if (tryNum != null) {
                   expr.set(Literal.mk(number, tryNum));
+                  wrapperFocusNode.requestFocus();
                 }
 
                 final tryString = currentText.substring(1, currentText.length - 1);
@@ -549,6 +555,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                     currentText.endsWith("'") &&
                     !tryString.contains("'")) {
                   expr.set(Literal.mk(text, tryString));
+                  wrapperFocusNode.requestFocus();
                 }
 
                 return KeyEventResult.handled;
@@ -556,7 +563,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
 
               return KeyEventResult.ignored;
             },
-            child: BoundTextFormField(inputText, ctx: ctx),
+            child: BoundTextFormField(
+              inputText,
+              ctx: ctx,
+              focusNode: placeholderFocusNode,
+            ),
           ),
         );
       },
@@ -575,34 +586,86 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
 
-  return Focus(
-    onKeyEvent: (node, event) {
-      if (node.hasPrimaryFocus && event.logicalKey == LogicalKeyboardKey.backspace) {
+  return Shortcuts(
+    shortcuts: {
+      const SingleActivator(LogicalKeyboardKey.backspace): VoidCallbackIntent(() {
         expr.set(placeholder);
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    },
-    child: ReaderWidget(
-      ctx: ctx,
-      builder: (context, ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            // border: Border.all(
-            //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
-            // ),
-            borderRadius: const BorderRadius.all(Radius.circular(3)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 8,
-                color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
-                blurStyle: BlurStyle.outer,
-              )
-            ],
-          ),
-          child: child,
+        placeholderFocusNode.requestFocus();
+      }),
+      const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
+        var child = wrapperFocusNode;
+        for (final parent in wrapperFocusNode.ancestors) {
+          final iterator = parent.hierarchicalTraversableDescendants.iterator;
+          while (iterator.moveNext()) {
+            if (iterator.current == child) break;
+          }
+          while (iterator.moveNext()) {
+            if (!iterator.current.ancestors.contains(child)) {
+              iterator.current.requestFocus();
+              return;
+            }
+          }
+        }
+      }),
+      const SingleActivator(LogicalKeyboardKey.keyK): VoidCallbackIntent(() {
+        final nearestAncestor = wrapperFocusNode.ancestors.firstWhere(
+          (ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal,
+          orElse: () => wrapperFocusNode,
         );
-      },
+
+        final iterator = [...nearestAncestor.hierarchicalTraversableDescendants].reversed.iterator;
+        while (iterator.moveNext()) {
+          if (iterator.current == wrapperFocusNode) {
+            break;
+          }
+        }
+        while (iterator.moveNext()) {
+          if (!iterator.current.ancestors
+              .takeWhile((ancestor) => ancestor != nearestAncestor)
+              .any((ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal)) {
+            iterator.current.requestFocus();
+            return;
+          }
+        }
+        nearestAncestor.requestFocus();
+      }),
+      const SingleActivator(LogicalKeyboardKey.keyH): VoidCallbackIntent(() {
+        for (final ancestor in wrapperFocusNode.ancestors) {
+          if (!ancestor.skipTraversal && ancestor.canRequestFocus) {
+            ancestor.requestFocus();
+            return;
+          }
+        }
+      }),
+      const SingleActivator(LogicalKeyboardKey.keyL): VoidCallbackIntent(() {
+        if (wrapperFocusNode.traversalDescendants.isNotEmpty) {
+          wrapperFocusNode.traversalDescendants.first.requestFocus();
+        }
+      }),
+    },
+    child: Focus(
+      focusNode: wrapperFocusNode,
+      child: ReaderWidget(
+        ctx: ctx,
+        builder: (context, ctx) {
+          return Container(
+            decoration: BoxDecoration(
+              // border: Border.all(
+              //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
+              // ),
+              borderRadius: const BorderRadius.all(Radius.circular(3)),
+              boxShadow: [
+                BoxShadow(
+                  blurRadius: 8,
+                  color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
+                  blurStyle: BlurStyle.outer,
+                )
+              ],
+            ),
+            child: child,
+          );
+        },
+      ),
     ),
   );
 }
@@ -650,5 +713,15 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
       return 0;
     });
     return sorted;
+  }
+}
+
+extension HierarchicalDescendants on FocusNode {
+  Iterable<FocusNode> get hierarchicalTraversableDescendants sync* {
+    if (!descendantsAreFocusable) return;
+    for (final child in children) {
+      if (child.canRequestFocus && !child.skipTraversal) yield child;
+      yield* child.hierarchicalTraversableDescendants;
+    }
   }
 }
