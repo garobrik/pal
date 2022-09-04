@@ -762,6 +762,9 @@ abstract class Option {
           valueID: UnionTag.mk(noneID, const Dict()),
         }),
       );
+
+  static Object unwrap(Object option) =>
+      Option.cases(option, some: (v) => v, none: () => throw Exception());
 }
 
 abstract class Expr {
@@ -793,7 +796,7 @@ abstract class Expr {
   );
 
   static Object mkImpl({
-    required Object data,
+    required Object dataType,
     required Object type,
     required Object eval,
     ID? id,
@@ -802,7 +805,7 @@ abstract class Expr {
         id: id ?? ID(),
         implemented: interfaceID,
         members: Dict({
-          dataTypeID: Literal.mk(Type.type, data),
+          dataTypeID: Literal.mk(Type.type, dataType),
           evalTypeID: type,
           evalExprID: eval,
         }),
@@ -894,7 +897,7 @@ abstract class List {
     id: mkExprTypeDefID,
   );
   static final mkExprImplDef = Expr.mkImpl(
-    data: TypeDef.asType(exprDataDef),
+    dataType: TypeDef.asType(exprDataDef),
     type: Fn.from(
       argName: 'mkListData',
       type: Fn.type(argType: TypeDef.asType(exprDataDef), returnType: Type.type),
@@ -957,7 +960,7 @@ class Map {
   static final mkType = Type.mk(mkExprID);
 
   static final mkExprImplDef = Expr.mkImpl(
-    data: List.type(Expr.type),
+    dataType: List.type(Expr.type),
     type: Fn.dart(
       argName: 'mkMapData',
       type: Fn.type(argType: mkType, returnType: Type.type),
@@ -1068,7 +1071,7 @@ abstract class Fn extends Expr {
   );
   static final exprImplDef = Expr.mkImpl(
     id: _implID,
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: typeFn,
     eval: evalFn,
   );
@@ -1198,7 +1201,7 @@ abstract class FnApp extends Expr {
   }));
 
   static final exprImplDef = Expr.mkImpl(
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
       argName: 'fnAppData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -1240,7 +1243,7 @@ abstract class FnApp extends Expr {
               id: Fn.argID(fn),
               type: Fn.argType(fn),
               name: Fn.argName(fn),
-              value: Option.mk(Fn.argType(fn), arg),
+              value: arg,
             )),
             body,
           ),
@@ -1269,7 +1272,7 @@ abstract class InterfaceAccess extends Expr {
 
   static final _implID = ID('InterfaceAccessExprImpl');
   static final exprImplDef = Expr.mkImpl(
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
       argName: 'ifaceAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -1351,7 +1354,7 @@ abstract class Construct extends Expr {
   static final implID = ID('impl');
   static final implDef = Expr.mkImpl(
     id: implID,
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
       argName: 'constructData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Option.type(Type.type)),
@@ -1438,7 +1441,7 @@ abstract class RecordAccess extends Expr {
   static final exprImplID = ID('exprImpl');
   static final exprImplDef = Expr.mkImpl(
     id: exprImplID,
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
       argName: 'recordAccessData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
@@ -1517,7 +1520,7 @@ abstract class Literal extends Expr {
   );
   static final _implID = ID('LiteralExprImpl');
   static final exprImplDef =
-      Expr.mkImpl(id: _implID, data: TypeDef.asType(dataDef), type: typeFn, eval: evalFn);
+      Expr.mkImpl(id: _implID, dataType: TypeDef.asType(dataDef), type: typeFn, eval: evalFn);
   static final exprImplObj = Dict({
     Expr.dataTypeID: TypeDef.asType(dataDef),
     Expr.evalTypeID: Expr.data(typeFn),
@@ -1535,17 +1538,27 @@ abstract class Var extends Expr {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
   });
   static final exprImplDef = Expr.mkImpl(
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
       argName: 'varData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
-      body: (ctx, arg) => Option.mk(Type.type, Binding.valueType(ctx.getBinding(Var.id(arg)))),
+      body: (ctx, arg) => Option.cases(
+        ctx.getBinding(Var.id(arg)),
+        some: (binding) => Option.mk(Type.type, Binding.valueType(binding)),
+        none: () => Option.mk(Type.type),
+      ),
     ),
     eval: Fn.dart(
       argName: 'varData',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
       body: (ctx, arg) => Option.cases(
-        Binding.value(ctx.getBinding(Var.id(arg))),
+        Binding.value(
+          Option.cases(
+            ctx.getBinding(Var.id(arg)),
+            some: (binding) => binding,
+            none: () => throw Exception(),
+          ),
+        ),
         some: (val) => val,
         none: () => throw Exception('impossible!!'),
       ),
@@ -1563,22 +1576,22 @@ abstract class ThisDef extends Expr {
   static final _implID = ID('ThisDefExprImpl');
   static final exprImplDef = Expr.mkImpl(
     id: _implID,
-    data: TypeDef.asType(dataDef),
+    dataType: TypeDef.asType(dataDef),
     type: Fn.dart(
         argName: '_',
         type: Fn.type(argType: TypeDef.asType(dataDef), returnType: Type.type),
         body: (ctx, _) {
-          final thisDef = ctx.get<ThisDefCtx>()?.thisDef;
-          if (thisDef == null) {
-            return Option.mk(Type.type);
-          } else {
-            return Option.mk(Type.type, thisDef);
-          }
+          return Option.cases(
+            ctx.thisDef,
+            some: (thisDef) => Option.mk(Type.type, thisDef),
+            none: () => Option.mk(Type.type),
+          );
         }),
     eval: Fn.dart(
       argName: '_',
       type: Fn.type(argType: TypeDef.asType(dataDef), returnType: any),
-      body: (ctx, _) => ctx.thisDef,
+      body: (ctx, _) =>
+          Option.cases(ctx.thisDef, none: () => throw Exception(), some: (thisDef) => thisDef),
     ),
   );
   static final exprImpl = Impl.mk(_implID);
@@ -1588,21 +1601,19 @@ abstract class ThisDef extends Expr {
 
 final thisDef = ThisDef._();
 
-class ThisDefCtx extends CtxElement {
-  final Object thisDef;
-  const ThisDefCtx(this.thisDef);
-}
-
 extension CtxThisDef on Ctx {
-  Ctx withThisDef(Object thisDef) => withElement(ThisDefCtx(thisDef));
-  Object get thisDef => get<ThisDefCtx>()!.thisDef;
+  static final _bindingID = ID();
+  Ctx withThisDef(Object thisDef) =>
+      withBinding(Binding.mk(id: _bindingID, name: 'thisDef', type: Type.type, value: thisDef));
+  Object get thisDef =>
+      Option.cases(getBinding(_bindingID), some: Binding.value, none: () => Option.mk(Type.type));
 }
 
 abstract class Placeholder extends Expr {
   static final typeDef = TypeDef.unit('Placeholder');
 
   static final exprImplDef = Expr.mkImpl(
-    data: TypeDef.asType(typeDef),
+    dataType: TypeDef.asType(typeDef),
     type: Fn.from(
       argName: '_',
       type: Fn.type(
@@ -1625,49 +1636,44 @@ abstract class Placeholder extends Expr {
 
 final placeholder = Expr.mk(data: const Dict(), impl: Placeholder.exprImpl);
 
-class TypeCtx extends CtxElement {
-  final Dict types;
-  final Dict impls;
-  final Dict interfaces;
-
-  const TypeCtx({
-    this.types = const Dict(),
-    this.impls = const Dict(),
-    this.interfaces = const Dict(),
-  });
-
-  TypeCtx withType(ID id, Object type) => TypeCtx(
-        types: types.put(id, type),
-        impls: impls,
-        interfaces: interfaces,
-      );
-
-  TypeCtx withImpl(ID id, Object impl) => TypeCtx(
-        types: types,
-        impls: impls.put(id, impl),
-        interfaces: interfaces,
-      );
-
-  TypeCtx withInterface(ID id, Object interface) => TypeCtx(
-        types: types,
-        impls: impls,
-        interfaces: interfaces.put(id, interface),
-      );
-}
-
 extension CtxType on Ctx {
-  Ctx withType(ID id, Object type) =>
-      withElement((get<TypeCtx>() ?? const TypeCtx()).withType(id, type));
-  Object getType(ID id) => (get<TypeCtx>() ?? const TypeCtx()).types[id].unwrap!;
-  Iterable<Object> get getTypes => (get<TypeCtx>() ?? const TypeCtx()).types.values;
+  Ctx withTypes(Iterable<Object> typeDefs) => typeDefs.fold(this, (ctx, def) => ctx.withType(def));
+  Ctx withType(Object typeDef) => withBinding(
+        Binding.mk(
+          id: TypeDef.id(typeDef),
+          type: TypeDef.type,
+          name: TypeTree.name(TypeDef.tree(typeDef)),
+          value: typeDef,
+        ),
+      );
+  Object getType(ID id) => Option.unwrap(Binding.value(Option.unwrap(getBinding(id))));
+  Iterable<Object> get getTypes => getBindings.expand((binding) => [
+        if (Binding.valueType(binding) == TypeDef.type) Option.unwrap(Binding.value(binding)),
+      ]);
 
-  Ctx withInterface(ID id, Object interface) =>
-      withElement((get<TypeCtx>() ?? const TypeCtx()).withInterface(id, interface));
-  Object getInterface(ID id) => (get<TypeCtx>() ?? const TypeCtx()).interfaces[id].unwrap!;
+  Ctx withInterfaces(Iterable<Object> interfaceDefs) =>
+      interfaceDefs.fold(this, (ctx, def) => ctx.withInterface(def));
+  Ctx withInterface(Object interface) => withBinding(
+        Binding.mk(
+          id: InterfaceDef.id(interface),
+          type: InterfaceDef.type,
+          name: TypeTree.name(InterfaceDef.members(interface)),
+          value: interface,
+        ),
+      );
+  Object getInterface(ID id) => Option.unwrap(Binding.value(Option.unwrap(getBinding(id))));
 
-  Ctx withImpl(ID id, Object impl) =>
-      withElement((get<TypeCtx>() ?? const TypeCtx()).withImpl(id, impl));
-  Object getImpl(ID id) => (get<TypeCtx>() ?? const TypeCtx()).impls[id].unwrap!;
+  Ctx withImpls(dart.Map<ID, Object> implDefs) =>
+      implDefs.entries.fold(this, (ctx, entry) => ctx.withImpl(entry.key, entry.value));
+  Ctx withImpl(ID id, Object impl) => withBinding(
+        Binding.mk(
+          id: id,
+          type: ImplDef.type,
+          name: 'impl',
+          value: impl,
+        ),
+      );
+  Object getImpl(ID id) => Option.unwrap(Binding.value(Option.unwrap(getBinding(id))));
 }
 
 abstract class Binding {
@@ -1693,7 +1699,7 @@ abstract class Binding {
     required String name,
     Object? value,
   }) =>
-      Dict({IDID: id, valueTypeID: type, nameID: name, valueID: value ?? Option.mk(type)});
+      Dict({IDID: id, valueTypeID: type, nameID: name, valueID: Option.mk(type, value)});
 
   static ID id(Object binding) => (binding as Dict)[IDID].unwrap! as ID;
   static Object valueType(Object binding) => (binding as Dict)[valueTypeID].unwrap!;
@@ -1713,95 +1719,89 @@ extension CtxBinding on Ctx {
           (get<BindingCtx>() ?? const BindingCtx()).bindings.put(Binding.id(binding), binding),
         ),
       );
-  Object getBinding(ID id) => (get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap!;
+  Object getBinding(ID id) =>
+      Option.mk(Binding.type, (get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap);
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
-final _bootstrapCtx = Ctx.empty.withElement(TypeCtx(
-  impls: Dict({
-    Impl.id(Literal.exprImpl): Literal.exprImplObj,
-    Impl.id(Fn.exprImpl): Fn.exprImplObj,
-  }),
-));
-final coreCtx = Ctx.empty.withElement(TypeCtx(
-  types: Dict({
-    Type.id(ID.type): ID.def,
-    Type.id(Type.type): Type.def,
-    Type.id(TypeDef.type): TypeDef.def,
-    Type.id(TypeTree.type): TypeTree.def,
-    Type.id(UnionTag.type): UnionTag.def,
-    Type.id(InterfaceDef.type): InterfaceDef.def,
-    TypeDef.id(ImplDef.def): ImplDef.def,
-    TypeDef.id(Impl.def): Impl.def,
-    Type.id(Expr.type): Expr.def,
-    TypeDef.id(List.def): List.def,
-    TypeDef.id(Map.def): Map.def,
-    Type.id(Construct.type): Construct.dataDef,
-    TypeDef.id(Option.def): Option.def,
-    Type.id(ID.type): ID.def,
-    Type.id(number): numberDef,
-    Type.id(text): textDef,
-    TypeDef.id(Fn.dataDef): Fn.dataDef,
-    Type.id(TypeProperty.type): TypeProperty.typeDef,
-    TypeDef.id(MemberHas.typeDef): MemberHas.typeDef,
-    TypeDef.id(Equals.typeDef): Equals.typeDef,
-    Type.id(ModuleDef.type): ModuleDef.typeDef,
-    Type.id(Module.type): Module.def,
-    TypeDef.id(Literal.dataDef): Literal.dataDef,
-    TypeDef.id(InterfaceAccess.dataDef): InterfaceAccess.dataDef,
-    TypeDef.id(RecordAccess.dataDef): RecordAccess.dataDef,
-    TypeDef.id(ThisDef.dataDef): ThisDef.dataDef,
-    TypeDef.id(ImplHas.typeDef): ImplHas.typeDef,
-    TypeDef.id(Binding.def): Binding.def,
-    TypeDef.id(List.exprDataDef): List.exprDataDef,
-    TypeDef.id(Map.exprDataDef): Map.exprDataDef,
-    TypeDef.id(FnApp.dataDef): FnApp.dataDef,
-    TypeDef.id(Var.dataDef): Var.dataDef,
-    TypeDef.id(Placeholder.typeDef): Placeholder.typeDef,
-  }),
-  interfaces: Dict({
-    Expr.interfaceID: Expr.interfaceDef,
-    TypeProperty.interfaceID: TypeProperty.interfaceDef,
-    InterfaceDef.id(ModuleDef.interfaceDef): ModuleDef.interfaceDef,
-  }),
-  impls: Dict({
-    // exprs
-    Impl.id(Var.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Var.exprImplDef),
-    Impl.id(Literal.exprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Literal.exprImplDef),
-    Impl.id(InterfaceAccess.exprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, InterfaceAccess.exprImplDef),
-    Impl.id(Construct.impl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Construct.implDef),
-    Impl.id(RecordAccess.exprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, RecordAccess.exprImplDef),
-    Impl.id(Fn.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Fn.exprImplDef),
-    Impl.id(FnApp.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, FnApp.exprImplDef),
-    Impl.id(ThisDef.exprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, ThisDef.exprImplDef),
-    Impl.id(Placeholder.exprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
-    Impl.id(List.mkExprImpl):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, List.mkExprImplDef),
-    ImplDef.id(Map.mkExprImplDef):
-        ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Map.mkExprImplDef),
-    // type properties
-    Impl.id(MemberHas.impl):
-        ImplDef.asImplObj(_bootstrapCtx, TypeProperty.interfaceDef, MemberHas.propImplDef),
-    // module defs
-    Impl.id(TypeDef.moduleDefImpl):
-        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, TypeDef.moduleDefImplDef),
-    Impl.id(InterfaceDef.moduleDefImpl):
-        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, InterfaceDef.moduleDefImplDef),
-    Impl.id(ImplDef.moduleDefImpl):
-        ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, ImplDef.moduleDefImplDef),
-  }),
-));
+final _bootstrapCtx = Ctx.empty.withImpls({
+  Impl.id(Literal.exprImpl): Literal.exprImplObj,
+  Impl.id(Fn.exprImpl): Fn.exprImplObj,
+});
+final coreCtx = Ctx.empty.withTypes([
+  ID.def,
+  Type.def,
+  TypeDef.def,
+  TypeTree.def,
+  UnionTag.def,
+  InterfaceDef.def,
+  ImplDef.def,
+  Impl.def,
+  Expr.def,
+  List.def,
+  Map.def,
+  Construct.dataDef,
+  Option.def,
+  ID.def,
+  numberDef,
+  textDef,
+  Fn.dataDef,
+  TypeProperty.typeDef,
+  MemberHas.typeDef,
+  Equals.typeDef,
+  ModuleDef.typeDef,
+  Module.def,
+  Literal.dataDef,
+  InterfaceAccess.dataDef,
+  RecordAccess.dataDef,
+  ThisDef.dataDef,
+  ImplHas.typeDef,
+  Binding.def,
+  List.exprDataDef,
+  Map.exprDataDef,
+  FnApp.dataDef,
+  Var.dataDef,
+  Placeholder.typeDef,
+]).withInterfaces([
+  Expr.interfaceDef,
+  TypeProperty.interfaceDef,
+  ModuleDef.interfaceDef,
+]).withImpls({
+  // exprs
+  Impl.id(Var.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Var.exprImplDef),
+  Impl.id(Literal.exprImpl):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Literal.exprImplDef),
+  Impl.id(InterfaceAccess.exprImpl):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, InterfaceAccess.exprImplDef),
+  Impl.id(Construct.impl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Construct.implDef),
+  Impl.id(RecordAccess.exprImpl):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, RecordAccess.exprImplDef),
+  Impl.id(Fn.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Fn.exprImplDef),
+  Impl.id(FnApp.exprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, FnApp.exprImplDef),
+  Impl.id(ThisDef.exprImpl):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, ThisDef.exprImplDef),
+  Impl.id(Placeholder.exprImpl):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
+  Impl.id(List.mkExprImpl): ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, List.mkExprImplDef),
+  ImplDef.id(Map.mkExprImplDef):
+      ImplDef.asImplObj(_bootstrapCtx, Expr.interfaceDef, Map.mkExprImplDef),
+  // type properties
+  Impl.id(MemberHas.impl):
+      ImplDef.asImplObj(_bootstrapCtx, TypeProperty.interfaceDef, MemberHas.propImplDef),
+  // module defs
+  Impl.id(TypeDef.moduleDefImpl):
+      ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, TypeDef.moduleDefImplDef),
+  Impl.id(InterfaceDef.moduleDefImpl):
+      ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, InterfaceDef.moduleDefImplDef),
+  Impl.id(ImplDef.moduleDefImpl):
+      ImplDef.asImplObj(_bootstrapCtx, ModuleDef.interfaceDef, ImplDef.moduleDefImplDef),
+});
 
 Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);
-  final implDef = ctx.getImpl(Impl.id(Expr.impl(expr)));
-  final dataType = Expr.dataType(implDef);
-  final evalExprFn = Expr.evalExpr(implDef);
+  final impl = ctx.getImpl(Impl.id(Expr.impl(expr)));
+  final dataType = Expr.dataType(impl);
+  final evalExprFn = Expr.evalExpr(impl);
   return Fn.bodyCases(
     evalExprFn,
     pal: (bodyExpr) {
@@ -1810,7 +1810,7 @@ Object eval(Ctx ctx, Object expr) {
           id: Fn.argID(evalExprFn),
           type: dataType,
           name: Fn.argName(evalExprFn),
-          value: Option.mk(dataType, data),
+          value: data,
         )),
         bodyExpr,
       );

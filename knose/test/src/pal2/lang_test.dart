@@ -5,7 +5,7 @@ final sillyID = ID();
 final sillyRecordDef =
     TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
 
-final testCtx = coreCtx.withType(Type.id(TypeDef.asType(sillyRecordDef)), sillyRecordDef);
+final testCtx = coreCtx.withType(sillyRecordDef);
 
 void main() {
   test('TypeCheckFn', () {
@@ -134,7 +134,7 @@ void main() {
     );
 
     final implObj = ImplDef.asImplObj(coreCtx, interfaceDef, implDef);
-    final thisCtx = coreCtx.withImpl(implID, implObj).withInterface(ifaceID, interfaceDef);
+    final thisCtx = coreCtx.withImpl(implID, implObj).withInterface(interfaceDef);
 
     final expr = InterfaceAccess.mk(
       target: Literal.mk(

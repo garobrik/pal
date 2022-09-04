@@ -462,8 +462,14 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
     ]));
   } else if (impl.read(ctx) == Var.exprImpl) {
     final varID = data[Var.IDID].read(ctx);
-    final binding = ctx.getBinding(varID as ID);
-    child = Text(Binding.name(binding));
+    child = Option.cases(
+      ctx.getBinding(varID as ID),
+      some: (binding) => Text(Binding.name(binding)),
+      none: () => Text(
+        'unknown var $varID',
+        style: const TextStyle(fontStyle: FontStyle.italic),
+      ),
+    );
   } else if (impl.read(ctx) == Literal.exprImpl) {
     child = Text(data[Literal.valueID].read(ctx).toString());
   } else if (impl.read(ctx) == ThisDef.exprImpl) {
@@ -502,10 +508,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                 () => [
                   for (final binding in ctx.getBindings) Var.mk(Binding.id(binding)),
                   for (final typeDef in ctx.getTypes)
-                    Construct.mk(
-                      TypeDef.asType(typeDef),
-                      TypeTree.instantiate(TypeDef.tree(typeDef), placeholder),
-                    ),
+                    if (typeDef != bottomDef)
+                      Construct.mk(
+                        TypeDef.asType(typeDef),
+                        TypeTree.instantiate(TypeDef.tree(typeDef), placeholder),
+                      ),
                 ],
                 [ctx],
               );
@@ -521,7 +528,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                         ctx: ctx,
                         builder: (_, ctx) {
                           if (Expr.impl(possibleExpr) == Var.exprImpl) {
-                            final binding = ctx.getBinding(Var.id(Expr.data(possibleExpr)));
+                            final binding = Option.cases(
+                              ctx.getBinding(Var.id(Expr.data(possibleExpr))),
+                              some: (binding) => binding,
+                              none: () => throw Exception(),
+                            );
                             return Text('${Binding.name(binding)}: ${Binding.valueType(binding)}');
                           } else {
                             return Text(
