@@ -141,7 +141,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                       );
                     } else if (impl == InterfaceDef.moduleDefImpl) {
                       final name =
-                          moduleDef[ModuleDef.dataID][InterfaceDef.membersID][TypeTree.nameID];
+                          moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -153,7 +153,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                           InsetChild(
                             TypeTreeEditor(
                               ctx,
-                              moduleDef[ModuleDef.dataID][InterfaceDef.membersID],
+                              moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
                             ),
                           ),
                           const Text('}'),
@@ -165,11 +165,6 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                       );
                       return Option.cases(
                         Option.mk(InterfaceDef.type, interfaceDef),
-                        // Binding.value(
-                        //   ctx.getInterface(
-                        //     moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                        //   ),
-                        // ),
                         none: () => const Text('unknown interface'),
                         some: (interfaceDef) {
                           return Column(

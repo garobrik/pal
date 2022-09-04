@@ -525,22 +525,22 @@ abstract class TypeTree {
 
 abstract class InterfaceDef {
   static final IDID = ID('ID');
-  static final membersID = ID('members');
+  static final treeID = ID('tree');
 
   static final def = TypeDef.record('InterfaceDef', {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    membersID: TypeTree.mk('members', Literal.mk(Type.type, TypeTree.type)),
+    treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
   });
   static final type = TypeDef.asType(def);
 
-  static Dict mk(Dict members, {ID? id}) => Dict({IDID: id ?? ID(), membersID: members});
+  static Dict mk(Dict members, {ID? id}) => Dict({IDID: id ?? ID(), treeID: members});
   static Dict record(String name, dart.Map<ID, Dict> members, {ID? id}) =>
       InterfaceDef.mk(TypeTree.record(name, members), id: id);
   static Dict union(String name, dart.Map<ID, Dict> cases, {ID? id}) =>
       InterfaceDef.mk(TypeTree.union(name, cases), id: id);
 
   static ID id(Object ifaceDef) => (ifaceDef as Dict)[IDID].unwrap! as ID;
-  static Object members(Object ifaceDef) => (ifaceDef as Dict)[membersID].unwrap!;
+  static Object members(Object ifaceDef) => (ifaceDef as Dict)[treeID].unwrap!;
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
@@ -555,7 +555,7 @@ abstract class InterfaceDef {
             Dict({
               Binding.IDID: RecordAccess.mk(target: arg, member: IDID),
               Binding.nameID: RecordAccess.mk(
-                target: RecordAccess.mk(target: arg, member: membersID),
+                target: RecordAccess.mk(target: arg, member: treeID),
                 member: TypeTree.nameID,
               ),
               Binding.valueTypeID: Literal.mk(Type.type, type),
@@ -566,7 +566,7 @@ abstract class InterfaceDef {
       ),
     ),
     bindings: Fn.from(
-      argName: 'typeDef',
+      argName: 'interfaceDef',
       type: Fn.type(argType: type, returnType: List.type(Binding.type)),
       body: (arg) => List.mkExpr(
         Binding.type,
@@ -576,7 +576,7 @@ abstract class InterfaceDef {
             Dict({
               Binding.IDID: RecordAccess.mk(target: arg, member: IDID),
               Binding.nameID: RecordAccess.mk(
-                target: RecordAccess.mk(target: arg, member: membersID),
+                target: RecordAccess.mk(target: arg, member: treeID),
                 member: TypeTree.nameID,
               ),
               Binding.valueTypeID: Literal.mk(Type.type, type),
