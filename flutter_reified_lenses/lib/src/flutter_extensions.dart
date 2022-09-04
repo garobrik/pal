@@ -67,49 +67,14 @@ class CursorProvider<T> extends InheritedWidget {
   }
 }
 
-class ReaderWidget extends StatefulWidget {
+class ReaderWidget extends HookWidget {
   final Widget Function(BuildContext, Ctx) builder;
   final Ctx ctx;
 
   const ReaderWidget({required this.builder, required this.ctx, Key? key}) : super(key: key);
 
   @override
-  State createState() => _ReaderWidgetState();
-}
-
-class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
-  List<void Function()> disposals = [];
-
-  @override
-  Widget build(BuildContext context) {
-    for (final dispose in disposals) {
-      dispose();
-    }
-    disposals.clear();
-
-    return HookBuilder(
-      builder: (context) => widget.builder(
-        context,
-        widget.ctx.withReader(this),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-    for (final dispose in disposals) {
-      dispose();
-    }
-  }
-
-  @override
-  void onChanged() => setState(() {});
-
-  @override
-  void handleDispose(void Function() dispose) {
-    disposals.add(dispose);
-  }
+  Widget build(BuildContext context) => builder(context, useCursorReader(ctx));
 }
 
 Ctx useCursorReader(Ctx ctx) => use(_CursorReaderHook(ctx));
