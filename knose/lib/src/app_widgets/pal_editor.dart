@@ -499,49 +499,46 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
           dropdown: ReaderWidget(
             ctx: ctx,
             builder: (_, ctx) {
-              final possibleExprs = useMemoized(
-                () => [
-                  for (final binding in ctx.getBindings) Var.mk(Binding.id(binding)),
-                  for (final typeDef in ctx.getTypes)
-                    if (typeDef != bottomDef)
-                      Construct.mk(
-                        TypeDef.asType(typeDef),
-                        TypeTree.instantiate(TypeDef.tree(typeDef), placeholder),
-                      ),
-                ],
-                [ctx],
-              );
-              return Column(
-                children: [
-                  for (final possibleExpr in possibleExprs)
-                    TextButton(
-                      onPressed: () {
-                        expr.set(possibleExpr);
-                        wrapperFocusNode.requestFocus();
-                      },
-                      child: ReaderWidget(
-                        ctx: ctx,
-                        builder: (_, ctx) {
-                          if (Expr.impl(possibleExpr) == Var.exprImpl) {
-                            final binding = Option.cases(
-                              ctx.getBinding(Var.id(Expr.data(possibleExpr))),
-                              some: (binding) => binding,
-                              none: () => throw Exception(),
-                            );
-                            return Text('${Binding.name(binding)}: ${Binding.valueType(binding)}');
-                          } else {
-                            return Text(
-                              TypeTree.name(
-                                TypeDef.tree(
-                                  ctx.getType(Type.id(Construct.dataType(Expr.data(possibleExpr)))),
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                ],
+              return Container(
+                constraints: const BoxConstraints(maxHeight: 500),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...ctx.getBindings.expand((binding) {
+                        return Option.cases(
+                          Binding.value(binding),
+                          none: () => [],
+                          some: (value) {
+                            return [
+                              if (Binding.valueType(binding) == TypeDef.type)
+                                TextButton(
+                                  onPressed: () {
+                                    expr.set(Construct.mk(
+                                      TypeDef.asType(value),
+                                      TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                                    ));
+                                    wrapperFocusNode.requestFocus();
+                                  },
+                                  child: Text('${TypeTree.name(TypeDef.tree(value))}.mk(...)'),
+                                )
+                              else
+                                TextButton(
+                                  onPressed: () {
+                                    expr.set(Var.mk(Binding.id(binding)));
+                                    wrapperFocusNode.requestFocus();
+                                  },
+                                  child: Text(
+                                    '${Binding.name(binding)}: ${Binding.valueType(binding)}',
+                                  ),
+                                )
+                            ];
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               );
             },
           ),
