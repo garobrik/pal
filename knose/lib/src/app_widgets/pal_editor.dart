@@ -586,63 +586,66 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
 
-  return Shortcuts(
-    shortcuts: {
-      const SingleActivator(LogicalKeyboardKey.backspace): VoidCallbackIntent(() {
-        expr.set(placeholder);
-        placeholderFocusNode.requestFocus();
-      }),
-      const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
-        var child = wrapperFocusNode;
-        for (final parent in wrapperFocusNode.ancestors) {
-          final iterator = parent.hierarchicalTraversableDescendants.iterator;
+  return Shortcuts.manager(
+    manager: NonTextEditingShortcutManager(
+      shortcuts: {
+        const SingleActivator(LogicalKeyboardKey.backspace): VoidCallbackIntent(() {
+          expr.set(placeholder);
+          placeholderFocusNode.requestFocus();
+        }),
+        const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
+          var child = wrapperFocusNode;
+          for (final parent in wrapperFocusNode.ancestors) {
+            final iterator = parent.hierarchicalTraversableDescendants.iterator;
+            while (iterator.moveNext()) {
+              if (iterator.current == child) break;
+            }
+            while (iterator.moveNext()) {
+              if (!iterator.current.ancestors.contains(child)) {
+                iterator.current.requestFocus();
+                return;
+              }
+            }
+          }
+        }),
+        const SingleActivator(LogicalKeyboardKey.keyK): VoidCallbackIntent(() {
+          final nearestAncestor = wrapperFocusNode.ancestors.firstWhere(
+            (ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal,
+            orElse: () => wrapperFocusNode,
+          );
+
+          final iterator =
+              [...nearestAncestor.hierarchicalTraversableDescendants].reversed.iterator;
           while (iterator.moveNext()) {
-            if (iterator.current == child) break;
+            if (iterator.current == wrapperFocusNode) {
+              break;
+            }
           }
           while (iterator.moveNext()) {
-            if (!iterator.current.ancestors.contains(child)) {
+            if (!iterator.current.ancestors
+                .takeWhile((ancestor) => ancestor != nearestAncestor)
+                .any((ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal)) {
               iterator.current.requestFocus();
               return;
             }
           }
-        }
-      }),
-      const SingleActivator(LogicalKeyboardKey.keyK): VoidCallbackIntent(() {
-        final nearestAncestor = wrapperFocusNode.ancestors.firstWhere(
-          (ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal,
-          orElse: () => wrapperFocusNode,
-        );
-
-        final iterator = [...nearestAncestor.hierarchicalTraversableDescendants].reversed.iterator;
-        while (iterator.moveNext()) {
-          if (iterator.current == wrapperFocusNode) {
-            break;
+          nearestAncestor.requestFocus();
+        }),
+        const SingleActivator(LogicalKeyboardKey.keyH): VoidCallbackIntent(() {
+          for (final ancestor in wrapperFocusNode.ancestors) {
+            if (!ancestor.skipTraversal && ancestor.canRequestFocus) {
+              ancestor.requestFocus();
+              return;
+            }
           }
-        }
-        while (iterator.moveNext()) {
-          if (!iterator.current.ancestors
-              .takeWhile((ancestor) => ancestor != nearestAncestor)
-              .any((ancestor) => ancestor.canRequestFocus && !ancestor.skipTraversal)) {
-            iterator.current.requestFocus();
-            return;
+        }),
+        const SingleActivator(LogicalKeyboardKey.keyL): VoidCallbackIntent(() {
+          if (wrapperFocusNode.traversalDescendants.isNotEmpty) {
+            wrapperFocusNode.traversalDescendants.first.requestFocus();
           }
-        }
-        nearestAncestor.requestFocus();
-      }),
-      const SingleActivator(LogicalKeyboardKey.keyH): VoidCallbackIntent(() {
-        for (final ancestor in wrapperFocusNode.ancestors) {
-          if (!ancestor.skipTraversal && ancestor.canRequestFocus) {
-            ancestor.requestFocus();
-            return;
-          }
-        }
-      }),
-      const SingleActivator(LogicalKeyboardKey.keyL): VoidCallbackIntent(() {
-        if (wrapperFocusNode.traversalDescendants.isNotEmpty) {
-          wrapperFocusNode.traversalDescendants.first.requestFocus();
-        }
-      }),
-    },
+        }),
+      },
+    ),
     child: Focus(
       focusNode: wrapperFocusNode,
       child: ReaderWidget(
@@ -668,6 +671,18 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       ),
     ),
   );
+}
+
+class NonTextEditingShortcutManager extends ShortcutManager {
+  NonTextEditingShortcutManager({required super.shortcuts});
+
+  @override
+  KeyEventResult handleKeypress(BuildContext context, RawKeyEvent event) {
+    if (primaryFocus?.context?.findAncestorStateOfType<EditableTextState>() != null) {
+      return KeyEventResult.ignored;
+    }
+    return super.handleKeypress(context, event);
+  }
 }
 
 @reader
