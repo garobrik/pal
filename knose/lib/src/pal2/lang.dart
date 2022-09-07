@@ -14,27 +14,43 @@ class ID extends Comparable<ID> {
   static const _uuid = Uuid();
 
   final String id;
+  final ID? tail;
   final String? label;
 
-  ID([this.label]) : id = _uuid.v4();
+  ID([this.label])
+      : id = _uuid.v4(),
+        tail = null;
 
-  ID.from(this.id, this.label);
+  ID.from({
+    required this.id,
+    required this.label,
+    required this.tail,
+  });
 
   @override
-  bool operator ==(Object other) => other is ID && id == other.id;
+  bool operator ==(Object other) => other is ID && id == other.id && tail == other.tail;
 
   @override
-  int get hashCode => id.hashCode;
+  int get hashCode => Object.hash(id.hashCode, tail);
 
   @override
-  String toString() => '$runtimeType(${label ?? id})';
+  String toString() => '$runtimeType(${_toStringImpl()})';
+  String _toStringImpl() => (label ?? id) + (tail == null ? '' : '.${tail!._toStringImpl()}');
 
   @override
   int compareTo(ID other) {
-    return id.compareTo(other.id);
+    final compareID = id.compareTo(other.id);
+    if (compareID != 0) return compareID;
+    if (tail == null && other.tail == null) return 0;
+    if (tail == null) return -1;
+    if (other.tail == null) return 1;
+    return tail!.compareTo(other.tail!);
   }
 
   dynamic toJson() => id;
+
+  ID append(ID other) =>
+      ID.from(id: id, label: label, tail: tail == null ? other : tail!.append(other));
 }
 
 abstract class Module {
