@@ -36,4 +36,6 @@ class CSet<Value> extends Iterable<Value> with _CSetMixin<Value> {
 
   @override
   int get hashCode => Object.hashAllUnordered(this);
+
+  CSet<Value> union(CSet<Value> other) => CSet(_values.union(other._values));
 }

@@ -114,14 +114,14 @@ void main() {
     expect(result, equals(0));
   });
 
-  test('InterfaceAccess + ThisDef', () {
+  test('InterfaceAccess + self reference', () {
     final ifaceID = ID('testIface');
     final dataTypeID = ID('testDataType');
     final valueID = ID('testValue');
     final interfaceDef = InterfaceDef.mk(
       TypeTree.record('testIface', {
         dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-        valueID: TypeTree.mk('value', InterfaceAccess.mk(target: thisDef, member: dataTypeID)),
+        valueID: TypeTree.mk('value', Var.mk(dataTypeID)),
       }),
       id: ifaceID,
     );

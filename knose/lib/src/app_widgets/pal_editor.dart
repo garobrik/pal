@@ -129,12 +129,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                             const TextSpan(text: ' {'),
                           ])),
                           InsetChild(
-                            TypeTreeEditor(
-                              ctx.withThisDef(
-                                Type.mk(moduleDef[ModuleDef.dataID][TypeDef.IDID].read(ctx) as ID),
-                              ),
-                              moduleDef[ModuleDef.dataID][TypeDef.treeID],
-                            ),
+                            TypeTreeEditor(ctx, moduleDef[ModuleDef.dataID][TypeDef.treeID]),
                           ),
                           const Text('}'),
                         ],
@@ -170,12 +165,11 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                  'impl of ${TypeTree.name(InterfaceDef.members(interfaceDef))} {'),
+                              Text('impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {'),
                               InsetChild(
                                 DataTreeEditor(
                                   ctx,
-                                  InterfaceDef.members(interfaceDef),
+                                  InterfaceDef.tree(interfaceDef),
                                   moduleDef[ModuleDef.dataID][ImplDef.membersID],
                                 ),
                               ),
@@ -400,7 +394,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
           final interfaceImplemented = Type.memberEquals(type, [Impl.IDID]);
           final interfaceDef = ctx.getInterface(interfaceImplemented as ID);
           final record = TypeTree.treeCases(
-            InterfaceDef.members(interfaceDef),
+            InterfaceDef.tree(interfaceDef),
             union: (_) => throw Exception(),
             leaf: (_) => throw Exception(),
             record: (record) => record,
@@ -467,8 +461,6 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
     );
   } else if (impl.read(ctx) == Literal.exprImpl) {
     child = Text(data[Literal.valueID].read(ctx).toString());
-  } else if (impl.read(ctx) == ThisDef.exprImpl) {
-    child = const Text('this');
   } else if (impl.read(ctx) == Construct.impl) {
     final typeDef = ctx.getType(data[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
@@ -507,11 +499,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                     children: [
                       ...ctx.getBindings.expand((binding) {
                         return Option.cases(
-                          Binding.value(binding),
+                          Binding.value(ctx, binding),
                           none: () => [],
                           some: (value) {
                             return [
-                              if (Binding.valueType(binding) == TypeDef.type)
+                              if (Binding.valueType(ctx, binding) == TypeDef.type)
                                 TextButton(
                                   onPressed: () {
                                     expr.set(Construct.mk(
@@ -529,7 +521,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                                     wrapperFocusNode.requestFocus();
                                   },
                                   child: Text(
-                                    '${Binding.name(binding)}: ${Binding.valueType(binding)}',
+                                    '${Binding.name(binding)}: ${Binding.valueType(ctx, binding)}',
                                   ),
                                 )
                             ];
