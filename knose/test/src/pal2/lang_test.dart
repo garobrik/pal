@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:test/test.dart';
 import 'package:knose/src/pal2/lang.dart';
 
@@ -25,12 +26,12 @@ void main() {
     );
 
     final result2 = eval(testCtx, FnApp.mk(implFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(result2, equals(Literal.exprImpl));
+    expect((result2 as Dict)[Expr.dataTypeID].unwrap!, equals(TypeDef.asType(Literal.typeDef)));
 
     final ifaceFn = Fn.from(
       argName: 'arg',
       type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
-      body: (arg) => InterfaceAccess.mk(
+      body: (arg) => RecordAccess.mk(
         target: RecordAccess.mk(target: arg, member: Expr.implID),
         member: Expr.evalTypeID,
       ),
@@ -58,7 +59,7 @@ void main() {
       argName: 'arg',
       type: Fn.type(argType: Expr.type, returnType: Option.type(Type.type)),
       body: (arg) => FnApp.mk(
-        InterfaceAccess.mk(
+        RecordAccess.mk(
           target: RecordAccess.mk(target: arg, member: Expr.implID),
           member: Expr.evalTypeID,
         ),
@@ -133,18 +134,27 @@ void main() {
       members: Dict({dataTypeID: Literal.mk(Type.type, number), valueID: Literal.mk(number, 0)}),
     );
 
-    final implObj = ImplDef.asImplObj(coreCtx, interfaceDef, implDef);
-    final thisCtx = coreCtx.withImpl(implID, implObj).withInterface(interfaceDef);
+    final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
+    final interfaceCtx = Module.load(
+      coreCtx,
+      coreCtx,
+      Module.mk(name: 'testIface', definitions: Vec([InterfaceDef.mkDef(interfaceDef)])),
+    );
+    final thisCtx = Module.load(
+      interfaceCtx,
+      interfaceCtx,
+      Module.mk(name: 'testIface', definitions: Vec([ImplDef.mkDef(implDef)])),
+    );
 
-    final expr = InterfaceAccess.mk(
+    final expr = RecordAccess.mk(
       target: Literal.mk(
-        Impl.type(
-          ifaceID,
-          properties: Vec([
-            MemberHas.mk(path: Vec([dataTypeID]), property: Equals.mk(Type.type, number))
+        InterfaceDef.implType(
+          interfaceDef,
+          Vec([
+            MemberHas.mkEquals(Vec([dataTypeID]), Type.type, number)
           ]),
         ),
-        Impl.mk(implID),
+        impl,
       ),
       member: valueID,
     );
@@ -153,5 +163,9 @@ void main() {
 
     final result = eval(thisCtx, expr);
     expect(result, equals(0));
+  });
+
+  test('load core module', () {
+    Module.load(coreCtx, Ctx.empty, coreModule);
   });
 }

@@ -102,13 +102,13 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
               ),
               itemBuilder: (context, index) {
                 final moduleDef = definitions[index];
-                final impl = moduleDef[ModuleDef.implID].read(ctx);
+                final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
                 late final Cursor<Object> id;
-                if (impl == TypeDef.moduleDefImpl) {
+                if (dataType == TypeDef.type) {
                   id = moduleDef[ModuleDef.dataID][TypeDef.IDID];
-                } else if (impl == InterfaceDef.moduleDefImpl) {
+                } else if (dataType == InterfaceDef.type) {
                   id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
-                } else if (impl == ImplDef.moduleDefImpl) {
+                } else if (dataType == ImplDef.type) {
                   id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
                 } else {
                   throw Exception('unknown moduledef impl');
@@ -117,8 +117,8 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                   key: ValueKey(id.read(ctx)),
                   ctx: ctx,
                   builder: (_, ctx) {
-                    final impl = moduleDef[ModuleDef.implID].read(ctx);
-                    if (impl == TypeDef.moduleDefImpl) {
+                    final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+                    if (dataType == TypeDef.type) {
                       final name = moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,7 +134,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                           const Text('}'),
                         ],
                       );
-                    } else if (impl == InterfaceDef.moduleDefImpl) {
+                    } else if (dataType == InterfaceDef.type) {
                       final name =
                           moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
                       return Column(
@@ -154,7 +154,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                           const Text('}'),
                         ],
                       );
-                    } else if (impl == ImplDef.moduleDefImpl) {
+                    } else if (dataType == ImplDef.type) {
                       final interfaceDef = ctx.getInterface(
                         moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
                       );
@@ -179,7 +179,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                         },
                       );
                     } else {
-                      throw Exception('unknown ModuleDef impl $impl');
+                      throw Exception('unknown ModuleDef type $dataType');
                     }
                   },
                 );
@@ -301,11 +301,11 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
 Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   final placeholderFocusNode = useFocusNode();
   final wrapperFocusNode = useFocusNode();
-  final impl = expr[Expr.implID];
+  final dataType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
   final data = expr[Expr.dataID];
 
   late final Widget child;
-  if (impl.read(ctx) == Fn.exprImpl) {
+  if (dataType == Type.mk(Fn.typeDefID)) {
     late final Widget body;
     if (data[Fn.bodyID][UnionTag.tagID].read(ctx) == Fn.dartID) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
@@ -357,8 +357,8 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         const Text('}'),
       ],
     );
-  } else if (impl.read(ctx) == FnApp.exprImpl) {
-    if (data[FnApp.fnID][Expr.implID].read(ctx) == Var.exprImpl) {
+  } else if (dataType == TypeDef.asType(FnApp.typeDef)) {
+    if (data[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) == TypeDef.asType(Var.typeDef)) {
       child = Text.rich(TextSpan(children: [
         AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.fnID])),
         const TextSpan(text: '('),
@@ -383,40 +383,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         ],
       );
     }
-  } else if (impl.read(ctx) == InterfaceAccess.exprImpl) {
-    final targetType = typeCheck(ctx, data[InterfaceAccess.targetID].read(ctx));
-    child = Text.rich(TextSpan(children: [
-      AlignedWidgetSpan(ExprEditor(ctx, data[InterfaceAccess.targetID])),
-      const TextSpan(text: '.'),
-      Option.cases(
-        targetType,
-        some: (type) {
-          final interfaceImplemented = Type.memberEquals(type, [Impl.IDID]);
-          final interfaceDef = ctx.getInterface(interfaceImplemented as ID);
-          final record = TypeTree.treeCases(
-            InterfaceDef.tree(interfaceDef),
-            union: (_) => throw Exception(),
-            leaf: (_) => throw Exception(),
-            record: (record) => record,
-          );
-          return AlignedWidgetSpan(DropdownMenu<Object>(
-            style: ButtonStyle(
-              padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
-              minimumSize: MaterialStateProperty.all(Size.zero),
-            ),
-            items: record.keys,
-            currentItem: data[InterfaceAccess.memberID].read(ctx),
-            buildItem: (memberID) => Text(TypeTree.name(record[memberID].unwrap!).toString()),
-            onItemSelected: (key) => data[InterfaceAccess.memberID].set(key),
-            child: Text(
-              TypeTree.name(record[data[InterfaceAccess.memberID].read(ctx)].unwrap!).toString(),
-            ),
-          ));
-        },
-        none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
-      ),
-    ]));
-  } else if (impl.read(ctx) == RecordAccess.exprImpl) {
+  } else if (dataType == TypeDef.asType(RecordAccess.typeDef)) {
     final targetType = typeCheck(ctx, data[RecordAccess.targetID].read(ctx));
 
     child = Text.rich(TextSpan(children: [
@@ -449,7 +416,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
       ),
     ]));
-  } else if (impl.read(ctx) == Var.exprImpl) {
+  } else if (dataType == TypeDef.asType(Var.typeDef)) {
     final varID = data[Var.IDID].read(ctx);
     child = Option.cases(
       ctx.getBinding(varID as ID),
@@ -459,9 +426,9 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         style: const TextStyle(fontStyle: FontStyle.italic),
       ),
     );
-  } else if (impl.read(ctx) == Literal.exprImpl) {
+  } else if (dataType == TypeDef.asType(Literal.typeDef)) {
     child = Text(data[Literal.valueID].read(ctx).toString());
-  } else if (impl.read(ctx) == Construct.impl) {
+  } else if (dataType == Construct.type) {
     final typeDef = ctx.getType(data[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
     child = Column(
@@ -474,7 +441,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         const Text(')'),
       ],
     );
-  } else if (impl.read(ctx) == Placeholder.exprImpl) {
+  } else if (dataType == TypeDef.asType(Placeholder.typeDef)) {
     return ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
@@ -567,7 +534,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         );
       },
     );
-  } else if (impl.read(ctx) == List.mkExprImpl) {
+  } else if (dataType == TypeDef.asType(List.exprTypeDef)) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
