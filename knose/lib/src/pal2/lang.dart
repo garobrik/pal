@@ -52,6 +52,13 @@ class ID extends Comparable<ID> {
 
   ID append(ID other) =>
       ID.from(id: id, label: label, tail: tail == null ? other : tail!.append(other));
+
+  bool isPrefixOf(ID other) {
+    if (this.id != other.id) return false;
+    if (this.tail == null) return true;
+    if (other.tail == null) return false;
+    return this.tail!.isPrefixOf(other.tail!);
+  }
 }
 
 abstract class Module {
@@ -739,7 +746,7 @@ abstract class ImplDef {
             Vec([ModuleDef.type, Binding.type]),
             ModuleDef.type,
             ValueDef.mk(
-              id: ImplDef.id(implDef),
+              id: ImplDef.implemented(implDef).append(ImplDef.id(implDef)),
               name: 'impl of ${TypeTree.name(InterfaceDef.tree(ifaceDef))}',
               value: Construct.mk(
                 Type.mk(InterfaceDef.innerTypeDefID(ImplDef.implemented(implDef))),
@@ -1882,12 +1889,17 @@ extension CtxType on Ctx {
       );
   Object getInterface(ID id) => Option.unwrap(Binding.value(this, Option.unwrap(getBinding(id))));
 
-  Ctx withImpls(dart.Map<ID, Object> implDefs) =>
-      implDefs.entries.fold(this, (ctx, entry) => ctx.withImpl(entry.key, entry.value));
-  Ctx withImpl(ID id, Object impl) => withBinding(
+  Ctx withImpls(dart.Map<ID, dart.Map<ID, Object>> implDefs) => implDefs.entries.fold(
+        this,
+        (ctx, ifaceEntry) => ifaceEntry.value.entries.fold(
+          ctx,
+          (ctx, implEntry) => ctx.withImpl(ifaceEntry.key, implEntry.key, implEntry.value),
+        ),
+      );
+  Ctx withImpl(ID interfaceID, ID implID, Object impl) => withBinding(
         Binding.mk(
-          id: id,
-          type: ImplDef.type,
+          id: interfaceID.append(implID),
+          type: Type.mk(InterfaceDef.innerTypeDefID(interfaceID)),
           name: 'impl',
           value: impl,
         ),
@@ -1980,8 +1992,10 @@ extension CtxBinding on Ctx {
 }
 
 final _bootstrapCtx = Ctx.empty.withImpls({
-  Literal.exprImplID: Literal.exprImpl,
-  Fn.exprImplID: Fn.exprImpl,
+  Expr.interfaceID: {
+    Literal.exprImplID: Literal.exprImpl,
+    Fn.exprImplID: Fn.exprImpl,
+  },
 });
 final _coreInterfaceDefs = [
   Expr.interfaceDef,
@@ -2022,38 +2036,77 @@ final coreCtx = Ctx.empty
       Union.def,
     ])
     .withInterfaces(_coreInterfaceDefs)
-    .withTypes(_coreInterfaceDefs.map((def) => TypeDef.mk(
-          InterfaceDef.tree(def),
-          id: InterfaceDef.innerTypeDefID(InterfaceDef.id(def)),
-        )))
+    .withTypes(_coreInterfaceDefs.map(
+      (def) => TypeDef.mk(
+        InterfaceDef.tree(def),
+        id: InterfaceDef.innerTypeDefID(InterfaceDef.id(def)),
+      ),
+    ))
     .withImpls({
-      // exprs
-      ImplDef.id(Var.exprImplDef):
-          ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Var.exprImplDef),
-      Literal.exprImplID: Literal.exprImpl,
-      Construct.exprImplID: Construct.exprImpl,
-      RecordAccess.exprImplID: RecordAccess.exprImpl,
-      Fn.exprImplID: Fn.exprImpl,
-      ImplDef.id(FnApp.exprImplDef):
-          ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, FnApp.exprImplDef),
-      ImplDef.id(Placeholder.exprImplDef):
-          ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
-      ImplDef.id(List.mkExprImplDef):
-          ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, List.mkExprImplDef),
-      ImplDef.id(Map.mkExprImplDef):
-          ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Map.mkExprImplDef),
-      // type properties
-      ImplDef.id(MemberHas.propImplDef): MemberHas.propImpl,
-      // module defs
-      ImplDef.id(TypeDef.moduleDefImplDef):
-          ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, TypeDef.moduleDefImplDef),
-      ImplDef.id(InterfaceDef.moduleDefImplDef):
-          ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, InterfaceDef.moduleDefImplDef),
-      ImplDef.id(ImplDef.moduleDefImplDef):
-          ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, ImplDef.moduleDefImplDef),
-      ImplDef.id(ValueDef.moduleDefImplDef):
-          ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, ValueDef.moduleDefImplDef),
+      Expr.interfaceID: {
+        // exprs
+        ImplDef.id(Var.exprImplDef):
+            ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Var.exprImplDef),
+        Literal.exprImplID: Literal.exprImpl,
+        Construct.exprImplID: Construct.exprImpl,
+        RecordAccess.exprImplID: RecordAccess.exprImpl,
+        Fn.exprImplID: Fn.exprImpl,
+        ImplDef.id(FnApp.exprImplDef):
+            ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, FnApp.exprImplDef),
+        ImplDef.id(Placeholder.exprImplDef):
+            ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Placeholder.exprImplDef),
+        ImplDef.id(List.mkExprImplDef):
+            ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, List.mkExprImplDef),
+        ImplDef.id(Map.mkExprImplDef):
+            ImplDef.asImpl(_bootstrapCtx, Expr.interfaceDef, Map.mkExprImplDef),
+      },
+      TypeProperty.interfaceID: {
+        // type properties
+        ImplDef.id(MemberHas.propImplDef): MemberHas.propImpl,
+      },
+      InterfaceDef.id(ModuleDef.interfaceDef): {
+        // module defs
+        ImplDef.id(TypeDef.moduleDefImplDef):
+            ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, TypeDef.moduleDefImplDef),
+        ImplDef.id(InterfaceDef.moduleDefImplDef):
+            ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, InterfaceDef.moduleDefImplDef),
+        ImplDef.id(ImplDef.moduleDefImplDef):
+            ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, ImplDef.moduleDefImplDef),
+        ImplDef.id(ValueDef.moduleDefImplDef):
+            ImplDef.asImpl(_bootstrapCtx, ModuleDef.interfaceDef, ValueDef.moduleDefImplDef),
+      },
     });
+
+Object dispatch(Ctx ctx, ID interfaceID, Object type) {
+  final interfaceDef = ctx.getInterface(interfaceID);
+  Object? bestImpl;
+  for (final binding in ctx.getBindings) {
+    if (!interfaceID.isPrefixOf(Binding.id(binding)) ||
+        Binding.valueType(ctx, binding) != Type.mk(InterfaceDef.innerTypeDefID(interfaceID))) {
+      continue;
+    }
+    final impl = Option.unwrap(Binding.value(ctx, binding));
+    var allMatch = true;
+    for (final prop in Type.properties(type)) {
+      if (TypeProperty.dataType(prop) != MemberHas.type) continue;
+      final memberHas = TypeProperty.data(prop);
+      final subProp = MemberHas.property(memberHas);
+      if (TypeProperty.dataType(subProp) != Equals.type) continue;
+      final equals = TypeProperty.data(subProp);
+      final implData = Option.unwrap(
+        TypeTree.dataAt(InterfaceDef.tree(interfaceDef), impl, MemberHas.path(memberHas)),
+      );
+      if (implData != Equals.equalTo(equals)) {
+        allMatch = false;
+        break;
+      }
+    }
+    if (allMatch) {
+      bestImpl = impl;
+    }
+  }
+  return Option.mk(type, bestImpl);
+}
 
 Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);

@@ -168,4 +168,20 @@ void main() {
   test('load core module', () {
     Module.load(coreCtx, Ctx.empty, coreModule);
   });
+
+  test('dispatch', () {
+    final maybeLiteral = dispatch(
+      coreCtx,
+      Expr.interfaceID,
+      Type.mk(
+        InterfaceDef.innerTypeDefID(Expr.interfaceID),
+        properties: Vec([
+          MemberHas.mkEquals(Vec([Expr.dataTypeID]), Type.type, Literal.type),
+        ]),
+      ),
+    );
+
+    expect(Option.isPresent(maybeLiteral), isTrue);
+    expect(Option.unwrap(maybeLiteral), equals(Literal.exprImpl));
+  });
 }
