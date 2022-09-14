@@ -135,16 +135,16 @@ void main() {
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
-    final interfaceCtx = Module.load(
+    final interfaceCtx = Option.unwrap(Module.load(
       coreCtx,
       coreCtx,
       Module.mk(name: 'testIface', definitions: Vec([InterfaceDef.mkDef(interfaceDef)])),
-    );
-    final thisCtx = Module.load(
+    )) as Ctx;
+    final thisCtx = Option.unwrap(Module.load(
       interfaceCtx,
       interfaceCtx,
       Module.mk(name: 'testIface', definitions: Vec([ImplDef.mkDef(implDef)])),
-    );
+    )) as Ctx;
 
     final expr = RecordAccess.mk(
       target: Literal.mk(
@@ -166,7 +166,7 @@ void main() {
   });
 
   test('load core module', () {
-    Module.load(coreCtx, Ctx.empty, coreModule);
+    expect(Option.isPresent(Module.load(Ctx.empty, Ctx.empty, coreModule)), isTrue);
   });
 
   test('dispatch', () {

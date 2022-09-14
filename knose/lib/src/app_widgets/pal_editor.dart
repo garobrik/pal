@@ -27,7 +27,11 @@ Widget _testThingy(Ctx ctx) {
     children: [
       ReaderWidget(
         ctx: ctx,
-        builder: (_, ctx) => ExprEditor(moduleCtx.read(ctx), expr),
+        builder: (_, ctx) => Option.cases(
+          moduleCtx.read(ctx),
+          some: (moduleCtx) => ExprEditor(moduleCtx as Ctx, expr),
+          none: () => const Text('module load error!'),
+        ),
       ),
       const Divider(),
       Expanded(
@@ -512,12 +516,12 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                   wrapperFocusNode.requestFocus();
                 }
 
-                final tryString = currentText.substring(1, currentText.length - 1);
-                if (currentText.startsWith("'") &&
-                    currentText.endsWith("'") &&
-                    !tryString.contains("'")) {
-                  expr.set(Literal.mk(text, tryString));
-                  wrapperFocusNode.requestFocus();
+                if (currentText.startsWith("'") && currentText.endsWith("'")) {
+                  final tryString = currentText.substring(1, currentText.length - 1);
+                  if (!tryString.contains("'")) {
+                    expr.set(Literal.mk(text, tryString));
+                    wrapperFocusNode.requestFocus();
+                  }
                 }
 
                 return KeyEventResult.handled;
