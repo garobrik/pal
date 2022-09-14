@@ -16,7 +16,7 @@ Widget _testThingy(Ctx ctx) {
   final module = useCursor(coreModule);
   final moduleCtx = useMemoized(
     () => GetCursor.compute(
-      (ctx) => Module.load(coreCtx, Ctx.empty, module.read(ctx)),
+      (ctx) => Module.load(Ctx.empty, module.read(ctx)),
       ctx: ctx,
     ),
   );

@@ -74,7 +74,7 @@ abstract class Module {
   static Object mk({ID? id, required String name, required Vec definitions}) =>
       Dict({IDID: id ?? ID(), nameID: name, definitionsID: definitions});
 
-  static Object load(Ctx evalCtx, Ctx targetCtx, Object module) {
+  static Object load(Ctx evalCtx, Object module) {
     Iterable<Object> expandDef(Object moduleDef) {
       final list = eval(
         evalCtx,
@@ -98,15 +98,15 @@ abstract class Module {
     }
 
     final bindings = ((module as Dict)[definitionsID].unwrap! as Vec).expand(expandDef);
-    final resultCtx = bindings.fold<Ctx>(targetCtx, (ctx, binding) => ctx.withBinding(binding));
+    final resultCtx = bindings.fold<Ctx>(evalCtx, (ctx, binding) => ctx.withBinding(binding));
     try {
       for (final binding in bindings) {
         Binding.valueType(resultCtx, binding);
       }
     } on MyException {
-      return Option.mk(Any.type);
+      return Option.mk(unit);
     }
-    return Option.mk(Any.type, resultCtx);
+    return Option.mk(unit, resultCtx);
   }
 
   static final bindingOrDef = Union.type(Vec([ModuleDef.type, Binding.type]));
@@ -675,7 +675,6 @@ abstract class ImplDef {
       argName: 'typeDef',
       type: Fn.type(argType: type, returnType: List.type(Binding.type)),
       body: (ctx, implDef) {
-        // final ifaceDef = ctx.getInterface(ImplDef.implemented(implDef));
         return Vec([
           Union.mk(
             Vec([ModuleDef.type, Binding.type]),
@@ -1043,7 +1042,7 @@ class Map {
     dataType: List.type(Expr.type),
     type: Fn.dart(
       argName: 'mkMapData',
-      type: Fn.type(argType: mkType, returnType: Type.type),
+      type: Fn.type(argType: mkType, returnType: Option.type(Type.type)),
       body: (ctx, arg) {
         final keyType = (arg as Dict)[mkKeyID].unwrap!;
         final valueType = arg[mkValueID].unwrap!;
@@ -1064,7 +1063,7 @@ class Map {
     ),
     eval: Fn.dart(
       argName: 'mkMapData',
-      type: Fn.type(argType: List.type(Expr.type), returnType: List.type(Any.type)),
+      type: Fn.type(argType: mkType, returnType: List.type(Any.type)),
       body: (ctx, arg) => Dict({
         for (final entry in (arg as Dict)[mkEntriesID] as Vec)
           eval(ctx, (entry as Vec)[0]): eval(ctx, entry[1])
@@ -1094,6 +1093,8 @@ abstract class Any {
 
   static Object getType(Object any) => (any as Dict)[typeID].unwrap!;
   static Object getValue(Object any) => (any as Dict)[valueID].unwrap!;
+
+  static Object mk(Object type, Object value) => Dict({typeID: type, valueID: value});
 }
 
 final textDef = TypeDef.unit('Text');
@@ -1758,15 +1759,6 @@ final placeholder = Expr.mk(
 );
 
 extension CtxType on Ctx {
-  Ctx withTypes(Iterable<Object> typeDefs) => typeDefs.fold(this, (ctx, def) => ctx.withType(def));
-  Ctx withType(Object typeDef) => withBinding(
-        Binding.mk(
-          id: TypeDef.id(typeDef),
-          type: TypeDef.type,
-          name: TypeTree.name(TypeDef.tree(typeDef)),
-          value: typeDef,
-        ),
-      );
   Object getType(ID id) => Option.unwrap(
         Binding.value(
           this,
@@ -1782,33 +1774,8 @@ extension CtxType on Ctx {
           Option.unwrap(Binding.value(this, binding)),
       ]);
 
-  Ctx withInterfaces(Iterable<Object> interfaceDefs) =>
-      interfaceDefs.fold(this, (ctx, def) => ctx.withInterface(def));
-  Ctx withInterface(Object interface) => withBinding(
-        Binding.mk(
-          id: InterfaceDef.id(interface),
-          type: InterfaceDef.type,
-          name: TypeTree.name(InterfaceDef.tree(interface)),
-          value: interface,
-        ),
-      );
   Object getInterface(ID id) => Option.unwrap(Binding.value(this, Option.unwrap(getBinding(id))));
 
-  Ctx withImpls(dart.Map<ID, dart.Map<ID, Object>> implDefs) => implDefs.entries.fold(
-        this,
-        (ctx, ifaceEntry) => ifaceEntry.value.entries.fold(
-          ctx,
-          (ctx, implEntry) => ctx.withImpl(ifaceEntry.key, implEntry.key, implEntry.value),
-        ),
-      );
-  Ctx withImpl(ID interfaceID, ID implID, Object impl) => withBinding(
-        Binding.mk(
-          id: interfaceID.append(implID),
-          type: Type.mk(InterfaceDef.innerTypeDefID(interfaceID)),
-          name: 'impl',
-          value: impl,
-        ),
-      );
   Object getImpl(ID id) => Option.unwrap(Binding.value(this, Option.unwrap(getBinding(id))));
 }
 
@@ -1896,7 +1863,7 @@ extension CtxBinding on Ctx {
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
-final coreCtx = Option.unwrap(Module.load(Ctx.empty, Ctx.empty, coreModule)) as Ctx;
+final coreCtx = Option.unwrap(Module.load(Ctx.empty, coreModule)) as Ctx;
 
 Object dispatch(Ctx ctx, ID interfaceID, Object type) {
   final interfaceDef = ctx.getInterface(interfaceID);
@@ -1972,6 +1939,7 @@ Object typeCheck(Ctx ctx, Object expr) => eval(
 final coreModule = Module.mk(
   name: 'core',
   definitions: Vec([
+    TypeDef.mkDef(ID.def),
     TypeDef.mkDef(Module.def),
     InterfaceDef.mkDef(ModuleDef.interfaceDef),
     TypeDef.mkDef(ModuleDef.typeDef),

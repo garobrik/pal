@@ -6,7 +6,10 @@ final sillyID = ID();
 final sillyRecordDef =
     TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
 
-final testCtx = coreCtx.withType(sillyRecordDef);
+final testCtx = Option.unwrap(Module.load(
+  coreCtx,
+  Module.mk(name: 'Silly', definitions: Vec([TypeDef.mkDef(sillyRecordDef)])),
+)) as Ctx;
 
 void main() {
   test('TypeCheckFn', () {
@@ -137,11 +140,9 @@ void main() {
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
     final interfaceCtx = Option.unwrap(Module.load(
       coreCtx,
-      coreCtx,
       Module.mk(name: 'testIface', definitions: Vec([InterfaceDef.mkDef(interfaceDef)])),
     )) as Ctx;
     final thisCtx = Option.unwrap(Module.load(
-      interfaceCtx,
       interfaceCtx,
       Module.mk(name: 'testIface', definitions: Vec([ImplDef.mkDef(implDef)])),
     )) as Ctx;
@@ -166,7 +167,7 @@ void main() {
   });
 
   test('load core module', () {
-    expect(Option.isPresent(Module.load(Ctx.empty, Ctx.empty, coreModule)), isTrue);
+    expect(Option.isPresent(Module.load(Ctx.empty, coreModule)), isTrue);
   });
 
   test('dispatch', () {
