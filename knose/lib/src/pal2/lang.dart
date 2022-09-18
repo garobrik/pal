@@ -1401,15 +1401,23 @@ abstract class Construct extends Expr {
       final typeDef = ctx.getType(Type.id(dataType(arg)));
 
       final computedProps = <Object>[];
-      Vec lazyBindings(Object typeTree, Vec path) {
+      Vec lazyBindings(Object typeTree, Object dataTree, Vec path) {
         return TypeTree.treeCases(
           typeTree,
-          record: (record) => Vec([
-            ...record.entries.expand((entry) => lazyBindings(entry.value, path.add(entry.key))),
-          ]),
-          union: (union) => Vec([
-            ...union.entries.expand((entry) => lazyBindings(entry.value, path.add(entry.key))),
-          ]),
+          record: (record) {
+            if (record.length != (dataTree as Dict).length) throw const MyException();
+            return Vec([
+              ...record.entries.expand((entry) {
+                if (!dataTree.containsKey(entry.key)) throw const MyException();
+                return lazyBindings(entry.value, dataTree[entry.key].unwrap!, path.add(entry.key));
+              }),
+            ]);
+          },
+          union: (union) {
+            final tag = UnionTag.tag(dataTree);
+            if (!union.containsKey(tag)) throw const MyException();
+            return lazyBindings(union[tag].unwrap!, UnionTag.value(dataTree), path.add(tag));
+          },
           leaf: (leaf) {
             Object? lazyType;
             Object? lazyValue;
@@ -1432,18 +1440,13 @@ abstract class Construct extends Expr {
             computeValue(Ctx ctx) {
               if (lazyValue == null) {
                 final defType = computeType(ctx);
-                final dataLeaf = Option.cases(
-                  TypeTree.dataAt(TypeDef.tree(typeDef), tree(arg), path),
-                  some: (dataLeaf) => dataLeaf,
-                  none: () => throw const MyException(),
-                );
                 final dataType = Option.cases(
-                  typeCheck(updateVisited(ctx, path.last as ID), dataLeaf),
+                  typeCheck(updateVisited(ctx, path.last as ID), dataTree),
                   some: (type) => type,
                   none: () => throw const MyException(),
                 );
                 if (defType != dataType) throw const MyException();
-                lazyValue = eval(updateVisited(ctx, path.last as ID), dataLeaf);
+                lazyValue = eval(updateVisited(ctx, path.last as ID), dataTree);
                 computedProps.add(MemberHas.mkEquals(path, dataType, lazyValue!));
               }
               return lazyValue!;
@@ -1461,7 +1464,7 @@ abstract class Construct extends Expr {
         );
       }
 
-      final bindings = lazyBindings(TypeDef.tree(typeDef), const Vec());
+      final bindings = lazyBindings(TypeDef.tree(typeDef), tree(arg), const Vec());
       final typeCheckCtx = bindings.fold<Ctx>(ctx, (ctx, binding) => ctx.withBinding(binding));
       try {
         for (final binding in bindings) {
