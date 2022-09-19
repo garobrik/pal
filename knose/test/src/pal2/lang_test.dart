@@ -8,7 +8,7 @@ final sillyRecordDef =
 
 final testCtx = Option.unwrap(Module.load(
   coreCtx,
-  Module.mk(name: 'Silly', definitions: Vec([TypeDef.mkDef(sillyRecordDef)])),
+  Module.mk(name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
 )) as Ctx;
 
 void main() {
@@ -140,21 +140,18 @@ void main() {
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
     final interfaceCtx = Option.unwrap(Module.load(
       coreCtx,
-      Module.mk(name: 'testIface', definitions: Vec([InterfaceDef.mkDef(interfaceDef)])),
+      Module.mk(name: 'testIface', definitions: [InterfaceDef.mkDef(interfaceDef)]),
     )) as Ctx;
     final thisCtx = Option.unwrap(Module.load(
       interfaceCtx,
-      Module.mk(name: 'testIface', definitions: Vec([ImplDef.mkDef(implDef)])),
+      Module.mk(name: 'testIface', definitions: [ImplDef.mkDef(implDef)]),
     )) as Ctx;
 
     final expr = RecordAccess.mk(
       target: Literal.mk(
-        InterfaceDef.implType(
-          interfaceDef,
-          Vec([
-            MemberHas.mkEquals(Vec([dataTypeID]), Type.type, number)
-          ]),
-        ),
+        InterfaceDef.implType(interfaceDef, [
+          MemberHas.mkEquals([dataTypeID], Type.type, number)
+        ]),
         impl,
       ),
       member: valueID,
@@ -174,12 +171,9 @@ void main() {
     final maybeLiteral = dispatch(
       coreCtx,
       Expr.interfaceID,
-      Type.mk(
-        InterfaceDef.innerTypeDefID(Expr.interfaceID),
-        properties: Vec([
-          MemberHas.mkEquals(Vec([Expr.dataTypeID]), Type.type, Literal.type),
-        ]),
-      ),
+      Type.mk(InterfaceDef.innerTypeDefID(Expr.interfaceID), properties: [
+        MemberHas.mkEquals([Expr.dataTypeID], Type.type, Literal.type),
+      ]),
     );
 
     expect(Option.isPresent(maybeLiteral), isTrue);

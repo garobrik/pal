@@ -46,7 +46,7 @@ Widget _testThingy(Ctx ctx) {
 
 @reader
 Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
-  final definitions = module[Module.definitionsID].cast<Vec>();
+  final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
   return FocusTraversalGroup(
     policy: HierarchicalOrderTraversalPolicy(),
     child: Column(
@@ -542,7 +542,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final child in data[List.mkValuesID].cast<Vec>().values(ctx)) ...[
+        for (final child in data[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx)) ...[
           ExprEditor(ctx, child),
           const Divider(),
         ]
