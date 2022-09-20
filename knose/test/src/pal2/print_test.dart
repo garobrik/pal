@@ -17,7 +17,7 @@ void main() {
     expect(
       eval(ctx, basicExpr),
       equals(
-        'Option(dataType: Type(id: ID(), path: List(type: type, items: {}), properties: List(type: type, items: {})), value: some(Number()))',
+        'Option(dataType: Number, value: some(5))',
       ),
     );
   });

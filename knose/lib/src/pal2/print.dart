@@ -75,6 +75,33 @@ abstract class Printable {
     ),
   );
 
+  static final typeImpl = mkImpl(
+    dataType: Type.type,
+    print: Fn.dart(
+      argName: 'type',
+      type: Fn.type(argType: Type.type, returnType: text),
+      body: (ctx, type) {
+        final tree = TypeDef.tree(ctx.getType(Type.id(type)));
+        final name = TypeTree.name(tree);
+        final props = List.iterate(Type.properties(type))
+            .map((prop) => eval(ctx, FnApp.mk(printFn, Any.mk(TypeProperty.type, prop))));
+        final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
+        return '$name$suffix';
+      },
+    ),
+  );
+
+  static final numberImpl = mkImpl(
+    dataType: number,
+    print: Fn.dart(
+      argName: 'number',
+      type: Fn.type(argType: number, returnType: text),
+      body: (ctx, number) {
+        return '$number';
+      },
+    ),
+  );
+
   // static final listImpl = mkImpl(
   //   dataType: List.type,
   //   print: Fn.dart(
@@ -86,14 +113,6 @@ abstract class Printable {
   //     },
   //   ),
   // );
-
-  // print(List<number>) => dispatch(Printable<List<number>>)
-  // impls:
-  //   T => Printable<T>
-  //   T => Printable<List<T>>
-
-  // superType(List<T>, List<number>)
-  // superType(T, number)
 
   static final printFn = Fn.dart(
     argName: 'object',
@@ -127,6 +146,8 @@ abstract class Printable {
     ValueDef.mk(id: ID('printFn'), name: 'print', value: printFn),
     InterfaceDef.mkDef(interfaceDef),
     ImplDef.mkDef(anyImpl),
+    ImplDef.mkDef(typeImpl),
+    ImplDef.mkDef(numberImpl),
   ]);
 }
 
