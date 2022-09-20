@@ -560,6 +560,37 @@ abstract class TypeTree {
     }
   }
 
+  static Iterable<Object> dataBindings(Object typeDef, Object dataTree) {
+    Iterable<Object> recurse(ID id, Object typeTree, Object dataTree) {
+      return treeCases(
+        typeTree,
+        record: (record) => record.entries.expand(
+          (e) {
+            if (e.key == List.typeID) {
+              return [];
+            }
+            return recurse(e.key as ID, e.value, (dataTree as Dict)[e.key].unwrap!);
+          },
+        ),
+        union: (union) => recurse(
+          UnionTag.tag(dataTree),
+          union[UnionTag.tag(dataTree)].unwrap!,
+          UnionTag.value(dataTree),
+        ),
+        leaf: (leaf) => [
+          Binding.mkLazy(
+            id: id,
+            name: name(typeTree),
+            type: (ctx) => eval(ctx, leaf),
+            value: (ctx) => dataTree,
+          )
+        ],
+      );
+    }
+
+    return recurse(TypeDef.id(typeDef), TypeDef.tree(typeDef), dataTree);
+  }
+
   static Object instantiate(Object typeTree, Object data) {
     return treeCases(
       typeTree,
