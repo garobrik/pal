@@ -24,7 +24,8 @@ abstract class Printable {
     dataType: Any.type,
     print: Fn.dart(
       argName: 'data',
-      type: Fn.type(argType: Any.type, returnType: text),
+      argType: Any.type,
+      returnType: text,
       body: (ctx, any) {
         final typeDef = ctx.getType(Type.id(Any.getType(any)));
 
@@ -79,7 +80,8 @@ abstract class Printable {
     dataType: Type.type,
     print: Fn.dart(
       argName: 'type',
-      type: Fn.type(argType: Type.type, returnType: text),
+      argType: Type.type,
+      returnType: text,
       body: (ctx, type) {
         final tree = TypeDef.tree(ctx.getType(Type.id(type)));
         final name = TypeTree.name(tree);
@@ -95,7 +97,8 @@ abstract class Printable {
     dataType: number,
     print: Fn.dart(
       argName: 'number',
-      type: Fn.type(argType: number, returnType: text),
+      argType: number,
+      returnType: text,
       body: (ctx, number) {
         return '$number';
       },
@@ -116,7 +119,8 @@ abstract class Printable {
 
   static final printFn = Fn.dart(
     argName: 'object',
-    type: Fn.type(argType: Any.type, returnType: text),
+    argType: Any.type,
+    returnType: text,
     body: (ctx, arg) {
       final impl = Option.unwrap(
         dispatch(
