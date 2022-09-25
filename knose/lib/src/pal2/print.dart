@@ -62,14 +62,16 @@ abstract class Printable {
           );
         }
 
-        var tree = TypeDef.tree(typeDef);
+        final tree = TypeDef.tree(typeDef);
+        final augmentedValue = TypeTree.augmentTree(Any.getType(any), Any.getValue(any));
+        final dataBindings = TypeTree.dataBindings(typeDef, augmentedValue);
         final resultString = recurse(
-          TypeTree.dataBindings(typeDef, Any.getValue(any)).fold(
+          dataBindings.fold(
             ctx,
             (ctx, binding) => ctx.withBinding(binding),
           ),
           tree,
-          Any.getValue(any),
+          augmentedValue,
         );
         return '${TypeTree.name(tree)}($resultString)';
       },
@@ -181,7 +183,14 @@ lang basic exprs:
   - var
   - construct
   - mkList
-  - data access
+  - lit
+
+  assignable(lit, lit) => if (lit.type == Type) props_assignable(lit, lit) else lit == lit
+  assignable(lit, any) => false
+  assignable(var, any) => if (var in subst) assignable(subst[var], any) else if (any is var and any in subst) assignable(var, subst[any]) else if (var in any) false else ctx.subst[var] = any
+  assignable(any, var) => false
+  assignable(ctor, lit/ctor) => fields match && for field (variance_assignable(field.variance, field, ))
+  assignable(list, list/lit) => length match && for elem (assignable(field, etc, etc))
 
   - fn
   - fn app

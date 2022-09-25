@@ -107,6 +107,29 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
     return buffer.toString();
   }
 
+  String toStringCtx() {
+    final buffer = StringBuffer();
+    _toStringCtx(buffer, 0);
+    return buffer.toString();
+  }
+
+  void _toStringCtx(StringBuffer buffer, int leading) {
+    buffer.write('{');
+    for (final entry in entries) {
+      buffer.write('\n');
+      buffer.write(''.padLeft(leading + 2));
+      buffer.write('${entry.key}: ');
+      if (entry.value is Dict<Object, Object>) {
+        (entry.value as Dict<Object, Object>)._toStringCtx(buffer, leading + 2);
+      } else {
+        buffer.write('${entry.value}');
+      }
+      buffer.write(',');
+    }
+    buffer.write('\n');
+    buffer.write('}'.padLeft(leading + 1));
+  }
+
   @override
   bool operator ==(Object other) {
     if (other is! Dict<Key, Value>) return false;
