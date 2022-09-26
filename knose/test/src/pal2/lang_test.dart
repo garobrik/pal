@@ -77,7 +77,7 @@ void main() {
 
     final result5 =
         eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(result5, equals(Option.mk(Expr.type, Literal.mk(Type.type, number))));
+    expect(result5, equals(Option.mk(Literal.mk(Type.type, number))));
   });
 
   test('RecordAccess + Literal', () {
@@ -87,7 +87,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Expr.type, Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -100,10 +100,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(
-      type,
-      equals(Option.mk(Expr.type, Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)))),
-    );
+    expect(type, equals(Option.mk(Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(Dict({sillyID: 0})));
@@ -121,7 +118,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Expr.type, Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -166,7 +163,7 @@ void main() {
       member: valueID,
     );
     final type = typeCheck(thisCtx, expr);
-    expect(type, equals(Option.mk(Expr.type, Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
 
     final result = eval(thisCtx, expr);
     expect(result, equals(0));

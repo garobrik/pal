@@ -8,7 +8,7 @@ void main() {
     final ctx = Option.unwrap(Module.load(coreCtx, Printable.module)) as Ctx;
     final basicExpr = FnApp.mk(
       Printable.printFn,
-      Literal.mk(Any.type, Any.mk(Option.type(number), Option.mk(number, 5))),
+      Literal.mk(Any.type, Any.mk(Option.type(number), Option.mk(5))),
     );
 
     final type = typeCheck(ctx, basicExpr);

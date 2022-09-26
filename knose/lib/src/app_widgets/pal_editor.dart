@@ -163,7 +163,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                         moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
                       );
                       return Option.cases(
-                        Option.mk(InterfaceDef.type, interfaceDef),
+                        Option.mk(interfaceDef),
                         none: () => const Text('unknown interface'),
                         some: (interfaceDef) {
                           return Column(

@@ -106,9 +106,9 @@ abstract class Module {
         Binding.valueType(resultCtx, binding);
       }
     } on MyException {
-      return Option.mk(unit);
+      return Option.mk();
     }
-    return Option.mk(unit, resultCtx);
+    return Option.mk(resultCtx);
   }
 
   static final bindingOrDef = Union.type([ModuleDef.type, Binding.type]);
@@ -631,6 +631,40 @@ abstract class TypeTree {
     );
   }
 
+  static Object maybeMapData(
+    Object typeTree,
+    Object dataTree,
+    Object Function(Object, Object, DartList path) leafFn,
+  ) {
+    Object recurse(Object typeTree, Object dataTree, DartList path) {
+      return treeCases(
+        typeTree,
+        record: (record) => Option.mk(Dict(dart.Map.fromEntries(record.entries.expand(
+          (e) => Option.cases(
+            recurse(
+              e.value,
+              (dataTree as Dict)[e.key].unwrap!,
+              [...path, e.key],
+            ),
+            some: (subTree) => [MapEntry(e.key, subTree)],
+            none: () => const [],
+          ),
+        )))),
+        union: (union) => Option.mk(UnionTag.mk(
+          UnionTag.tag(dataTree),
+          Option.unwrap(recurse(
+            union[UnionTag.tag(dataTree)].unwrap!,
+            UnionTag.value(dataTree),
+            [...path, UnionTag.tag(dataTree)],
+          )),
+        )),
+        leaf: (leaf) => leafFn(leaf, dataTree, path),
+      );
+    }
+
+    return Option.unwrap(recurse(typeTree, dataTree, const []));
+  }
+
   static T foldData<T>(
     T initialValue,
     Object typeTree,
@@ -874,7 +908,7 @@ abstract class Option {
       Option.cases(option, some: (_) => true, none: () => false);
 
   static final _noneUnionTag = UnionTag.mk(noneID, const Dict());
-  static Object mk(Object dataType, [Object? value]) => Dict({
+  static Object mk([Object? value]) => Dict({
         valueID: value == null ? _noneUnionTag : UnionTag.mk(someID, value),
       });
 
@@ -1065,13 +1099,9 @@ abstract class List {
     argName: 'mkListData',
     argType: TypeDef.asType(exprTypeDef),
     returnType: Option.type(typeExprType),
-    body: (ctx, arg) {
-      // TODO: do right
-      return Option.mk(
-        Expr.type,
-        Literal.mk(Type.type, List.type((arg as Dict)[mkTypeID].unwrap!)),
-      );
-    },
+    // TODO: do right
+    body: (ctx, arg) =>
+        Option.mk(Literal.mk(Type.type, List.type((arg as Dict)[mkTypeID].unwrap!))),
   );
   static final _reduceFn = Fn.dart(
     argName: 'mkListData',
@@ -1169,18 +1199,14 @@ class Map {
         final valueType = arg[mkValueID].unwrap!;
 
         for (final entry in List.iterate(arg[mkEntriesID].unwrap!)) {
-          if (typeCheck(ctx, List.iterate(entry).first) != Option.mk(Type.type, keyType)) {
-            return Option.mk(Type.type);
+          if (typeCheck(ctx, List.iterate(entry).first) != Option.mk(keyType)) {
+            return Option.mk();
           }
-          if (typeCheck(ctx, List.iterate(entry).skip(1).first) !=
-              Option.mk(Type.type, valueType)) {
-            return Option.mk(Type.type);
+          if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Option.mk(valueType)) {
+            return Option.mk();
           }
         }
-        return Option.mk(
-          Type.type,
-          Map.type(keyType, valueType),
-        );
+        return Option.mk(Map.type(keyType, valueType));
       },
     ),
     reduce: Fn.dart(
@@ -1292,17 +1318,16 @@ abstract class Fn extends Expr {
               some: (bodyType) {
                 if (assignable(ctx, Literal.mk(Type.type, returnType(fn)), bodyType)) {
                   return Option.mk(
-                    Expr.type,
                     Literal.mk(Type.type, Fn.type(argType: argType, returnType: returnType(fn))),
                   );
                 } else {
-                  return Option.mk(Expr.type);
+                  return Option.mk();
                 }
               },
-              none: () => Option.mk(Expr.type),
+              none: () => Option.mk(),
             );
           },
-          dart: (_) => Option.mk(Expr.type, Literal.mk(Type.type, _fnToType(fn))),
+          dart: (_) => Option.mk(Literal.mk(Type.type, _fnToType(fn))),
         );
       },
     ),
@@ -1469,7 +1494,7 @@ abstract class FnApp extends Expr {
         final fnExpr = fn(fnApp);
         return Option.cases(
           typeCheck(ctx, fnExpr),
-          none: () => Option.mk(Expr.type),
+          none: () => Option.mk(),
           some: (fnTypeExpr) {
             if (Expr.dataType(fnTypeExpr) != Literal.type) {
               throw Exception('type check fn app where fnType isn\'t literal not yet implemented!');
@@ -1477,7 +1502,7 @@ abstract class FnApp extends Expr {
             final fnType = Literal.getValue(Expr.data(fnTypeExpr));
             return Option.cases(
               typeCheck(ctx, arg(fnApp)),
-              none: () => Option.mk(Expr.type),
+              none: () => Option.mk(),
               some: (argType) {
                 final argAssignable = assignable(
                   ctx,
@@ -1488,15 +1513,12 @@ abstract class FnApp extends Expr {
                   argType,
                 );
                 if (argAssignable) {
-                  return Option.mk(
-                    Expr.type,
-                    Literal.mk(
-                      Type.type,
-                      Type.memberEquals(ctx, fnType, [Fn.fnTypeID, Fn.returnTypeID]),
-                    ),
-                  );
+                  return Option.mk(Literal.mk(
+                    Type.type,
+                    Type.memberEquals(ctx, fnType, [Fn.fnTypeID, Fn.returnTypeID]),
+                  ));
                 } else {
-                  return Option.mk(Expr.type);
+                  return Option.mk();
                 }
               },
             );
@@ -1654,20 +1676,17 @@ abstract class Construct extends Expr {
           Binding.valueType(typeCheckCtx, binding);
         }
       } on MyException {
-        return Option.mk(Type.type);
+        return Option.mk();
       }
 
       // add a reduce!
-      return Option.mk(
-        Expr.type,
-        reduce(
-          ctx,
-          Type.mkExpr(
-            Type.id(dataType(arg)),
-            properties: List.mkExpr(TypeProperty.type, computedProps),
-          ),
+      return Option.mk(reduce(
+        ctx,
+        Type.mkExpr(
+          Type.id(dataType(arg)),
+          properties: List.mkExpr(TypeProperty.type, computedProps),
         ),
-      );
+      ));
     },
   );
 
@@ -1705,10 +1724,15 @@ abstract class Construct extends Expr {
     argType: type,
     returnType: Any.type,
     body: (ctx, arg) {
-      return TypeTree.mapData(
+      final resultType = Literal.getValue(
+        Expr.data(Option.unwrap(eval(ctx, FnApp.mk(_typeFn, Literal.mk(type, arg))))),
+      );
+      final computedProps = MemberHas.eachEquals(resultType);
+      return TypeTree.maybeMapData(
         TypeDef.tree(ctx.getType(Type.id(dataType(arg)))),
         tree(arg),
-        (_, dataLeaf, __) => eval(ctx, dataLeaf),
+        (_, dataLeaf, path) =>
+            Option.mk(computedProps.containsKey(path) ? null : eval(ctx, dataLeaf)),
       );
     },
   );
@@ -1759,7 +1783,7 @@ abstract class RecordAccess extends Expr {
     body: (ctx, arg) {
       return Option.cases(
         typeCheck(ctx, RecordAccess.target(arg)),
-        none: () => Option.mk(Type.type),
+        none: () => Option.mk(),
         some: (targetTypeExpr) {
           if (Expr.dataType(targetTypeExpr) == Literal.type) {
             final targetType = Literal.getValue(Expr.data(targetTypeExpr));
@@ -1768,8 +1792,8 @@ abstract class RecordAccess extends Expr {
             final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), List.iterate(path));
             return TypeTree.treeCases(
               treeAt,
-              leaf: (_) => Option.mk(Type.type),
-              union: (_) => Option.mk(Type.type),
+              leaf: (_) => Option.mk(),
+              union: (_) => Option.mk(),
               record: (recordNode) {
                 final member = RecordAccess.member(arg);
                 final subTree = recordNode[member].unwrap!;
@@ -1792,14 +1816,8 @@ abstract class RecordAccess extends Expr {
                         bindings.fold<Ctx>(ctx, (ctx, binding) => ctx.withBinding(binding));
                     return Option.cases(
                       typeCheck(evalCtx, leafNode),
-                      some: (_) => Option.mk(
-                        Expr.type,
-                        reduce(
-                          evalCtx,
-                          leafNode,
-                        ),
-                      ),
-                      none: () => Option.mk(Expr.type),
+                      some: (_) => Option.mk(reduce(evalCtx, leafNode)),
+                      none: () => Option.mk(),
                     );
                   },
                 );
@@ -1879,7 +1897,7 @@ abstract class Literal extends Expr {
     argName: 'literalData',
     argType: type,
     returnType: Option.type(typeExprType),
-    body: (ctx, arg) => Option.mk(Expr.type, Literal.mk(Type.type, (arg as Dict)[typeID].unwrap!)),
+    body: (ctx, arg) => Option.mk(Literal.mk(Type.type, (arg as Dict)[typeID].unwrap!)),
   );
   static final reduceFn = Fn.dart(
     argName: 'literalData',
@@ -1940,8 +1958,8 @@ abstract class Var extends Expr {
     returnType: Option.type(typeExprType),
     body: (ctx, arg) => Option.cases(
       ctx.getBinding(Var.id(arg)),
-      some: (binding) => Option.mk(Type.type, Binding.valueType(ctx, binding)),
-      none: () => Option.mk(Type.type),
+      some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
+      none: () => Option.mk(),
     ),
   );
   static final _reduceFn = Fn.dart(
@@ -2018,7 +2036,7 @@ abstract class Placeholder extends Expr {
       argName: '_',
       argType: TypeDef.asType(typeDef),
       returnType: Option.type(typeExprType),
-      body: (_, __) => Option.mk(typeExprType),
+      body: (_, __) => Option.mk(),
     ),
     reduce: Fn.dart(
       argName: '_',
@@ -2100,8 +2118,8 @@ abstract class Binding {
         IDID: id,
         valueTypeID: (Ctx _) => type,
         nameID: name,
-        reducedValueID: (Ctx _) => Option.mk(Expr.type, reducedValue),
-        valueID: (Ctx _) => Option.mk(type, value),
+        reducedValueID: (Ctx _) => Option.mk(reducedValue),
+        valueID: (Ctx _) => Option.mk(value),
       });
 
   static Object mkLazy({
@@ -2115,9 +2133,8 @@ abstract class Binding {
         IDID: id,
         valueTypeID: (Ctx ctx) => type(ctx),
         nameID: name,
-        reducedValueID: (Ctx ctx) =>
-            Option.mk(Expr.type, reducedValue == null ? null : reducedValue(ctx)),
-        valueID: (Ctx ctx) => Option.mk(type, value == null ? null : value(ctx))
+        reducedValueID: (Ctx ctx) => Option.mk(reducedValue == null ? null : reducedValue(ctx)),
+        valueID: (Ctx ctx) => Option.mk(value == null ? null : value(ctx))
       });
 
   static ID id(Object binding) => (binding as Dict)[IDID].unwrap! as ID;
@@ -2143,7 +2160,7 @@ extension CtxBinding on Ctx {
         ),
       );
   Object getBinding(ID id) =>
-      Option.mk(Binding.type, (get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap);
+      Option.mk((get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap);
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
@@ -2296,12 +2313,12 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
     if (!assignable(ctx, bindingType, Literal.mk(Type.type, type))) continue;
     if (bestType != null) {
       if (assignable(ctx, bindingType, bestType)) continue;
-      if (!assignable(ctx, bestType, bindingType)) return Option.mk(type);
+      if (!assignable(ctx, bestType, bindingType)) return Option.mk();
     }
     bestType = bindingType;
     bestImpl = Option.unwrap(Binding.value(ctx, binding));
   }
-  return Option.mk(type, bestImpl);
+  return Option.mk(bestImpl);
 }
 
 Object eval(Ctx ctx, Object expr) {
