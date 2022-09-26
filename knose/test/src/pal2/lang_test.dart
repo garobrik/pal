@@ -44,10 +44,7 @@ void main() {
     );
 
     final result3 = eval(testCtx, FnApp.mk(ifaceFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(
-      result3,
-      equals(Expr.data((ImplDef.members(Literal.exprImplDef) as Dict)[Expr.typeCheckID].unwrap!)),
-    );
+    expect(result3, equals(Fn.runtimeData(Expr.data(Literal.typeFn))));
 
     final dataFn = Fn.from(
       argName: 'arg',
@@ -110,8 +107,8 @@ void main() {
     final expr = FnApp.mk(
       Fn.from(
         argName: 'arg',
-        argType: TypeDef.asType(sillyRecordDef),
-        returnType: number,
+        argType: Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)),
+        returnType: Literal.mk(Type.type, number),
         body: (arg) => RecordAccess.mk(target: arg, member: sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),

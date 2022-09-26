@@ -185,8 +185,8 @@ abstract class ValueDef {
     dataType: TypeDef.asType(typeDef),
     bindings: Fn.dart(
       argName: 'valueDef',
-      argType: TypeDef.asType(typeDef),
-      returnType: List.type(Module.bindingOrDef),
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
       body: (ctx, arg) {
         Object? lazyType;
         Object? lazyValue;
@@ -258,8 +258,8 @@ abstract class TypeDef {
     dataType: type,
     bindings: Fn.dart(
       argName: 'typeDef',
-      argType: type,
-      returnType: List.type(Module.bindingOrDef),
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
       body: (ctx, typeDef) {
         return List.mk([
           Union.mk(
@@ -733,8 +733,8 @@ abstract class InterfaceDef {
     dataType: type,
     bindings: Fn.dart(
       argName: 'interfaceDef',
-      argType: type,
-      returnType: List.type(Module.bindingOrDef),
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
       body: (ctx, ifaceDef) {
         return List.mk([
           Union.mk(
@@ -789,8 +789,8 @@ abstract class ImplDef {
     dataType: type,
     bindings: Fn.dart(
       argName: 'typeDef',
-      argType: type,
-      returnType: List.type(Module.bindingOrDef),
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
       body: (ctx, implDef) {
         return List.mk([
           Union.mk(
@@ -1023,8 +1023,8 @@ abstract class Expr {
 
   static Object typeCheckFn = Fn.from(
     argName: 'expr',
-    argType: Expr.type,
-    returnType: Option.type(typeExprType),
+    argType: Literal.mk(Type.type, Expr.type),
+    returnType: Literal.mk(Type.type, Option.type(typeExprType)),
     body: (arg) => FnApp.mk(
       RecordAccess.mk(
         target: RecordAccess.mk(target: arg, member: implID),
@@ -1036,8 +1036,8 @@ abstract class Expr {
 
   static Object reduceFn = Fn.from(
     argName: 'expr',
-    argType: Expr.type,
-    returnType: Option.type(Expr.type),
+    argType: Literal.mk(Type.type, Expr.type),
+    returnType: Literal.mk(Type.type, Option.type(Expr.type)),
     body: (arg) => FnApp.mk(
       RecordAccess.mk(
         target: RecordAccess.mk(target: arg, member: implID),
@@ -1097,16 +1097,16 @@ abstract class List {
   );
   static final _typeFn = Fn.dart(
     argName: 'mkListData',
-    argType: TypeDef.asType(exprTypeDef),
-    returnType: Option.type(typeExprType),
+    argType: Literal.mk(Type.type, TypeDef.asType(exprTypeDef)),
+    returnType: Literal.mk(Type.type, Option.type(typeExprType)),
     // TODO: do right
     body: (ctx, arg) =>
         Option.mk(Literal.mk(Type.type, List.type((arg as Dict)[mkTypeID].unwrap!))),
   );
   static final _reduceFn = Fn.dart(
     argName: 'mkListData',
-    argType: TypeDef.asType(exprTypeDef),
-    returnType: Expr.type,
+    argType: Literal.mk(Type.type, TypeDef.asType(exprTypeDef)),
+    returnType: Literal.mk(Type.type, Expr.type),
     body: (ctx, arg) {
       bool nonLit = false;
       final reducedSubExprs = <Object>[];
@@ -1124,8 +1124,8 @@ abstract class List {
   );
   static final _evalFn = Fn.dart(
     argName: 'mkListData',
-    argType: TypeDef.asType(exprTypeDef),
-    returnType: List.type(Any.type),
+    argType: Literal.mk(Type.type, TypeDef.asType(exprTypeDef)),
+    returnType: Literal.mk(Type.type, List.type(Any.type)),
     body: (ctx, arg) =>
         List.mk([...iterate((arg as Dict)[mkValuesID].unwrap!).map((expr) => eval(ctx, expr))]),
   );
@@ -1137,9 +1137,9 @@ abstract class List {
   );
   static final mkExprImpl = Expr.mkImpl(
     dataType: TypeDef.asType(exprTypeDef),
-    typeCheck: Expr.data(_typeFn),
-    reduce: Expr.data(_reduceFn),
-    eval: Expr.data(_evalFn),
+    typeCheck: Fn.runtimeData(Expr.data(_typeFn)),
+    reduce: Fn.runtimeData(Expr.data(_reduceFn)),
+    eval: Fn.runtimeData(Expr.data(_evalFn)),
   );
 
   static Object type(Object type) => Type.mk(typeDefID, properties: [
@@ -1192,8 +1192,8 @@ class Map {
     dataType: List.type(Expr.type),
     typeCheck: Fn.dart(
       argName: 'mkMapData',
-      argType: mkType,
-      returnType: Option.type(typeExprType),
+      argType: Literal.mk(Type.type, mkType),
+      returnType: Literal.mk(Type.type, Option.type(typeExprType)),
       body: (ctx, arg) {
         final keyType = (arg as Dict)[mkKeyID].unwrap!;
         final valueType = arg[mkValueID].unwrap!;
@@ -1211,16 +1211,16 @@ class Map {
     ),
     reduce: Fn.dart(
       argName: 'mkMapData',
-      argType: mkType,
-      returnType: Expr.type,
+      argType: Literal.mk(Type.type, mkType),
+      returnType: Literal.mk(Type.type, Expr.type),
       body: (ctx, arg) {
         throw Exception('reduce map expr not yet implemented!');
       },
     ),
     eval: Fn.dart(
       argName: 'mkMapData',
-      argType: mkType,
-      returnType: List.type(Any.type),
+      argType: Literal.mk(Type.type, mkType),
+      returnType: Literal.mk(Type.type, List.type(Any.type)),
       body: (ctx, arg) => Dict({
         for (final entry in List.iterate((arg as Dict)[mkEntriesID].unwrap!))
           eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
@@ -1272,6 +1272,7 @@ abstract class Fn extends Expr {
   static final fnTypeID = ID('fnType');
   static final argTypeID = ID('argType');
   static final returnTypeID = ID('returnType');
+  static final runtimeDataID = ID('runtimeData');
   static final bodyID = ID('body');
   static final palID = ID('pal');
   static final dartID = ID('dart');
@@ -1280,76 +1281,111 @@ abstract class Fn extends Expr {
   static final typeDef = TypeDef.record(
     'Fn',
     {
-      argIDID: TypeTree.mk('argID', Literal.mk(Type.type, ID.type)),
-      argNameID: TypeTree.mk('argName', Literal.mk(Type.type, text)),
       fnTypeID: TypeTree.record('type', {
-        argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Type.type)),
-        returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, Type.type)),
+        argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Expr.type)),
+        returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, Expr.type)),
       }),
-      bodyID: TypeTree.union('body', {
-        palID: TypeTree.mk('pal', Literal.mk(Type.type, Expr.type)),
-        dartID: TypeTree.mk('dart', Literal.mk(Type.type, Any.type)),
+      runtimeDataID: TypeTree.record('runtimeData', {
+        argIDID: TypeTree.mk('argID', Literal.mk(Type.type, ID.type)),
+        argNameID: TypeTree.mk('argName', Literal.mk(Type.type, text)),
+        bodyID: TypeTree.union('body', {
+          palID: TypeTree.mk('pal', Literal.mk(Type.type, Expr.type)),
+          dartID: TypeTree.mk('dart', Literal.mk(Type.type, Any.type)),
+        }),
       }),
     },
     id: typeDefID,
   );
 
   static final exprImplID = ID('FnExprImpl');
-  static final typeFnData = Fn.mkData(
-    argName: 'fnData',
-    argType: Type.mk(typeDefID),
-    returnType: Option.type(typeExprType),
-    body: UnionTag.mk(
-      dartID,
-      (Ctx ctx, Object fn) {
-        return Fn.bodyCases(
-          fn,
-          pal: (body) {
-            final argID = Fn.argID(fn);
-            final argType = Fn.argType(fn);
-            final bodyType = typeCheck(
-              ctx.withBinding(
-                Binding.mk(id: argID, type: Literal.mk(Type.type, argType), name: Fn.argName(fn)),
-              ),
-              body,
-            );
-            return Option.cases(
-              bodyType,
-              some: (bodyType) {
-                if (assignable(ctx, Literal.mk(Type.type, returnType(fn)), bodyType)) {
-                  return Option.mk(
-                    Literal.mk(Type.type, Fn.type(argType: argType, returnType: returnType(fn))),
+
+  static final typeFnData = Fn.mkRuntimeData(
+      argName: 'fnData',
+      body: UnionTag.mk(
+        dartID,
+        (Ctx ctx, Object fn) {
+          return Option.cases(
+            typeCheck(ctx, Fn.argType(fn)),
+            none: () => Option.mk(),
+            some: (argTypeType) {
+              if (!assignable(ctx, Literal.mk(Type.type, Type.type), argTypeType)) {
+                return Option.mk();
+              }
+              final argType = reduce(ctx, Fn.argType(fn));
+              ctx = ctx.withBinding(
+                Binding.mk(
+                  id: Fn.argID(Fn.runtimeData(fn)),
+                  type: argType,
+                  name: Fn.argName(Fn.runtimeData(fn)),
+                ),
+              );
+              return Option.cases(
+                typeCheck(ctx, Fn.returnType(fn)),
+                none: () => Option.mk(),
+                some: (returnTypeType) {
+                  if (!assignable(ctx, Literal.mk(Type.type, Type.type), returnTypeType)) {
+                    return Option.mk();
+                  }
+                  final returnType = reduce(ctx, Fn.returnType(fn));
+                  return Fn.bodyCases(
+                    Fn.runtimeData(fn),
+                    pal: (body) => Option.cases(
+                      typeCheck(ctx, body),
+                      none: () => Option.mk(),
+                      some: (bodyType) {
+                        if (!assignable(ctx, returnType, bodyType)) return Option.mk();
+                        return Option.mk(
+                          reduce(ctx, Fn.typeExpr(argType: argType, returnType: returnType)),
+                        );
+                      },
+                    ),
+                    dart: (_) => Option.mk(
+                      reduce(ctx, Fn.typeExpr(argType: argType, returnType: returnType)),
+                    ),
                   );
-                } else {
-                  return Option.mk();
-                }
-              },
-              none: () => Option.mk(),
-            );
-          },
-          dart: (_) => Option.mk(Literal.mk(Type.type, _fnToType(fn))),
-        );
-      },
+                },
+              );
+            },
+          );
+        },
+      ));
+  static final typeFn = Expr.mk(
+    impl: exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, Type.mk(typeDefID)),
+      returnType: Literal.mk(Type.type, Option.type(typeExprType)),
+      runtimeData: typeFnData,
     ),
   );
-  static final typeFn = Expr.mk(impl: exprImpl, data: typeFnData);
-  static final reduceFnData = Fn.mkData(
+
+  static final reduceFnData = Fn.mkRuntimeData(
     argName: 'fnData',
-    argType: Type.mk(typeDefID),
-    returnType: Expr.type,
     body: UnionTag.mk(
       dartID,
       (Ctx ctx, Object fnData) => Expr.mk(impl: exprImpl, data: fnData),
     ),
   );
-  static final reduceFn = Expr.mk(impl: exprImpl, data: reduceFnData);
-  static final evalFnData = Fn.mkData(
-    argName: 'fnData',
-    argType: Type.mk(typeDefID),
-    returnType: Any.type,
-    body: UnionTag.mk(dartID, (Ctx ctx, Object arg) => arg),
+  static final reduceFn = Expr.mk(
+    impl: exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, Type.mk(typeDefID)),
+      returnType: Literal.mk(Type.type, Expr.type),
+      runtimeData: reduceFnData,
+    ),
   );
-  static final evalFn = Expr.mk(impl: exprImpl, data: evalFnData);
+
+  static final evalFnData = Fn.mkRuntimeData(
+    argName: 'fnData',
+    body: UnionTag.mk(dartID, (Ctx ctx, Object arg) => Fn.runtimeData(arg)),
+  );
+  static final evalFn = Expr.mk(
+    impl: exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, Type.mk(typeDefID)),
+      returnType: Literal.mk(Type.type, Any.type),
+      runtimeData: evalFnData,
+    ),
+  );
 
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
@@ -1386,21 +1422,39 @@ abstract class Fn extends Expr {
         ]),
       );
 
-  static Object _fnToType(Object fn) => Fn.type(argType: argType(fn), returnType: returnType(fn));
+  static Object mkRuntimeData({
+    ID? argID,
+    required String argName,
+    required Object body,
+  }) =>
+      Dict({
+        argIDID: argID ?? ID(argName),
+        argNameID: argName,
+        bodyID: body,
+      });
 
-  static Dict mkData({
+  static Object fromRuntimeData({
+    required Object argType,
+    required Object returnType,
+    required Object runtimeData,
+  }) =>
+      Dict({
+        fnTypeID: Dict({argTypeID: argType, returnTypeID: returnType}),
+        runtimeDataID: runtimeData,
+      });
+
+  static Object mkData({
     ID? argID,
     required String argName,
     required Object argType,
     required Object returnType,
     required Object body,
   }) =>
-      Dict({
-        argIDID: argID ?? ID(argName),
-        argNameID: argName,
-        fnTypeID: Dict({argTypeID: argType, returnTypeID: returnType}),
-        bodyID: body,
-      });
+      fromRuntimeData(
+        argType: argType,
+        returnType: returnType,
+        runtimeData: mkRuntimeData(argID: argID, argName: argName, body: body),
+      );
 
   static Object mk({
     ID? argID,
@@ -1454,18 +1508,18 @@ abstract class Fn extends Expr {
     );
   }
 
-  static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
-  static String argName(Object fn) => (fn as Dict)[argNameID].unwrap! as String;
+  static ID argID(Object runtimeData) => (runtimeData as Dict)[argIDID].unwrap! as ID;
+  static String argName(Object runtimeData) => (runtimeData as Dict)[argNameID].unwrap! as String;
   static Object fnType(Object fn) => (fn as Dict)[fnTypeID].unwrap!;
   static Object argType(Object fn) => (fnType(fn) as Dict)[argTypeID].unwrap!;
   static Object returnType(Object fn) => (fnType(fn) as Dict)[returnTypeID].unwrap!;
-  static Object body(Object fn) => (fn as Dict)[bodyID].unwrap!;
+  static Object runtimeData(Object fn) => (fn as Dict)[runtimeDataID].unwrap!;
   static Object bodyCases(
-    Object fn, {
+    Object runtimeData, {
     required Object Function(Object) pal,
     required Object Function(Object) dart,
   }) {
-    final body = (fn as Dict)[bodyID].unwrap!;
+    final body = (runtimeData as Dict)[bodyID].unwrap!;
     if (UnionTag.tag(body) == palID) {
       return pal(UnionTag.value(body));
     } else {
@@ -1487,8 +1541,8 @@ abstract class FnApp extends Expr {
     dataType: TypeDef.asType(typeDef),
     typeCheck: Fn.dart(
       argName: 'fnAppData',
-      argType: TypeDef.asType(typeDef),
-      returnType: Option.type(typeExprType),
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Option.type(typeExprType)),
       // TODO: need to eval the fn expr
       body: (ctx, fnApp) {
         final fnExpr = fn(fnApp);
@@ -1528,14 +1582,14 @@ abstract class FnApp extends Expr {
     ),
     reduce: Fn.dart(
       argName: 'fnAppData',
-      argType: TypeDef.asType(typeDef),
-      returnType: Expr.type,
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Expr.type),
       body: (ctx, arg) => throw Exception('reduce not implemented for FnApp!'),
     ),
     eval: Fn.dart(
       argName: 'fnAppData',
-      argType: TypeDef.asType(typeDef),
-      returnType: Any.type,
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Any.type),
       body: (ctx, data) {
         final fn = eval(ctx, FnApp.fn(data));
         final arg = eval(ctx, FnApp.arg(data));
@@ -1544,9 +1598,7 @@ abstract class FnApp extends Expr {
           pal: (body) => eval(
             ctx.withBinding(Binding.mk(
               id: Fn.argID(fn),
-              // TODO: types shouldn't be necessary for runtime bindings!
-              // type: Literal.mk(Type.type, eval(ctx, Fn.argType(fn))),
-              type: Literal.mk(Type.type, Fn.argType(fn)),
+              type: null,
               name: Fn.argName(fn),
               value: arg,
             )),
@@ -1588,8 +1640,8 @@ abstract class Construct extends Expr {
 
   static final _typeFn = Fn.dart(
     argName: 'constructData',
-    argType: type,
-    returnType: Option.type(typeExprType),
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Option.type(typeExprType)),
     body: (ctx, arg) {
       final typeDef = ctx.getType(Type.id(dataType(arg)));
 
@@ -1692,8 +1744,8 @@ abstract class Construct extends Expr {
 
   static final _reduceFn = Fn.dart(
     argName: 'constructData',
-    argType: type,
-    returnType: Expr.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Expr.type),
     body: (ctx, arg) {
       bool nonLit = false;
       final typeTree = TypeDef.tree(ctx.getType(Type.id(dataType(arg))));
@@ -1721,9 +1773,11 @@ abstract class Construct extends Expr {
 
   static final _evalFn = Fn.dart(
     argName: 'constructData',
-    argType: type,
-    returnType: Any.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Any.type),
     body: (ctx, arg) {
+      // TODO: this is too simple, can't just elide all computed props...
+      //       e.g. Literals need to keep the type
       final resultType = Literal.getValue(
         Expr.data(Option.unwrap(eval(ctx, FnApp.mk(_typeFn, Literal.mk(type, arg))))),
       );
@@ -1747,9 +1801,9 @@ abstract class Construct extends Expr {
   );
   static final exprImpl = Expr.mkImpl(
     dataType: type,
-    typeCheck: Expr.data(_typeFn),
-    reduce: Expr.data(_reduceFn),
-    eval: Expr.data(_evalFn),
+    typeCheck: Fn.runtimeData(Expr.data(_typeFn)),
+    reduce: Fn.runtimeData(Expr.data(_reduceFn)),
+    eval: Fn.runtimeData(Expr.data(_evalFn)),
   );
 
   static Object dataType(Object construct) => (construct as Dict)[dataTypeID].unwrap!;
@@ -1778,8 +1832,8 @@ abstract class RecordAccess extends Expr {
 
   static final _typeFn = Fn.dart(
     argName: 'recordAccessData',
-    argType: type,
-    returnType: Option.type(typeExprType),
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Option.type(typeExprType)),
     body: (ctx, arg) {
       return Option.cases(
         typeCheck(ctx, RecordAccess.target(arg)),
@@ -1833,8 +1887,8 @@ abstract class RecordAccess extends Expr {
 
   static final _reduceFn = Fn.dart(
     argName: 'recordAccessData',
-    argType: type,
-    returnType: Expr.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Expr.type),
     body: (ctx, data) {
       final targetExpr = reduce(ctx, target(data));
       if (Expr.dataType(targetExpr) == Literal.type) {
@@ -1848,8 +1902,8 @@ abstract class RecordAccess extends Expr {
 
   static final _evalFn = Fn.dart(
     argName: 'recordAccessData',
-    argType: type,
-    returnType: Any.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Any.type),
     body: (ctx, data) {
       return (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
     },
@@ -1864,9 +1918,9 @@ abstract class RecordAccess extends Expr {
   );
   static final exprImpl = Expr.mkImpl(
     dataType: type,
-    typeCheck: Expr.data(_typeFn),
-    reduce: _reduceFn,
-    eval: Expr.data(_evalFn),
+    typeCheck: Fn.runtimeData(Expr.data(_typeFn)),
+    reduce: Fn.runtimeData(Expr.data(_reduceFn)),
+    eval: Fn.runtimeData(Expr.data(_evalFn)),
   );
 
   static Object mk({required Object target, required Object member}) => Expr.mk(
@@ -1893,24 +1947,54 @@ abstract class Literal extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final typeFn = Fn.dart(
+  static final _typeFnData = Fn.mkRuntimeData(
     argName: 'literalData',
-    argType: type,
-    returnType: Option.type(typeExprType),
-    body: (ctx, arg) => Option.mk(Literal.mk(Type.type, (arg as Dict)[typeID].unwrap!)),
+    body: UnionTag.mk(
+      Fn.dartID,
+      (Ctx ctx, Object arg) => Option.mk(Literal.mk(Type.type, (arg as Dict)[typeID].unwrap!)),
+    ),
   );
-  static final reduceFn = Fn.dart(
+  static final typeFn = Expr.mk(
+    impl: Fn.exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, Option.type(typeExprType)),
+      runtimeData: _typeFnData,
+    ),
+  );
+
+  static final _reduceFnData = Fn.mkRuntimeData(
     argName: 'literalData',
-    argType: type,
-    returnType: Expr.type,
-    body: (ctx, arg) => Expr.mk(impl: exprImpl, data: arg),
+    body: UnionTag.mk(
+      Fn.dartID,
+      (Ctx ctx, Object arg) => Expr.mk(impl: exprImpl, data: arg),
+    ),
   );
-  static final evalFn = Fn.dart(
+  static final reduceFn = Expr.mk(
+    impl: Fn.exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, Expr.type),
+      runtimeData: _reduceFnData,
+    ),
+  );
+
+  static final _evalFnData = Fn.mkRuntimeData(
     argName: 'literalData',
-    argType: type,
-    returnType: Any.type,
-    body: (ctx, arg) => (arg as Dict)[valueID].unwrap!,
+    body: UnionTag.mk(
+      Fn.dartID,
+      (Ctx ctx, Object arg) => (arg as Dict)[valueID].unwrap!,
+    ),
   );
+  static final evalFn = Expr.mk(
+    impl: Fn.exprImpl,
+    data: Fn.fromRuntimeData(
+      argType: Literal.mk(Type.type, type),
+      returnType: Literal.mk(Type.type, Any.type),
+      runtimeData: _evalFnData,
+    ),
+  );
+
   static final exprImplID = ID('LiteralExprImpl');
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
@@ -1921,19 +2005,14 @@ abstract class Literal extends Expr {
   );
   static final Object exprImpl = Expr.mkImpl(
     dataType: type,
-    typeCheck: Expr.data(typeFn),
-    reduce: Expr.data(reduceFn),
-    eval: Expr.data(evalFn),
+    typeCheck: _typeFnData,
+    reduce: _reduceFnData,
+    eval: _evalFnData,
   );
 
   static Object mk(Object type, Object value) => Expr.mk(
         impl: exprImpl,
         data: Dict({typeID: type, valueID: value}),
-      );
-
-  static Object mkExpr(Object type, Object value) => Expr.mkExpr(
-        impl: Literal.mk(Expr.implType, exprImpl),
-        data: Construct.mk(Literal.type, Dict({typeID: type, valueID: value})),
       );
 
   static Object getType(Object literal) => (literal as Dict)[typeID].unwrap!;
@@ -1954,8 +2033,8 @@ abstract class Var extends Expr {
 
   static final _typeFn = Fn.dart(
     argName: 'varData',
-    argType: type,
-    returnType: Option.type(typeExprType),
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Option.type(typeExprType)),
     body: (ctx, arg) => Option.cases(
       ctx.getBinding(Var.id(arg)),
       some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
@@ -1964,8 +2043,8 @@ abstract class Var extends Expr {
   );
   static final _reduceFn = Fn.dart(
     argName: 'varData',
-    argType: type,
-    returnType: Expr.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Expr.type),
     body: (ctx, arg) {
       var binding = Option.cases(
         ctx.getBinding(Var.id(arg)),
@@ -1991,8 +2070,8 @@ abstract class Var extends Expr {
   );
   static final _evalFn = Fn.dart(
     argName: 'varData',
-    argType: type,
-    returnType: Any.type,
+    argType: Literal.mk(Type.type, type),
+    returnType: Literal.mk(Type.type, Any.type),
     body: (ctx, arg) => Option.cases(
       Binding.value(
         ctx,
@@ -2014,9 +2093,9 @@ abstract class Var extends Expr {
   );
   static final exprImpl = Expr.mkImpl(
     dataType: type,
-    typeCheck: Expr.data(_typeFn),
-    reduce: Expr.data(_reduceFn),
-    eval: Expr.data(_evalFn),
+    typeCheck: Fn.runtimeData(Expr.data(_typeFn)),
+    reduce: Fn.runtimeData(Expr.data(_reduceFn)),
+    eval: Fn.runtimeData(Expr.data(_evalFn)),
   );
 
   static Object mk(ID varID) => Expr.mk(
@@ -2034,20 +2113,20 @@ abstract class Placeholder extends Expr {
     dataType: TypeDef.asType(typeDef),
     typeCheck: Fn.dart(
       argName: '_',
-      argType: TypeDef.asType(typeDef),
-      returnType: Option.type(typeExprType),
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Option.type(typeExprType)),
       body: (_, __) => Option.mk(),
     ),
     reduce: Fn.dart(
       argName: '_',
-      argType: TypeDef.asType(typeDef),
-      returnType: Expr.type,
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Expr.type),
       body: (_, __) => throw Exception("don't reduce a placeholder u fool!"),
     ),
     eval: Fn.dart(
       argName: '_',
-      argType: TypeDef.asType(typeDef),
-      returnType: Any.type,
+      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+      returnType: Literal.mk(Type.type, Any.type),
       body: (_, __) => throw Exception("don't evaluate a placeholder u fool!"),
     ),
   );
@@ -2109,14 +2188,15 @@ abstract class Binding {
 
   static Object mk({
     required ID id,
-    required Object type,
+    required Object? type,
     required String name,
     Object? reducedValue,
     Object? value,
   }) =>
       Dict({
         IDID: id,
-        valueTypeID: (Ctx _) => type,
+        valueTypeID: (Ctx _) =>
+            type ?? (throw Exception('shouldn\'t be trying to access this binding\'s type!!!')),
         nameID: name,
         reducedValueID: (Ctx _) => Option.mk(reducedValue),
         valueID: (Ctx _) => Option.mk(value),
@@ -2124,14 +2204,15 @@ abstract class Binding {
 
   static Object mkLazy({
     required ID id,
-    required Object Function(Ctx) type,
+    required Object Function(Ctx)? type,
     required String name,
     Object? Function(Ctx)? reducedValue,
     Object? Function(Ctx)? value,
   }) =>
       Dict({
         IDID: id,
-        valueTypeID: (Ctx ctx) => type(ctx),
+        valueTypeID: (Ctx ctx) => (type ??
+            (throw Exception('shouldn\'t be trying to access this binding\'s type!!!')))(ctx),
         nameID: name,
         reducedValueID: (Ctx ctx) => Option.mk(reducedValue == null ? null : reducedValue(ctx)),
         valueID: (Ctx ctx) => Option.mk(value == null ? null : value(ctx))
@@ -2324,16 +2405,16 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
 Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);
   final dataType = Expr.dataType(expr);
-  final evalExprFn = Expr.evalExpr(expr);
+  final evalExprData = Expr.evalExpr(expr);
   return Fn.bodyCases(
-    evalExprFn,
+    evalExprData,
     pal: (bodyExpr) {
       return eval(
         ctx.withBinding(Binding.mk(
-          id: Fn.argID(evalExprFn),
-          // TODO: this is wronggg
+          id: Fn.argID(evalExprData),
+          // TODO: this is wronggg?
           type: Literal.mk(Type.type, dataType),
-          name: Fn.argName(evalExprFn),
+          name: Fn.argName(evalExprData),
           value: data,
         )),
         bodyExpr,

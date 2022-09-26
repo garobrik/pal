@@ -5,7 +5,7 @@ part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.map)
-class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
+class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
   @override
   @skip
   final Map<Key, Value> _values;
@@ -107,20 +107,23 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value> {
     return buffer.toString();
   }
 
-  String toStringCtx() {
-    final buffer = StringBuffer();
-    _toStringCtx(buffer, 0);
-    return buffer.toString();
-  }
-
-  void _toStringCtx(StringBuffer buffer, int leading) {
+  @override
+  void doStringCtx(StringBuffer buffer, int leading) {
+    if (this.entries.isEmpty) {
+      buffer.write('{}');
+      return;
+    }
+    if (this.length == 1 && this.entries.first.value is! ToStringCtx) {
+      buffer.write('{${this.entries.first.key}: ${this.entries.first.value}}');
+      return;
+    }
     buffer.write('{');
     for (final entry in entries) {
       buffer.write('\n');
       buffer.write(''.padLeft(leading + 2));
       buffer.write('${entry.key}: ');
-      if (entry.value is Dict<Object, Object>) {
-        (entry.value as Dict<Object, Object>)._toStringCtx(buffer, leading + 2);
+      if (entry.value is ToStringCtx) {
+        (entry.value as ToStringCtx).doStringCtx(buffer, leading + 2);
       } else {
         buffer.write('${entry.value}');
       }

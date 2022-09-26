@@ -24,8 +24,8 @@ abstract class Printable {
     dataType: Any.type,
     print: Fn.dart(
       argName: 'data',
-      argType: Any.type,
-      returnType: text,
+      argType: Literal.mk(Type.type, Any.type),
+      returnType: Literal.mk(Type.type, text),
       body: (ctx, any) {
         final typeDef = ctx.getType(Type.id(Any.getType(any)));
 
@@ -82,8 +82,8 @@ abstract class Printable {
     dataType: Type.type,
     print: Fn.dart(
       argName: 'type',
-      argType: Type.type,
-      returnType: text,
+      argType: Literal.mk(Type.type, Type.type),
+      returnType: Literal.mk(Type.type, text),
       body: (ctx, type) {
         final tree = TypeDef.tree(ctx.getType(Type.id(type)));
         final name = TypeTree.name(tree);
@@ -99,8 +99,8 @@ abstract class Printable {
     dataType: number,
     print: Fn.dart(
       argName: 'number',
-      argType: number,
-      returnType: text,
+      argType: Literal.mk(Type.type, number),
+      returnType: Literal.mk(Type.type, text),
       body: (ctx, number) {
         return '$number';
       },
@@ -111,7 +111,8 @@ abstract class Printable {
   //   dataType: List.type,
   //   print: Fn.dart(
   //     argName: 'data',
-  //     type: Fn.type(argType: List.type, returnType: text),
+  //     argType: Literal.mk(Type.type, List.type),
+  //     returnType: Literal.mk(Type.type, text),
   //     body: (ctx, list) {
   //       var tree = TypeDef.tree(typeDef);
   //       return '${TypeTree.name(tree)}(${recurse(tree, Any.getValue(any))})';
@@ -121,8 +122,8 @@ abstract class Printable {
 
   static final printFn = Fn.dart(
     argName: 'object',
-    argType: Any.type,
-    returnType: text,
+    argType: Literal.mk(Type.type, Any.type),
+    returnType: Literal.mk(Type.type, text),
     body: (ctx, arg) {
       final impl = Option.unwrap(
         dispatch(

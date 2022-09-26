@@ -6,7 +6,7 @@ part 'vec.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.list)
-class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
+class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
   @override
   @skip
   final List<Value> _values;
@@ -70,6 +70,31 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value> {
 
   @override
   int get hashCode => Object.hashAll(this);
+
+  @override
+  void doStringCtx(StringBuffer buffer, int leading) {
+    if (this.isEmpty) {
+      buffer.write('[]');
+      return;
+    }
+    if (this.length == 1 && this.first is! ToStringCtx) {
+      buffer.write('[${this.first}]');
+      return;
+    }
+    buffer.write('[');
+    for (final elem in this) {
+      buffer.write('\n');
+      buffer.write(''.padLeft(leading + 2));
+      if (elem is ToStringCtx) {
+        elem.doStringCtx(buffer, leading + 2);
+      } else {
+        buffer.write('$elem');
+      }
+      buffer.write(',');
+    }
+    buffer.write('\n');
+    buffer.write(']'.padLeft(leading + 1));
+  }
 }
 
 extension IterableExtension<V> on Iterable<V> {
