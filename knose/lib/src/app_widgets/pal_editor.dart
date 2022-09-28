@@ -174,7 +174,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
                                 DataTreeEditor(
                                   ctx,
                                   InterfaceDef.tree(interfaceDef),
-                                  moduleDef[ModuleDef.dataID][ImplDef.membersID],
+                                  moduleDef[ModuleDef.dataID][ImplDef.definitionID],
                                 ),
                               ),
                               const Text('}'),

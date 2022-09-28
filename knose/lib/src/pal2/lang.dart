@@ -172,16 +172,31 @@ abstract class ModuleDef extends InterfaceDef {
 abstract class ValueDef {
   static final IDID = ID('ID');
   static final nameID = ID('name');
+  static final expectedTypeID = ID('expectedType');
   static final valueID = ID('value');
 
   static final typeDef = TypeDef.record('ValueDef', {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
     nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
+    expectedTypeID: TypeTree.mk('expectedType', Literal.mk(Type.type, Option.type(Type.type))),
     valueID: TypeTree.mk('value', Literal.mk(Type.type, Expr.type)),
   });
 
-  static Object mk({required ID id, required String name, required Object value}) =>
-      ModuleDef.mk(implDef: moduleDefImplDef, data: Dict({IDID: id, nameID: name, valueID: value}));
+  static Object mk({
+    required ID id,
+    required String name,
+    Object? expectedType,
+    required Object value,
+  }) =>
+      ModuleDef.mk(
+        implDef: moduleDefImplDef,
+        data: Dict({
+          IDID: id,
+          nameID: name,
+          expectedTypeID: Option.mk(expectedType),
+          valueID: value,
+        }),
+      );
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: TypeDef.asType(typeDef),
@@ -203,6 +218,9 @@ abstract class ValueDef {
             none: () => throw const MyException(),
           );
           if (Expr.dataType(lazyType!) != Literal.type) throw const MyException();
+          Option.cases(arg[expectedTypeID].unwrap!, none: () {}, some: (expectedType) {
+            if (!assignable(ctx, expectedType, lazyType!)) throw const MyException();
+          });
           return lazyType!;
         }
 
@@ -817,19 +835,19 @@ abstract class InterfaceDef {
 abstract class ImplDef {
   static final IDID = ID('ID');
   static final implementedID = ID('implemented');
-  static final membersID = ID('members');
+  static final definitionID = ID('definition');
 
   static final def = TypeDef.record('ImplDef', {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
     implementedID: TypeTree.mk('implemented', Literal.mk(Type.type, ID.type)),
-    membersID: TypeTree.mk('members', Literal.mk(Type.type, Any.type)),
+    definitionID: TypeTree.mk('definition', Literal.mk(Type.type, Expr.type)),
   });
   static final type = TypeDef.asType(def);
 
   static Dict mk({ID? id, required ID implemented, required Object members}) =>
-      Dict({IDID: id ?? ID(), implementedID: implemented, membersID: members});
+      Dict({IDID: id ?? ID(), implementedID: implemented, definitionID: members});
 
-  static Object members(Object implDef) => (implDef as Dict)[membersID].unwrap!;
+  static Object definition(Object implDef) => (implDef as Dict)[definitionID].unwrap!;
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
@@ -838,21 +856,23 @@ abstract class ImplDef {
       argName: 'typeDef',
       argType: Literal.mk(Type.type, type),
       returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
-      body: (ctx, implDef) {
-        return List.mk([
-          Union.mk(
-            ModuleDef.type,
-            ValueDef.mk(
-              id: ImplDef.implemented(implDef).append(ImplDef.id(implDef)),
-              name: 'impl',
-              value: Construct.mk(
-                Type.mk(InterfaceDef.innerTypeDefID(ImplDef.implemented(implDef))),
-                ImplDef.members(implDef),
-              ),
+      body: (ctx, implDef) => List.mk([
+        Union.mk(
+          ModuleDef.type,
+          ValueDef.mk(
+            id: ImplDef.implemented(implDef).append(ImplDef.id(implDef)),
+            name: 'impl',
+            expectedType: Literal.mk(
+              Type.type,
+              Type.mk(InterfaceDef.innerTypeDefID(ImplDef.implemented(implDef))),
+            ),
+            value: Construct.mk(
+              Type.mk(InterfaceDef.innerTypeDefID(ImplDef.implemented(implDef))),
+              ImplDef.definition(implDef),
             ),
           ),
-        ]);
-      },
+        ),
+      ]),
     ),
     id: ID('ImplDefImpl'),
   );
@@ -871,7 +891,7 @@ abstract class ImplDef {
       );
     }
 
-    return recurse(InterfaceDef.tree(interfaceDef), ImplDef.members(implDef));
+    return recurse(InterfaceDef.tree(interfaceDef), ImplDef.definition(implDef));
   }
 
   static ID id(Object impl) => (impl as Dict)[IDID].unwrap! as ID;
