@@ -97,17 +97,6 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
   Iterable<MapEntry<Key, Value>> get entries => _values.entries;
 
   @override
-  String toString() {
-    final buffer = StringBuffer();
-    buffer.write('{');
-    for (final entry in entries) {
-      buffer.write('${entry.key}: ${entry.value}, ');
-    }
-    buffer.write('}');
-    return buffer.toString();
-  }
-
-  @override
   void doStringCtx(StringBuffer buffer, int leading) {
     if (this.entries.isEmpty) {
       buffer.write('{}');

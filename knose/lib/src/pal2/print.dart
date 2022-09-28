@@ -4,11 +4,13 @@ import 'package:knose/src/pal2/lang.dart';
 abstract class Printable {
   static final dataTypeID = ID('dataType');
   static final printID = ID('print');
+  static final printArgID = ID('print');
   static final interfaceDef = InterfaceDef.record('Printable', {
     dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
     printID: TypeTree.mk(
       'print',
       Fn.typeExpr(
+        argID: printArgID,
         argType: Var.mk(dataTypeID),
         returnType: Literal.mk(Type.type, text),
       ),
@@ -23,6 +25,7 @@ abstract class Printable {
   static final anyImpl = mkImpl(
     dataType: Any.type,
     print: Fn.dart(
+      argID: printArgID,
       argName: 'data',
       argType: Literal.mk(Type.type, Any.type),
       returnType: Literal.mk(Type.type, text),
@@ -64,7 +67,7 @@ abstract class Printable {
 
         final tree = TypeDef.tree(typeDef);
         final augmentedValue = TypeTree.augmentTree(Any.getType(any), Any.getValue(any));
-        final dataBindings = TypeTree.dataBindings(typeDef, augmentedValue);
+        final dataBindings = TypeTree.dataBindings(tree, augmentedValue);
         final resultString = recurse(
           dataBindings.fold(
             ctx,
@@ -81,6 +84,7 @@ abstract class Printable {
   static final typeImpl = mkImpl(
     dataType: Type.type,
     print: Fn.dart(
+      argID: printArgID,
       argName: 'type',
       argType: Literal.mk(Type.type, Type.type),
       returnType: Literal.mk(Type.type, text),
@@ -98,6 +102,7 @@ abstract class Printable {
   static final numberImpl = mkImpl(
     dataType: number,
     print: Fn.dart(
+      argID: printArgID,
       argName: 'number',
       argType: Literal.mk(Type.type, number),
       returnType: Literal.mk(Type.type, text),
@@ -140,7 +145,7 @@ abstract class Printable {
         ctx,
         FnApp.mk(
           Literal.mk(
-            Fn.type(argType: dataType, returnType: text),
+            Fn.type(argID: printArgID, argType: dataType, returnType: text),
             impl[printID].unwrap!,
           ),
           Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),

@@ -16,7 +16,7 @@ void main() {
     final varFn = Fn.from(
       argName: 'arg',
       argType: Expr.type,
-      returnType: Option.type(Type.type),
+      returnType: (_) => Option.type(Type.type),
       body: (arg) => arg,
     );
 
@@ -26,7 +26,7 @@ void main() {
     final implFn = Fn.from(
       argName: 'arg',
       argType: Expr.type,
-      returnType: Option.type(Type.type),
+      returnType: (_) => Option.type(Type.type),
       body: (arg) => RecordAccess.mk(target: arg, member: Expr.implID),
     );
 
@@ -36,7 +36,7 @@ void main() {
     final ifaceFn = Fn.from(
       argName: 'arg',
       argType: Expr.type,
-      returnType: Option.type(Type.type),
+      returnType: (_) => Option.type(Type.type),
       body: (arg) => RecordAccess.mk(
         target: RecordAccess.mk(target: arg, member: Expr.implID),
         member: Expr.typeCheckID,
@@ -49,7 +49,7 @@ void main() {
     final dataFn = Fn.from(
       argName: 'arg',
       argType: Expr.type,
-      returnType: Option.type(Type.type),
+      returnType: (_) => Option.type(Type.type),
       body: (arg) => RecordAccess.mk(target: arg, member: Expr.dataID),
     );
 
@@ -62,7 +62,7 @@ void main() {
     final typeCheckFn = Fn.from(
       argName: 'arg',
       argType: Expr.type,
-      returnType: Option.type(Type.type),
+      returnType: (_) => Option.type(Type.type),
       body: (arg) => FnApp.mk(
         RecordAccess.mk(
           target: RecordAccess.mk(target: arg, member: Expr.implID),
@@ -74,7 +74,8 @@ void main() {
 
     final result5 =
         eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(result5, equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(Option.isPresent(result5), isTrue);
+    expect(assignable(testCtx, Literal.mk(Type.type, number), Option.unwrap(result5)), isTrue);
   });
 
   test('RecordAccess + Literal', () {
@@ -108,7 +109,7 @@ void main() {
       Fn.from(
         argName: 'arg',
         argType: Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)),
-        returnType: Literal.mk(Type.type, number),
+        returnType: (_) => Literal.mk(Type.type, number),
         body: (arg) => RecordAccess.mk(target: arg, member: sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
@@ -164,6 +165,36 @@ void main() {
 
     final result = eval(thisCtx, expr);
     expect(result, equals(0));
+  });
+
+  test('parametric function!', () {
+    final arg = Var.mk(ID('testArg'));
+    final fn = Fn.mk(
+      argID: Var.id(Expr.data(arg)),
+      argName: 'someting!!',
+      argType: Literal.mk(Type.type, Literal.type),
+      returnType: RecordAccess.mk(target: arg, member: Literal.typeID),
+      body: RecordAccess.mk(target: arg, member: Literal.valueID),
+    );
+
+    expect(
+      typeCheck(
+        coreCtx,
+        fn,
+      ),
+      equals(Option.mk(reduce(
+        coreCtx,
+        Fn.typeExpr(
+          argID: Var.id(Expr.data(arg)),
+          argType: Literal.mk(Type.type, Literal.type),
+          returnType: RecordAccess.mk(target: arg, member: Literal.typeID),
+        ),
+      ))),
+    );
+
+    final fnApplied = FnApp.mk(fn, Literal.mk(Literal.type, Expr.data(Literal.mk(number, 0))));
+    expect(typeCheck(coreCtx, fnApplied), equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(eval(coreCtx, fnApplied), equals(0));
   });
 
   test('load core module', () {
