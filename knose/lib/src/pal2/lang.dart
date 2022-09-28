@@ -214,7 +214,6 @@ abstract class ValueDef {
 
         return List.mk([
           Union.mk(
-            [ModuleDef.type, Binding.type],
             Binding.type,
             Binding.mkLazy(
               id: bindingID,
@@ -267,7 +266,6 @@ abstract class TypeDef {
       body: (ctx, typeDef) {
         return List.mk([
           Union.mk(
-            [ModuleDef.type, Binding.type],
             ModuleDef.type,
             ValueDef.mk(
               id: TypeDef.id(typeDef),
@@ -276,7 +274,6 @@ abstract class TypeDef {
             ),
           ),
           Union.mk(
-            [ModuleDef.type, Binding.type],
             ModuleDef.type,
             ValueDef.mk(
               id: ID(),
@@ -789,7 +786,6 @@ abstract class InterfaceDef {
       body: (ctx, ifaceDef) {
         return List.mk([
           Union.mk(
-            [ModuleDef.type, Binding.type],
             ModuleDef.type,
             ValueDef.mk(
               id: InterfaceDef.id(ifaceDef),
@@ -798,7 +794,6 @@ abstract class InterfaceDef {
             ),
           ),
           Union.mk(
-            [ModuleDef.type, Binding.type],
             ModuleDef.type,
             TypeDef.mkDef(
               TypeDef.mk(
@@ -846,7 +841,6 @@ abstract class ImplDef {
       body: (ctx, implDef) {
         return List.mk([
           Union.mk(
-            [ModuleDef.type, Binding.type],
             ModuleDef.type,
             ValueDef.mk(
               id: ImplDef.implemented(implDef).append(ImplDef.id(implDef)),
@@ -895,8 +889,7 @@ abstract class Union {
     valueID: TypeTree.mk('value', Var.mk(thisTypeID)),
   });
 
-  static Object mk(DartList possibleTypes, Object thisType, Object value) => Dict({
-        possibleTypesID: List.mk(possibleTypes),
+  static Object mk(Object thisType, Object value) => Dict({
         thisTypeID: thisType,
         valueID: value,
       });
