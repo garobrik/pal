@@ -9,7 +9,7 @@ abstract class Printable {
     dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
     printID: TypeTree.mk(
       'print',
-      Fn.typeExpr(
+      FnValue.typeExpr(
         argID: printArgID,
         argType: Var.mk(dataTypeID),
         returnType: Literal.mk(Type.type, text),
@@ -19,7 +19,7 @@ abstract class Printable {
 
   static Object mkImpl({required Object dataType, required Object print}) => ImplDef.mk(
         implemented: InterfaceDef.id(interfaceDef),
-        members: Dict({dataTypeID: Literal.mk(Type.type, dataType), printID: print}),
+        definition: Dict({dataTypeID: Literal.mk(Type.type, dataType), printID: print}),
       );
 
   static final anyImpl = mkImpl(
@@ -145,7 +145,7 @@ abstract class Printable {
         ctx,
         FnApp.mk(
           Literal.mk(
-            Fn.type(argID: printArgID, argType: dataType, returnType: text),
+            FnValue.type(argID: printArgID, argType: dataType, returnType: text),
             impl[printID].unwrap!,
           ),
           Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),

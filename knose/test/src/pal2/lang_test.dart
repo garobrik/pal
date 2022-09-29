@@ -2,16 +2,20 @@ import 'package:ctx/ctx.dart';
 import 'package:test/test.dart';
 import 'package:knose/src/pal2/lang.dart';
 
-final sillyID = ID();
-final sillyRecordDef =
-    TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
-
-final testCtx = Option.unwrap(Module.load(
-  coreCtx,
-  Module.mk(name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
-)) as Ctx;
-
 void main() {
+  test('load core module', () {
+    expect(Option.isPresent(Module.load(Ctx.empty, coreModule)), isTrue);
+  });
+
+  final sillyID = ID();
+  final sillyRecordDef =
+      TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
+
+  late final testCtx = Option.unwrap(Module.load(
+    coreCtx,
+    Module.mk(name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
+  )) as Ctx;
+
   test('TypeCheckFn', () {
     final varFn = Fn.from(
       argName: 'arg',
@@ -32,19 +36,6 @@ void main() {
 
     final result2 = eval(testCtx, FnApp.mk(implFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect((result2 as Dict)[Expr.dataTypeID].unwrap!, equals(TypeDef.asType(Literal.typeDef)));
-
-    final ifaceFn = Fn.from(
-      argName: 'arg',
-      argType: Expr.type,
-      returnType: (_) => Option.type(Type.type),
-      body: (arg) => RecordAccess.mk(
-        target: RecordAccess.mk(target: arg, member: Expr.implID),
-        member: Expr.typeCheckID,
-      ),
-    );
-
-    final result3 = eval(testCtx, FnApp.mk(ifaceFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(result3, equals(Fn.runtimeData(Expr.data(Literal.typeFn))));
 
     final dataFn = Fn.from(
       argName: 'arg',
@@ -138,7 +129,7 @@ void main() {
     final implDef = ImplDef.mk(
       id: implID,
       implemented: ifaceID,
-      members: Dict({dataTypeID: Literal.mk(Type.type, number), valueID: Literal.mk(number, 0)}),
+      definition: Dict({dataTypeID: Literal.mk(Type.type, number), valueID: Literal.mk(number, 0)}),
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
@@ -169,7 +160,7 @@ void main() {
 
   test('parametric function!', () {
     final arg = Var.mk(ID('testArg'));
-    final fn = Fn.mk(
+    final fn = Fn.pal(
       argID: Var.id(Expr.data(arg)),
       argName: 'someting!!',
       argType: Literal.mk(Type.type, Literal.type),
@@ -182,23 +173,18 @@ void main() {
         coreCtx,
         fn,
       ),
-      equals(Option.mk(reduce(
-        coreCtx,
-        Fn.typeExpr(
+      equals(Option.mk(
+        FnValue.typeExpr(
           argID: Var.id(Expr.data(arg)),
           argType: Literal.mk(Type.type, Literal.type),
           returnType: RecordAccess.mk(target: arg, member: Literal.typeID),
         ),
-      ))),
+      )),
     );
 
     final fnApplied = FnApp.mk(fn, Literal.mk(Literal.type, Expr.data(Literal.mk(number, 0))));
     expect(typeCheck(coreCtx, fnApplied), equals(Option.mk(Literal.mk(Type.type, number))));
     expect(eval(coreCtx, fnApplied), equals(0));
-  });
-
-  test('load core module', () {
-    expect(Option.isPresent(Module.load(Ctx.empty, coreModule)), isTrue);
   });
 
   test('dispatch', () {

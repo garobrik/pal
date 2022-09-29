@@ -317,7 +317,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       body = ExprEditor(
         ctx.withBinding(Binding.mk(
           id: data[Fn.argIDID].read(ctx) as ID,
-          type: data[Fn.fnTypeID][Fn.argTypeID].read(ctx),
+          type: data[Fn.argTypeID].read(ctx),
           name: data[Fn.argNameID].read(ctx) as String,
         )),
         data[Fn.bodyID][UnionTag.valueID],
@@ -335,7 +335,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
             TextSpan(
                 text: TypeTree.name(
               TypeDef.tree(
-                ctx.getType(data[Fn.fnTypeID][Fn.argTypeID][Type.IDID].read(ctx) as ID),
+                ctx.getType(data[Fn.argTypeID][Type.IDID].read(ctx) as ID),
               ),
             ).toString()),
             const TextSpan(text: ')'),
@@ -350,7 +350,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
             TextSpan(
               text: TypeTree.name(
                 TypeDef.tree(
-                  ctx.getType(data[Fn.fnTypeID][Fn.argTypeID][Type.IDID].read(ctx) as ID),
+                  ctx.getType(data[Fn.argTypeID][Type.IDID].read(ctx) as ID),
                 ),
               ).toString(),
             ),
