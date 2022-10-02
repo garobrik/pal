@@ -309,18 +309,18 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   final data = expr[Expr.dataID];
 
   late final Widget child;
-  if (dataType == Type.mk(Fn.typeDefID)) {
+  if (dataType == Type.mk(FnExpr.typeDefID)) {
     late final Widget body;
-    if (data[Fn.bodyID][UnionTag.tagID].read(ctx) == Fn.dartID) {
+    if (data[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
     } else {
       body = ExprEditor(
         ctx.withBinding(Binding.mk(
-          id: data[Fn.argIDID].read(ctx) as ID,
-          type: data[Fn.argTypeID].read(ctx),
-          name: data[Fn.argNameID].read(ctx) as String,
+          id: data[FnExpr.argIDID].read(ctx) as ID,
+          type: data[FnExpr.argTypeID].read(ctx),
+          name: data[FnExpr.argNameID].read(ctx) as String,
         )),
-        data[Fn.bodyID][UnionTag.valueID],
+        data[FnExpr.bodyID][UnionTag.valueID],
       );
     }
 
@@ -330,12 +330,12 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         Text.rich(
           TextSpan(children: [
             const TextSpan(text: '('),
-            _inlineTextField(ctx, data[Fn.argNameID].cast<String>()),
+            _inlineTextField(ctx, data[FnExpr.argNameID].cast<String>()),
             const TextSpan(text: ': '),
             TextSpan(
                 text: TypeTree.name(
               TypeDef.tree(
-                ctx.getType(data[Fn.argTypeID][Type.IDID].read(ctx) as ID),
+                ctx.getType(data[FnExpr.argTypeID][Type.IDID].read(ctx) as ID),
               ),
             ).toString()),
             const TextSpan(text: ')'),
@@ -350,7 +350,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
             TextSpan(
               text: TypeTree.name(
                 TypeDef.tree(
-                  ctx.getType(data[Fn.argTypeID][Type.IDID].read(ctx) as ID),
+                  ctx.getType(data[FnExpr.argTypeID][Type.IDID].read(ctx) as ID),
                 ),
               ).toString(),
             ),
@@ -538,7 +538,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         );
       },
     );
-  } else if (dataType == TypeDef.asType(List.exprTypeDef)) {
+  } else if (dataType == List.mkExprType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

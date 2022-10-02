@@ -17,7 +17,7 @@ void main() {
   )) as Ctx;
 
   test('TypeCheckFn', () {
-    final varFn = Fn.from(
+    final varFn = FnExpr.from(
       argName: 'arg',
       argType: Expr.type,
       returnType: (_) => Option.type(Type.type),
@@ -27,21 +27,21 @@ void main() {
     final result = eval(testCtx, FnApp.mk(varFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(result, equals(Literal.mk(number, 0)));
 
-    final implFn = Fn.from(
+    final implFn = FnExpr.from(
       argName: 'arg',
       argType: Expr.type,
       returnType: (_) => Option.type(Type.type),
-      body: (arg) => RecordAccess.mk(target: arg, member: Expr.implID),
+      body: (arg) => RecordAccess.mk(arg, Expr.implID),
     );
 
     final result2 = eval(testCtx, FnApp.mk(implFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect((result2 as Dict)[Expr.dataTypeID].unwrap!, equals(TypeDef.asType(Literal.typeDef)));
 
-    final dataFn = Fn.from(
+    final dataFn = FnExpr.from(
       argName: 'arg',
       argType: Expr.type,
       returnType: (_) => Option.type(Type.type),
-      body: (arg) => RecordAccess.mk(target: arg, member: Expr.dataID),
+      body: (arg) => RecordAccess.mk(arg, Expr.dataID),
     );
 
     final result4 = eval(testCtx, FnApp.mk(dataFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
@@ -50,16 +50,13 @@ void main() {
       equals(Dict({Literal.typeID: number, Literal.valueID: 0})),
     );
 
-    final typeCheckFn = Fn.from(
+    final typeCheckFn = FnExpr.from(
       argName: 'arg',
       argType: Expr.type,
       returnType: (_) => Option.type(Type.type),
       body: (arg) => FnApp.mk(
-        RecordAccess.mk(
-          target: RecordAccess.mk(target: arg, member: Expr.implID),
-          member: Expr.typeCheckID,
-        ),
-        RecordAccess.mk(target: arg, member: Expr.dataID),
+        RecordAccess.mk(RecordAccess.mk(arg, Expr.implID), Expr.typeCheckID),
+        RecordAccess.mk(arg, Expr.dataID),
       ),
     );
 
@@ -71,8 +68,8 @@ void main() {
 
   test('RecordAccess + Literal', () {
     final expr = RecordAccess.mk(
-      target: Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
-      member: sillyID,
+      Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
+      sillyID,
     );
 
     final type = typeCheck(testCtx, expr);
@@ -97,11 +94,11 @@ void main() {
 
   test('Fn + FnApp + VarAccess', () {
     final expr = FnApp.mk(
-      Fn.from(
+      FnExpr.from(
         argName: 'arg',
         argType: Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)),
         returnType: (_) => Literal.mk(Type.type, number),
-        body: (arg) => RecordAccess.mk(target: arg, member: sillyID),
+        body: (arg) => RecordAccess.mk(arg, sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
     );
@@ -133,23 +130,22 @@ void main() {
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
-    final interfaceCtx = Option.unwrap(Module.load(
-      coreCtx,
-      Module.mk(name: 'testIface', definitions: [InterfaceDef.mkDef(interfaceDef)]),
-    )) as Ctx;
     final thisCtx = Option.unwrap(Module.load(
-      interfaceCtx,
-      Module.mk(name: 'testIface', definitions: [ImplDef.mkDef(implDef)]),
+      coreCtx,
+      Module.mk(
+        name: 'testIface',
+        definitions: [InterfaceDef.mkDef(interfaceDef), ImplDef.mkDef(implDef)],
+      ),
     )) as Ctx;
 
     final expr = RecordAccess.mk(
-      target: Literal.mk(
+      Literal.mk(
         InterfaceDef.implType(interfaceDef, [
           MemberHas.mkEquals([dataTypeID], Type.type, number)
         ]),
         impl,
       ),
-      member: valueID,
+      valueID,
     );
     final type = typeCheck(thisCtx, expr);
     expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
@@ -160,12 +156,12 @@ void main() {
 
   test('parametric function!', () {
     final arg = Var.mk(ID('testArg'));
-    final fn = Fn.pal(
+    final fn = FnExpr.pal(
       argID: Var.id(Expr.data(arg)),
       argName: 'someting!!',
       argType: Literal.mk(Type.type, Literal.type),
-      returnType: RecordAccess.mk(target: arg, member: Literal.typeID),
-      body: RecordAccess.mk(target: arg, member: Literal.valueID),
+      returnType: RecordAccess.mk(arg, Literal.typeID),
+      body: RecordAccess.mk(arg, Literal.valueID),
     );
 
     expect(
@@ -174,10 +170,13 @@ void main() {
         fn,
       ),
       equals(Option.mk(
-        FnValue.typeExpr(
-          argID: Var.id(Expr.data(arg)),
-          argType: Literal.mk(Type.type, Literal.type),
-          returnType: RecordAccess.mk(target: arg, member: Literal.typeID),
+        reduce(
+          coreCtx,
+          Fn.typeExpr(
+            argID: Var.id(Expr.data(arg)),
+            argType: Literal.mk(Type.type, Literal.type),
+            returnType: RecordAccess.mk(arg, Literal.typeID),
+          ),
         ),
       )),
     );

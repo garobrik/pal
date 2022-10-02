@@ -9,7 +9,7 @@ abstract class Printable {
     dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
     printID: TypeTree.mk(
       'print',
-      FnValue.typeExpr(
+      Fn.typeExpr(
         argID: printArgID,
         argType: Var.mk(dataTypeID),
         returnType: Literal.mk(Type.type, text),
@@ -17,20 +17,115 @@ abstract class Printable {
     ),
   });
 
-  static Object mkImpl({required Object dataType, required Object print}) => ImplDef.mk(
+  static Object mkImpl({required Object dataType, required Object Function(Ctx, Object) print}) =>
+      ImplDef.mk(
         implemented: InterfaceDef.id(interfaceDef),
-        definition: Dict({dataTypeID: Literal.mk(Type.type, dataType), printID: print}),
+        definition: Dict({
+          dataTypeID: Literal.mk(Type.type, dataType),
+          printID: FnExpr.dart(
+            argID: printArgID,
+            argName: 'printArg',
+            argType: Literal.mk(Type.type, dataType),
+            returnType: Literal.mk(Type.type, text),
+            body: print,
+          ),
+        }),
       );
 
-  static final anyImpl = mkImpl(
-    dataType: Any.type,
-    print: Fn.dart(
-      argID: printArgID,
-      argName: 'data',
-      argType: Literal.mk(Type.type, Any.type),
-      returnType: Literal.mk(Type.type, text),
-      body: (ctx, any) {
-        final typeDef = ctx.getType(Type.id(Any.getType(any)));
+  static Object mkParameterizedImpl({
+    required Object argType,
+    required Object Function(Object) dataType,
+    required Object Function(Ctx, Object, Object) print,
+  }) =>
+      ImplDef.mkDart(
+        implemented: InterfaceDef.id(interfaceDef),
+        argType: argType,
+        returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
+          MemberHas.mkEqualsExpr(
+            [dataTypeID],
+            Literal.mk(Type.type, Type.type),
+            dataType(typeArgExpr),
+          )
+        ]),
+        definition: (ctx, typeArgValue) {
+          final dataTypeValue = eval(
+            ctx,
+            FnApp.mk(
+              FnExpr.from(
+                argName: 'typeArg',
+                argType: Literal.mk(Type.type, Type.type),
+                returnType: (_) => Literal.mk(Type.type, Type.type),
+                body: (arg) => dataType(arg),
+              ),
+              Literal.mk(Type.type, typeArgValue),
+            ),
+          );
+          return Dict({
+            dataTypeID: dataTypeValue,
+            printID: eval(
+              ctx,
+              FnExpr.dart(
+                argID: printArgID,
+                argName: 'data',
+                argType: Literal.mk(Type.type, dataTypeValue),
+                returnType: Literal.mk(Type.type, text),
+                body: (ctx, data) => print(ctx, dataTypeValue, data),
+              ),
+            ),
+          });
+        },
+      );
+
+  // static final listImpl = mkImpl(
+  //   dataType: List.type,
+  //   print: Fn.dart(
+  //     argName: 'data',
+  //     argType: Literal.mk(Type.type, List.type),
+  //     returnType: Literal.mk(Type.type, text),
+  //     body: (ctx, list) {
+  //       var tree = TypeDef.tree(typeDef);
+  //       return '${TypeTree.name(tree)}(${recurse(tree, Any.getValue(any))})';
+  //     },
+  //   ),
+  // );
+
+  static final printFn = FnExpr.dart(
+    argName: 'object',
+    argType: Literal.mk(Type.type, Any.type),
+    returnType: Literal.mk(Type.type, text),
+    body: (ctx, arg) {
+      final impl = Option.unwrap(
+        dispatch(
+          ctx,
+          InterfaceDef.id(interfaceDef),
+          InterfaceDef.implType(interfaceDef, [
+            MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
+          ]),
+        ),
+      );
+
+      final dataType = (impl as Dict)[dataTypeID].unwrap!;
+      return eval(
+        ctx,
+        FnApp.mk(
+          Literal.mk(
+            Fn.type(argID: printArgID, argType: dataType, returnType: Literal.mk(Type.type, text)),
+            impl[printID].unwrap!,
+          ),
+          Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),
+        ),
+      );
+    },
+  );
+
+  static final module = Module.mk(name: 'Print', definitions: [
+    ValueDef.mk(id: ID('printFn'), name: 'print', value: printFn),
+    InterfaceDef.mkDef(interfaceDef),
+    ImplDef.mkDef(mkParameterizedImpl(
+      argType: Type.type,
+      dataType: (typeArg) => typeArg,
+      print: (ctx, typeArg, data) {
+        final typeDef = ctx.getType(Type.id(typeArg));
 
         String recurse(Ctx ctx, Object typeTree, Object dataTree) {
           return TypeTree.treeCases(
@@ -57,16 +152,12 @@ abstract class Printable {
               final subTree = union[UnionTag.tag(dataTree)].unwrap!;
               return '${TypeTree.name(subTree)}(${recurse(ctx, subTree, UnionTag.value(dataTree))})';
             },
-            leaf: (leaf) {
-              final leafType = eval(ctx, leaf);
-              return eval(ctx, FnApp.mk(printFn, Literal.mk(Any.type, Any.mk(leafType, dataTree))))
-                  as String;
-            },
+            leaf: (leaf) => palPrint(ctx, eval(ctx, leaf), dataTree),
           );
         }
 
         final tree = TypeDef.tree(typeDef);
-        final augmentedValue = TypeTree.augmentTree(Any.getType(any), Any.getValue(any));
+        final augmentedValue = TypeTree.augmentTree(typeArg, data);
         final dataBindings = TypeTree.dataBindings(tree, augmentedValue);
         final resultString = recurse(
           dataBindings.fold(
@@ -78,90 +169,50 @@ abstract class Printable {
         );
         return '${TypeTree.name(tree)}($resultString)';
       },
-    ),
-  );
-
-  static final typeImpl = mkImpl(
-    dataType: Type.type,
-    print: Fn.dart(
-      argID: printArgID,
-      argName: 'type',
-      argType: Literal.mk(Type.type, Type.type),
-      returnType: Literal.mk(Type.type, text),
-      body: (ctx, type) {
+    )),
+    ImplDef.mkDef(mkParameterizedImpl(
+      argType: Type.type,
+      dataType: (typeArg) => List.typeExpr(typeArg),
+      print: (ctx, listType, data) {
+        final memberType = Type.memberEquals(listType, [List.typeID]);
+        return '[${List.iterate(data).map((elem) => palPrint(ctx, memberType, elem)).join(", ")}]';
+      },
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Type.type,
+      print: (ctx, type) {
         final tree = TypeDef.tree(ctx.getType(Type.id(type)));
         final name = TypeTree.name(tree);
         final props = List.iterate(Type.properties(type))
-            .map((prop) => eval(ctx, FnApp.mk(printFn, Any.mk(TypeProperty.type, prop))));
+            .map((prop) => palPrint(ctx, TypeProperty.type, prop));
         final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
         return '$name$suffix';
       },
-    ),
-  );
-
-  static final numberImpl = mkImpl(
-    dataType: number,
-    print: Fn.dart(
-      argID: printArgID,
-      argName: 'number',
-      argType: Literal.mk(Type.type, number),
-      returnType: Literal.mk(Type.type, text),
-      body: (ctx, number) {
-        return '$number';
-      },
-    ),
-  );
-
-  // static final listImpl = mkImpl(
-  //   dataType: List.type,
-  //   print: Fn.dart(
-  //     argName: 'data',
-  //     argType: Literal.mk(Type.type, List.type),
-  //     returnType: Literal.mk(Type.type, text),
-  //     body: (ctx, list) {
-  //       var tree = TypeDef.tree(typeDef);
-  //       return '${TypeTree.name(tree)}(${recurse(tree, Any.getValue(any))})';
-  //     },
-  //   ),
-  // );
-
-  static final printFn = Fn.dart(
-    argName: 'object',
-    argType: Literal.mk(Type.type, Any.type),
-    returnType: Literal.mk(Type.type, text),
-    body: (ctx, arg) {
-      final impl = Option.unwrap(
-        dispatch(
-          ctx,
-          InterfaceDef.id(interfaceDef),
-          InterfaceDef.implType(interfaceDef, [
-            MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
-          ]),
-        ),
-      );
-
-      final dataType = (impl as Dict)[dataTypeID].unwrap!;
-      return eval(
-        ctx,
-        FnApp.mk(
-          Literal.mk(
-            FnValue.type(argID: printArgID, argType: dataType, returnType: text),
-            impl[printID].unwrap!,
-          ),
-          Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),
-        ),
-      );
-    },
-  );
-
-  static final module = Module.mk(name: 'Print', definitions: [
-    ValueDef.mk(id: ID('printFn'), name: 'print', value: printFn),
-    InterfaceDef.mkDef(interfaceDef),
-    ImplDef.mkDef(anyImpl),
-    ImplDef.mkDef(typeImpl),
-    ImplDef.mkDef(numberImpl),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: number,
+      print: (_, number) => '$number',
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: TypeProperty.type,
+      print: (ctx, prop) => palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop)),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: MemberHas.type,
+      print: (ctx, memberHas) =>
+          List.iterate(MemberHas.path(memberHas)).map((id) => (id as ID).label ?? id.id).join('.') +
+          palPrint(ctx, TypeProperty.type, MemberHas.property(memberHas)),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Equals.type,
+      print: (ctx, equals) =>
+          ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}',
+    )),
   ]);
 }
+
+String palPrint(Ctx ctx, Object type, Object value) =>
+    eval(ctx, FnApp.mk(Printable.printFn, Literal.mk(Any.type, Any.mk(type, value)))) as String;
 
 /*
 def print(t: Type, value: t) => dispatch(Printable{dataType: t[=value]})
