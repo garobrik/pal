@@ -3,6 +3,8 @@ import 'dart:core';
 import 'package:ctx/ctx.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
 import 'package:uuid/uuid.dart';
+// ignore: unused_import
+import 'package:knose/src/pal2/print.dart';
 
 typedef Dict = reified.Dict<Object, Object>;
 typedef DartList = dart.List<Object>;
@@ -108,7 +110,7 @@ abstract class Module {
     return Option.mk(resultCtx);
   }
 
-  static final bindingOrDef = Union.type([ModuleDef.type, Binding.type]);
+  static final bindingOrType = Union.type([ModuleDef.type, Binding.type]);
 }
 
 abstract class ModuleDef extends InterfaceDef {
@@ -122,7 +124,7 @@ abstract class ModuleDef extends InterfaceDef {
       Fn.typeExpr(
         argID: bindingsArgID,
         argType: Var.mk(dataTypeID),
-        returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
+        returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
       ),
     ),
   });
@@ -199,7 +201,7 @@ abstract class ValueDef {
       argID: ModuleDef.bindingsArgID,
       argName: 'valueDef',
       argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
       body: (ctx, arg) {
         Object? lazyType;
         Object? lazyValue;
@@ -288,7 +290,7 @@ abstract class TypeDef {
       argID: ModuleDef.bindingsArgID,
       argName: 'typeDef',
       argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
       body: (ctx, typeDef) {
         return List.mk([
           Union.mk(
@@ -803,7 +805,7 @@ abstract class InterfaceDef {
       argID: ModuleDef.bindingsArgID,
       argName: 'interfaceDef',
       argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
       body: (ctx, ifaceDef) {
         return List.mk([
           Union.mk(
@@ -895,7 +897,7 @@ abstract class ImplDef {
       argID: ModuleDef.bindingsArgID,
       argName: 'typeDef',
       argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrDef)),
+      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
       body: (ctx, implDef) => List.mk([
         Union.mk(
           ModuleDef.type,
@@ -1342,7 +1344,7 @@ abstract class Any {
     'Any',
     {
       typeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
-      valueID: TypeTree.mk('valueID', Var.mk(typeID)),
+      valueID: TypeTree.mk('value', Var.mk(typeID)),
     },
     id: anyTypeID,
   );
@@ -1377,7 +1379,7 @@ abstract class Fn {
   static final palID = ID('pal');
   static final dartID = ID('dart');
 
-  static final typeDefID = ID('FnValue');
+  static final typeDefID = ID('Fn');
   static final typeDef = TypeDef.record(
     'Fn',
     {
@@ -2756,6 +2758,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   TypeDef.mkDef(MemberHas.typeDef),
   ImplDef.mkDef(MemberHas.propImplDef),
   TypeDef.mkDef(UnionTag.def),
+  TypeDef.mkDef(Union.def),
   TypeDef.mkDef(TypeTree.def),
   TypeDef.mkDef(InterfaceDef.def),
   ImplDef.mkDef(InterfaceDef.moduleDefImplDef),

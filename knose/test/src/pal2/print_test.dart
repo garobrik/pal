@@ -23,7 +23,7 @@ void main() {
     );
   });
 
-  test('print types', () {
+  test('print type', () {
     final compoundTypeExpr = FnApp.mk(
       Var.mk(Printable.printFnID),
       Literal.mk(Any.type, Any.mk(Type.type, List.type(Option.type(text)))),
@@ -36,6 +36,28 @@ void main() {
       eval(ctx, compoundTypeExpr),
       equals(
         'List<type = Option<dataType = Text>>',
+      ),
+    );
+  });
+
+  test('print var', () {
+    expect(
+      palPrint(ctx, Expr.type, Var.mk(Printable.printFnID)),
+      equals(
+        'print',
+      ),
+    );
+  });
+
+  test('print any', () {
+    expect(
+      palPrint(
+        ctx,
+        Any.type,
+        Any.mk(number, 5),
+      ),
+      equals(
+        'Any(type: Number, value: 5)',
       ),
     );
   });

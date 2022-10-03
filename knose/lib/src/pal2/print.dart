@@ -106,7 +106,7 @@ abstract class Printable {
                     argID: printArgID, argType: dataType, returnType: Literal.mk(Type.type, text)),
                 impl[printID].unwrap!,
               ),
-              Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),
+              Literal.mk(dataType, Any.getValue(arg)),
             ),
           );
         },
@@ -198,6 +198,22 @@ abstract class Printable {
       dataType: Equals.type,
       print: (ctx, equals) =>
           ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}',
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Expr.type,
+      print: (ctx, expr) => palPrint(ctx, Expr.dataType(expr), Expr.data(expr)),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: ID.type,
+      print: (ctx, id) => '$id',
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Var.type,
+      print: (ctx, varData) => Option.cases(
+        ctx.getBinding(Var.id(varData)),
+        some: (binding) => Binding.name(binding),
+        none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
+      ),
     )),
   ]);
 }
