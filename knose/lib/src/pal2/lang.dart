@@ -598,9 +598,9 @@ abstract class TypeTree {
   static final type = Type.mk(id);
 
   static Dict record(String name, dart.Map<ID, Object> members) =>
-      Dict({nameID: name, treeID: UnionTag.mk(recordID, Dict(members))});
+      Dict({nameID: name, treeID: UnionTag.mk(recordID, Map.mk(members))});
   static Dict union(String name, dart.Map<ID, Dict> cases) =>
-      Dict({nameID: name, treeID: UnionTag.mk(unionID, Dict(cases))});
+      Dict({nameID: name, treeID: UnionTag.mk(unionID, Map.mk(cases))});
   static Dict mk(String name, Object type) =>
       Dict({nameID: name, treeID: UnionTag.mk(leafID, type)});
   static Dict unit(String name) => TypeTree.record(name, const {});
@@ -612,17 +612,17 @@ abstract class TypeTree {
     Object typeTree, {
     required T Function(Dict) record,
     required T Function(Dict) union,
-    required T Function(Dict) leaf,
+    required T Function(Object) leaf,
   }) {
     final tree = TypeTree.tree(typeTree);
     final tag = UnionTag.tag(tree);
     final value = UnionTag.value(tree);
     if (tag == recordID) {
-      return record(value as Dict);
+      return record(Map.entries(value));
     } else if (tag == unionID) {
-      return union(value as Dict);
+      return union(Map.entries(value));
     } else if (tag == leafID) {
-      return leaf(value as Dict);
+      return leaf(value);
     } else {
       throw Exception("unknown tree case");
     }
@@ -958,6 +958,27 @@ abstract class Union {
   }
 }
 
+abstract class Pair {
+  static final firstTypeID = ID('firstType');
+  static final secondTypeID = ID('secondType');
+  static final firstID = ID('first');
+  static final secondID = ID('second');
+  static final def = TypeDef.record('Pair', {
+    firstTypeID: TypeTree.mk('firstType', Literal.mk(Type.type, Type.type)),
+    secondTypeID: TypeTree.mk('secondType', Literal.mk(Type.type, Type.type)),
+    firstID: TypeTree.mk('first', Var.mk(firstTypeID)),
+    secondID: TypeTree.mk('second', Var.mk(secondTypeID)),
+  }, comptime: [
+    firstTypeID,
+    secondTypeID
+  ]);
+
+  static Object type(Object first, Object second) => TypeDef.asType(def, properties: [
+        MemberHas.mkEquals([firstTypeID], Type.type, first),
+        MemberHas.mkEquals([secondTypeID], Type.type, second),
+      ]);
+}
+
 abstract class Option {
   static final dataTypeID = ID('dataType');
   static final valueID = ID('value');
@@ -1273,21 +1294,30 @@ abstract class List {
   static Object tail(Object list) => _withList(list, (i) => [...i.skip(1)]);
 }
 
-class Map {
+abstract class Map {
   static final keyID = ID('key');
   static final valueID = ID('value');
+  static final entriesID = ID('entries');
   static final def = TypeDef.record(
     'Map',
     {
       keyID: TypeTree.mk('key', Literal.mk(Type.type, Type.type)),
       valueID: TypeTree.mk('value', Literal.mk(Type.type, Type.type)),
+      entriesID: TypeTree.mk('entries', Literal.mk(Type.type, unit)),
     },
     comptime: [keyID, valueID],
   );
 
-  static Object type(Object key, Object value) => TypeDef.asType(def);
+  static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
+        MemberHas.mkEquals([keyID], Type.type, key),
+        MemberHas.mkEquals([valueID], Type.type, value),
+      ]);
+  static Object typeExpr(Object key, Object value) => Type.mkExpr(TypeDef.id(def), properties: [
+        MemberHas.mkEqualsExpr([keyID], Literal.mk(Type.type, Type.type), key),
+        MemberHas.mkEqualsExpr([valueID], Literal.mk(Type.type, Type.type), value),
+      ]);
 
-  static Object mk(Type key, Type value, Dict values) => values;
+  static Object mk(dart.Map<Object, Object> values) => Dict({entriesID: Dict(values)});
 
   static final mkExprID = ID('mkExpr');
   static final mkKeyID = ID('mkKey');
@@ -1333,6 +1363,8 @@ class Map {
         impl: ImplDef.asImpl(Ctx.empty, Expr.interfaceDef, mkExprImplDef),
         data: Dict({mkKeyID: key, mkValueID: value, mkEntriesID: entries}),
       );
+
+  static Dict entries(Object map) => (map as Dict)[entriesID].unwrap! as Dict;
 }
 
 abstract class Any {
@@ -1889,7 +1921,7 @@ abstract class Construct extends Expr {
     'Construct',
     {
       dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-      treeID: TypeTree.mk('tree', Literal.mk(Type.type, Any.type)),
+      treeID: TypeTree.mk('tree', Literal.mk(Type.type, unit)),
     },
     id: typeDefID,
   );
@@ -2795,6 +2827,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   ImplDef.mkDef(MemberHas.propImplDef),
   TypeDef.mkDef(UnionTag.def),
   TypeDef.mkDef(Union.def),
+  TypeDef.mkDef(Pair.def),
   TypeDef.mkDef(TypeTree.def),
   TypeDef.mkDef(InterfaceDef.def),
   ImplDef.mkDef(InterfaceDef.moduleDefImplDef),

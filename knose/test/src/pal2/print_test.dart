@@ -61,4 +61,30 @@ void main() {
       ),
     );
   });
+
+  test('print map', () {
+    expect(
+      palPrint(
+        ctx,
+        Map.type(text, number),
+        Map.mk({'zero': 0, 'one': 1}),
+      ),
+      equals(
+        '{"zero": 0, "one": 1}',
+      ),
+    );
+  });
+
+  test('print type tree', () {
+    expect(
+      palPrint(
+        ctx,
+        TypeTree.type,
+        InterfaceDef.tree(ModuleDef.interfaceDef),
+      ),
+      equals(
+        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Literal(type: Type, value: Type))), ID(bindings): TypeTree(name: "bindings", tree: leaf(Construct(dataType: Type, tree: Unit())))}))',
+      ),
+    );
+  });
 }

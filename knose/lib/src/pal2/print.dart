@@ -19,6 +19,7 @@ abstract class Printable {
 
   static Object mkImpl({required Object dataType, required Object Function(Ctx, Object) print}) =>
       ImplDef.mk(
+        id: ID(Type.id(dataType).label),
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
           dataTypeID: Literal.mk(Type.type, dataType),
@@ -33,11 +34,13 @@ abstract class Printable {
       );
 
   static Object mkParameterizedImpl({
+    required String name,
     required Object argType,
     required Object Function(Object) dataType,
     required Object Function(Ctx, Object, Object) print,
   }) =>
       ImplDef.mkDart(
+        id: ID(name),
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
         returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
@@ -53,11 +56,11 @@ abstract class Printable {
             FnApp.mk(
               FnExpr.from(
                 argName: 'typeArg',
-                argType: Literal.mk(Type.type, Type.type),
+                argType: Literal.mk(Type.type, argType),
                 returnType: (_) => Literal.mk(Type.type, Type.type),
                 body: (arg) => dataType(arg),
               ),
-              Literal.mk(Type.type, typeArgValue),
+              Literal.mk(argType, typeArgValue),
             ),
           );
           return Dict({
@@ -113,6 +116,7 @@ abstract class Printable {
       ),
     ),
     ImplDef.mkDef(mkParameterizedImpl(
+      name: 'Default',
       argType: Type.type,
       dataType: (typeArg) => typeArg,
       print: (ctx, typeArg, data) {
@@ -162,11 +166,25 @@ abstract class Printable {
       },
     )),
     ImplDef.mkDef(mkParameterizedImpl(
+      name: 'List',
       argType: Type.type,
       dataType: (typeArg) => List.typeExpr(typeArg),
       print: (ctx, listType, data) {
         final memberType = Type.memberEquals(listType, [List.typeID]);
         return '[${List.iterate(data).map((elem) => palPrint(ctx, memberType, elem)).join(", ")}]';
+      },
+    )),
+    ImplDef.mkDef(mkParameterizedImpl(
+      name: 'Map',
+      argType: Pair.type(Type.type, Type.type),
+      dataType: (typeArg) => Map.typeExpr(
+        RecordAccess.mk(typeArg, Pair.firstID),
+        RecordAccess.mk(typeArg, Pair.secondID),
+      ),
+      print: (ctx, mapType, data) {
+        final keyType = Type.memberEquals(mapType, [Map.keyID]);
+        final valueType = Type.memberEquals(mapType, [Map.valueID]);
+        return '{${Map.entries(data).entries.map((entry) => "${palPrint(ctx, keyType, entry.key)}: ${palPrint(ctx, valueType, entry.value)}").join(", ")}}';
       },
     )),
     ImplDef.mkDef(mkImpl(
@@ -180,10 +198,8 @@ abstract class Printable {
         return '$name$suffix';
       },
     )),
-    ImplDef.mkDef(mkImpl(
-      dataType: number,
-      print: (_, number) => '$number',
-    )),
+    ImplDef.mkDef(mkImpl(dataType: number, print: (_, number) => '$number')),
+    ImplDef.mkDef(mkImpl(dataType: text, print: (_, text) => '"$text"')),
     ImplDef.mkDef(mkImpl(
       dataType: TypeProperty.type,
       print: (ctx, prop) => palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop)),
