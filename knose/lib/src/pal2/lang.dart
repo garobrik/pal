@@ -2682,12 +2682,48 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
     }
     bestType = bindingType;
     bestImpl = Option.unwrap(Binding.value(ctx, binding));
-    bestArg = subst[ImplDef.definitionArgID] ?? unitExpr;
+    final argType = Literal.getValue(
+      Expr.data(Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.argTypeID])),
+    );
+    bestArg = _extractSubstArg(ctx, argType, subst);
   }
   // TODO: the type in the literal is wrong but it doesn't rly matter
   return Option.mk(
     bestImpl == null ? null : eval(ctx, FnApp.mk(Literal.mk(Type.type, bestImpl), bestArg!)),
   );
+}
+
+Object _extractSubstArg(Ctx ctx, Object type, dart.Map<ID, Object> subst) {
+  if (subst.containsKey(ImplDef.definitionArgID)) {
+    return subst[ImplDef.definitionArgID]!;
+  }
+  final typeDef = ctx.getType(Type.id(type));
+  var notFound = false;
+  Object recurse(ID path, Object typeTree) {
+    return TypeTree.treeCases(
+      typeTree,
+      record: (record) {
+        return Dict({
+          for (final entry in record.entries)
+            if (!TypeDef.comptime(typeDef).contains(entry.key))
+              entry.key: recurse(path.append(entry.key as ID), entry.value),
+        });
+      },
+      union: (_) => throw UnimplementedError(),
+      leaf: (leaf) {
+        if (subst.containsKey(path)) return subst[path]!;
+        notFound = true;
+        return const Dict({});
+      },
+    );
+  }
+
+  final constructExpr = Construct.mk(
+    type,
+    TypeTree.augmentTree(type, recurse(ImplDef.definitionArgID, TypeDef.tree(typeDef))),
+  );
+  if (notFound) return unitExpr;
+  return constructExpr;
 }
 
 Object eval(Ctx ctx, Object expr) {
