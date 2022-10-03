@@ -8,7 +8,7 @@ void main() {
 
   test('print option', () {
     final basicExpr = FnApp.mk(
-      Printable.printFn,
+      Var.mk(Printable.printFnID),
       Literal.mk(Any.type, Any.mk(Option.type(number), Option.mk(5))),
     );
 
@@ -25,7 +25,7 @@ void main() {
 
   test('print types', () {
     final compoundTypeExpr = FnApp.mk(
-      Printable.printFn,
+      Var.mk(Printable.printFnID),
       Literal.mk(Any.type, Any.mk(Type.type, List.type(Option.type(text)))),
     );
 

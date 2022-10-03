@@ -76,51 +76,42 @@ abstract class Printable {
         },
       );
 
-  // static final listImpl = mkImpl(
-  //   dataType: List.type,
-  //   print: Fn.dart(
-  //     argName: 'data',
-  //     argType: Literal.mk(Type.type, List.type),
-  //     returnType: Literal.mk(Type.type, text),
-  //     body: (ctx, list) {
-  //       var tree = TypeDef.tree(typeDef);
-  //       return '${TypeTree.name(tree)}(${recurse(tree, Any.getValue(any))})';
-  //     },
-  //   ),
-  // );
-
-  static final printFn = FnExpr.dart(
-    argName: 'object',
-    argType: Literal.mk(Type.type, Any.type),
-    returnType: Literal.mk(Type.type, text),
-    body: (ctx, arg) {
-      final impl = Option.unwrap(
-        dispatch(
-          ctx,
-          InterfaceDef.id(interfaceDef),
-          InterfaceDef.implType(interfaceDef, [
-            MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
-          ]),
-        ),
-      );
-
-      final dataType = (impl as Dict)[dataTypeID].unwrap!;
-      return eval(
-        ctx,
-        FnApp.mk(
-          Literal.mk(
-            Fn.type(argID: printArgID, argType: dataType, returnType: Literal.mk(Type.type, text)),
-            impl[printID].unwrap!,
-          ),
-          Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),
-        ),
-      );
-    },
-  );
-
+  static final printFnID = ID('print');
   static final module = Module.mk(name: 'Print', definitions: [
-    ValueDef.mk(id: ID('printFn'), name: 'print', value: printFn),
     InterfaceDef.mkDef(interfaceDef),
+    ValueDef.mk(
+      id: printFnID,
+      name: 'print',
+      value: FnExpr.dart(
+        argName: 'object',
+        argType: Literal.mk(Type.type, Any.type),
+        returnType: Literal.mk(Type.type, text),
+        body: (ctx, arg) {
+          final impl = Option.unwrap(
+            dispatch(
+              ctx,
+              InterfaceDef.id(interfaceDef),
+              InterfaceDef.implType(interfaceDef, [
+                MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
+              ]),
+            ),
+          );
+
+          final dataType = (impl as Dict)[dataTypeID].unwrap!;
+          return eval(
+            ctx,
+            FnApp.mk(
+              Literal.mk(
+                Fn.type(
+                    argID: printArgID, argType: dataType, returnType: Literal.mk(Type.type, text)),
+                impl[printID].unwrap!,
+              ),
+              Literal.mk(dataType, dataType == Any.type ? arg : Any.getValue(arg)),
+            ),
+          );
+        },
+      ),
+    ),
     ImplDef.mkDef(mkParameterizedImpl(
       argType: Type.type,
       dataType: (typeArg) => typeArg,
@@ -212,7 +203,8 @@ abstract class Printable {
 }
 
 String palPrint(Ctx ctx, Object type, Object value) =>
-    eval(ctx, FnApp.mk(Printable.printFn, Literal.mk(Any.type, Any.mk(type, value)))) as String;
+    eval(ctx, FnApp.mk(Var.mk(Printable.printFnID), Literal.mk(Any.type, Any.mk(type, value))))
+        as String;
 
 /*
 def print(t: Type, value: t) => dispatch(Printable{dataType: t[=value]})

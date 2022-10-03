@@ -347,14 +347,14 @@ abstract class Type {
   static Object mkExpr(
     ID id, {
     Object? path,
-    Object? properties,
+    DartList properties = const [],
   }) =>
       Construct.mk(
         Type.type,
         Dict({
           IDID: Literal.mk(ID.type, id),
           pathID: path ?? Literal.mk(List.type(ID.type), List.mk(const [])),
-          propertiesID: properties ?? Literal.mk(List.type(TypeProperty.type), List.mk(const [])),
+          propertiesID: List.mkExpr(TypeProperty.type, properties),
         }),
       );
 
@@ -836,10 +836,8 @@ abstract class InterfaceDef {
       Type.mk(innerTypeDefID(interfaceID), properties: properties);
   static Object implTypeExpr(Object interfaceDef, [DartList properties = const []]) =>
       implTypeExprByID(InterfaceDef.id(interfaceDef), properties);
-  static Object implTypeExprByID(ID interfaceID, [DartList properties = const []]) => Type.mkExpr(
-        innerTypeDefID(interfaceID),
-        properties: List.mkExpr(TypeProperty.type, properties),
-      );
+  static Object implTypeExprByID(ID interfaceID, [DartList properties = const []]) =>
+      Type.mkExpr(innerTypeDefID(interfaceID), properties: properties);
 }
 
 abstract class ImplDef {
@@ -982,10 +980,9 @@ abstract class Option {
         MemberHas.mk(path: [dataTypeID], property: Equals.mk(Type.type, dataType)),
       ]);
 
-  static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)),
-      properties: List.mkExpr(TypeProperty.type, [
+  static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)), properties: [
         MemberHas.mkEqualsExpr([dataTypeID], Literal.mk(Type.type, Type.type), dataType),
-      ]));
+      ]);
 
   static T cases<T>(
     Object option, {
@@ -1253,12 +1250,9 @@ abstract class List {
         MemberHas.mk(path: [typeID], property: Equals.mk(Type.type, type)),
       ]);
 
-  static Object typeExpr(Object type) => Type.mkExpr(
-        typeDefID,
-        properties: List.mkExpr(TypeProperty.type, [
-          MemberHas.mkEqualsExpr([typeID], Literal.mk(Type.type, Type.type), type),
-        ]),
-      );
+  static Object typeExpr(Object type) => Type.mkExpr(typeDefID, properties: [
+        MemberHas.mkEqualsExpr([typeID], Literal.mk(Type.type, Type.type), type),
+      ]);
 
   static Object mk(DartList values) => Dict({itemsID: Vec(values)});
 
@@ -1415,21 +1409,18 @@ abstract class Fn {
     required Object argType,
     required Object returnType,
   }) =>
-      Type.mkExpr(
-        typeDefID,
-        properties: List.mkExpr(TypeProperty.type, [
-          Literal.mk(
-            TypeProperty.type,
-            MemberHas.mkEquals([argIDID], ID.type, argID),
-          ),
-          MemberHas.mkEqualsExpr([argTypeID], Literal.mk(Type.type, Type.type), argType),
-          MemberHas.mkEqualsExpr(
-            [returnTypeID],
-            Literal.mk(Type.type, typeExprType),
-            Literal.mk(typeExprType, returnType),
-          ),
-        ]),
-      );
+      Type.mkExpr(typeDefID, properties: [
+        Literal.mk(
+          TypeProperty.type,
+          MemberHas.mkEquals([argIDID], ID.type, argID),
+        ),
+        MemberHas.mkEqualsExpr([argTypeID], Literal.mk(Type.type, Type.type), argType),
+        MemberHas.mkEqualsExpr(
+          [returnTypeID],
+          Literal.mk(Type.type, typeExprType),
+          Literal.mk(typeExprType, returnType),
+        ),
+      ]);
 
   static Object mk({
     required ID argID,
@@ -1987,13 +1978,9 @@ abstract class Construct extends Expr {
       return Option.mk();
     }
 
-    return Option.mk(reduce(
-      origCtx,
-      Type.mkExpr(
-        Type.id(dataType(arg)),
-        properties: List.mkExpr(TypeProperty.type, computedProps),
-      ),
-    ));
+    return Option.mk(
+      reduce(origCtx, Type.mkExpr(Type.id(dataType(arg)), properties: computedProps)),
+    );
   }
 
   static Object _reduceFn(Ctx ctx, Object arg) {
