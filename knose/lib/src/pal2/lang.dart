@@ -285,6 +285,7 @@ abstract class TypeDef {
   });
   static final type = asType(def);
 
+  static final _typeLitID = ID('TypeLiteral');
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
     bindings: FnExpr.dart(
@@ -305,7 +306,7 @@ abstract class TypeDef {
           Union.mk(
             ModuleDef.type,
             ValueDef.mk(
-              id: ID(),
+              id: TypeDef.id(typeDef).append(_typeLitID),
               name: TypeTree.name(TypeDef.tree(typeDef)),
               value: Literal.mk(Type.type, TypeDef.asType(typeDef)),
             ),
