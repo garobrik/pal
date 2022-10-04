@@ -252,8 +252,10 @@ final palUIModule = Module.mk(
                         id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
                       } else if (dataType == ImplDef.type) {
                         id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
+                      } else if (dataType == ValueDef.type) {
+                        id = moduleDef[ModuleDef.dataID][ValueDef.IDID];
                       } else {
-                        throw Exception('unknown moduledef impl');
+                        throw Exception('unknown moduledef impl $dataType');
                       }
                       return ReaderWidget(
                         key: ValueKey(id.read(ctx)),
@@ -326,6 +328,25 @@ final palUIModule = Module.mk(
                                   ],
                                 );
                               },
+                            );
+                          } else if (dataType == ValueDef.type) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                RichText(
+                                  text: TextSpan(children: [
+                                    const TextSpan(text: 'let '),
+                                    _inlineTextField(
+                                      ctx,
+                                      moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
+                                    ),
+                                    const TextSpan(text: ' ='),
+                                  ]),
+                                ),
+                                InsetChild(
+                                  ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID]),
+                                ),
+                              ],
                             );
                           } else {
                             throw Exception('unknown ModuleDef type $dataType');
