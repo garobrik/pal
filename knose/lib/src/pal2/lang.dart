@@ -178,6 +178,7 @@ abstract class ValueDef {
     expectedTypeID: TypeTree.mk('expectedType', Literal.mk(Type.type, Option.type(Type.type))),
     valueID: TypeTree.mk('value', Literal.mk(Type.type, Expr.type)),
   });
+  static final type = TypeDef.asType(typeDef);
 
   static Object mk({
     required ID id,
@@ -905,7 +906,8 @@ abstract class ImplDef {
           ModuleDef.type,
           ValueDef.mk(
             id: bindingID(implDef),
-            name: 'impl',
+            name:
+                'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
             value: ImplDef.definition(implDef),
           ),
         ),

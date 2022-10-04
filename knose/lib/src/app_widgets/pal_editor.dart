@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
 import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec;
+import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' as reified;
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/src/pal2/lang.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -20,8 +21,8 @@ abstract class PalCursor {
   static final def = TypeDef.record(
     'Cursor',
     {
-      dataTypeID: Literal.mk(Type.type, Type.type),
-      cursorID: Literal.mk(Type.type, unit),
+      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      cursorID: TypeTree.mk('cursor', Literal.mk(Type.type, unit)),
     },
     id: defID,
     comptime: [dataTypeID],
@@ -127,8 +128,8 @@ final editorFn = Var.mk(ID('editor'));
 final editorArgsDataTypeID = ID('dataType');
 final editorArgsCursorID = ID('cursor');
 final editorArgsDef = TypeDef.record('EditorArgs', {
-  editorArgsDataTypeID: Literal.mk(Type.type, Type.type),
-  editorArgsCursorID: PalCursor.typeExpr(Var.mk(editorArgsDataTypeID)),
+  editorArgsDataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+  editorArgsCursorID: TypeTree.mk('cursor', PalCursor.typeExpr(Var.mk(editorArgsDataTypeID))),
 });
 
 final palUIModule = Module.mk(
@@ -317,7 +318,8 @@ final palUIModule = Module.mk(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                        'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {'),
+                                      'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
+                                    ),
                                     InsetChild(
                                       ExprEditor(
                                         ctx,
@@ -418,10 +420,17 @@ Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
 
 @reader
 Widget _testThingy(Ctx ctx) {
-  final module = useCursor(coreModule);
+  final modules = useCursor(Vec([coreModule, Printable.module, palUIModule]));
   final moduleCtx = useMemoized(
     () => GetCursor.compute(
-      (ctx) => Module.load(Ctx.empty, module.read(ctx)),
+      (ctx) => modules.read(ctx).fold<Object>(
+            Option.mk(Ctx.empty),
+            (ctx, module) => Option.cases(
+              ctx,
+              some: (ctx) => Module.load(ctx as Ctx, module),
+              none: () => Option.mk(),
+            ),
+          ),
       ctx: ctx,
     ),
   );
@@ -438,10 +447,12 @@ Widget _testThingy(Ctx ctx) {
           none: () => const Text('module load error!'),
         ),
       ),
-      const Divider(),
-      Expanded(
-        child: palEditor(uiCtx, Module.type, module),
-      ),
+      for (final module in modules.values(ctx)) ...[
+        const Divider(),
+        Expanded(
+          child: palEditor(uiCtx, Module.type, module),
+        ),
+      ],
     ],
   );
 }
@@ -859,24 +870,22 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       focusNode: wrapperFocusNode,
       child: ReaderWidget(
         ctx: ctx,
-        builder: (context, ctx) {
-          return Container(
-            decoration: BoxDecoration(
-              // border: Border.all(
-              //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
-              // ),
-              borderRadius: const BorderRadius.all(Radius.circular(3)),
-              boxShadow: [
-                BoxShadow(
-                  blurRadius: 8,
-                  color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
-                  blurStyle: BlurStyle.outer,
-                )
-              ],
-            ),
-            child: child,
-          );
-        },
+        builder: (context, ctx) => Container(
+          decoration: BoxDecoration(
+            // border: Border.all(
+            //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
+            // ),
+            borderRadius: const BorderRadius.all(Radius.circular(3)),
+            boxShadow: [
+              BoxShadow(
+                blurRadius: 8,
+                color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
+                blurStyle: BlurStyle.outer,
+              )
+            ],
+          ),
+          child: child,
+        ),
       ),
     ),
   );
