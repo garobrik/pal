@@ -105,6 +105,7 @@ Widget _deferredDropdown(
   bool constrainHeight = false,
   bool constrainWidth = false,
   BoxConstraints Function(BoxConstraints)? modifyConstraints,
+  bool closeOnExit = true,
 }) {
   final previousPolicy = FocusTraversalGroup.maybeOf(context);
 
@@ -145,16 +146,8 @@ Widget _deferredDropdown(
             return KeyEventResult.ignored;
           },
           skipTraversal: true,
-          onFocusChange: isOpen.set,
-          child: Container(
-            decoration: BoxDecoration(
-              boxShadow: const [
-                BoxShadow(color: Colors.grey, blurRadius: 7),
-              ],
-              color: Theme.of(context).canvasColor,
-            ),
-            child: dropdown,
-          ),
+          onFocusChange: closeOnExit ? isOpen.set : null,
+          child: DropdownBackground(child: dropdown),
         ),
       ),
       child: FocusTraversalGroup(
@@ -162,6 +155,19 @@ Widget _deferredDropdown(
         child: child,
       ),
     ),
+  );
+}
+
+@reader
+Widget _dropdownBackground(BuildContext context, {required Widget child}) {
+  return Container(
+    decoration: BoxDecoration(
+      boxShadow: const [
+        BoxShadow(color: Colors.grey, blurRadius: 7),
+      ],
+      color: Theme.of(context).canvasColor,
+    ),
+    child: child,
   );
 }
 
