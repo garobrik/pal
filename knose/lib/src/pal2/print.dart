@@ -231,6 +231,14 @@ abstract class Printable {
         none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
       ),
     )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Literal.type,
+      print: (ctx, literalData) => palPrint(
+        ctx,
+        Literal.getType(literalData),
+        Literal.getValue(literalData),
+      ),
+    )),
   ]);
 }
 
