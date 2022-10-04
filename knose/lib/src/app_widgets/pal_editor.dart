@@ -671,88 +671,111 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       builder: (_, ctx) {
         final inputText = useCursor('');
         final isOpen = useCursor(false);
-        useEffect(
-          () => inputText.listen((old, nu, diff) {
-            if (old.isEmpty && nu.isNotEmpty) isOpen.set(true);
-            if (old.isNotEmpty && nu.isEmpty) isOpen.set(false);
-          }),
-        );
-        return DeferredDropdown(
-          isOpen: isOpen,
-          dropdown: ReaderWidget(
-            ctx: ctx,
-            builder: (_, ctx) {
-              return Container(
-                constraints: const BoxConstraints(maxHeight: 500),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ...ctx.getBindings.expand((binding) {
-                        return Option.cases(
-                          Binding.value(ctx, binding),
-                          none: () => [],
-                          some: (value) {
-                            return [
-                              if (Binding.valueType(ctx, binding) == TypeDef.type)
-                                TextButton(
-                                  onPressed: () {
-                                    expr.set(Construct.mk(
-                                      TypeDef.asType(value),
-                                      TypeTree.instantiate(TypeDef.tree(value), placeholder),
-                                    ));
-                                    wrapperFocusNode.requestFocus();
-                                  },
-                                  child: Text('${TypeTree.name(TypeDef.tree(value))}.mk(...)'),
-                                )
-                              else
-                                TextButton(
-                                  onPressed: () {
-                                    expr.set(Var.mk(Binding.id(binding)));
-                                    wrapperFocusNode.requestFocus();
-                                  },
-                                  child: Text(
-                                    '${Binding.name(binding)}: ${Binding.valueType(ctx, binding)}',
+        return Focus(
+          onFocusChange: isOpen.set,
+          child: DeferredDropdown(
+            isOpen: isOpen,
+            closeOnExit: false,
+            dropdown: ReaderWidget(
+              ctx: ctx,
+              builder: (_, ctx) {
+                final children = ctx.getBindings
+                    .expand((binding) {
+                      final bindingType = Binding.valueType(ctx, binding);
+                      if (bindingType == Literal.mk(Type.type, TypeDef.type)) {
+                        return Option.cases(Binding.value(ctx, binding),
+                            none: () => <reified.Pair<String, Widget>>[],
+                            some: (value) {
+                              final name = '${TypeTree.name(TypeDef.tree(value))}.mk(...)';
+                              return [
+                                reified.Pair(
+                                  name,
+                                  ReaderWidget(
+                                    ctx: ctx,
+                                    builder: (_, ctx) => TextButton(
+                                      onPressed: () {
+                                        expr.set(Construct.mk(
+                                          TypeDef.asType(value),
+                                          TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                                        ));
+                                        wrapperFocusNode.requestFocus();
+                                      },
+                                      child: Text(name),
+                                    ),
                                   ),
-                                )
-                            ];
-                          },
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          child: Focus(
-            skipTraversal: false,
-            onKeyEvent: (node, event) {
-              if (event.logicalKey == LogicalKeyboardKey.enter) {
-                final currentText = inputText.read(Ctx.empty);
-                final tryNum = num.tryParse(currentText);
-                if (tryNum != null) {
-                  expr.set(Literal.mk(number, tryNum));
-                  wrapperFocusNode.requestFocus();
-                }
+                                ),
+                              ];
+                            });
+                      } else {
+                        return [
+                          reified.Pair(
+                            Binding.name(binding),
+                            ReaderWidget(
+                              ctx: ctx,
+                              builder: (_, ctx) => TextButton(
+                                onPressed: () {
+                                  expr.set(Var.mk(Binding.id(binding)));
+                                  wrapperFocusNode.requestFocus();
+                                },
+                                child: Text(
+                                  '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
+                                ),
+                              ),
+                            ),
+                          )
+                        ];
+                      }
+                    })
+                    .expand(
+                      (pair) => [
+                        if (pair.first.toLowerCase().startsWith(inputText.read(ctx).toLowerCase()))
+                          pair.second
+                      ],
+                    )
+                    .toList();
 
-                if (currentText.startsWith("'") && currentText.endsWith("'")) {
-                  final tryString = currentText.substring(1, currentText.length - 1);
-                  if (!tryString.contains("'")) {
-                    expr.set(Literal.mk(text, tryString));
+                return Container(
+                  constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: children.length,
+                    itemBuilder: (_, index) => Container(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: children[index],
+                    ),
+                  ),
+                );
+              },
+            ),
+            child: Focus(
+              skipTraversal: false,
+              onKeyEvent: (node, event) {
+                if (event.logicalKey == LogicalKeyboardKey.enter) {
+                  final currentText = inputText.read(Ctx.empty);
+                  final tryNum = num.tryParse(currentText);
+                  if (tryNum != null) {
+                    expr.set(Literal.mk(number, tryNum));
                     wrapperFocusNode.requestFocus();
                   }
+
+                  if (currentText.startsWith("'") && currentText.endsWith("'")) {
+                    final tryString = currentText.substring(1, currentText.length - 1);
+                    if (!tryString.contains("'")) {
+                      expr.set(Literal.mk(text, tryString));
+                      wrapperFocusNode.requestFocus();
+                    }
+                  }
+
+                  return KeyEventResult.handled;
                 }
 
-                return KeyEventResult.handled;
-              }
-
-              return KeyEventResult.ignored;
-            },
-            child: BoundTextFormField(
-              inputText,
-              ctx: ctx,
-              focusNode: placeholderFocusNode,
+                return KeyEventResult.ignored;
+              },
+              child: BoundTextFormField(
+                inputText,
+                ctx: ctx,
+                focusNode: placeholderFocusNode,
+              ),
             ),
           ),
         );
