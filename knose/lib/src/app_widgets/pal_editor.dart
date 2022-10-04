@@ -60,7 +60,10 @@ abstract class Editable {
     ),
   });
 
-  static Object mkImpl({required Object dataType, required Object Function(Ctx, Object) editor}) =>
+  static Object mkImpl({
+    required Object dataType,
+    required Object Function(Ctx, Cursor<Object>) editor,
+  }) =>
       ImplDef.mkDef(ImplDef.mk(
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
@@ -70,7 +73,7 @@ abstract class Editable {
             argName: 'editorArg',
             argType: Literal.mk(Type.type, PalCursor.type(dataType)),
             returnType: Literal.mk(Type.type, palWidget),
-            body: editor,
+            body: (ctx, cursor) => editor(ctx, PalCursor.cursor(cursor)),
           ),
         }),
       ));
@@ -180,8 +183,7 @@ final palUIModule = Module.mk(
     ),
     Editable.mkImpl(
       dataType: Module.type,
-      editor: (ctx, arg) {
-        final module = PalCursor.cursor(arg);
+      editor: (ctx, module) {
         final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
         return FocusTraversalGroup(
           policy: HierarchicalOrderTraversalPolicy(),
@@ -240,7 +242,7 @@ final palUIModule = Module.mk(
                         );
                       },
                     ),
-                    itemBuilder: (context, index) {
+                    itemBuilder: (_, index) {
                       final moduleDef = definitions[index];
                       final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
                       late final Cursor<Object> id;
@@ -271,7 +273,11 @@ final palUIModule = Module.mk(
                                   const TextSpan(text: ' {'),
                                 ])),
                                 InsetChild(
-                                  TypeTreeEditor(ctx, moduleDef[ModuleDef.dataID][TypeDef.treeID]),
+                                  palEditor(
+                                    ctx,
+                                    TypeTree.type,
+                                    moduleDef[ModuleDef.dataID][TypeDef.treeID],
+                                  ),
                                 ),
                                 const Text('}'),
                               ],
@@ -288,8 +294,9 @@ final palUIModule = Module.mk(
                                   const TextSpan(text: ' {'),
                                 ])),
                                 InsetChild(
-                                  TypeTreeEditor(
+                                  palEditor(
                                     ctx,
+                                    TypeTree.type,
                                     moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
                                   ),
                                 ),
@@ -310,9 +317,8 @@ final palUIModule = Module.mk(
                                     Text(
                                         'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {'),
                                     InsetChild(
-                                      DataTreeEditor(
+                                      ExprEditor(
                                         ctx,
-                                        InterfaceDef.tree(interfaceDef),
                                         moduleDef[ModuleDef.dataID][ImplDef.definitionID],
                                       ),
                                     ),
@@ -336,165 +342,38 @@ final palUIModule = Module.mk(
         );
       },
     ),
-    Editable.mkParameterizedImpl(
-      argType: Type.type,
-      dataType: (typeArg) => typeArg,
-      editor: (ctx, typeArg, arg) {
-        final module = PalCursor.cursor(arg);
-        final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
-        return FocusTraversalGroup(
-          policy: HierarchicalOrderTraversalPolicy(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
-                TextSpan(children: [
-                  const TextSpan(text: 'module '),
-                  _inlineTextField(ctx, module[Module.nameID].cast<String>()),
-                  const TextSpan(text: ' {'),
-                ]),
-              ),
-              Expanded(
-                child: InsetChild(
-                  ListView.separated(
-                    itemCount: definitions.length.read(ctx),
-                    shrinkWrap: true,
-                    separatorBuilder: (context, index) => ReaderWidget(
-                      ctx: ctx,
-                      builder: (context, ctx) {
-                        final isOpen = useCursor(false);
-                        final leftProportion = useCursor(0.0);
-                        return MouseRegion(
-                          onEnter: (hoverEvent) {
-                            isOpen.set(true);
-                            leftProportion.set(hoverEvent.localPosition.dx);
-                          },
-                          onHover: (hoverEvent) {
-                            isOpen.set(true);
-                            leftProportion.set(hoverEvent.localPosition.dx);
-                          },
-                          onExit: (_) => isOpen.set(false),
-                          child: Stack(
-                            alignment: AlignmentDirectional.center,
-                            fit: StackFit.passthrough,
-                            children: [
-                              const Divider(height: 20),
-                              if (isOpen.read(ctx))
-                                Positioned(
-                                  left: max(0, leftProportion.read(ctx) - 50),
-                                  child: Material(
-                                    child: TextButton.icon(
-                                      onPressed: () => definitions.insert(
-                                        index + 1,
-                                        TypeDef.mkDef(TypeDef.unit('unnamed')),
-                                      ),
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Add definition'),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    itemBuilder: (context, index) {
-                      final moduleDef = definitions[index];
-                      final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                      late final Cursor<Object> id;
-                      if (dataType == TypeDef.type) {
-                        id = moduleDef[ModuleDef.dataID][TypeDef.IDID];
-                      } else if (dataType == InterfaceDef.type) {
-                        id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
-                      } else if (dataType == ImplDef.type) {
-                        id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
-                      } else {
-                        throw Exception('unknown moduledef impl');
-                      }
-                      return ReaderWidget(
-                        key: ValueKey(id.read(ctx)),
-                        ctx: ctx,
-                        builder: (_, ctx) {
-                          final dataType =
-                              moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                          if (dataType == TypeDef.type) {
-                            final name =
-                                moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'type '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  TypeTreeEditor(ctx, moduleDef[ModuleDef.dataID][TypeDef.treeID]),
-                                ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (dataType == InterfaceDef.type) {
-                            final name =
-                                moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'interface '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  TypeTreeEditor(
-                                    ctx,
-                                    moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
-                                  ),
-                                ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (dataType == ImplDef.type) {
-                            final interfaceDef = ctx.getInterface(
-                              moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                            );
-                            return Option.cases(
-                              Option.mk(interfaceDef),
-                              none: () => const Text('unknown interface'),
-                              some: (interfaceDef) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                        'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {'),
-                                    InsetChild(
-                                      DataTreeEditor(
-                                        ctx,
-                                        InterfaceDef.tree(interfaceDef),
-                                        moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                                      ),
-                                    ),
-                                    const Text('}'),
-                                  ],
-                                );
-                              },
-                            );
-                          } else {
-                            throw Exception('unknown ModuleDef type $dataType');
-                          }
-                        },
-                      );
-                    },
+    Editable.mkImpl(
+        dataType: TypeTree.type,
+        editor: (ctx, typeTree) {
+          final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
+          if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
+            final subTree = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final key in subTree.keys.read(ctx)) ...[
+                  Text.rich(TextSpan(children: [
+                    if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                        TypeTree.unionID)
+                      const TextSpan(text: 'union '),
+                    if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                        TypeTree.recordID)
+                      const TextSpan(text: 'record '),
+                    _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
+                    const TextSpan(text: ':'),
+                  ])),
+                  InsetChild(
+                    palEditor(ctx, TypeTree.type, subTree[key].whenPresent),
                   ),
-                ),
-              ),
-              const Text('}'),
-            ],
-          ),
-        );
-      },
-    ),
+                ]
+              ],
+            );
+          } else if (tag == TypeTree.leafID) {
+            return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
+          } else {
+            throw Exception('unknown type tree union case');
+          }
+        }),
   ],
 );
 final uiCtx = [Printable.module, palUIModule]
@@ -547,39 +426,12 @@ Widget _testThingy(Ctx ctx) {
 }
 
 @reader
-Widget _typeTreeEditor(Ctx ctx, Cursor<Object> typeTree) {
-  final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
-  if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
-    final subTree = typeTree[TypeTree.treeID][UnionTag.valueID].cast<Dict>();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final key in subTree.keys.read(ctx)) ...[
-          Text.rich(TextSpan(children: [
-            if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                TypeTree.unionID)
-              const TextSpan(text: 'union '),
-            if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                TypeTree.recordID)
-              const TextSpan(text: 'record '),
-            _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
-            const TextSpan(text: ':'),
-          ])),
-          InsetChild(
-            TypeTreeEditor(ctx, subTree[key].whenPresent),
-          ),
-        ]
-      ],
-    );
-  } else if (tag == TypeTree.leafID) {
-    return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
-  } else {
-    throw Exception('unknown type tree union case');
-  }
-}
-
-@reader
-Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
+Widget _dataTreeEditor(
+  Ctx ctx,
+  Object typeTree,
+  Cursor<Object> dataTree,
+  Widget Function(Ctx, Cursor<Object>) renderLeaf,
+) {
   return TypeTree.treeCases(
     typeTree,
     record: (record) {
@@ -595,14 +447,16 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
             )) ...[
               Text('${TypeTree.name(entry.value)}:'),
               InsetChild(
-                DataTreeEditor(ctx, entry.value, dataTree[entry.key]),
+                DataTreeEditor(ctx, entry.value, dataTree[entry.key], renderLeaf),
               ),
             ] else
               Text.rich(
                 TextSpan(
                   children: [
                     TextSpan(text: '${TypeTree.name(entry.value)}: '),
-                    AlignedWidgetSpan(DataTreeEditor(ctx, entry.value, dataTree[entry.key]))
+                    AlignedWidgetSpan(
+                      DataTreeEditor(ctx, entry.value, dataTree[entry.key], renderLeaf),
+                    )
                   ],
                 ),
               ),
@@ -638,15 +492,13 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
             TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
           ),
           InsetChild(
-            DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID]),
+            DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID], renderLeaf),
           ),
           const Text(')')
         ],
       );
     },
-    leaf: (leaf) {
-      return ExprEditor(ctx, dataTree);
-    },
+    leaf: (leaf) => renderLeaf(ctx, dataTree),
   );
 }
 
@@ -654,22 +506,22 @@ Widget _dataTreeEditor(Ctx ctx, Object typeTree, Cursor<Object> dataTree) {
 Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   final placeholderFocusNode = useFocusNode();
   final wrapperFocusNode = useFocusNode();
-  final dataType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
-  final data = expr[Expr.dataID];
+  final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
+  final exprData = expr[Expr.dataID];
 
   late final Widget child;
-  if (dataType == Type.mk(FnExpr.typeDefID)) {
+  if (exprType == Type.mk(FnExpr.typeDefID)) {
     late final Widget body;
-    if (data[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
+    if (exprData[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
     } else {
       body = ExprEditor(
         ctx.withBinding(Binding.mk(
-          id: data[FnExpr.argIDID].read(ctx) as ID,
-          type: data[FnExpr.argTypeID].read(ctx),
-          name: data[FnExpr.argNameID].read(ctx) as String,
+          id: exprData[FnExpr.argIDID].read(ctx) as ID,
+          type: exprData[FnExpr.argTypeID].read(ctx),
+          name: exprData[FnExpr.argNameID].read(ctx) as String,
         )),
-        data[FnExpr.bodyID][UnionTag.valueID],
+        exprData[FnExpr.bodyID][UnionTag.valueID],
       );
     }
 
@@ -679,14 +531,9 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         Text.rich(
           TextSpan(children: [
             const TextSpan(text: '('),
-            _inlineTextField(ctx, data[FnExpr.argNameID].cast<String>()),
+            _inlineTextField(ctx, exprData[FnExpr.argNameID].cast<String>()),
             const TextSpan(text: ': '),
-            TextSpan(
-                text: TypeTree.name(
-              TypeDef.tree(
-                ctx.getType(data[FnExpr.argTypeID][Type.IDID].read(ctx) as ID),
-              ),
-            ).toString()),
+            AlignedWidgetSpan(ExprEditor(ctx, exprData[FnExpr.argTypeID])),
             const TextSpan(text: ')'),
             const WidgetSpan(
               alignment: PlaceholderAlignment.bottom,
@@ -696,13 +543,13 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                 size: 16,
               ),
             ),
-            TextSpan(
-              text: TypeTree.name(
-                TypeDef.tree(
-                  ctx.getType(data[FnExpr.argTypeID][Type.IDID].read(ctx) as ID),
-                ),
-              ).toString(),
-            ),
+            if (exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.tagID].read(ctx) ==
+                Option.someID)
+              AlignedWidgetSpan(
+                ExprEditor(ctx, exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.valueID]),
+              )
+            else
+              const TextSpan(text: '_'),
             const TextSpan(text: ' {'),
           ]),
         ),
@@ -710,12 +557,13 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         const Text('}'),
       ],
     );
-  } else if (dataType == TypeDef.asType(FnApp.typeDef)) {
-    if (data[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) == TypeDef.asType(Var.typeDef)) {
+  } else if (exprType == TypeDef.asType(FnApp.typeDef)) {
+    if (exprData[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) ==
+        TypeDef.asType(Var.typeDef)) {
       child = Text.rich(TextSpan(children: [
-        AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.fnID])),
+        AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.fnID])),
         const TextSpan(text: '('),
-        AlignedWidgetSpan(ExprEditor(ctx, data[FnApp.argID])),
+        AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.argID])),
         const TextSpan(text: ')'),
       ]));
     } else {
@@ -727,8 +575,8 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ExprEditor(ctx, data[FnApp.fnID]),
-                ExprEditor(ctx, data[FnApp.argID]),
+                ExprEditor(ctx, exprData[FnApp.fnID]),
+                ExprEditor(ctx, exprData[FnApp.argID]),
               ],
             ),
           ),
@@ -736,11 +584,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         ],
       );
     }
-  } else if (dataType == TypeDef.asType(RecordAccess.typeDef)) {
-    final targetType = typeCheck(ctx, data[RecordAccess.targetID].read(ctx));
+  } else if (exprType == TypeDef.asType(RecordAccess.typeDef)) {
+    final targetType = typeCheck(ctx, exprData[RecordAccess.targetID].read(ctx));
 
     child = Text.rich(TextSpan(children: [
-      AlignedWidgetSpan(ExprEditor(ctx, data[RecordAccess.targetID])),
+      AlignedWidgetSpan(ExprEditor(ctx, exprData[RecordAccess.targetID])),
       const TextSpan(text: '.'),
       Option.cases(
         targetType,
@@ -758,19 +606,19 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
               minimumSize: MaterialStateProperty.all(Size.zero),
             ),
             items: record.keys,
-            currentItem: data[RecordAccess.memberID].read(ctx),
+            currentItem: exprData[RecordAccess.memberID].read(ctx),
             buildItem: (memberID) => Text(TypeTree.name(record[memberID].unwrap!).toString()),
-            onItemSelected: (key) => data[RecordAccess.memberID].set(key),
+            onItemSelected: (key) => exprData[RecordAccess.memberID].set(key),
             child: Text(
-              TypeTree.name(record[data[RecordAccess.memberID].read(ctx)].unwrap!).toString(),
+              TypeTree.name(record[exprData[RecordAccess.memberID].read(ctx)].unwrap!).toString(),
             ),
           ));
         },
         none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
       ),
     ]));
-  } else if (dataType == TypeDef.asType(Var.typeDef)) {
-    final varID = data[Var.IDID].read(ctx);
+  } else if (exprType == TypeDef.asType(Var.typeDef)) {
+    final varID = exprData[Var.IDID].read(ctx);
     child = Option.cases(
       ctx.getBinding(varID as ID),
       some: (binding) => Text(Binding.name(binding)),
@@ -779,22 +627,24 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         style: const TextStyle(fontStyle: FontStyle.italic),
       ),
     );
-  } else if (dataType == TypeDef.asType(Literal.typeDef)) {
-    child = Text(data[Literal.valueID].read(ctx).toString());
-  } else if (dataType == Construct.type) {
-    final typeDef = ctx.getType(data[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
+  } else if (exprType == TypeDef.asType(Literal.typeDef)) {
+    child = Text(
+      palPrint(ctx, Literal.getType(exprData.read(ctx)), Literal.getValue(exprData.read(ctx))),
+    );
+  } else if (exprType == Construct.type) {
+    final typeDef = ctx.getType(exprData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
     child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
         InsetChild(
-          DataTreeEditor(ctx, TypeDef.tree(typeDef), data[Construct.treeID]),
+          DataTreeEditor(ctx, TypeDef.tree(typeDef), exprData[Construct.treeID], ExprEditor.new),
         ),
         const Text(')'),
       ],
     );
-  } else if (dataType == TypeDef.asType(Placeholder.typeDef)) {
+  } else if (exprType == TypeDef.asType(Placeholder.typeDef)) {
     return ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
@@ -887,11 +737,11 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         );
       },
     );
-  } else if (dataType == List.mkExprType) {
+  } else if (exprType == List.mkExprType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final child in data[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx)) ...[
+        for (final child in exprData[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx)) ...[
           ExprEditor(ctx, child),
           const Divider(),
         ]

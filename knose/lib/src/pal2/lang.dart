@@ -280,6 +280,7 @@ abstract class TypeDef {
 
   static final def = TypeDef.record('TypeDef', {
     IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
+    comptimeID: TypeTree.mk('comptime', Literal.mk(Type.type, List.type(ID.type))),
     treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
   });
   static final type = asType(def);
@@ -1497,9 +1498,9 @@ abstract class FnExpr extends Expr {
   static final palID = ID('pal');
   static final dartID = ID('dart');
 
-  static final typeDefID = ID('Fn');
+  static final typeDefID = ID('FnExpr');
   static final typeDef = TypeDef.record(
-    'Fn',
+    'FnExpr',
     {
       argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Expr.type)),
       returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, Option.type(Expr.type))),
@@ -2395,7 +2396,7 @@ abstract class Binding {
     reducedValueID: TypeTree.mk(
       'reducedValue',
       Fn.typeExpr(
-        argID: ID(),
+        argID: ID('_'),
         argType: Literal.mk(Type.type, unit),
         returnType: Option.typeExpr(Expr.type),
       ),
@@ -2403,7 +2404,7 @@ abstract class Binding {
     valueID: TypeTree.mk(
       'value',
       Fn.typeExpr(
-        argID: ID(),
+        argID: ID('_'),
         argType: Literal.mk(Type.type, unit),
         returnType: Option.typeExpr(Var.mk(valueTypeID)),
       ),
@@ -2816,6 +2817,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   InterfaceDef.mkDef(ModuleDef.interfaceDef),
   TypeDef.mkDef(ModuleDef.typeDef),
   TypeDef.mkDef(ValueDef.typeDef),
+  ImplDef.mkDef(ValueDef.moduleDefImplDef),
   TypeDef.mkDef(TypeDef.def),
   ImplDef.mkDef(TypeDef.moduleDefImplDef),
   TypeDef.mkDef(Type.def),
@@ -2849,6 +2851,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   TypeDef.mkDef(unitDef),
   TypeDef.mkDef(bottomDef),
   TypeDef.mkDef(Fn.typeDef),
+  TypeDef.mkDef(FnExpr.typeDef),
   ImplDef.mkDef(FnExpr.exprImplDef),
   TypeDef.mkDef(FnApp.typeDef),
   ImplDef.mkDef(FnApp.exprImplDef),
