@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:core' as dart;
 import 'dart:core';
 import 'package:ctx/ctx.dart';
@@ -203,7 +204,7 @@ abstract class ValueDef {
       argName: 'valueDef',
       argType: Type.lit(TypeDef.asType(typeDef)),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: (ctx, arg) {
+      body: mkDartBodyID((ctx, arg) {
         Object? lazyType;
         Object? lazyValue;
 
@@ -239,7 +240,7 @@ abstract class ValueDef {
             ),
           ),
         ]);
-      },
+      }),
     ),
     id: ID('ValueDefImpl'),
   );
@@ -294,7 +295,7 @@ abstract class TypeDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: (ctx, typeDef) {
+      body: mkDartBodyID((ctx, typeDef) {
         return List.mk([
           Union.mk(
             ModuleDef.type,
@@ -313,7 +314,7 @@ abstract class TypeDef {
             ),
           ),
         ]);
-      },
+      }),
     ),
     id: ID('TypeDefImpl'),
   );
@@ -811,7 +812,7 @@ abstract class InterfaceDef {
       argName: 'interfaceDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: (ctx, ifaceDef) {
+      body: mkDartBodyID((ctx, ifaceDef) {
         return List.mk([
           Union.mk(
             ModuleDef.type,
@@ -831,7 +832,7 @@ abstract class InterfaceDef {
             ),
           ),
         ]);
-      },
+      }),
     ),
     id: ID('InterfaceDefImpl'),
   );
@@ -886,7 +887,7 @@ abstract class ImplDef {
           argName: 'definitionArg',
           argType: Type.lit(argType),
           returnType: returnType(Var.mk(definitionArgID)),
-          body: definition,
+          body: mkDartBodyID(definition),
         ),
       });
 
@@ -903,17 +904,17 @@ abstract class ImplDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: (ctx, implDef) => List.mk([
-        Union.mk(
-          ModuleDef.type,
-          ValueDef.mk(
-            id: bindingID(implDef),
-            name:
-                'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
-            value: ImplDef.definition(implDef),
-          ),
-        ),
-      ]),
+      body: mkDartBodyID((ctx, implDef) => List.mk([
+            Union.mk(
+              ModuleDef.type,
+              ValueDef.mk(
+                id: bindingID(implDef),
+                name:
+                    'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
+                value: ImplDef.definition(implDef),
+              ),
+            ),
+          ])),
     ),
     id: ID('ImplDefImpl'),
   );
@@ -1108,9 +1109,9 @@ abstract class Expr {
   static Object mkImplDef({
     required Object dataType,
     required String argName,
-    required Object Function(Ctx, Object) typeCheckBody,
-    required Object Function(Ctx, Object) reduceBody,
-    required Object Function(Ctx, Object) evalBody,
+    required ID typeCheckBody,
+    required ID reduceBody,
+    required ID evalBody,
     ID? id,
   }) =>
       ImplDef.mk(
@@ -1145,9 +1146,9 @@ abstract class Expr {
   static Object mkImpl({
     required Object dataType,
     required String argName,
-    required Object Function(Ctx, Object) typeCheckBody,
-    required Object Function(Ctx, Object) reduceBody,
-    required Object Function(Ctx, Object) evalBody,
+    required ID typeCheckBody,
+    required ID reduceBody,
+    required ID evalBody,
   }) =>
       Dict({
         dataTypeID: dataType,
@@ -1242,7 +1243,7 @@ abstract class List {
   );
   static final mkExprType = Type.mk(mkExprTypeDefID);
 
-  static Object _typeFn(Ctx ctx, Object arg) {
+  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
     final listValueType = (arg as Dict)[mkTypeID].unwrap!;
     for (final value in List.iterate(mkExprValues(arg))) {
       final valueType = typeCheck(ctx, value);
@@ -1252,9 +1253,9 @@ abstract class List {
       }
     }
     return Option.mk(Type.lit(List.type(listValueType)));
-  }
+  });
 
-  static Object _reduceFn(Ctx ctx, Object arg) {
+  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
     bool nonLit = false;
     final reducedSubExprs = <Object>[];
     for (final subExpr in iterate((arg as Dict)[mkValuesID].unwrap!)) {
@@ -1267,11 +1268,11 @@ abstract class List {
       List.type(arg[mkTypeID].unwrap!),
       List.mk([...reducedSubExprs.map(Expr.data).map(Literal.getValue)]),
     );
-  }
+  });
 
-  static Object _evalFn(Ctx ctx, Object arg) => List.mk(
+  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) => List.mk(
         [...iterate((arg as Dict)[mkValuesID].unwrap!).map((expr) => eval(ctx, expr))],
-      );
+      ));
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkExprType,
     argName: 'mkListData',
@@ -1355,7 +1356,7 @@ abstract class Map {
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkType,
     argName: 'mkMapData',
-    typeCheckBody: (ctx, arg) {
+    typeCheckBody: mkDartBodyID((ctx, arg) {
       final keyType = (arg as Dict)[mkKeyID].unwrap!;
       final valueType = arg[mkValueID].unwrap!;
 
@@ -1368,14 +1369,14 @@ abstract class Map {
         }
       }
       return Option.mk(Map.type(keyType, valueType));
-    },
-    reduceBody: (ctx, arg) {
-      throw Exception('reduce map expr not yet implemented!');
-    },
-    evalBody: (ctx, arg) => Dict({
-      for (final entry in List.iterate((arg as Dict)[mkEntriesID].unwrap!))
-        eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
     }),
+    reduceBody: mkDartBodyID((ctx, arg) {
+      throw Exception('reduce map expr not yet implemented!');
+    }),
+    evalBody: mkDartBodyID((ctx, arg) => Dict({
+          for (final entry in List.iterate((arg as Dict)[mkEntriesID].unwrap!))
+            eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
+        })),
   );
   static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
         impl: ImplDef.asImpl(Ctx.empty, Expr.interfaceDef, mkExprImplDef),
@@ -1439,7 +1440,7 @@ abstract class Fn {
       returnTypeID: TypeTree.mk('returnType', Type.lit(typeExprType)),
       bodyID: TypeTree.union('body', {
         palID: TypeTree.mk('pal', Type.lit(Expr.type)),
-        dartID: TypeTree.mk('dart', Type.lit(unit)),
+        dartID: TypeTree.mk('dart', Type.lit(ID.type)),
       }),
     },
     id: typeDefID,
@@ -1485,7 +1486,7 @@ abstract class Fn {
         bodyID: body,
       });
 
-  static Object mkDartBody(Object Function(Ctx, Object) body) => UnionTag.mk(dartID, body);
+  static Object mkDartBody(ID body) => UnionTag.mk(dartID, body);
 
   static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
   static String argName(Object fn) => (fn as Dict)[argNameID].unwrap! as String;
@@ -1493,13 +1494,13 @@ abstract class Fn {
   static Object bodyCases(
     Object fn, {
     required Object Function(Object) pal,
-    required Object Function(Object) dart,
+    required Object Function(ID) dart,
   }) {
     final body = (fn as Dict)[bodyID].unwrap!;
     if (UnionTag.tag(body) == palID) {
       return pal(UnionTag.value(body));
     } else if (UnionTag.tag(body) == dartID) {
-      return dart(UnionTag.value(body));
+      return dart(UnionTag.value(body) as ID);
     } else {
       throw Exception('unknown FnValue body tag ${UnionTag.tag(body)}');
     }
@@ -1525,7 +1526,7 @@ abstract class FnExpr extends Expr {
       argNameID: TypeTree.mk('argName', Type.lit(text)),
       bodyID: TypeTree.union('body', {
         palID: TypeTree.mk('pal', Type.lit(Expr.type)),
-        dartID: TypeTree.mk('dart', Type.lit(unit)),
+        dartID: TypeTree.mk('dart', Type.lit(ID.type)),
       }),
     },
     id: typeDefID,
@@ -1534,7 +1535,7 @@ abstract class FnExpr extends Expr {
 
   static final exprImplID = ID('FnExprImpl');
 
-  static Object typeFnBody(Ctx ctx, Object fn) {
+  static final typeFnBody = mkDartBodyID((Ctx ctx, Object fn) {
     return Option.cases(
       typeCheck(ctx, FnExpr.argType(fn)),
       none: () => Option.mk(),
@@ -1633,11 +1634,13 @@ abstract class FnExpr extends Expr {
         );
       },
     );
-  }
+  });
 
-  static Object reduceFnBody(Ctx ctx, Object fnData) => Expr.mk(impl: exprImpl, data: fnData);
+  static final reduceFnBody = mkDartBodyID(
+    (Ctx ctx, Object fnData) => Expr.mk(impl: exprImpl, data: fnData),
+  );
 
-  static Object evalFnBody(Ctx ctx, Object arg) {
+  static final evalFnBody = mkDartBodyID((Ctx ctx, Object arg) {
     return Fn.mk(
       argName: FnExpr.argName(arg),
       argID: FnExpr.argID(arg),
@@ -1646,7 +1649,7 @@ abstract class FnExpr extends Expr {
         UnionTag.value(FnExpr.body(arg)),
       ),
     );
-  }
+  });
 
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
@@ -1664,8 +1667,6 @@ abstract class FnExpr extends Expr {
     reduceBody: reduceFnBody,
     evalBody: evalFnBody,
   );
-
-  static Object mkDartBody(Object Function(Ctx, Object) body) => UnionTag.mk(dartID, body);
 
   static Object mkData({
     ID? argID,
@@ -1740,7 +1741,7 @@ abstract class FnExpr extends Expr {
     required String argName,
     required Object argType,
     required Object returnType,
-    required Object Function(Ctx, Object) body,
+    required ID body,
   }) =>
       Expr.mk(
         data: mkData(
@@ -1777,13 +1778,13 @@ abstract class FnExpr extends Expr {
   static Object bodyCases(
     Object fn, {
     required Object Function(Object) pal,
-    required Object Function(Object) dart,
+    required Object Function(ID) dart,
   }) {
     final body = (fn as Dict)[bodyID].unwrap!;
     if (UnionTag.tag(body) == palID) {
       return pal(UnionTag.value(body));
     } else {
-      return dart(UnionTag.value(body));
+      return dart(UnionTag.value(body) as ID);
     }
   }
 }
@@ -1797,7 +1798,9 @@ abstract class FnApp extends Expr {
     argID: TypeTree.mk('arg', Type.lit(Expr.type)),
   }));
 
-  static Object _typeFnBody(Ctx ctx, Object fnApp) => Option.cases(typeCheck(ctx, fn(fnApp)),
+  static final _typeFnBody = mkDartBodyID((Ctx ctx, Object fnApp) {
+    return Option.cases(
+      typeCheck(ctx, fn(fnApp)),
       none: () => Option.mk(),
       some: (fnTypeExpr) {
         if ({Literal.type, Construct.type}.contains(Expr.dataType(fnTypeExpr))) {
@@ -1838,9 +1841,11 @@ abstract class FnApp extends Expr {
           );
         }
         throw Exception('type check fn app where fnType isn\'t literal not yet implemented!');
-      });
+      },
+    );
+  });
 
-  static Object _reduceFnBody(Ctx ctx, Object fnApp) {
+  static final _reduceFnBody = mkDartBodyID((Ctx ctx, Object fnApp) {
     final reducedFn = reduce(ctx, fn(fnApp));
     if (Expr.dataType(reducedFn) == Literal.type || Expr.dataType(reducedFn) == FnExpr.type) {
       if (Expr.dataType(reducedFn) == Literal.type) {
@@ -1881,9 +1886,9 @@ abstract class FnApp extends Expr {
       }
     }
     return Expr.mk(impl: exprImpl, data: fnApp);
-  }
+  });
 
-  static Object _evalFnBody(Ctx ctx, Object data) {
+  static final _evalFnBody = mkDartBodyID((Ctx ctx, Object data) {
     final fn = eval(ctx, FnApp.fn(data));
     final arg = eval(ctx, FnApp.arg(data));
     return Fn.bodyCases(
@@ -1897,9 +1902,9 @@ abstract class FnApp extends Expr {
         )),
         body,
       ),
-      dart: (body) => (body as Object Function(Ctx, Object))(ctx, arg),
+      dart: (body) => _fnMap[body]!(ctx, arg),
     );
-  }
+  });
 
   static final exprImplDef = Expr.mkImplDef(
     argName: 'fnAppData',
@@ -1945,7 +1950,7 @@ abstract class Construct extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object _typeFn(Ctx origCtx, Object arg) {
+  static final _typeFn = mkDartBodyID((Ctx origCtx, Object arg) {
     final typeDef = origCtx.getType(Type.id(dataType(arg)));
 
     final computedProps = <Object>[];
@@ -2033,9 +2038,9 @@ abstract class Construct extends Expr {
     return Option.mk(
       reduce(origCtx, Type.mkExpr(Type.id(dataType(arg)), properties: computedProps)),
     );
-  }
+  });
 
-  static Object _reduceFn(Ctx ctx, Object arg) {
+  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
     bool nonLit = false;
     final typeTree = TypeDef.tree(ctx.getType(Type.id(dataType(arg))));
     final exprTree = TypeTree.mapData(
@@ -2057,9 +2062,9 @@ abstract class Construct extends Expr {
         (_, expr, __) => Literal.getValue(Expr.data(expr)),
       ),
     );
-  }
+  });
 
-  static Object _evalFn(Ctx ctx, Object arg) {
+  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) {
     final typeDef = ctx.getType(Type.id(dataType(arg)));
     final comptimeIDs = TypeDef.comptime(typeDef);
     return TypeTree.maybeMapData(
@@ -2068,7 +2073,7 @@ abstract class Construct extends Expr {
       (_, dataLeaf, path) =>
           Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
     );
-  }
+  });
 
   static final exprImplID = ID('ConstructExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2111,7 +2116,7 @@ abstract class RecordAccess extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object _typeFn(Ctx ctx, Object arg) {
+  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
     return Option.cases(
       typeCheck(ctx, RecordAccess.target(arg)),
       none: () => Option.mk(),
@@ -2183,9 +2188,9 @@ abstract class RecordAccess extends Expr {
         }
       },
     );
-  }
+  });
 
-  static Object _reduceFn(Ctx ctx, Object data) {
+  static final _reduceFn = mkDartBodyID((Ctx ctx, Object data) {
     final targetExpr = reduce(ctx, target(data));
     if (Expr.dataType(targetExpr) == Literal.type) {
       final typeDef = ctx.getType(Type.id(Literal.getType(Expr.data(targetExpr))));
@@ -2209,10 +2214,11 @@ abstract class RecordAccess extends Expr {
       return RecordAccess.mk(targetExpr, member(data));
     }
     throw Exception('reduce record access not implemented for record access!');
-  }
+  });
 
-  static Object _evalFn(Ctx ctx, Object data) =>
-      (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
+  static final _evalFn = mkDartBodyID((Ctx ctx, Object data) {
+    return (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
+  });
 
   static final exprImplID = ID('exprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2257,11 +2263,13 @@ abstract class Literal extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object _typeFnData(Ctx ctx, Object arg) => Option.mk(Type.lit(getType(arg)));
+  static final _typeFnData =
+      mkDartBodyID((Ctx ctx, Object arg) => Option.mk(Type.lit(getType(arg))));
 
-  static Object _reduceFnData(Ctx ctx, Object arg) => Expr.mk(impl: exprImpl, data: arg);
+  static final _reduceFnData =
+      mkDartBodyID((Ctx ctx, Object arg) => Expr.mk(impl: exprImpl, data: arg));
 
-  static Object _evalFnData(Ctx ctx, Object arg) => (arg as Dict)[valueID].unwrap!;
+  static final _evalFnData = mkDartBodyID((Ctx ctx, Object arg) => (arg as Dict)[valueID].unwrap!);
 
   static final exprImplID = ID('LiteralExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2301,42 +2309,48 @@ abstract class Var extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object _typeFn(Ctx ctx, Object arg) => Option.cases(
-        ctx.getBinding(Var.id(arg)),
-        some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
-        none: () => Option.mk(),
-      );
-  static Object _reduceFn(Ctx ctx, Object arg) => Option.cases(
-        ctx.getBinding(Var.id(arg)),
-        none: () => Var.mk(Var.id(arg)),
-        some: (binding) => Option.cases(
-          Binding.value(
-            ctx,
-            binding,
-          ),
-          some: (val) => Literal.mk(
-            Literal.getValue(Expr.data(Binding.valueType(ctx, binding))),
-            val,
-          ),
-          none: () => Option.cases(
-            Binding.reducedValue(ctx, binding),
-            some: (reducedValue) => reduce(ctx, reducedValue),
-            none: () => Var.mk(Var.id(arg)),
-          ),
-        ),
-      );
-  static Object _evalFn(Ctx ctx, Object arg) => Option.cases(
+  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
+    return Option.cases(
+      ctx.getBinding(Var.id(arg)),
+      some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
+      none: () => Option.mk(),
+    );
+  });
+  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
+    return Option.cases(
+      ctx.getBinding(Var.id(arg)),
+      none: () => Var.mk(Var.id(arg)),
+      some: (binding) => Option.cases(
         Binding.value(
           ctx,
-          Option.cases(
-            ctx.getBinding(Var.id(arg)),
-            some: (binding) => binding,
-            none: () => throw Exception(),
-          ),
+          binding,
         ),
-        some: (val) => val,
-        none: () => throw Exception('impossible!!'),
-      );
+        some: (val) => Literal.mk(
+          Literal.getValue(Expr.data(Binding.valueType(ctx, binding))),
+          val,
+        ),
+        none: () => Option.cases(
+          Binding.reducedValue(ctx, binding),
+          some: (reducedValue) => reduce(ctx, reducedValue),
+          none: () => Var.mk(Var.id(arg)),
+        ),
+      ),
+    );
+  });
+  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) {
+    return Option.cases(
+      Binding.value(
+        ctx,
+        Option.cases(
+          ctx.getBinding(Var.id(arg)),
+          some: (binding) => binding,
+          none: () => throw Exception(),
+        ),
+      ),
+      some: (val) => val,
+      none: () => throw Exception('impossible!!'),
+    );
+  });
 
   static final exprImplDef = Expr.mkImplDef(
     dataType: type,
@@ -2367,9 +2381,9 @@ abstract class Placeholder extends Expr {
   static final exprImplDef = Expr.mkImplDef(
     dataType: TypeDef.asType(typeDef),
     argName: 'placeholderData',
-    typeCheckBody: (_, __) => Option.mk(),
-    reduceBody: (_, __) => throw Exception("don't reduce a placeholder u fool!"),
-    evalBody: (_, __) => throw Exception("don't evaluate a placeholder u fool!"),
+    typeCheckBody: mkDartBodyID((_, __) => Option.mk()),
+    reduceBody: mkDartBodyID((_, __) => throw Exception("don't reduce a placeholder u fool!")),
+    evalBody: mkDartBodyID((_, __) => throw Exception("don't evaluate a placeholder u fool!")),
   );
 }
 
@@ -2795,7 +2809,7 @@ Object eval(Ctx ctx, Object expr) {
       );
     },
     dart: (bodyFn) {
-      return (bodyFn as Object Function(Ctx, Object))(ctx, data);
+      return _fnMap[bodyFn]!(ctx, data);
     },
   );
 }
@@ -2827,6 +2841,57 @@ Object typeCheck(Ctx ctx, Object expr) => eval(
       ctx,
       FnApp.mk(Expr.typeCheckFn, Literal.mk(Expr.type, expr)),
     );
+
+Object? _toEncodable(dynamic arg) {
+  if (arg is Dict) {
+    return {for (final entry in arg.entries) serialize(entry.key, ''): entry.value};
+  } else if (arg is Vec) {
+    return arg.toList();
+  } else if (arg is ID) {
+    return arg.id + (arg.tail == null ? '' : '.${_toEncodable(arg.tail)}');
+  } else {
+    throw UnimplementedError('_toEncodable on ${arg.runtimeType}');
+  }
+}
+
+String serialize(Object arg, String indent) =>
+    JsonEncoder.withIndent(indent, _toEncodable).convert(arg);
+dynamic _revive(final dynamic arg) {
+  if (arg is dart.Map<String, dynamic>) {
+    return Dict(arg.map(
+        (key, dynamic value) => MapEntry(deserialize(key) as Object, _revive(value) as Object)));
+  } else if (arg is dart.List<dynamic>) {
+    return Vec([...arg.map<dynamic>(_revive).cast<Object>()]);
+  } else if (arg is String) {
+    return _tryReviveID(arg) ?? arg;
+  } else {
+    return arg;
+  }
+}
+
+ID? _tryReviveID(String string) {
+  if (string.length < 36) return null;
+  final prefix = string.substring(0, 36);
+  final suffix = string.substring(36);
+  if (Uuid.isValidUUID(fromString: string.substring(0, 36))) {
+    if (suffix.isEmpty) return ID.from(id: prefix, label: null, tail: null);
+    if (!suffix.startsWith('.')) return null;
+    final tail = _tryReviveID(suffix.substring(1));
+    if (tail == null) return null;
+    return ID.from(id: prefix, label: null, tail: tail);
+  }
+  return null;
+}
+
+final _decoder = JsonDecoder((_, arg) => _revive(arg));
+dynamic deserialize(String json) => _decoder.convert(json);
+
+final _fnMap = <ID, Object Function(Ctx, Object)>{};
+ID mkDartBodyID(Object Function(Ctx, Object) fn, [ID? id]) {
+  id ??= ID();
+  _fnMap[id] = fn;
+  return id;
+}
 
 final coreModule = Module.mk(name: 'core', definitions: [
   TypeDef.mkDef(ID.def),

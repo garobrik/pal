@@ -28,7 +28,7 @@ abstract class Printable {
             argName: 'printArg',
             argType: Type.lit(dataType),
             returnType: Type.lit(text),
-            body: print,
+            body: mkDartBodyID(print),
           ),
         }),
       );
@@ -72,7 +72,7 @@ abstract class Printable {
                 argName: 'data',
                 argType: Type.lit(dataTypeValue),
                 returnType: Type.lit(text),
-                body: (ctx, data) => print(ctx, dataTypeValue, data),
+                body: mkDartBodyID((ctx, data) => print(ctx, dataTypeValue, data)),
               ),
             ),
           });
@@ -89,7 +89,7 @@ abstract class Printable {
         argName: 'object',
         argType: Type.lit(Any.type),
         returnType: Type.lit(text),
-        body: (ctx, arg) {
+        body: mkDartBodyID((ctx, arg) {
           final impl = Option.unwrap(
             dispatch(
               ctx,
@@ -111,7 +111,7 @@ abstract class Printable {
               Literal.mk(dataType, Any.getValue(arg)),
             ),
           );
-        },
+        }),
       ),
     ),
     ImplDef.mkDef(mkParameterizedImpl(

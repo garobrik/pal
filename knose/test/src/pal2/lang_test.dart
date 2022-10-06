@@ -197,4 +197,13 @@ void main() {
     expect(Option.isPresent(maybeLiteral), isTrue);
     expect(Option.unwrap(maybeLiteral), equals(Literal.exprImpl));
   });
+
+  test('basic serialize', () {
+    final arg = Option.mk(Pair.mk('hi', 5));
+    expect(deserialize(serialize(arg, '')), equals(arg));
+  });
+
+  test('serialize core module', () {
+    expect(deserialize(serialize(coreModule, '')), equals(coreModule));
+  });
 }

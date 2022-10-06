@@ -74,7 +74,7 @@ abstract class Editable {
             argName: 'editorArg',
             argType: Type.lit(PalCursor.type(dataType)),
             returnType: Type.lit(palWidget),
-            body: (ctx, cursor) => editor(ctx, PalCursor.cursor(cursor)),
+            body: mkDartBodyID((ctx, cursor) => editor(ctx, PalCursor.cursor(cursor))),
           ),
         }),
       ));
@@ -116,7 +116,7 @@ abstract class Editable {
                 argName: 'data',
                 argType: Type.lit(PalCursor.type(dataTypeValue)),
                 returnType: Type.lit(palWidget),
-                body: (ctx, data) => editor(ctx, dataTypeValue, data),
+                body: mkDartBodyID((ctx, data) => editor(ctx, dataTypeValue, data)),
               ),
             ),
           });
@@ -146,7 +146,7 @@ final palUIModule = Module.mk(
         argName: 'editable',
         argType: Type.lit(TypeDef.asType(editorArgsDef)),
         returnType: Type.lit(palWidget),
-        body: (ctx, arg) {
+        body: mkDartBodyID((ctx, arg) {
           final impl = Option.unwrap(
             dispatch(
               ctx,
@@ -179,7 +179,7 @@ final palUIModule = Module.mk(
               ),
             ) as Widget,
           );
-        },
+        }),
       ),
     ),
     Editable.mkImpl(
