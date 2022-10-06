@@ -21,8 +21,8 @@ abstract class PalCursor {
   static final def = TypeDef.record(
     'Cursor',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-      cursorID: TypeTree.mk('cursor', Literal.mk(Type.type, unit)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      cursorID: TypeTree.mk('cursor', Type.lit(unit)),
     },
     id: defID,
     comptime: [dataTypeID],
@@ -33,7 +33,7 @@ abstract class PalCursor {
       ]);
 
   static Object typeExpr(Object type) => Type.mkExpr(defID, properties: [
-        MemberHas.mkEqualsExpr([dataTypeID], Literal.mk(Type.type, Type.type), type)
+        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), type)
       ]);
 
   static Object mk(Cursor<Object> cursor) => Dict({cursorID: cursor});
@@ -50,13 +50,13 @@ abstract class Editable {
   static final editorID = ID('editor');
   static final editorArgID = ID('editorArg');
   static final interfaceDef = InterfaceDef.record('Editable', {
-    dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     editorID: TypeTree.mk(
       'editor',
       Fn.typeExpr(
         argID: editorArgID,
         argType: PalCursor.typeExpr(Var.mk(dataTypeID)),
-        returnType: Literal.mk(Type.type, palWidget),
+        returnType: Type.lit(palWidget),
       ),
     ),
   });
@@ -68,12 +68,12 @@ abstract class Editable {
       ImplDef.mkDef(ImplDef.mk(
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           editorID: FnExpr.dart(
             argID: editorArgID,
             argName: 'editorArg',
-            argType: Literal.mk(Type.type, PalCursor.type(dataType)),
-            returnType: Literal.mk(Type.type, palWidget),
+            argType: Type.lit(PalCursor.type(dataType)),
+            returnType: Type.lit(palWidget),
             body: (ctx, cursor) => editor(ctx, PalCursor.cursor(cursor)),
           ),
         }),
@@ -90,7 +90,7 @@ abstract class Editable {
         returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
           MemberHas.mkEqualsExpr(
             [dataTypeID],
-            Literal.mk(Type.type, Type.type),
+            Type.lit(Type.type),
             dataType(typeArgExpr),
           )
         ]),
@@ -100,11 +100,11 @@ abstract class Editable {
             FnApp.mk(
               FnExpr.from(
                 argName: 'typeArg',
-                argType: Literal.mk(Type.type, Type.type),
-                returnType: (_) => Literal.mk(Type.type, Type.type),
+                argType: Type.lit(Type.type),
+                returnType: (_) => Type.lit(Type.type),
                 body: (arg) => dataType(arg),
               ),
-              Literal.mk(Type.type, typeArgValue),
+              Type.lit(typeArgValue),
             ),
           );
           return Dict({
@@ -114,8 +114,8 @@ abstract class Editable {
               FnExpr.dart(
                 argID: editorArgID,
                 argName: 'data',
-                argType: Literal.mk(Type.type, PalCursor.type(dataTypeValue)),
-                returnType: Literal.mk(Type.type, palWidget),
+                argType: Type.lit(PalCursor.type(dataTypeValue)),
+                returnType: Type.lit(palWidget),
                 body: (ctx, data) => editor(ctx, dataTypeValue, data),
               ),
             ),
@@ -128,7 +128,7 @@ final editorFn = Var.mk(ID('editor'));
 final editorArgsDataTypeID = ID('dataType');
 final editorArgsCursorID = ID('cursor');
 final editorArgsDef = TypeDef.record('EditorArgs', {
-  editorArgsDataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+  editorArgsDataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
   editorArgsCursorID: TypeTree.mk('cursor', PalCursor.typeExpr(Var.mk(editorArgsDataTypeID))),
 });
 
@@ -144,8 +144,8 @@ final palUIModule = Module.mk(
       name: 'editor',
       value: FnExpr.dart(
         argName: 'editable',
-        argType: Literal.mk(Type.type, TypeDef.asType(editorArgsDef)),
-        returnType: Literal.mk(Type.type, palWidget),
+        argType: Type.lit(TypeDef.asType(editorArgsDef)),
+        returnType: Type.lit(palWidget),
         body: (ctx, arg) {
           final impl = Option.unwrap(
             dispatch(
@@ -171,7 +171,7 @@ final palUIModule = Module.mk(
                   Fn.type(
                     argID: Editable.editorArgID,
                     argType: cursorType,
-                    returnType: Literal.mk(Type.type, palWidget),
+                    returnType: Type.lit(palWidget),
                   ),
                   impl[Editable.editorID].unwrap!,
                 ),
@@ -693,7 +693,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
                 final children = ctx.getBindings
                     .expand((binding) {
                       final bindingType = Binding.valueType(ctx, binding);
-                      if (bindingType == Literal.mk(Type.type, TypeDef.type)) {
+                      if (bindingType == Type.lit(TypeDef.type)) {
                         return Option.cases(Binding.value(ctx, binding),
                             none: () => <reified.Pair<String, Widget>>[],
                             some: (value) {

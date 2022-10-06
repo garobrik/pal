@@ -14,7 +14,7 @@ void main() {
 
     final type = typeCheck(ctx, basicExpr);
     expect(Option.isPresent(type), isTrue);
-    expect(Option.unwrap(type), equals(Literal.mk(Type.type, text)));
+    expect(Option.unwrap(type), equals(Type.lit(text)));
     expect(
       eval(ctx, basicExpr),
       equals(
@@ -31,7 +31,7 @@ void main() {
 
     final type = typeCheck(ctx, compoundTypeExpr);
     expect(Option.isPresent(type), isTrue);
-    expect(Option.unwrap(type), equals(Literal.mk(Type.type, text)));
+    expect(Option.unwrap(type), equals(Type.lit(text)));
     expect(
       eval(ctx, compoundTypeExpr),
       equals(
@@ -83,7 +83,7 @@ void main() {
         InterfaceDef.tree(ModuleDef.interfaceDef),
       ),
       equals(
-        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Literal(type: Type, value: Type))), ID(bindings): TypeTree(name: "bindings", tree: leaf(Construct(dataType: Type, tree: Unit())))}))',
+        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Construct(dataType: Type, tree: Unit())))}))',
       ),
     );
   });

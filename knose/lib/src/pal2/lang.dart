@@ -69,9 +69,9 @@ abstract class Module {
   static final definitionsID = ID('definitions');
 
   static final def = TypeDef.record('Module', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
-    definitionsID: TypeTree.mk('definitions', Literal.mk(Type.type, List.type(ModuleDef.type))),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    nameID: TypeTree.mk('name', Type.lit(text)),
+    definitionsID: TypeTree.mk('definitions', Type.lit(List.type(ModuleDef.type))),
   });
   static final type = TypeDef.asType(def);
 
@@ -118,13 +118,13 @@ abstract class ModuleDef extends InterfaceDef {
   static final bindingsID = ID('bindings');
   static final bindingsArgID = ID('bindingsArg');
   static final interfaceDef = InterfaceDef.record('ModuleDef', {
-    dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     bindingsID: TypeTree.mk(
       'bindings',
       Fn.typeExpr(
         argID: bindingsArgID,
         argType: Var.mk(dataTypeID),
-        returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
+        returnType: Type.lit(List.type(Module.bindingOrType)),
       ),
     ),
   });
@@ -138,7 +138,7 @@ abstract class ModuleDef extends InterfaceDef {
         id: id,
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           bindingsID: bindings,
         }),
       );
@@ -149,7 +149,7 @@ abstract class ModuleDef extends InterfaceDef {
   static final typeDef = TypeDef.record(
     'ModuleDef',
     {
-      implID: TypeTree.mk('impl', Literal.mk(Type.type, InterfaceDef.implType(interfaceDef))),
+      implID: TypeTree.mk('impl', Type.lit(InterfaceDef.implType(interfaceDef))),
       dataID: TypeTree.mk(
         'data',
         RecordAccess.mk(Var.mk(implID), dataTypeID),
@@ -173,10 +173,10 @@ abstract class ValueDef {
   static final valueID = ID('value');
 
   static final typeDef = TypeDef.record('ValueDef', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
-    expectedTypeID: TypeTree.mk('expectedType', Literal.mk(Type.type, Option.type(Type.type))),
-    valueID: TypeTree.mk('value', Literal.mk(Type.type, Expr.type)),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    nameID: TypeTree.mk('name', Type.lit(text)),
+    expectedTypeID: TypeTree.mk('expectedType', Type.lit(Option.type(Type.type))),
+    valueID: TypeTree.mk('value', Type.lit(Expr.type)),
   });
   static final type = TypeDef.asType(typeDef);
 
@@ -201,8 +201,8 @@ abstract class ValueDef {
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
       argName: 'valueDef',
-      argType: Literal.mk(Type.type, TypeDef.asType(typeDef)),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
+      argType: Type.lit(TypeDef.asType(typeDef)),
+      returnType: Type.lit(List.type(Module.bindingOrType)),
       body: (ctx, arg) {
         Object? lazyType;
         Object? lazyValue;
@@ -280,9 +280,9 @@ abstract class TypeDef {
   static Object tree(Object typeDef) => (typeDef as Dict)[treeID].unwrap!;
 
   static final def = TypeDef.record('TypeDef', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    comptimeID: TypeTree.mk('comptime', Literal.mk(Type.type, List.type(ID.type))),
-    treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    comptimeID: TypeTree.mk('comptime', Type.lit(List.type(ID.type))),
+    treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
   });
   static final type = asType(def);
 
@@ -292,8 +292,8 @@ abstract class TypeDef {
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
       argName: 'typeDef',
-      argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
+      argType: Type.lit(type),
+      returnType: Type.lit(List.type(Module.bindingOrType)),
       body: (ctx, typeDef) {
         return List.mk([
           Union.mk(
@@ -309,7 +309,7 @@ abstract class TypeDef {
             ValueDef.mk(
               id: TypeDef.id(typeDef).append(_typeLitID),
               name: TypeTree.name(TypeDef.tree(typeDef)),
-              value: Literal.mk(Type.type, TypeDef.asType(typeDef)),
+              value: Type.lit(TypeDef.asType(typeDef)),
             ),
           ),
         ]);
@@ -330,15 +330,17 @@ abstract class Type {
   static final def = TypeDef.record(
     'Type',
     {
-      IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-      pathID: TypeTree.mk('path', Literal.mk(Type.type, List.type(ID.type))),
-      propertiesID: TypeTree.mk('properties', Literal.mk(Type.type, List.type(TypeProperty.type))),
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      pathID: TypeTree.mk('path', Type.lit(List.type(ID.type))),
+      propertiesID: TypeTree.mk('properties', Type.lit(List.type(TypeProperty.type))),
     },
     id: _typeID,
   );
   static final type = Type.mk(_typeID);
 
-  static Dict mk(
+  static Object lit(Object type) => Literal.mk(Type.type, type);
+
+  static Object mk(
     ID id, {
     DartList path = const [],
     DartList properties = const [],
@@ -427,7 +429,7 @@ abstract class TypeProperty {
   static final interfaceDef = InterfaceDef.record(
     'TypePropertyImpl',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     },
     id: interfaceID,
   );
@@ -440,13 +442,13 @@ abstract class TypeProperty {
       ImplDef.mk(
         id: id,
         implemented: interfaceID,
-        definition: Dict({dataTypeID: Literal.mk(Type.type, dataType)}),
+        definition: Dict({dataTypeID: Type.lit(dataType)}),
       );
 
   static final implID = ID('impl');
   static final dataID = ID('data');
   static final typeDef = TypeDef.record('TypeProperty', {
-    implID: TypeTree.mk('impl', Literal.mk(Type.type, implType)),
+    implID: TypeTree.mk('impl', Type.lit(implType)),
     dataID: TypeTree.mk(
       'data',
       RecordAccess.mk(Var.mk(implID), dataTypeID),
@@ -481,7 +483,7 @@ abstract class Equals extends TypeProperty {
   static final typeDef = TypeDef.record(
     'Equals',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
       equalToID: TypeTree.mk('equalTo', Var.mk(dataTypeID)),
     },
     id: typeDefID,
@@ -517,8 +519,8 @@ abstract class MemberHas extends TypeProperty {
   static final typeDef = TypeDef.record(
     'MemberHas',
     {
-      pathID: TypeTree.mk('path', Literal.mk(Type.type, List.type(ID.type))),
-      propertyID: TypeTree.mk('property', Literal.mk(Type.type, TypeProperty.type)),
+      pathID: TypeTree.mk('path', Type.lit(List.type(ID.type))),
+      propertyID: TypeTree.mk('property', Type.lit(TypeProperty.type)),
     },
     id: typeDefID,
   );
@@ -566,8 +568,8 @@ abstract class UnionTag {
   static final valueID = ID('value');
 
   static final def = TypeDef.record('UnionTag', {
-    tagID: TypeTree.mk('tag', Literal.mk(Type.type, ID.type)),
-    valueID: TypeTree.mk('value', Literal.mk(Type.type, Any.type)),
+    tagID: TypeTree.mk('tag', Type.lit(ID.type)),
+    valueID: TypeTree.mk('value', Type.lit(Any.type)),
   });
 
   static final type = TypeDef.asType(def);
@@ -589,11 +591,11 @@ abstract class TypeTree {
   static final def = TypeDef.record(
     'TypeTree',
     {
-      nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
+      nameID: TypeTree.mk('name', Type.lit(text)),
       treeID: TypeTree.union('tree', {
-        recordID: TypeTree.mk('record', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
-        unionID: TypeTree.mk('union', Literal.mk(Type.type, Map.type(ID.type, TypeTree.type))),
-        leafID: TypeTree.mk('leaf', Literal.mk(Type.type, Expr.type))
+        recordID: TypeTree.mk('record', Type.lit(Map.type(ID.type, TypeTree.type))),
+        unionID: TypeTree.mk('union', Type.lit(Map.type(ID.type, TypeTree.type))),
+        leafID: TypeTree.mk('leaf', Type.lit(Expr.type))
       }),
     },
     id: id,
@@ -786,8 +788,8 @@ abstract class InterfaceDef {
   static final treeID = ID('tree');
 
   static final def = TypeDef.record('InterfaceDef', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    treeID: TypeTree.mk('tree', Literal.mk(Type.type, TypeTree.type)),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
   });
   static final type = TypeDef.asType(def);
 
@@ -807,8 +809,8 @@ abstract class InterfaceDef {
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
       argName: 'interfaceDef',
-      argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
+      argType: Type.lit(type),
+      returnType: Type.lit(List.type(Module.bindingOrType)),
       body: (ctx, ifaceDef) {
         return List.mk([
           Union.mk(
@@ -852,9 +854,9 @@ abstract class ImplDef {
   static final definitionArgID = ID('definitionArg');
 
   static final def = TypeDef.record('ImplDef', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    implementedID: TypeTree.mk('implemented', Literal.mk(Type.type, ID.type)),
-    definitionID: TypeTree.mk('definition', Literal.mk(Type.type, Expr.type)),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    implementedID: TypeTree.mk('implemented', Type.lit(ID.type)),
+    definitionID: TypeTree.mk('definition', Type.lit(Expr.type)),
   });
   static final type = TypeDef.asType(def);
 
@@ -864,7 +866,7 @@ abstract class ImplDef {
         definitionID: FnExpr.palInferred(
           argID: definitionArgID,
           argName: 'definitionArg',
-          argType: Literal.mk(Type.type, unit),
+          argType: Type.lit(unit),
           body: Construct.mk(InterfaceDef.implTypeByID(implemented), definition),
         ),
       });
@@ -882,7 +884,7 @@ abstract class ImplDef {
         definitionID: FnExpr.dart(
           argID: definitionArgID,
           argName: 'definitionArg',
-          argType: Literal.mk(Type.type, argType),
+          argType: Type.lit(argType),
           returnType: returnType(Var.mk(definitionArgID)),
           body: definition,
         ),
@@ -899,8 +901,8 @@ abstract class ImplDef {
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
       argName: 'typeDef',
-      argType: Literal.mk(Type.type, type),
-      returnType: Literal.mk(Type.type, List.type(Module.bindingOrType)),
+      argType: Type.lit(type),
+      returnType: Type.lit(List.type(Module.bindingOrType)),
       body: (ctx, implDef) => List.mk([
         Union.mk(
           ModuleDef.type,
@@ -940,8 +942,8 @@ abstract class Union {
   static final valueID = ID('value');
 
   static final def = TypeDef.record('Union', {
-    possibleTypesID: TypeTree.mk('possibleTypes', Literal.mk(Type.type, List.type(Type.type))),
-    thisTypeID: TypeTree.mk('thisType', Literal.mk(Type.type, Type.type)),
+    possibleTypesID: TypeTree.mk('possibleTypes', Type.lit(List.type(Type.type))),
+    thisTypeID: TypeTree.mk('thisType', Type.lit(Type.type)),
     valueID: TypeTree.mk('value', Var.mk(thisTypeID)),
   });
 
@@ -968,8 +970,8 @@ abstract class Pair {
   static final firstID = ID('first');
   static final secondID = ID('second');
   static final def = TypeDef.record('Pair', {
-    firstTypeID: TypeTree.mk('firstType', Literal.mk(Type.type, Type.type)),
-    secondTypeID: TypeTree.mk('secondType', Literal.mk(Type.type, Type.type)),
+    firstTypeID: TypeTree.mk('firstType', Type.lit(Type.type)),
+    secondTypeID: TypeTree.mk('secondType', Type.lit(Type.type)),
     firstID: TypeTree.mk('first', Var.mk(firstTypeID)),
     secondID: TypeTree.mk('second', Var.mk(secondTypeID)),
   }, comptime: [
@@ -981,6 +983,15 @@ abstract class Pair {
         MemberHas.mkEquals([firstTypeID], Type.type, first),
         MemberHas.mkEquals([secondTypeID], Type.type, second),
       ]);
+
+  static Object typeExpr(Object first, Object second) => Type.mkExpr(TypeDef.id(def), properties: [
+        MemberHas.mkEqualsExpr([firstTypeID], Type.lit(Type.type), first),
+        MemberHas.mkEqualsExpr([secondTypeID], Type.lit(Type.type), second),
+      ]);
+
+  static Object first(Object pair) => (pair as Dict)[firstID].unwrap!;
+  static Object second(Object pair) => (pair as Dict)[secondID].unwrap!;
+  static Object mk(Object first, Object second) => Dict({firstID: first, secondID: second});
 }
 
 abstract class Option {
@@ -993,7 +1004,7 @@ abstract class Option {
   static final def = TypeDef.record(
     'Option',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
       valueID: TypeTree.union('value', {
         someID: TypeTree.mk('some', Var.mk(dataTypeID)),
         noneID: TypeTree.unit('none'),
@@ -1008,7 +1019,7 @@ abstract class Option {
       ]);
 
   static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)), properties: [
-        MemberHas.mkEqualsExpr([dataTypeID], Literal.mk(Type.type, Type.type), dataType),
+        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), dataType),
       ]);
 
   static T cases<T>(
@@ -1019,6 +1030,9 @@ abstract class Option {
     final value = (option as Dict)[valueID].unwrap!;
     return UnionTag.tag(value) == someID ? some(UnionTag.value(value)) : none();
   }
+
+  static Object map(Object option, Object Function(Object) f) =>
+      cases(option, some: f, none: () => Option.mk());
 
   static Object unwrap(Object option) =>
       Option.cases(option, some: (v) => v, none: () => throw Exception());
@@ -1034,7 +1048,7 @@ abstract class Option {
   static Object someExpr(Object dataType, Object value) => Construct.mk(
         Option.type(dataType),
         Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           valueID: UnionTag.mk(someID, value),
         }),
       );
@@ -1042,7 +1056,7 @@ abstract class Option {
   static Object noneExpr(Object dataType) => Construct.mk(
         Option.type(dataType),
         Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           valueID: UnionTag.mk(noneID, const Dict()),
         }),
       );
@@ -1061,13 +1075,13 @@ abstract class Expr {
   static final interfaceDef = InterfaceDef.record(
     'ExprInterface',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
       typeCheckID: TypeTree.mk(
         'typeCheck',
         Fn.typeExpr(
           argID: typeCheckArgID,
           argType: Var.mk(dataTypeID),
-          returnType: Literal.mk(Type.type, Option.type(typeExprType)),
+          returnType: Type.lit(Option.type(typeExprType)),
         ),
       ),
       reduceID: TypeTree.mk(
@@ -1075,7 +1089,7 @@ abstract class Expr {
         Fn.typeExpr(
           argID: reduceArgID,
           argType: Var.mk(dataTypeID),
-          returnType: Literal.mk(Type.type, Expr.type),
+          returnType: Type.lit(Expr.type),
         ),
       ),
       evalExprID: TypeTree.mk(
@@ -1083,7 +1097,7 @@ abstract class Expr {
         Fn.typeExpr(
           argID: evalExprArgID,
           argType: Var.mk(dataTypeID),
-          returnType: Literal.mk(Type.type, Any.type),
+          returnType: Type.lit(Any.type),
         ),
       )
     },
@@ -1103,24 +1117,24 @@ abstract class Expr {
         id: id ?? ID(),
         implemented: interfaceID,
         definition: Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           typeCheckID: FnExpr.dart(
-            argType: Literal.mk(Type.type, dataType),
-            returnType: Literal.mk(Type.type, Option.type(typeExprType)),
+            argType: Type.lit(dataType),
+            returnType: Type.lit(Option.type(typeExprType)),
             argID: typeCheckArgID,
             argName: argName,
             body: typeCheckBody,
           ),
           reduceID: FnExpr.dart(
-            argType: Literal.mk(Type.type, dataType),
-            returnType: Literal.mk(Type.type, Expr.type),
+            argType: Type.lit(dataType),
+            returnType: Type.lit(Expr.type),
             argID: reduceArgID,
             argName: argName,
             body: reduceBody,
           ),
           evalExprID: FnExpr.dart(
-            argType: Literal.mk(Type.type, dataType),
-            returnType: Literal.mk(Type.type, Any.type),
+            argType: Type.lit(dataType),
+            returnType: Type.lit(Any.type),
             argID: evalExprArgID,
             argName: argName,
             body: evalBody,
@@ -1163,7 +1177,7 @@ abstract class Expr {
   static final def = TypeDef.record(
     'Expr',
     {
-      implID: TypeTree.mk('impl', Literal.mk(Type.type, implType)),
+      implID: TypeTree.mk('impl', Type.lit(implType)),
       dataID: TypeTree.mk('data', RecordAccess.mk(Var.mk(implID), Expr.dataTypeID)),
     },
     id: _defID,
@@ -1182,8 +1196,8 @@ abstract class Expr {
 
   static Object typeCheckFn = FnExpr.from(
     argName: 'expr',
-    argType: Literal.mk(Type.type, Expr.type),
-    returnType: (_) => Literal.mk(Type.type, Option.type(typeExprType)),
+    argType: Type.lit(Expr.type),
+    returnType: (_) => Type.lit(Option.type(typeExprType)),
     body: (arg) => FnApp.mk(
       RecordAccess.mk(RecordAccess.mk(arg, implID), typeCheckID),
       RecordAccess.mk(arg, dataID),
@@ -1192,8 +1206,8 @@ abstract class Expr {
 
   static Object reduceFn = FnExpr.from(
     argName: 'expr',
-    argType: Literal.mk(Type.type, Expr.type),
-    returnType: (_) => Literal.mk(Type.type, Option.type(Expr.type)),
+    argType: Type.lit(Expr.type),
+    returnType: (_) => Type.lit(Option.type(Expr.type)),
     body: (arg) => FnApp.mk(
       RecordAccess.mk(RecordAccess.mk(arg, implID), reduceID),
       RecordAccess.mk(arg, dataID),
@@ -1208,7 +1222,7 @@ abstract class List {
   static final def = TypeDef.record(
     'List',
     {
-      typeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
+      typeID: TypeTree.mk('type', Type.lit(Type.type)),
       itemsID: TypeTree.unit('items'),
     },
     id: typeDefID,
@@ -1221,8 +1235,8 @@ abstract class List {
   static final exprTypeDef = TypeDef.record(
     'MkList',
     {
-      mkTypeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
-      mkValuesID: TypeTree.mk('mkValues', Literal.mk(Type.type, List.type(Expr.type))),
+      mkTypeID: TypeTree.mk('type', Type.lit(Type.type)),
+      mkValuesID: TypeTree.mk('mkValues', Type.lit(List.type(Expr.type))),
     },
     id: mkExprTypeDefID,
   );
@@ -1233,11 +1247,11 @@ abstract class List {
     for (final value in List.iterate(mkExprValues(arg))) {
       final valueType = typeCheck(ctx, value);
       if (!Option.isPresent(valueType)) return Option.mk();
-      if (!assignable(ctx, Literal.mk(Type.type, listValueType), Option.unwrap(valueType))) {
+      if (!assignable(ctx, Type.lit(listValueType), Option.unwrap(valueType))) {
         return Option.mk();
       }
     }
-    return Option.mk(Literal.mk(Type.type, List.type(listValueType)));
+    return Option.mk(Type.lit(List.type(listValueType)));
   }
 
   static Object _reduceFn(Ctx ctx, Object arg) {
@@ -1278,7 +1292,7 @@ abstract class List {
       ]);
 
   static Object typeExpr(Object type) => Type.mkExpr(typeDefID, properties: [
-        MemberHas.mkEqualsExpr([typeID], Literal.mk(Type.type, Type.type), type),
+        MemberHas.mkEqualsExpr([typeID], Type.lit(Type.type), type),
       ]);
 
   static Object mk(DartList values) => Dict({itemsID: Vec(values)});
@@ -1305,9 +1319,9 @@ abstract class Map {
   static final def = TypeDef.record(
     'Map',
     {
-      keyID: TypeTree.mk('key', Literal.mk(Type.type, Type.type)),
-      valueID: TypeTree.mk('value', Literal.mk(Type.type, Type.type)),
-      entriesID: TypeTree.mk('entries', Literal.mk(Type.type, unit)),
+      keyID: TypeTree.mk('key', Type.lit(Type.type)),
+      valueID: TypeTree.mk('value', Type.lit(Type.type)),
+      entriesID: TypeTree.mk('entries', Type.lit(unit)),
     },
     comptime: [keyID, valueID],
   );
@@ -1317,8 +1331,8 @@ abstract class Map {
         MemberHas.mkEquals([valueID], Type.type, value),
       ]);
   static Object typeExpr(Object key, Object value) => Type.mkExpr(TypeDef.id(def), properties: [
-        MemberHas.mkEqualsExpr([keyID], Literal.mk(Type.type, Type.type), key),
-        MemberHas.mkEqualsExpr([valueID], Literal.mk(Type.type, Type.type), value),
+        MemberHas.mkEqualsExpr([keyID], Type.lit(Type.type), key),
+        MemberHas.mkEqualsExpr([valueID], Type.lit(Type.type), value),
       ]);
 
   static Object mk(dart.Map<Object, Object> values) => Dict({entriesID: Dict(values)});
@@ -1330,9 +1344,9 @@ abstract class Map {
   static final exprDataDef = TypeDef.record(
     'MkMap',
     {
-      mkKeyID: TypeTree.mk('key', Literal.mk(Type.type, Type.type)),
-      mkValueID: TypeTree.mk('value', Literal.mk(Type.type, Type.type)),
-      mkEntriesID: TypeTree.mk('entries', Literal.mk(Type.type, List.type(List.type(Expr.type)))),
+      mkKeyID: TypeTree.mk('key', Type.lit(Type.type)),
+      mkValueID: TypeTree.mk('value', Type.lit(Type.type)),
+      mkEntriesID: TypeTree.mk('entries', Type.lit(List.type(List.type(Expr.type)))),
     },
     id: mkExprID,
   );
@@ -1379,7 +1393,7 @@ abstract class Any {
   static final def = TypeDef.record(
     'Any',
     {
-      typeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
+      typeID: TypeTree.mk('type', Type.lit(Type.type)),
       valueID: TypeTree.mk('value', Var.mk(typeID)),
     },
     id: anyTypeID,
@@ -1419,13 +1433,13 @@ abstract class Fn {
   static final typeDef = TypeDef.record(
     'Fn',
     {
-      argIDID: TypeTree.mk('argID', Literal.mk(Type.type, ID.type)),
-      argNameID: TypeTree.mk('argName', Literal.mk(Type.type, text)),
-      argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Type.type)),
-      returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, typeExprType)),
+      argIDID: TypeTree.mk('argID', Type.lit(ID.type)),
+      argNameID: TypeTree.mk('argName', Type.lit(text)),
+      argTypeID: TypeTree.mk('argType', Type.lit(Type.type)),
+      returnTypeID: TypeTree.mk('returnType', Type.lit(typeExprType)),
       bodyID: TypeTree.union('body', {
-        palID: TypeTree.mk('pal', Literal.mk(Type.type, Expr.type)),
-        dartID: TypeTree.mk('dart', Literal.mk(Type.type, unit)),
+        palID: TypeTree.mk('pal', Type.lit(Expr.type)),
+        dartID: TypeTree.mk('dart', Type.lit(unit)),
       }),
     },
     id: typeDefID,
@@ -1452,10 +1466,10 @@ abstract class Fn {
           TypeProperty.type,
           MemberHas.mkEquals([argIDID], ID.type, argID),
         ),
-        MemberHas.mkEqualsExpr([argTypeID], Literal.mk(Type.type, Type.type), argType),
+        MemberHas.mkEqualsExpr([argTypeID], Type.lit(Type.type), argType),
         MemberHas.mkEqualsExpr(
           [returnTypeID],
-          Literal.mk(Type.type, typeExprType),
+          Type.lit(typeExprType),
           Literal.mk(typeExprType, returnType),
         ),
       ]);
@@ -1505,13 +1519,13 @@ abstract class FnExpr extends Expr {
   static final typeDef = TypeDef.record(
     'FnExpr',
     {
-      argTypeID: TypeTree.mk('argType', Literal.mk(Type.type, Expr.type)),
-      returnTypeID: TypeTree.mk('returnType', Literal.mk(Type.type, Option.type(Expr.type))),
-      argIDID: TypeTree.mk('argID', Literal.mk(Type.type, ID.type)),
-      argNameID: TypeTree.mk('argName', Literal.mk(Type.type, text)),
+      argTypeID: TypeTree.mk('argType', Type.lit(Expr.type)),
+      returnTypeID: TypeTree.mk('returnType', Type.lit(Option.type(Expr.type))),
+      argIDID: TypeTree.mk('argID', Type.lit(ID.type)),
+      argNameID: TypeTree.mk('argName', Type.lit(text)),
       bodyID: TypeTree.union('body', {
-        palID: TypeTree.mk('pal', Literal.mk(Type.type, Expr.type)),
-        dartID: TypeTree.mk('dart', Literal.mk(Type.type, unit)),
+        palID: TypeTree.mk('pal', Type.lit(Expr.type)),
+        dartID: TypeTree.mk('dart', Type.lit(unit)),
       }),
     },
     id: typeDefID,
@@ -1525,7 +1539,7 @@ abstract class FnExpr extends Expr {
       typeCheck(ctx, FnExpr.argType(fn)),
       none: () => Option.mk(),
       some: (argTypeType) {
-        if (!assignable(ctx, Literal.mk(Type.type, Type.type), argTypeType)) {
+        if (!assignable(ctx, Type.lit(Type.type), argTypeType)) {
           return Option.mk();
         }
         final argType = reduce(ctx, FnExpr.argType(fn));
@@ -1571,7 +1585,7 @@ abstract class FnExpr extends Expr {
             typeCheck(ctx, returnTypeExpr),
             none: () => Option.mk(),
             some: (returnTypeType) {
-              if (!assignable(ctx, Literal.mk(Type.type, Type.type), returnTypeType)) {
+              if (!assignable(ctx, Type.lit(Type.type), returnTypeType)) {
                 return Option.mk();
               }
               final returnType = reduce(ctx, returnTypeExpr);
@@ -1779,8 +1793,8 @@ abstract class FnApp extends Expr {
   static final argID = ID('arg');
 
   static final typeDef = TypeDef.mk(TypeTree.record('FnApp', {
-    fnID: TypeTree.mk('fn', Literal.mk(Type.type, Expr.type)),
-    argID: TypeTree.mk('arg', Literal.mk(Type.type, Expr.type)),
+    fnID: TypeTree.mk('fn', Type.lit(Expr.type)),
+    argID: TypeTree.mk('arg', Type.lit(Expr.type)),
   }));
 
   static Object _typeFnBody(Ctx ctx, Object fnApp) => Option.cases(typeCheck(ctx, fn(fnApp)),
@@ -1924,8 +1938,8 @@ abstract class Construct extends Expr {
   static final typeDef = TypeDef.record(
     'Construct',
     {
-      dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
-      treeID: TypeTree.mk('tree', Literal.mk(Type.type, unit)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      treeID: TypeTree.mk('tree', Type.lit(unit)),
     },
     id: typeDefID,
   );
@@ -1964,7 +1978,7 @@ abstract class Construct extends Expr {
               Option.cases(
                 typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
                 some: (checkedType) {
-                  if (!assignable(ctx, Literal.mk(Type.type, Type.type), checkedType)) {
+                  if (!assignable(ctx, Type.lit(Type.type), checkedType)) {
                     throw const MyException();
                   }
                 },
@@ -2090,8 +2104,8 @@ abstract class RecordAccess extends Expr {
   static final typeDef = TypeDef.record(
     'RecordAccess',
     {
-      targetID: TypeTree.mk('target', Literal.mk(Type.type, Expr.type)),
-      memberID: TypeTree.mk('accessed', Literal.mk(Type.type, ID.type)),
+      targetID: TypeTree.mk('target', Type.lit(Expr.type)),
+      memberID: TypeTree.mk('accessed', Type.lit(ID.type)),
     },
     id: typeDefID,
   );
@@ -2131,7 +2145,7 @@ abstract class RecordAccess extends Expr {
                         eachEquals[List.mk(path)].cases(
                           some: (value) => Binding.mk(
                             id: path.last as ID,
-                            type: Literal.mk(Type.type, Equals.dataType(value)),
+                            type: Type.lit(Equals.dataType(value)),
                             name: TypeTree.name(typeTree),
                             value: Equals.equalTo(value),
                           ),
@@ -2236,14 +2250,14 @@ abstract class Literal extends Expr {
   static final typeDef = TypeDef.record(
     'Literal',
     {
-      typeID: TypeTree.mk('type', Literal.mk(Type.type, Type.type)),
+      typeID: TypeTree.mk('type', Type.lit(Type.type)),
       valueID: TypeTree.mk('value', Var.mk(typeID)),
     },
     id: typeDefID,
   );
   static final type = Type.mk(typeDefID);
 
-  static Object _typeFnData(Ctx ctx, Object arg) => Option.mk(Literal.mk(Type.type, getType(arg)));
+  static Object _typeFnData(Ctx ctx, Object arg) => Option.mk(Type.lit(getType(arg)));
 
   static Object _reduceFnData(Ctx ctx, Object arg) => Expr.mk(impl: exprImpl, data: arg);
 
@@ -2281,7 +2295,7 @@ abstract class Var extends Expr {
   static final typeDef = TypeDef.record(
     'Var',
     {
-      IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
     },
     id: typeDefID,
   );
@@ -2393,14 +2407,14 @@ abstract class Binding {
   static final valueID = ID('value');
 
   static final def = TypeDef.record('Binding', {
-    IDID: TypeTree.mk('id', Literal.mk(Type.type, ID.type)),
-    valueTypeID: TypeTree.mk('type', Literal.mk(Type.type, typeExprType)),
-    nameID: TypeTree.mk('name', Literal.mk(Type.type, text)),
+    IDID: TypeTree.mk('id', Type.lit(ID.type)),
+    valueTypeID: TypeTree.mk('type', Type.lit(typeExprType)),
+    nameID: TypeTree.mk('name', Type.lit(text)),
     reducedValueID: TypeTree.mk(
       'reducedValue',
       Fn.typeExpr(
         argID: ID('_'),
-        argType: Literal.mk(Type.type, unit),
+        argType: Type.lit(unit),
         returnType: Option.typeExpr(Expr.type),
       ),
     ),
@@ -2408,7 +2422,7 @@ abstract class Binding {
       'value',
       Fn.typeExpr(
         argID: ID('_'),
-        argType: Literal.mk(Type.type, unit),
+        argType: Type.lit(unit),
         returnType: Option.typeExpr(Var.mk(valueTypeID)),
       ),
     ),
@@ -2521,7 +2535,7 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
     if (!{Literal.type, Construct.type}.contains(Expr.dataType(b))) return false;
     final typeA = _litOrConsType(a);
     final typeB = _litOrConsType(a);
-    if (!assignableImpl(ctx, Literal.mk(Type.type, typeA), Literal.mk(Type.type, typeB))) {
+    if (!assignableImpl(ctx, Type.lit(typeA), Type.lit(typeB))) {
       return false;
     }
     if (Type.id(typeA) == Type.id(Type.type)) {
@@ -2701,7 +2715,7 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
         Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.returnTypeID]),
       ),
     );
-    final subst = assignableSubst(ctx, bindingType, Literal.mk(Type.type, type));
+    final subst = assignableSubst(ctx, bindingType, Type.lit(type));
     if (subst == null) continue;
     if (bestType != null) {
       if (assignable(
@@ -2725,7 +2739,7 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
   }
   // TODO: the type in the literal is wrong but it doesn't rly matter
   return Option.mk(
-    bestImpl == null ? null : eval(ctx, FnApp.mk(Literal.mk(Type.type, bestImpl), bestArg!)),
+    bestImpl == null ? null : eval(ctx, FnApp.mk(Type.lit(bestImpl), bestArg!)),
   );
 }
 
@@ -2773,7 +2787,7 @@ Object eval(Ctx ctx, Object expr) {
         ctx.withBinding(Binding.mk(
           id: Fn.argID(evalExprData),
           // TODO: this is wronggg?
-          type: Literal.mk(Type.type, dataType),
+          type: Type.lit(dataType),
           name: Fn.argName(evalExprData),
           value: data,
         )),
@@ -2798,7 +2812,7 @@ Ctx updateVisited(Ctx ctx, ID id) {
     Binding.mk(
       id: _visitedID,
       name: 'visited',
-      type: Literal.mk(Type.type, unit),
+      type: Type.lit(unit),
       value: prevSet.add(id),
     ),
   );

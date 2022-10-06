@@ -6,13 +6,13 @@ abstract class Printable {
   static final printID = ID('print');
   static final printArgID = ID('print');
   static final interfaceDef = InterfaceDef.record('Printable', {
-    dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     printID: TypeTree.mk(
       'print',
       Fn.typeExpr(
         argID: printArgID,
         argType: Var.mk(dataTypeID),
-        returnType: Literal.mk(Type.type, text),
+        returnType: Type.lit(text),
       ),
     ),
   });
@@ -22,12 +22,12 @@ abstract class Printable {
         id: ID(Type.id(dataType).label),
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
-          dataTypeID: Literal.mk(Type.type, dataType),
+          dataTypeID: Type.lit(dataType),
           printID: FnExpr.dart(
             argID: printArgID,
             argName: 'printArg',
-            argType: Literal.mk(Type.type, dataType),
-            returnType: Literal.mk(Type.type, text),
+            argType: Type.lit(dataType),
+            returnType: Type.lit(text),
             body: print,
           ),
         }),
@@ -46,7 +46,7 @@ abstract class Printable {
         returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
           MemberHas.mkEqualsExpr(
             [dataTypeID],
-            Literal.mk(Type.type, Type.type),
+            Type.lit(Type.type),
             dataType(typeArgExpr),
           )
         ]),
@@ -56,8 +56,8 @@ abstract class Printable {
             FnApp.mk(
               FnExpr.from(
                 argName: 'typeArg',
-                argType: Literal.mk(Type.type, argType),
-                returnType: (_) => Literal.mk(Type.type, Type.type),
+                argType: Type.lit(argType),
+                returnType: (_) => Type.lit(Type.type),
                 body: (arg) => dataType(arg),
               ),
               Literal.mk(argType, typeArgValue),
@@ -70,8 +70,8 @@ abstract class Printable {
               FnExpr.dart(
                 argID: printArgID,
                 argName: 'data',
-                argType: Literal.mk(Type.type, dataTypeValue),
-                returnType: Literal.mk(Type.type, text),
+                argType: Type.lit(dataTypeValue),
+                returnType: Type.lit(text),
                 body: (ctx, data) => print(ctx, dataTypeValue, data),
               ),
             ),
@@ -87,8 +87,8 @@ abstract class Printable {
       name: 'print',
       value: FnExpr.dart(
         argName: 'object',
-        argType: Literal.mk(Type.type, Any.type),
-        returnType: Literal.mk(Type.type, text),
+        argType: Type.lit(Any.type),
+        returnType: Type.lit(text),
         body: (ctx, arg) {
           final impl = Option.unwrap(
             dispatch(
@@ -105,8 +105,7 @@ abstract class Printable {
             ctx,
             FnApp.mk(
               Literal.mk(
-                Fn.type(
-                    argID: printArgID, argType: dataType, returnType: Literal.mk(Type.type, text)),
+                Fn.type(argID: printArgID, argType: dataType, returnType: Type.lit(text)),
                 impl[printID].unwrap!,
               ),
               Literal.mk(dataType, Any.getValue(arg)),
@@ -128,9 +127,6 @@ abstract class Printable {
             record: (record) {
               return record
                   .mapValues((k, v) {
-                    if (k == List.typeID) {
-                      return '${TypeTree.name(v)}: type';
-                    }
                     final child = recurse(ctx, v, (dataTree as Dict)[k].unwrap!);
                     final wrappedChild = TypeTree.treeCases(
                       v,

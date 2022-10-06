@@ -8,8 +8,7 @@ void main() {
   });
 
   final sillyID = ID();
-  final sillyRecordDef =
-      TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Literal.mk(Type.type, number))});
+  final sillyRecordDef = TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Type.lit(number))});
 
   late final testCtx = Option.unwrap(Module.load(
     coreCtx,
@@ -63,7 +62,7 @@ void main() {
     final result5 =
         eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(Option.isPresent(result5), isTrue);
-    expect(assignable(testCtx, Literal.mk(Type.type, number), Option.unwrap(result5)), isTrue);
+    expect(assignable(testCtx, Type.lit(number), Option.unwrap(result5)), isTrue);
   });
 
   test('RecordAccess + Literal', () {
@@ -73,7 +72,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Type.lit(number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -86,7 +85,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)))));
+    expect(type, equals(Option.mk(Type.lit(TypeDef.asType(sillyRecordDef)))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(Dict({sillyID: 0})));
@@ -96,15 +95,15 @@ void main() {
     final expr = FnApp.mk(
       FnExpr.from(
         argName: 'arg',
-        argType: Literal.mk(Type.type, TypeDef.asType(sillyRecordDef)),
-        returnType: (_) => Literal.mk(Type.type, number),
+        argType: Type.lit(TypeDef.asType(sillyRecordDef)),
+        returnType: (_) => Type.lit(number),
         body: (arg) => RecordAccess.mk(arg, sillyID),
       ),
       Literal.mk(TypeDef.asType(sillyRecordDef), Dict({sillyID: 0})),
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Type.lit(number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -116,7 +115,7 @@ void main() {
     final valueID = ID('testValue');
     final interfaceDef = InterfaceDef.mk(
       TypeTree.record('testIface', {
-        dataTypeID: TypeTree.mk('dataType', Literal.mk(Type.type, Type.type)),
+        dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
         valueID: TypeTree.mk('value', Var.mk(dataTypeID)),
       }),
       id: ifaceID,
@@ -126,7 +125,7 @@ void main() {
     final implDef = ImplDef.mk(
       id: implID,
       implemented: ifaceID,
-      definition: Dict({dataTypeID: Literal.mk(Type.type, number), valueID: Literal.mk(number, 0)}),
+      definition: Dict({dataTypeID: Type.lit(number), valueID: Literal.mk(number, 0)}),
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
@@ -148,7 +147,7 @@ void main() {
       valueID,
     );
     final type = typeCheck(thisCtx, expr);
-    expect(type, equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(type, equals(Option.mk(Type.lit(number))));
 
     final result = eval(thisCtx, expr);
     expect(result, equals(0));
@@ -159,7 +158,7 @@ void main() {
     final fn = FnExpr.pal(
       argID: Var.id(Expr.data(arg)),
       argName: 'someting!!',
-      argType: Literal.mk(Type.type, Literal.type),
+      argType: Type.lit(Literal.type),
       returnType: RecordAccess.mk(arg, Literal.typeID),
       body: RecordAccess.mk(arg, Literal.valueID),
     );
@@ -174,7 +173,7 @@ void main() {
           coreCtx,
           Fn.typeExpr(
             argID: Var.id(Expr.data(arg)),
-            argType: Literal.mk(Type.type, Literal.type),
+            argType: Type.lit(Literal.type),
             returnType: RecordAccess.mk(arg, Literal.typeID),
           ),
         ),
@@ -182,7 +181,7 @@ void main() {
     );
 
     final fnApplied = FnApp.mk(fn, Literal.mk(Literal.type, Expr.data(Literal.mk(number, 0))));
-    expect(typeCheck(coreCtx, fnApplied), equals(Option.mk(Literal.mk(Type.type, number))));
+    expect(typeCheck(coreCtx, fnApplied), equals(Option.mk(Type.lit(number))));
     expect(eval(coreCtx, fnApplied), equals(0));
   });
 
