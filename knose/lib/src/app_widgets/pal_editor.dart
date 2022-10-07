@@ -63,7 +63,7 @@ abstract class Editable {
 
   static Object mkImpl({
     required Object dataType,
-    required Object Function(Ctx, Cursor<Object>) editor,
+    required ID editor,
   }) =>
       ImplDef.mkDef(ImplDef.mk(
         implemented: InterfaceDef.id(interfaceDef),
@@ -74,54 +74,40 @@ abstract class Editable {
             argName: 'editorArg',
             argType: Type.lit(PalCursor.type(dataType)),
             returnType: Type.lit(palWidget),
-            body: mkDartBodyID((ctx, cursor) => editor(ctx, PalCursor.cursor(cursor))),
+            body: editor,
           ),
         }),
       ));
 
   static Object mkParameterizedImpl({
+    required String name,
     required Object argType,
     required Object Function(Object) dataType,
-    required Object Function(Ctx, Object, Object) editor,
+    required ID editor,
   }) =>
-      ImplDef.mkDef(ImplDef.mkDart(
+      ImplDef.mkParameterized(
+        id: ID(name),
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
-        returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
-          MemberHas.mkEqualsExpr(
-            [dataTypeID],
-            Type.lit(Type.type),
-            dataType(typeArgExpr),
-          )
-        ]),
-        definition: (ctx, typeArgValue) {
-          final dataTypeValue = eval(
-            ctx,
-            FnApp.mk(
-              FnExpr.from(
-                argName: 'typeArg',
-                argType: Type.lit(Type.type),
-                returnType: (_) => Type.lit(Type.type),
-                body: (arg) => dataType(arg),
-              ),
-              Type.lit(typeArgValue),
-            ),
-          );
-          return Dict({
-            dataTypeID: dataTypeValue,
-            editorID: eval(
-              ctx,
+        definition: (arg) => Dict({
+          dataTypeID: dataType(arg),
+          editorID: FnExpr.pal(
+            argID: editorArgID,
+            argName: 'printArg',
+            argType: dataType(arg),
+            returnType: Type.lit(text),
+            body: FnApp.mk(
               FnExpr.dart(
-                argID: editorArgID,
-                argName: 'data',
-                argType: Type.lit(PalCursor.type(dataTypeValue)),
-                returnType: Type.lit(palWidget),
-                body: mkDartBodyID((ctx, data) => editor(ctx, dataTypeValue, data)),
+                argName: 'printArg',
+                argType: Type.lit(Any.type),
+                returnType: Type.lit(text),
+                body: editor,
               ),
+              Any.mkExpr(dataType(arg), Var.mk(editorArgID)),
             ),
-          });
-        },
-      ));
+          )
+        }),
+      );
 }
 
 final editorFn = Var.mk(ID('editor'));
@@ -146,261 +132,274 @@ final palUIModule = Module.mk(
         argName: 'editable',
         argType: Type.lit(TypeDef.asType(editorArgsDef)),
         returnType: Type.lit(palWidget),
-        body: mkDartBodyID((ctx, arg) {
-          final impl = Option.unwrap(
-            dispatch(
-              ctx,
-              InterfaceDef.id(Editable.interfaceDef),
-              InterfaceDef.implType(Editable.interfaceDef, [
-                MemberHas.mkEquals(
-                  [Editable.dataTypeID],
-                  Type.type,
-                  (arg as Dict)[editorArgsDataTypeID].unwrap!,
-                )
-              ]),
-            ),
-          );
-
-          final cursorType = PalCursor.type((impl as Dict)[Editable.dataTypeID].unwrap!);
-          return ReaderWidget(
-            ctx: ctx,
-            builder: (_, ctx) => eval(
-              ctx,
-              FnApp.mk(
-                Literal.mk(
-                  Fn.type(
-                    argID: Editable.editorArgID,
-                    argType: cursorType,
-                    returnType: Type.lit(palWidget),
-                  ),
-                  impl[Editable.editorID].unwrap!,
-                ),
-                Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
-              ),
-            ) as Widget,
-          );
-        }),
+        body: const ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'),
       ),
     ),
     Editable.mkImpl(
       dataType: Module.type,
-      editor: (ctx, module) {
-        final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
-        return FocusTraversalGroup(
-          policy: HierarchicalOrderTraversalPolicy(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text.rich(
-                TextSpan(children: [
-                  const TextSpan(text: 'module '),
-                  _inlineTextField(ctx, module[Module.nameID].cast<String>()),
-                  const TextSpan(text: ' {'),
-                ]),
-              ),
-              Expanded(
-                child: InsetChild(
-                  ListView.separated(
-                    itemCount: definitions.length.read(ctx),
-                    shrinkWrap: true,
-                    separatorBuilder: (context, index) => ReaderWidget(
-                      ctx: ctx,
-                      builder: (context, ctx) {
-                        final isOpen = useCursor(false);
-                        final leftProportion = useCursor(0.0);
-                        return MouseRegion(
-                          onEnter: (hoverEvent) {
-                            isOpen.set(true);
-                            leftProportion.set(hoverEvent.localPosition.dx);
-                          },
-                          onHover: (hoverEvent) {
-                            isOpen.set(true);
-                            leftProportion.set(hoverEvent.localPosition.dx);
-                          },
-                          onExit: (_) => isOpen.set(false),
-                          child: Stack(
-                            alignment: AlignmentDirectional.center,
-                            fit: StackFit.passthrough,
-                            children: [
-                              const Divider(height: 20),
-                              if (isOpen.read(ctx))
-                                Positioned(
-                                  left: max(0, leftProportion.read(ctx) - 50),
-                                  child: Material(
-                                    child: TextButton.icon(
-                                      onPressed: () => definitions.insert(
-                                        index + 1,
-                                        TypeDef.mkDef(TypeDef.unit('unnamed')),
-                                      ),
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Add definition'),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    itemBuilder: (_, index) {
-                      final moduleDef = definitions[index];
-                      final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                      late final Cursor<Object> id;
-                      if (dataType == TypeDef.type) {
-                        id = moduleDef[ModuleDef.dataID][TypeDef.IDID];
-                      } else if (dataType == InterfaceDef.type) {
-                        id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
-                      } else if (dataType == ImplDef.type) {
-                        id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
-                      } else if (dataType == ValueDef.type) {
-                        id = moduleDef[ModuleDef.dataID][ValueDef.IDID];
-                      } else {
-                        throw Exception('unknown moduledef impl $dataType');
-                      }
-                      return ReaderWidget(
-                        key: ValueKey(id.read(ctx)),
-                        ctx: ctx,
-                        builder: (_, ctx) {
-                          final dataType =
-                              moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                          if (dataType == TypeDef.type) {
-                            final name =
-                                moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'type '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  palEditor(
-                                    ctx,
-                                    TypeTree.type,
-                                    moduleDef[ModuleDef.dataID][TypeDef.treeID],
-                                  ),
-                                ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (dataType == InterfaceDef.type) {
-                            final name =
-                                moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'interface '),
-                                  _inlineTextField(ctx, name.cast<String>()),
-                                  const TextSpan(text: ' {'),
-                                ])),
-                                InsetChild(
-                                  palEditor(
-                                    ctx,
-                                    TypeTree.type,
-                                    moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
-                                  ),
-                                ),
-                                const Text('}'),
-                              ],
-                            );
-                          } else if (dataType == ImplDef.type) {
-                            final interfaceDef = ctx.getInterface(
-                              moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                            );
-                            return Option.cases(
-                              Option.mk(interfaceDef),
-                              none: () => const Text('unknown interface'),
-                              some: (interfaceDef) {
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
-                                    ),
-                                    InsetChild(
-                                      ExprEditor(
-                                        ctx,
-                                        moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                                      ),
-                                    ),
-                                    const Text('}'),
-                                  ],
-                                );
-                              },
-                            );
-                          } else if (dataType == ValueDef.type) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                RichText(
-                                  text: TextSpan(children: [
-                                    const TextSpan(text: 'let '),
-                                    _inlineTextField(
-                                      ctx,
-                                      moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
-                                    ),
-                                    const TextSpan(text: ' ='),
-                                  ]),
-                                ),
-                                InsetChild(
-                                  ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID]),
-                                ),
-                              ],
-                            );
-                          } else {
-                            throw Exception('unknown ModuleDef type $dataType');
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const Text('}'),
-            ],
-          ),
-        );
-      },
+      editor: const ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'),
     ),
     Editable.mkImpl(
-        dataType: TypeTree.type,
-        editor: (ctx, typeTree) {
-          final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
-          if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
-            final subTree = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final key in subTree.keys.read(ctx)) ...[
-                  Text.rich(TextSpan(children: [
-                    if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                        TypeTree.unionID)
-                      const TextSpan(text: 'union '),
-                    if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                        TypeTree.recordID)
-                      const TextSpan(text: 'record '),
-                    _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
-                    const TextSpan(text: ':'),
-                  ])),
-                  InsetChild(
-                    palEditor(ctx, TypeTree.type, subTree[key].whenPresent),
-                  ),
-                ]
-              ],
-            );
-          } else if (tag == TypeTree.leafID) {
-            return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
-          } else {
-            throw Exception('unknown type tree union case');
-          }
-        }),
+      dataType: TypeTree.type,
+      editor: const ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'),
+    ),
   ],
 );
-final uiCtx = [Printable.module, palUIModule]
-    .fold(coreCtx, (ctx, module) => Option.unwrap(Module.load(ctx, module)) as Ctx);
+
+final FnMap palUIFnMap = {
+  const ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'): (ctx, arg) {
+    final impl = Option.unwrap(
+      dispatch(
+        ctx,
+        InterfaceDef.id(Editable.interfaceDef),
+        InterfaceDef.implType(Editable.interfaceDef, [
+          MemberHas.mkEquals(
+            [Editable.dataTypeID],
+            Type.type,
+            (arg as Dict)[editorArgsDataTypeID].unwrap!,
+          )
+        ]),
+      ),
+    );
+
+    final cursorType = PalCursor.type((impl as Dict)[Editable.dataTypeID].unwrap!);
+    return ReaderWidget(
+      ctx: ctx,
+      builder: (_, ctx) => eval(
+        ctx,
+        FnApp.mk(
+          Literal.mk(
+            Fn.type(
+              argID: Editable.editorArgID,
+              argType: cursorType,
+              returnType: Type.lit(palWidget),
+            ),
+            impl[Editable.editorID].unwrap!,
+          ),
+          Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
+        ),
+      ) as Widget,
+    );
+  },
+  const ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'): (ctx, arg) {
+    final module = PalCursor.cursor(arg);
+    final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
+    return FocusTraversalGroup(
+      policy: HierarchicalOrderTraversalPolicy(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'module '),
+              _inlineTextField(ctx, module[Module.nameID].cast<String>()),
+              const TextSpan(text: ' {'),
+            ]),
+          ),
+          Expanded(
+            child: InsetChild(
+              ListView.separated(
+                itemCount: definitions.length.read(ctx),
+                shrinkWrap: true,
+                separatorBuilder: (context, index) => ReaderWidget(
+                  ctx: ctx,
+                  builder: (context, ctx) {
+                    final isOpen = useCursor(false);
+                    final leftProportion = useCursor(0.0);
+                    return MouseRegion(
+                      onEnter: (hoverEvent) {
+                        isOpen.set(true);
+                        leftProportion.set(hoverEvent.localPosition.dx);
+                      },
+                      onHover: (hoverEvent) {
+                        isOpen.set(true);
+                        leftProportion.set(hoverEvent.localPosition.dx);
+                      },
+                      onExit: (_) => isOpen.set(false),
+                      child: Stack(
+                        alignment: AlignmentDirectional.center,
+                        fit: StackFit.passthrough,
+                        children: [
+                          const Divider(height: 20),
+                          if (isOpen.read(ctx))
+                            Positioned(
+                              left: max(0, leftProportion.read(ctx) - 50),
+                              child: Material(
+                                child: TextButton.icon(
+                                  onPressed: () => definitions.insert(
+                                    index + 1,
+                                    TypeDef.mkDef(TypeDef.unit('unnamed')),
+                                  ),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add definition'),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                itemBuilder: (_, index) {
+                  final moduleDef = definitions[index];
+                  final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+                  late final Cursor<Object> id;
+                  if (dataType == TypeDef.type) {
+                    id = moduleDef[ModuleDef.dataID][TypeDef.IDID];
+                  } else if (dataType == InterfaceDef.type) {
+                    id = moduleDef[ModuleDef.dataID][InterfaceDef.IDID];
+                  } else if (dataType == ImplDef.type) {
+                    id = moduleDef[ModuleDef.dataID][ImplDef.IDID];
+                  } else if (dataType == ValueDef.type) {
+                    id = moduleDef[ModuleDef.dataID][ValueDef.IDID];
+                  } else {
+                    throw Exception('unknown moduledef impl $dataType');
+                  }
+                  return ReaderWidget(
+                    key: ValueKey(id.read(ctx)),
+                    ctx: ctx,
+                    builder: (_, ctx) {
+                      final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+                      if (dataType == TypeDef.type) {
+                        final name = moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text.rich(TextSpan(children: [
+                              const TextSpan(text: 'type '),
+                              _inlineTextField(ctx, name.cast<String>()),
+                              const TextSpan(text: ' {'),
+                            ])),
+                            InsetChild(
+                              palEditor(
+                                ctx,
+                                TypeTree.type,
+                                moduleDef[ModuleDef.dataID][TypeDef.treeID],
+                              ),
+                            ),
+                            const Text('}'),
+                          ],
+                        );
+                      } else if (dataType == InterfaceDef.type) {
+                        final name =
+                            moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text.rich(TextSpan(children: [
+                              const TextSpan(text: 'interface '),
+                              _inlineTextField(ctx, name.cast<String>()),
+                              const TextSpan(text: ' {'),
+                            ])),
+                            InsetChild(
+                              palEditor(
+                                ctx,
+                                TypeTree.type,
+                                moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
+                              ),
+                            ),
+                            const Text('}'),
+                          ],
+                        );
+                      } else if (dataType == ImplDef.type) {
+                        final interfaceDef = ctx.getInterface(
+                          moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+                        );
+                        return Option.cases(
+                          Option.mk(interfaceDef),
+                          none: () => const Text('unknown interface'),
+                          some: (interfaceDef) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
+                                ),
+                                InsetChild(
+                                  ExprEditor(
+                                    ctx,
+                                    moduleDef[ModuleDef.dataID][ImplDef.definitionID],
+                                  ),
+                                ),
+                                const Text('}'),
+                              ],
+                            );
+                          },
+                        );
+                      } else if (dataType == ValueDef.type) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            RichText(
+                              text: TextSpan(children: [
+                                const TextSpan(text: 'let '),
+                                _inlineTextField(
+                                  ctx,
+                                  moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
+                                ),
+                                const TextSpan(text: ' ='),
+                              ]),
+                            ),
+                            InsetChild(
+                              ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID]),
+                            ),
+                          ],
+                        );
+                      } else {
+                        throw Exception('unknown ModuleDef type $dataType');
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+          const Text('}'),
+        ],
+      ),
+    );
+  },
+  const ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'): (ctx, arg) {
+    final typeTree = PalCursor.cursor(arg);
+    final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
+    if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
+      final subTree = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final key in subTree.keys.read(ctx)) ...[
+            Text.rich(TextSpan(children: [
+              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.unionID)
+                const TextSpan(text: 'union '),
+              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.recordID)
+                const TextSpan(text: 'record '),
+              _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
+              const TextSpan(text: ':'),
+            ])),
+            InsetChild(
+              palEditor(ctx, TypeTree.type, subTree[key].whenPresent),
+            ),
+          ]
+        ],
+      );
+    } else if (tag == TypeTree.leafID) {
+      return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
+    } else {
+      throw Exception('unknown type tree union case');
+    }
+  },
+};
+
+final uiCtx = [
+  [Printable.fnMap, Printable.module],
+  [palUIFnMap, palUIModule]
+].fold(
+    coreCtx,
+    (ctx, module) =>
+        Option.unwrap(Module.load(ctx.withFnMap(module[0] as FnMap), module[1])) as Ctx);
 
 Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   return eval(
@@ -420,14 +419,20 @@ Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
 
 @reader
 Widget _testThingy(Ctx ctx) {
-  final modules = useCursor(Vec([coreModule, Printable.module, palUIModule]));
+  final modules = useCursor(reified.Vec([
+    Vec([coreFnMap, coreModule]),
+    Vec([Printable.fnMap, Printable.module]),
+    Vec([palUIFnMap, palUIModule])
+  ]));
   final moduleCtx = useMemoized(
     () => GetCursor.compute(
       (ctx) => modules.read(ctx).fold<Object>(
             Option.mk(Ctx.empty),
             (ctx, module) => Option.cases(
               ctx,
-              some: (ctx) => Module.load(ctx as Ctx, module),
+              some: (ctx) {
+                return Module.load((ctx as Ctx).withFnMap(module[0] as FnMap), module[1]);
+              },
               none: () => Option.mk(),
             ),
           ),
@@ -441,6 +446,19 @@ Widget _testThingy(Ctx ctx) {
     children: [
       ReaderWidget(
         ctx: ctx,
+        builder: (_, ctx) {
+          final id = Cursor(ID());
+          return TextButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: "ID.from(id: '${id.read(Ctx.empty).id}'):"));
+              id.set(ID());
+            },
+            child: Text(id.read(ctx).id),
+          );
+        },
+      ),
+      ReaderWidget(
+        ctx: ctx,
         builder: (_, ctx) => Option.cases(
           moduleCtx.read(ctx),
           some: (moduleCtx) => ExprEditor(moduleCtx as Ctx, expr),
@@ -450,7 +468,7 @@ Widget _testThingy(Ctx ctx) {
       for (final module in modules.values(ctx)) ...[
         const Divider(),
         Expanded(
-          child: palEditor(uiCtx, Module.type, module),
+          child: palEditor(uiCtx, Module.type, module[1]),
         ),
       ],
     ],

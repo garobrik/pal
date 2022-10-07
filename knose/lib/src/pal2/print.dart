@@ -17,8 +17,7 @@ abstract class Printable {
     ),
   });
 
-  static Object mkImpl({required Object dataType, required Object Function(Ctx, Object) print}) =>
-      ImplDef.mk(
+  static Object mkImpl({required Object dataType, required ID print}) => ImplDef.mk(
         id: ID(Type.id(dataType).label),
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
@@ -28,7 +27,7 @@ abstract class Printable {
             argName: 'printArg',
             argType: Type.lit(dataType),
             returnType: Type.lit(text),
-            body: mkDartBodyID(print),
+            body: print,
           ),
         }),
       );
@@ -37,47 +36,36 @@ abstract class Printable {
     required String name,
     required Object argType,
     required Object Function(Object) dataType,
-    required Object Function(Ctx, Object, Object) print,
+    required ID print,
   }) =>
-      ImplDef.mkDart(
+      ImplDef.mkParameterized(
         id: ID(name),
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
-        returnType: (typeArgExpr) => InterfaceDef.implTypeExpr(interfaceDef, [
-          MemberHas.mkEqualsExpr(
-            [dataTypeID],
-            Type.lit(Type.type),
-            dataType(typeArgExpr),
-          )
-        ]),
-        definition: (ctx, typeArgValue) {
-          final dataTypeValue = eval(
-            ctx,
-            FnApp.mk(
-              FnExpr.from(
-                argName: 'typeArg',
-                argType: Type.lit(argType),
-                returnType: (_) => Type.lit(Type.type),
-                body: (arg) => dataType(arg),
-              ),
-              Literal.mk(argType, typeArgValue),
-            ),
-          );
-          return Dict({
-            dataTypeID: dataTypeValue,
-            printID: eval(
-              ctx,
+        definition: (arg) => Dict({
+          dataTypeID: dataType(arg),
+          printID: FnExpr.pal(
+            argID: printArgID,
+            argName: 'printArg',
+            argType: dataType(arg),
+            returnType: Type.lit(text),
+            body: FnApp.mk(
               FnExpr.dart(
-                argID: printArgID,
-                argName: 'data',
-                argType: Type.lit(dataTypeValue),
+                argName: 'printArg',
+                argType: Type.lit(Any.type),
                 returnType: Type.lit(text),
-                body: mkDartBodyID((ctx, data) => print(ctx, dataTypeValue, data)),
+                body: print,
               ),
+              Any.mkExpr(dataType(arg), Var.mk(printArgID)),
             ),
-          });
-        },
+          )
+        }),
       );
+
+  static Object Function(Ctx, Object) mkParameterizedFwder(
+    Object Function(Ctx, Object, Object) print,
+  ) =>
+      (ctx, any) => print(ctx, Any.getType(any), Any.getValue(any));
 
   static final printFnID = ID('print');
   static final module = Module.mk(name: 'Print', definitions: [
@@ -89,36 +77,98 @@ abstract class Printable {
         argName: 'object',
         argType: Type.lit(Any.type),
         returnType: Type.lit(text),
-        body: mkDartBodyID((ctx, arg) {
-          final impl = Option.unwrap(
-            dispatch(
-              ctx,
-              InterfaceDef.id(interfaceDef),
-              InterfaceDef.implType(interfaceDef, [
-                MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
-              ]),
-            ),
-          );
-
-          final dataType = (impl as Dict)[dataTypeID].unwrap!;
-          return eval(
-            ctx,
-            FnApp.mk(
-              Literal.mk(
-                Fn.type(argID: printArgID, argType: dataType, returnType: Type.lit(text)),
-                impl[printID].unwrap!,
-              ),
-              Literal.mk(dataType, Any.getValue(arg)),
-            ),
-          );
-        }),
+        body: const ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'),
       ),
     ),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'Default',
       argType: Type.type,
       dataType: (typeArg) => typeArg,
-      print: (ctx, typeArg, data) {
+      print: const ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'),
+    )),
+    ImplDef.mkDef(mkParameterizedImpl(
+      name: 'List',
+      argType: Type.type,
+      dataType: (typeArg) => List.typeExpr(typeArg),
+      print: const ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'),
+    )),
+    ImplDef.mkDef(mkParameterizedImpl(
+      name: 'Map',
+      argType: Pair.type(Type.type, Type.type),
+      dataType: (typeArg) => Map.typeExpr(
+        RecordAccess.mk(typeArg, Pair.firstID),
+        RecordAccess.mk(typeArg, Pair.secondID),
+      ),
+      print: const ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Type.type,
+      print: const ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: number,
+      print: const ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: text,
+      print: const ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: TypeProperty.type,
+      print: const ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: MemberHas.type,
+      print: const ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Equals.type,
+      print: const ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Expr.type,
+      print: const ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: ID.type,
+      print: const ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Var.type,
+      print: const ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Literal.type,
+      print: const ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'),
+    )),
+  ]);
+
+  static final FnMap fnMap = {
+    const ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'): (ctx, arg) {
+      final impl = Option.unwrap(
+        dispatch(
+          ctx,
+          InterfaceDef.id(interfaceDef),
+          InterfaceDef.implType(interfaceDef, [
+            MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
+          ]),
+        ),
+      );
+
+      final dataType = (impl as Dict)[dataTypeID].unwrap!;
+      return eval(
+        ctx,
+        FnApp.mk(
+          Literal.mk(
+            Fn.type(argID: printArgID, argType: dataType, returnType: Type.lit(text)),
+            impl[printID].unwrap!,
+          ),
+          Literal.mk(dataType, Any.getValue(arg)),
+        ),
+      );
+    },
+    const ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'): mkParameterizedFwder(
+      (ctx, typeArg, data) {
         final typeDef = ctx.getType(Type.id(typeArg));
 
         String recurse(Ctx ctx, Object typeTree, Object dataTree) {
@@ -160,123 +210,53 @@ abstract class Printable {
         );
         return '${TypeTree.name(tree)}($resultString)';
       },
-    )),
-    ImplDef.mkDef(mkParameterizedImpl(
-      name: 'List',
-      argType: Type.type,
-      dataType: (typeArg) => List.typeExpr(typeArg),
-      print: (ctx, listType, data) {
+    ),
+    const ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'): mkParameterizedFwder(
+      (ctx, listType, data) {
         final memberType = Type.memberEquals(listType, [List.typeID]);
         return '[${List.iterate(data).map((elem) => palPrint(ctx, memberType, elem)).join(", ")}]';
       },
-    )),
-    ImplDef.mkDef(mkParameterizedImpl(
-      name: 'Map',
-      argType: Pair.type(Type.type, Type.type),
-      dataType: (typeArg) => Map.typeExpr(
-        RecordAccess.mk(typeArg, Pair.firstID),
-        RecordAccess.mk(typeArg, Pair.secondID),
-      ),
-      print: (ctx, mapType, data) {
+    ),
+    const ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'): mkParameterizedFwder(
+      (ctx, mapType, data) {
         final keyType = Type.memberEquals(mapType, [Map.keyID]);
         final valueType = Type.memberEquals(mapType, [Map.valueID]);
         return '{${Map.entries(data).entries.map((entry) => "${palPrint(ctx, keyType, entry.key)}: ${palPrint(ctx, valueType, entry.value)}").join(", ")}}';
       },
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: Type.type,
-      print: (ctx, type) {
-        final tree = TypeDef.tree(ctx.getType(Type.id(type)));
-        final name = TypeTree.name(tree);
-        final props = List.iterate(Type.properties(type))
-            .map((prop) => palPrint(ctx, TypeProperty.type, prop));
-        final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
-        return '$name$suffix';
-      },
-    )),
-    ImplDef.mkDef(mkImpl(dataType: number, print: (_, number) => '$number')),
-    ImplDef.mkDef(mkImpl(dataType: text, print: (_, text) => '"$text"')),
-    ImplDef.mkDef(mkImpl(
-      dataType: TypeProperty.type,
-      print: (ctx, prop) => palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop)),
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: MemberHas.type,
-      print: (ctx, memberHas) =>
-          List.iterate(MemberHas.path(memberHas)).map((id) => (id as ID).label ?? id.id).join('.') +
-          palPrint(ctx, TypeProperty.type, MemberHas.property(memberHas)),
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: Equals.type,
-      print: (ctx, equals) =>
-          ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}',
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: Expr.type,
-      print: (ctx, expr) => palPrint(ctx, Expr.dataType(expr), Expr.data(expr)),
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: ID.type,
-      print: (ctx, id) => '$id',
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: Var.type,
-      print: (ctx, varData) => Option.cases(
-        ctx.getBinding(Var.id(varData)),
-        some: (binding) => Binding.name(binding),
-        none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
-      ),
-    )),
-    ImplDef.mkDef(mkImpl(
-      dataType: Literal.type,
-      print: (ctx, literalData) => palPrint(
-        ctx,
-        Literal.getType(literalData),
-        Literal.getValue(literalData),
-      ),
-    )),
-  ]);
+    ),
+    const ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'): (ctx, type) {
+      final tree = TypeDef.tree(ctx.getType(Type.id(type)));
+      final name = TypeTree.name(tree);
+      final props =
+          List.iterate(Type.properties(type)).map((prop) => palPrint(ctx, TypeProperty.type, prop));
+      final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
+      return '$name$suffix';
+    },
+    const ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'): (_, number) => '$number',
+    const ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'): (_, text) => '"$text"',
+    const ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'): (ctx, prop) =>
+        palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop)),
+    const ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'): (ctx, memberHas) =>
+        List.iterate(MemberHas.path(memberHas)).map((id) => (id as ID).label ?? id.id).join('.') +
+        palPrint(ctx, TypeProperty.type, MemberHas.property(memberHas)),
+    const ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'): (ctx, equals) =>
+        ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}',
+    const ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'): (ctx, expr) =>
+        palPrint(ctx, Expr.dataType(expr), Expr.data(expr)),
+    const ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'): (ctx, id) => '$id',
+    const ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'): (ctx, varData) => Option.cases(
+          ctx.getBinding(Var.id(varData)),
+          some: (binding) => Binding.name(binding),
+          none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
+        ),
+    const ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'): (ctx, literalData) => palPrint(
+          ctx,
+          Literal.getType(literalData),
+          Literal.getValue(literalData),
+        ),
+  };
 }
 
 String palPrint(Ctx ctx, Object type, Object value) =>
     eval(ctx, FnApp.mk(Var.mk(Printable.printFnID), Literal.mk(Any.type, Any.mk(type, value))))
         as String;
-
-/*
-def print(t: Type, value: t) => dispatch(Printable{dataType: t[=value]})
-impl Vt: Type, Printable{dataType: t}
-impl Vt: Type, Printable{dataType: List<t>}
-
-print(t: List<number>, value: [1])
-  => dispatch(Printable{dataType: List<number>[=[1]]})
-  => super?(Vt: Type, Printable<dataType = t>, Printable<dataType = List<number>[=[1]]>)
-    => Printable == Printable true
-    => t > List<number>[=[1]] ??
-    => true
-  => super?(Vt: Type, Printable<dataType: Type<id = List.id, prop = MemberHas(dataType, Equals(var))>, Printable{dataType: List<number>[=[1]]})
-    => Printable == Printable true
-    => describes?(List<t>, List<number>[=[1]])
-      => List == List true
-      => t > number ??
-      => true
-    => true
-  => super?(Vt: Type, Printable<dataType: t>, Vt: Type, Printable<dataType: List<t>>)
-    => Printable == Printable true
-    => t1 > List<t2> ??
-
-lang basic exprs:
-  - var
-  - construct
-  - mkList
-  - lit
-
-  assignable(lit, lit) => if (lit.type == Type) props_assignable(lit, lit) else lit == lit
-  assignable(lit, any) => false
-  assignable(var, any) => if (var in subst) assignable(subst[var], any) else if (any is var and any in subst) assignable(var, subst[any]) else if (var in any) false else ctx.subst[var] = any
-  assignable(any, var) => false
-  assignable(ctor, lit/ctor) => fields match && for field (variance_assignable(field.variance, field, ))
-  assignable(list, list/lit) => length match && for elem (assignable(field, etc, etc))
-
-  - fn
-  - fn app
-*/

@@ -4,7 +4,7 @@ import 'package:knose/src/pal2/lang.dart';
 
 void main() {
   test('load core module', () {
-    expect(Option.isPresent(Module.load(Ctx.empty, coreModule)), isTrue);
+    expect(Option.isPresent(Module.load(Ctx.empty.withFnMap(coreFnMap), coreModule)), isTrue);
   });
 
   final sillyID = ID();
@@ -18,8 +18,8 @@ void main() {
   test('TypeCheckFn', () {
     final varFn = FnExpr.from(
       argName: 'arg',
-      argType: Expr.type,
-      returnType: (_) => Option.type(Type.type),
+      argType: Type.lit(Expr.type),
+      returnType: (_) => Type.lit(Option.type(Type.type)),
       body: (arg) => arg,
     );
 
@@ -28,8 +28,8 @@ void main() {
 
     final implFn = FnExpr.from(
       argName: 'arg',
-      argType: Expr.type,
-      returnType: (_) => Option.type(Type.type),
+      argType: Type.lit(Expr.type),
+      returnType: (_) => Type.lit(Option.type(Type.type)),
       body: (arg) => RecordAccess.mk(arg, Expr.implID),
     );
 
@@ -38,8 +38,8 @@ void main() {
 
     final dataFn = FnExpr.from(
       argName: 'arg',
-      argType: Expr.type,
-      returnType: (_) => Option.type(Type.type),
+      argType: Type.lit(Expr.type),
+      returnType: (_) => Type.lit(Option.type(Type.type)),
       body: (arg) => RecordAccess.mk(arg, Expr.dataID),
     );
 
@@ -51,8 +51,8 @@ void main() {
 
     final typeCheckFn = FnExpr.from(
       argName: 'arg',
-      argType: Expr.type,
-      returnType: (_) => Option.type(Type.type),
+      argType: Type.lit(Expr.type),
+      returnType: (_) => Type.lit(Option.type(Type.type)),
       body: (arg) => FnApp.mk(
         RecordAccess.mk(RecordAccess.mk(arg, Expr.implID), Expr.typeCheckID),
         RecordAccess.mk(arg, Expr.dataID),

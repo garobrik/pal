@@ -7,12 +7,13 @@ import 'package:uuid/uuid.dart';
 // ignore: unused_import
 import 'package:knose/src/pal2/print.dart';
 
+typedef FnMap = dart.Map<ID, Object Function(Ctx, Object)>;
 typedef Dict = reified.Dict<Object, Object>;
 typedef DartList = dart.List<Object>;
 typedef Vec = reified.Vec<Object>;
 typedef Set = reified.CSet<Object>;
 
-class ID extends Comparable<ID> {
+class ID implements Comparable<ID> {
   static final typeDefID = ID('ID');
   static final def = TypeDef.unit('ID', id: typeDefID);
   static final type = Type.mk(typeDefID);
@@ -27,10 +28,10 @@ class ID extends Comparable<ID> {
       : id = _uuid.v4(),
         tail = null;
 
-  ID.from({
+  const ID.from({
     required this.id,
-    required this.label,
-    required this.tail,
+    this.label,
+    this.tail,
   });
 
   @override
@@ -79,10 +80,10 @@ abstract class Module {
   static Object mk({ID? id, required String name, required DartList definitions}) =>
       Dict({IDID: id ?? ID(), nameID: name, definitionsID: List.mk(definitions)});
 
-  static Object load(Ctx evalCtx, Object module) {
+  static Object load(Ctx ctx, Object module) {
     Iterable<Object> expandDef(Object moduleDef) {
       final list = eval(
-        evalCtx,
+        ctx,
         FnApp.mk(
           RecordAccess.mk(
             RecordAccess.mk(Literal.mk(ModuleDef.type, moduleDef), ModuleDef.implID),
@@ -100,15 +101,15 @@ abstract class Module {
     }
 
     final bindings = List.iterate((module as Dict)[definitionsID].unwrap!).expand(expandDef);
-    final resultCtx = bindings.fold<Ctx>(evalCtx, (ctx, binding) => ctx.withBinding(binding));
+    ctx = bindings.fold<Ctx>(ctx, (ctx, binding) => ctx.withBinding(binding));
     // try {
     for (final binding in bindings) {
-      Binding.valueType(resultCtx, binding);
+      Binding.valueType(ctx, binding);
     }
     // } on MyException {
     //   return Option.mk();
     // }
-    return Option.mk(resultCtx);
+    return Option.mk(ctx);
   }
 
   static final bindingOrType = Union.type([ModuleDef.type, Binding.type]);
@@ -160,8 +161,10 @@ abstract class ModuleDef extends InterfaceDef {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object mk({required Object implDef, required Object data}) =>
-      Dict({implID: ImplDef.asImpl(Ctx.empty, ModuleDef.interfaceDef, implDef), dataID: data});
+  static Object mk({required Object implDef, required Object data}) => Dict({
+        implID: ImplDef.asImpl(Ctx.empty.withFnMap(coreFnMap), ModuleDef.interfaceDef, implDef),
+        dataID: data
+      });
 
   static Object impl(Object moduleDef) => (moduleDef as Dict)[implID].unwrap!;
   static Object dataType(Object moduleDef) => (impl(moduleDef) as Dict)[dataTypeID].unwrap!;
@@ -204,43 +207,7 @@ abstract class ValueDef {
       argName: 'valueDef',
       argType: Type.lit(TypeDef.asType(typeDef)),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: mkDartBodyID((ctx, arg) {
-        Object? lazyType;
-        Object? lazyValue;
-
-        final bindingID = (arg as Dict)[IDID].unwrap! as ID;
-        final expr = arg[valueID].unwrap!;
-        computeType(Ctx ctx) {
-          lazyType ??= Option.cases(
-            typeCheck(updateVisited(ctx, bindingID), expr),
-            some: (checkedType) => checkedType,
-            none: () => throw const MyException(),
-          );
-          if (Expr.dataType(lazyType!) != Literal.type) throw const MyException();
-          Option.cases(arg[expectedTypeID].unwrap!, none: () {}, some: (expectedType) {
-            if (!assignable(ctx, expectedType, lazyType!)) throw const MyException();
-          });
-          return lazyType!;
-        }
-
-        computeValue(Ctx ctx) {
-          computeType(ctx);
-          lazyValue ??= eval(updateVisited(ctx, bindingID), expr);
-          return lazyValue!;
-        }
-
-        return List.mk([
-          Union.mk(
-            Binding.type,
-            Binding.mkLazy(
-              id: bindingID,
-              name: arg[nameID].unwrap! as String,
-              type: computeType,
-              value: computeValue,
-            ),
-          ),
-        ]);
-      }),
+      body: const ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'),
     ),
     id: ID('ValueDefImpl'),
   );
@@ -295,26 +262,7 @@ abstract class TypeDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: mkDartBodyID((ctx, typeDef) {
-        return List.mk([
-          Union.mk(
-            ModuleDef.type,
-            ValueDef.mk(
-              id: TypeDef.id(typeDef),
-              name: TypeTree.name(TypeDef.tree(typeDef)),
-              value: Literal.mk(TypeDef.type, typeDef),
-            ),
-          ),
-          Union.mk(
-            ModuleDef.type,
-            ValueDef.mk(
-              id: TypeDef.id(typeDef).append(_typeLitID),
-              name: TypeTree.name(TypeDef.tree(typeDef)),
-              value: Type.lit(TypeDef.asType(typeDef)),
-            ),
-          ),
-        ]);
-      }),
+      body: const ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'),
     ),
     id: ID('TypeDefImpl'),
   );
@@ -436,7 +384,7 @@ abstract class TypeProperty {
   );
   static final implType = InterfaceDef.implType(interfaceDef);
 
-  static Dict mkImpl({
+  static Object mkImpl({
     required ID id,
     required Object dataType,
   }) =>
@@ -812,27 +760,7 @@ abstract class InterfaceDef {
       argName: 'interfaceDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: mkDartBodyID((ctx, ifaceDef) {
-        return List.mk([
-          Union.mk(
-            ModuleDef.type,
-            ValueDef.mk(
-              id: InterfaceDef.id(ifaceDef),
-              name: TypeTree.name(InterfaceDef.tree(ifaceDef)),
-              value: Literal.mk(InterfaceDef.type, ifaceDef),
-            ),
-          ),
-          Union.mk(
-            ModuleDef.type,
-            TypeDef.mkDef(
-              TypeDef.mk(
-                InterfaceDef.tree(ifaceDef),
-                id: InterfaceDef.innerTypeDefID(InterfaceDef.id(ifaceDef)),
-              ),
-            ),
-          ),
-        ]);
-      }),
+      body: const ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'),
     ),
     id: ID('InterfaceDefImpl'),
   );
@@ -861,33 +789,31 @@ abstract class ImplDef {
   });
   static final type = TypeDef.asType(def);
 
-  static Dict mk({ID? id, required ID implemented, required Object definition}) => Dict({
+  static Object mk({ID? id, required ID implemented, required Object definition}) =>
+      mkParameterized(
+        id: id,
+        implemented: implemented,
+        argType: unit,
+        definition: (_) => definition,
+      );
+
+  static Dict mkParameterized({
+    ID? id,
+    required ID implemented,
+    required Object argType,
+    required Object Function(Object) definition,
+  }) =>
+      Dict({
         IDID: id ?? ID(),
         implementedID: implemented,
         definitionID: FnExpr.palInferred(
           argID: definitionArgID,
           argName: 'definitionArg',
-          argType: Type.lit(unit),
-          body: Construct.mk(InterfaceDef.implTypeByID(implemented), definition),
-        ),
-      });
-
-  static Dict mkDart({
-    ID? id,
-    required ID implemented,
-    required Object argType,
-    required Object Function(Object) returnType,
-    required Object Function(Ctx, Object) definition,
-  }) =>
-      Dict({
-        IDID: id ?? ID(),
-        implementedID: implemented,
-        definitionID: FnExpr.dart(
-          argID: definitionArgID,
-          argName: 'definitionArg',
           argType: Type.lit(argType),
-          returnType: returnType(Var.mk(definitionArgID)),
-          body: mkDartBodyID(definition),
+          body: Construct.mk(
+            InterfaceDef.implTypeByID(implemented),
+            definition(Var.mk(definitionArgID)),
+          ),
         ),
       });
 
@@ -904,17 +830,7 @@ abstract class ImplDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: mkDartBodyID((ctx, implDef) => List.mk([
-            Union.mk(
-              ModuleDef.type,
-              ValueDef.mk(
-                id: bindingID(implDef),
-                name:
-                    'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
-                value: ImplDef.definition(implDef),
-              ),
-            ),
-          ])),
+      body: const ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'),
     ),
     id: ID('ImplDefImpl'),
   );
@@ -993,6 +909,16 @@ abstract class Pair {
   static Object first(Object pair) => (pair as Dict)[firstID].unwrap!;
   static Object second(Object pair) => (pair as Dict)[secondID].unwrap!;
   static Object mk(Object first, Object second) => Dict({firstID: first, secondID: second});
+  static Object mkExpr(Object firstType, Object secondType, Object first, Object second) =>
+      Construct.mk(
+        TypeDef.asType(def),
+        Dict({
+          firstTypeID: firstType,
+          secondTypeID: secondType,
+          firstID: first,
+          secondID: second,
+        }),
+      );
 }
 
 abstract class Option {
@@ -1243,36 +1169,11 @@ abstract class List {
   );
   static final mkExprType = Type.mk(mkExprTypeDefID);
 
-  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
-    final listValueType = (arg as Dict)[mkTypeID].unwrap!;
-    for (final value in List.iterate(mkExprValues(arg))) {
-      final valueType = typeCheck(ctx, value);
-      if (!Option.isPresent(valueType)) return Option.mk();
-      if (!assignable(ctx, Type.lit(listValueType), Option.unwrap(valueType))) {
-        return Option.mk();
-      }
-    }
-    return Option.mk(Type.lit(List.type(listValueType)));
-  });
+  static const _typeFn = ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1');
 
-  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
-    bool nonLit = false;
-    final reducedSubExprs = <Object>[];
-    for (final subExpr in iterate((arg as Dict)[mkValuesID].unwrap!)) {
-      final reduced = reduce(ctx, subExpr);
-      if (Expr.dataType(reduced) != Literal.type) nonLit = true;
-      reducedSubExprs.add(reduced);
-    }
-    if (nonLit) return List.mkExpr(arg[mkTypeID].unwrap!, reducedSubExprs);
-    return Literal.mk(
-      List.type(arg[mkTypeID].unwrap!),
-      List.mk([...reducedSubExprs.map(Expr.data).map(Literal.getValue)]),
-    );
-  });
+  static const _reduceFn = ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12');
 
-  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) => List.mk(
-        [...iterate((arg as Dict)[mkValuesID].unwrap!).map((expr) => eval(ctx, expr))],
-      ));
+  static const _evalFn = ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823');
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkExprType,
     argName: 'mkListData',
@@ -1356,30 +1257,12 @@ abstract class Map {
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkType,
     argName: 'mkMapData',
-    typeCheckBody: mkDartBodyID((ctx, arg) {
-      final keyType = (arg as Dict)[mkKeyID].unwrap!;
-      final valueType = arg[mkValueID].unwrap!;
-
-      for (final entry in List.iterate(arg[mkEntriesID].unwrap!)) {
-        if (typeCheck(ctx, List.iterate(entry).first) != Option.mk(keyType)) {
-          return Option.mk();
-        }
-        if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Option.mk(valueType)) {
-          return Option.mk();
-        }
-      }
-      return Option.mk(Map.type(keyType, valueType));
-    }),
-    reduceBody: mkDartBodyID((ctx, arg) {
-      throw Exception('reduce map expr not yet implemented!');
-    }),
-    evalBody: mkDartBodyID((ctx, arg) => Dict({
-          for (final entry in List.iterate((arg as Dict)[mkEntriesID].unwrap!))
-            eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
-        })),
+    typeCheckBody: const ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'),
+    reduceBody: const ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'),
+    evalBody: const ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'),
   );
   static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
-        impl: ImplDef.asImpl(Ctx.empty, Expr.interfaceDef, mkExprImplDef),
+        impl: ImplDef.asImpl(Ctx.empty.withFnMap(coreFnMap), Expr.interfaceDef, mkExprImplDef),
         data: Dict({mkKeyID: key, mkValueID: value, mkEntriesID: entries}),
       );
 
@@ -1405,6 +1288,8 @@ abstract class Any {
   static Object getValue(Object any) => (any as Dict)[valueID].unwrap!;
 
   static Object mk(Object type, Object value) => Dict({typeID: type, valueID: value});
+  static Object mkExpr(Object type, Object value) =>
+      Construct.mk(Any.type, Dict({typeID: type, valueID: value}));
 }
 
 final textDef = TypeDef.unit('Text');
@@ -1429,6 +1314,7 @@ abstract class Fn {
   static final bodyID = ID('body');
   static final palID = ID('pal');
   static final dartID = ID('dart');
+  static final closureID = ID('closure');
 
   static final typeDefID = ID('Fn');
   static final typeDef = TypeDef.record(
@@ -1442,6 +1328,7 @@ abstract class Fn {
         palID: TypeTree.mk('pal', Type.lit(Expr.type)),
         dartID: TypeTree.mk('dart', Type.lit(ID.type)),
       }),
+      closureID: TypeTree.mk('closure', Type.lit(List.type(Binding.type))),
     },
     id: typeDefID,
   );
@@ -1479,18 +1366,20 @@ abstract class Fn {
     required ID argID,
     required String argName,
     required Object body,
+    Object? closure,
   }) =>
       Dict({
         argIDID: argID,
         argNameID: argName,
         bodyID: body,
+        closureID: closure ?? List.mk(const []),
       });
 
   static Object mkDartBody(ID body) => UnionTag.mk(dartID, body);
 
   static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
   static String argName(Object fn) => (fn as Dict)[argNameID].unwrap! as String;
-  static Object body(Object fn) => (fn as Dict)[bodyID].unwrap!;
+  static Iterable<Object> closure(Object fn) => List.iterate((fn as Dict)[closureID].unwrap!);
   static Object bodyCases(
     Object fn, {
     required Object Function(Object) pal,
@@ -1535,121 +1424,11 @@ abstract class FnExpr extends Expr {
 
   static final exprImplID = ID('FnExprImpl');
 
-  static final typeFnBody = mkDartBodyID((Ctx ctx, Object fn) {
-    return Option.cases(
-      typeCheck(ctx, FnExpr.argType(fn)),
-      none: () => Option.mk(),
-      some: (argTypeType) {
-        if (!assignable(ctx, Type.lit(Type.type), argTypeType)) {
-          return Option.mk();
-        }
-        final argType = reduce(ctx, FnExpr.argType(fn));
-        ctx = ctx.withBinding(
-          Binding.mk(
-            id: FnExpr.argID(fn),
-            type: argType,
-            name: FnExpr.argName(fn),
-          ),
-        );
-        return Option.cases(
-          FnExpr.returnType(fn),
-          none: () => FnExpr.bodyCases(
-            fn,
-            dart: (_) => throw Exception('dart Fn w no declared return type not allowed!'),
-            pal: (body) => Option.cases(
-              typeCheck(ctx, body),
-              none: () => Option.mk(),
-              some: (bodyType) {
-                if (Expr.dataType(argType) != Literal.type) {
-                  // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                  return Option.mk(Fn.typeExpr(
-                    argID: FnExpr.argID(fn),
-                    argType: argType,
-                    returnType: bodyType,
-                  ));
-                } else {
-                  return Option.mk(
-                    Literal.mk(
-                      Type.type,
-                      Fn.type(
-                        argID: FnExpr.argID(fn),
-                        argType: Literal.getValue(Expr.data(argType)),
-                        returnType: bodyType,
-                      ),
-                    ),
-                  );
-                }
-              },
-            ),
-          ),
-          some: (returnTypeExpr) => Option.cases(
-            typeCheck(ctx, returnTypeExpr),
-            none: () => Option.mk(),
-            some: (returnTypeType) {
-              if (!assignable(ctx, Type.lit(Type.type), returnTypeType)) {
-                return Option.mk();
-              }
-              final returnType = reduce(ctx, returnTypeExpr);
-              return FnExpr.bodyCases(
-                fn,
-                pal: (body) => Option.cases(
-                  typeCheck(ctx, body),
-                  none: () => Option.mk(),
-                  some: (bodyType) {
-                    if (!assignable(ctx, returnType, bodyType)) return Option.mk();
-                    // TODO: weird logic here around expr wrapping in FnValue.types?
-                    if (Expr.dataType(argType) != Literal.type) {
-                      // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                      return Option.mk(Fn.typeExpr(
-                        argID: FnExpr.argID(fn),
-                        argType: argType,
-                        returnType: returnType,
-                      ));
-                    } else {
-                      return Option.mk(
-                        Literal.mk(
-                          Type.type,
-                          Fn.type(
-                            argID: FnExpr.argID(fn),
-                            argType: Literal.getValue(Expr.data(argType)),
-                            returnType: returnType,
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                // TODO: typecheck arg & return type exprs
-                dart: (_) => Option.mk(reduce(
-                  ctx,
-                  Fn.typeExpr(
-                    argID: FnExpr.argID(fn),
-                    argType: argType,
-                    returnType: returnType,
-                  ),
-                )),
-              );
-            },
-          ),
-        );
-      },
-    );
-  });
+  static const typeFnBody = ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7');
 
-  static final reduceFnBody = mkDartBodyID(
-    (Ctx ctx, Object fnData) => Expr.mk(impl: exprImpl, data: fnData),
-  );
+  static const reduceFnBody = ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468');
 
-  static final evalFnBody = mkDartBodyID((Ctx ctx, Object arg) {
-    return Fn.mk(
-      argName: FnExpr.argName(arg),
-      argID: FnExpr.argID(arg),
-      body: UnionTag.mk(
-        UnionTag.tag(FnExpr.body(arg)) == palID ? Fn.palID : Fn.dartID,
-        UnionTag.value(FnExpr.body(arg)),
-      ),
-    );
-  });
+  static const evalFnBody = ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a');
 
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
@@ -1668,22 +1447,7 @@ abstract class FnExpr extends Expr {
     evalBody: evalFnBody,
   );
 
-  static Object mkData({
-    ID? argID,
-    required String argName,
-    required Object argType,
-    required Object returnType,
-    required Object body,
-  }) =>
-      Dict({
-        argTypeID: argType,
-        returnTypeID: returnType,
-        argNameID: argName,
-        argIDID: argID ?? ID(argName),
-        bodyID: body,
-      });
-
-  static Object mk({
+  static Object _mk({
     ID? argID,
     required String argName,
     required Object argType,
@@ -1692,13 +1456,13 @@ abstract class FnExpr extends Expr {
   }) =>
       Expr.mk(
         impl: exprImpl,
-        data: mkData(
-          argID: argID,
-          argName: argName,
-          argType: argType,
-          returnType: Option.mk(returnType),
-          body: body,
-        ),
+        data: Dict({
+          argTypeID: argType,
+          returnTypeID: Option.mk(returnType),
+          argNameID: argName,
+          argIDID: argID ?? ID(argName),
+          bodyID: body,
+        }),
       );
 
   static Object pal({
@@ -1708,15 +1472,12 @@ abstract class FnExpr extends Expr {
     required Object returnType,
     required Object body,
   }) =>
-      Expr.mk(
-        impl: exprImpl,
-        data: mkData(
-          argID: argID,
-          argName: argName,
-          argType: argType,
-          returnType: Option.mk(returnType),
-          body: UnionTag.mk(palID, body),
-        ),
+      _mk(
+        argID: argID,
+        argName: argName,
+        argType: argType,
+        returnType: returnType,
+        body: UnionTag.mk(palID, body),
       );
 
   static Object palInferred({
@@ -1725,16 +1486,7 @@ abstract class FnExpr extends Expr {
     required Object argType,
     required Object body,
   }) =>
-      Expr.mk(
-        impl: exprImpl,
-        data: mkData(
-          argID: argID,
-          argName: argName,
-          argType: argType,
-          returnType: Option.mk(),
-          body: UnionTag.mk(palID, body),
-        ),
-      );
+      _mk(argID: argID, argName: argName, argType: argType, body: UnionTag.mk(palID, body));
 
   static Object dart({
     ID? argID,
@@ -1743,15 +1495,12 @@ abstract class FnExpr extends Expr {
     required Object returnType,
     required ID body,
   }) =>
-      Expr.mk(
-        data: mkData(
-          argID: argID,
-          argName: argName,
-          argType: argType,
-          returnType: Option.mk(returnType),
-          body: UnionTag.mk(dartID, body),
-        ),
-        impl: exprImpl,
+      _mk(
+        argID: argID,
+        argName: argName,
+        argType: argType,
+        returnType: returnType,
+        body: UnionTag.mk(dartID, body),
       );
 
   static Object from({
@@ -1770,15 +1519,15 @@ abstract class FnExpr extends Expr {
     );
   }
 
-  static ID argID(Object runtimeData) => (runtimeData as Dict)[argIDID].unwrap! as ID;
-  static String argName(Object runtimeData) => (runtimeData as Dict)[argNameID].unwrap! as String;
+  static ID argID(Object fnExpr) => (fnExpr as Dict)[argIDID].unwrap! as ID;
+  static String argName(Object fnExpr) => (fnExpr as Dict)[argNameID].unwrap! as String;
   static Object argType(Object fn) => (fn as Dict)[argTypeID].unwrap!;
   static Object returnType(Object fn) => (fn as Dict)[returnTypeID].unwrap!;
   static Object body(Object fn) => (fn as Dict)[bodyID].unwrap!;
-  static Object bodyCases(
+  static T bodyCases<T>(
     Object fn, {
-    required Object Function(Object) pal,
-    required Object Function(ID) dart,
+    required T Function(Object) pal,
+    required T Function(ID) dart,
   }) {
     final body = (fn as Dict)[bodyID].unwrap!;
     if (UnionTag.tag(body) == palID) {
@@ -1797,118 +1546,15 @@ abstract class FnApp extends Expr {
     fnID: TypeTree.mk('fn', Type.lit(Expr.type)),
     argID: TypeTree.mk('arg', Type.lit(Expr.type)),
   }));
+  static final type = TypeDef.asType(typeDef);
 
-  static final _typeFnBody = mkDartBodyID((Ctx ctx, Object fnApp) {
-    return Option.cases(
-      typeCheck(ctx, fn(fnApp)),
-      none: () => Option.mk(),
-      some: (fnTypeExpr) {
-        if ({Literal.type, Construct.type}.contains(Expr.dataType(fnTypeExpr))) {
-          return Option.cases(
-            typeCheck(ctx, arg(fnApp)),
-            none: () => Option.mk(),
-            some: (argType) {
-              // TODO: weird logic here around Fn arg types are exprs, so fnTypeExpr argtype member is??
-              final argAssignable = assignable(
-                ctx,
-                Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argTypeID]),
-                argType,
-              );
-              if (argAssignable) {
-                final argID = Literal.getValue(
-                  Expr.data(
-                    Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argIDID]),
-                  ),
-                ) as ID;
-                ctx = ctx.withBinding(
-                  Binding.mk(
-                    id: argID,
-                    type: argType,
-                    name: argID.label ?? '$argID',
-                    reducedValue: reduce(ctx, arg(fnApp)),
-                  ),
-                );
-                return Option.mk(reduce(
-                  ctx,
-                  Literal.getValue(
-                    Expr.data(Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.returnTypeID])),
-                  ),
-                ));
-              } else {
-                return Option.mk();
-              }
-            },
-          );
-        }
-        throw Exception('type check fn app where fnType isn\'t literal not yet implemented!');
-      },
-    );
-  });
-
-  static final _reduceFnBody = mkDartBodyID((Ctx ctx, Object fnApp) {
-    final reducedFn = reduce(ctx, fn(fnApp));
-    if (Expr.dataType(reducedFn) == Literal.type || Expr.dataType(reducedFn) == FnExpr.type) {
-      if (Expr.dataType(reducedFn) == Literal.type) {
-        final fnValue = Literal.getValue(Expr.data(reducedFn));
-        return Fn.bodyCases(
-          fnValue,
-          pal: (bodyExpr) {
-            return reduce(
-              ctx.withBinding(Binding.mk(
-                id: Fn.argID(fnValue),
-                name: Fn.argName(fnValue),
-                type: Literal.mk(
-                  Type.type,
-                  Type.memberEquals(Literal.getType(Expr.data(reducedFn)), [Fn.argTypeID]),
-                ),
-              )),
-              bodyExpr,
-            );
-          },
-          dart: (_) => Expr.mk(impl: exprImpl, data: fnApp),
-        );
-      } else {
-        final fnExpr = Expr.data(reducedFn);
-        return FnExpr.bodyCases(
-          fnExpr,
-          pal: (bodyExpr) {
-            return reduce(
-              ctx.withBinding(Binding.mk(
-                id: FnExpr.argID(fnExpr),
-                name: FnExpr.argName(fnExpr),
-                type: reduce(ctx, FnExpr.argType(fnExpr)),
-              )),
-              bodyExpr,
-            );
-          },
-          dart: (_) => Expr.mk(impl: exprImpl, data: fnApp),
-        );
-      }
-    }
-    return Expr.mk(impl: exprImpl, data: fnApp);
-  });
-
-  static final _evalFnBody = mkDartBodyID((Ctx ctx, Object data) {
-    final fn = eval(ctx, FnApp.fn(data));
-    final arg = eval(ctx, FnApp.arg(data));
-    return Fn.bodyCases(
-      fn,
-      pal: (body) => eval(
-        ctx.withBinding(Binding.mk(
-          id: Fn.argID(fn),
-          type: null,
-          name: Fn.argName(fn),
-          value: arg,
-        )),
-        body,
-      ),
-      dart: (body) => _fnMap[body]!(ctx, arg),
-    );
-  });
+  static const _typeFnBody = ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b');
+  static const _reduceFnBody = ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719');
+  static const _evalFnBody = ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19');
 
   static final exprImplDef = Expr.mkImplDef(
     argName: 'fnAppData',
-    dataType: TypeDef.asType(typeDef),
+    dataType: type,
     typeCheckBody: _typeFnBody,
     reduceBody: _reduceFnBody,
     evalBody: _evalFnBody,
@@ -1916,7 +1562,7 @@ abstract class FnApp extends Expr {
 
   static final Object exprImpl = Expr.mkImpl(
     argName: 'fnAppData',
-    dataType: TypeDef.asType(typeDef),
+    dataType: type,
     typeCheckBody: _typeFnBody,
     reduceBody: _reduceFnBody,
     evalBody: _evalFnBody,
@@ -1950,130 +1596,11 @@ abstract class Construct extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final _typeFn = mkDartBodyID((Ctx origCtx, Object arg) {
-    final typeDef = origCtx.getType(Type.id(dataType(arg)));
+  static const _typeFn = ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce');
 
-    final computedProps = <Object>[];
-    DartList lazyBindings(Object typeTree, Object dataTree, Object path) {
-      return TypeTree.treeCases(
-        typeTree,
-        record: (record) {
-          if (record.length != (dataTree as Dict).length) throw const MyException();
-          return [
-            ...record.entries.expand((entry) {
-              if (!dataTree.containsKey(entry.key)) throw const MyException();
-              return lazyBindings(
-                entry.value,
-                dataTree[entry.key].unwrap!,
-                List.add(path, entry.key),
-              );
-            }),
-          ];
-        },
-        union: (union) {
-          final tag = UnionTag.tag(dataTree);
-          if (!union.containsKey(tag)) throw const MyException();
-          return lazyBindings(union[tag].unwrap!, UnionTag.value(dataTree), List.add(path, tag));
-        },
-        leaf: (leaf) {
-          Object? lazyType;
-          Object? lazyValue;
-          computeType(Ctx ctx) {
-            if (lazyType == null) {
-              Option.cases(
-                typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
-                some: (checkedType) {
-                  if (!assignable(ctx, Type.lit(Type.type), checkedType)) {
-                    throw const MyException();
-                  }
-                },
-                none: () => throw const MyException(),
-              );
-              final defType = reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf);
-              lazyType = Option.cases(
-                typeCheck(origCtx, dataTree),
-                some: (dataType) {
-                  if (!assignable(ctx, defType, dataType)) throw const MyException();
-                  return dataType;
-                },
-                none: () => throw const MyException(),
-              );
-            }
-            return lazyType!;
-          }
+  static const _reduceFn = ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8');
 
-          computeValue(Ctx ctx) {
-            if (lazyValue == null) {
-              final dataType = computeType(ctx);
-              lazyValue = reduce(origCtx, dataTree);
-              computedProps.add(
-                MemberHas.mkEqualsExpr([...List.iterate(path)], dataType, lazyValue!),
-              );
-            }
-            return lazyValue!;
-          }
-
-          return [
-            Binding.mkLazy(
-              id: List.iterate(path).last as ID,
-              name: TypeTree.name(typeTree),
-              type: computeType,
-              reducedValue: computeValue,
-            ),
-          ];
-        },
-      );
-    }
-
-    final bindings = lazyBindings(TypeDef.tree(typeDef), tree(arg), List.mk(const []));
-    final typeCtx = bindings.fold<Ctx>(origCtx, (ctx, binding) => ctx.withBinding(binding));
-    try {
-      for (final binding in bindings) {
-        Binding.valueType(typeCtx, binding);
-      }
-    } on MyException {
-      return Option.mk();
-    }
-
-    return Option.mk(
-      reduce(origCtx, Type.mkExpr(Type.id(dataType(arg)), properties: computedProps)),
-    );
-  });
-
-  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
-    bool nonLit = false;
-    final typeTree = TypeDef.tree(ctx.getType(Type.id(dataType(arg))));
-    final exprTree = TypeTree.mapData(
-      typeTree,
-      tree(arg),
-      (_, dataLeaf, __) {
-        final reduced = reduce(ctx, dataLeaf);
-        if (Expr.dataType(reduced) != Literal.type) nonLit = true;
-        return reduced;
-      },
-    );
-
-    if (nonLit) return Construct.mk(dataType(arg), exprTree);
-    return Literal.mk(
-      dataType(arg),
-      TypeTree.mapData(
-        typeTree,
-        exprTree,
-        (_, expr, __) => Literal.getValue(Expr.data(expr)),
-      ),
-    );
-  });
-
-  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) {
-    final typeDef = ctx.getType(Type.id(dataType(arg)));
-    final comptimeIDs = TypeDef.comptime(typeDef);
-    return TypeTree.maybeMapData(
-      TypeDef.tree(typeDef),
-      tree(arg),
-      (_, dataLeaf, path) =>
-          Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
-    );
-  });
+  static const _evalFn = ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852');
 
   static final exprImplID = ID('ConstructExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2116,109 +1643,11 @@ abstract class RecordAccess extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
-    return Option.cases(
-      typeCheck(ctx, RecordAccess.target(arg)),
-      none: () => Option.mk(),
-      some: (targetTypeExpr) {
-        if (Expr.dataType(targetTypeExpr) == Literal.type) {
-          final targetType = Literal.getValue(Expr.data(targetTypeExpr));
-          final targetTypeDef = ctx.getType(Type.id(targetType));
-          final path = Type.path(targetType);
-          final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), List.iterate(path));
-          return TypeTree.treeCases(
-            treeAt,
-            leaf: (_) => Option.mk(),
-            union: (_) => Option.mk(),
-            record: (recordNode) {
-              final member = RecordAccess.member(arg);
-              final subTree = recordNode[member].unwrap!;
-              return TypeTree.treeCases(
-                subTree,
-                record: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
-                union: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
-                leaf: (leafNode) {
-                  final eachEquals = MemberHas.eachEquals(targetType);
-                  Iterable<Object> bindings(DartList path, Object typeTree) {
-                    return TypeTree.treeCases(
-                      typeTree,
-                      record: (record) => record.entries.expand(
-                        (entry) => bindings([...path, entry.key], entry.value),
-                      ),
-                      union: (union) => [],
-                      leaf: (leaf) => [
-                        eachEquals[List.mk(path)].cases(
-                          some: (value) => Binding.mk(
-                            id: path.last as ID,
-                            type: Type.lit(Equals.dataType(value)),
-                            name: TypeTree.name(typeTree),
-                            value: Equals.equalTo(value),
-                          ),
-                          none: () {
-                            return Binding.mkLazy(
-                              id: path.last as ID,
-                              name: TypeTree.name(typeTree),
-                              type: (ctx) => reduce(ctx, leaf),
-                              reducedValue: (ctx) =>
-                                  RecordAccess.chain(reduce(ctx, RecordAccess.target(arg)), path),
-                            );
-                          },
-                        )
-                      ],
-                    );
-                  }
+  static const _typeFn = ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4');
 
-                  ctx = bindings([], TypeDef.tree(targetTypeDef)).fold<Ctx>(
-                    ctx,
-                    (ctx, binding) => ctx.withBinding(binding),
-                  );
-                  return Option.cases(
-                    typeCheck(ctx, leafNode),
-                    some: (_) => Option.mk(reduce(ctx, leafNode)),
-                    none: () => Option.mk(),
-                  );
-                },
-              );
-            },
-          );
-        } else {
-          throw Exception(
-            "typechecking recordaccess on non-literal target type not implemented!",
-          );
-        }
-      },
-    );
-  });
+  static const _reduceFn = ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802');
 
-  static final _reduceFn = mkDartBodyID((Ctx ctx, Object data) {
-    final targetExpr = reduce(ctx, target(data));
-    if (Expr.dataType(targetExpr) == Literal.type) {
-      final typeDef = ctx.getType(Type.id(Literal.getType(Expr.data(targetExpr))));
-      ctx = TypeTree.foldData<DartList>(
-        [],
-        TypeDef.tree(typeDef),
-        Literal.getValue(Expr.data(targetExpr)),
-        (bindings, _, dataLeaf, path) =>
-            [...bindings, Binding.mk(id: (path.last as ID), type: null, name: '', value: dataLeaf)],
-      ).fold(ctx, (ctx, binding) => ctx.withBinding(binding));
-
-      return (TypeTree.mapData(
-        TypeDef.tree(typeDef),
-        Literal.getValue(Expr.data(targetExpr)),
-        (typeLeaf, dataLeaf, path) => Literal.mk(eval(ctx, typeLeaf), dataLeaf),
-      ) as Dict)[member(data)]
-          .unwrap!;
-    } else if (Expr.dataType(targetExpr) == Construct.type) {
-      return (Construct.tree(Expr.data(targetExpr)) as Dict)[member(data)].unwrap!;
-    } else if (Expr.dataType(targetExpr) == Var.type) {
-      return RecordAccess.mk(targetExpr, member(data));
-    }
-    throw Exception('reduce record access not implemented for record access!');
-  });
-
-  static final _evalFn = mkDartBodyID((Ctx ctx, Object data) {
-    return (eval(ctx, target(data)) as Dict)[member(data)].unwrap!;
-  });
+  static const _evalFn = ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd');
 
   static final exprImplID = ID('exprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2263,13 +1692,11 @@ abstract class Literal extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final _typeFnData =
-      mkDartBodyID((Ctx ctx, Object arg) => Option.mk(Type.lit(getType(arg))));
+  static const _typeFnData = ID.from(id: '5249e346-b160-4a03-b657-2002027596be');
 
-  static final _reduceFnData =
-      mkDartBodyID((Ctx ctx, Object arg) => Expr.mk(impl: exprImpl, data: arg));
+  static const _reduceFnData = ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a');
 
-  static final _evalFnData = mkDartBodyID((Ctx ctx, Object arg) => (arg as Dict)[valueID].unwrap!);
+  static const _evalFnData = ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5');
 
   static final exprImplID = ID('LiteralExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -2309,48 +1736,9 @@ abstract class Var extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final _typeFn = mkDartBodyID((Ctx ctx, Object arg) {
-    return Option.cases(
-      ctx.getBinding(Var.id(arg)),
-      some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
-      none: () => Option.mk(),
-    );
-  });
-  static final _reduceFn = mkDartBodyID((Ctx ctx, Object arg) {
-    return Option.cases(
-      ctx.getBinding(Var.id(arg)),
-      none: () => Var.mk(Var.id(arg)),
-      some: (binding) => Option.cases(
-        Binding.value(
-          ctx,
-          binding,
-        ),
-        some: (val) => Literal.mk(
-          Literal.getValue(Expr.data(Binding.valueType(ctx, binding))),
-          val,
-        ),
-        none: () => Option.cases(
-          Binding.reducedValue(ctx, binding),
-          some: (reducedValue) => reduce(ctx, reducedValue),
-          none: () => Var.mk(Var.id(arg)),
-        ),
-      ),
-    );
-  });
-  static final _evalFn = mkDartBodyID((Ctx ctx, Object arg) {
-    return Option.cases(
-      Binding.value(
-        ctx,
-        Option.cases(
-          ctx.getBinding(Var.id(arg)),
-          some: (binding) => binding,
-          none: () => throw Exception(),
-        ),
-      ),
-      some: (val) => val,
-      none: () => throw Exception('impossible!!'),
-    );
-  });
+  static const _typeFn = ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61');
+  static const _reduceFn = ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d');
+  static const _evalFn = ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f');
 
   static final exprImplDef = Expr.mkImplDef(
     dataType: type,
@@ -2381,15 +1769,15 @@ abstract class Placeholder extends Expr {
   static final exprImplDef = Expr.mkImplDef(
     dataType: TypeDef.asType(typeDef),
     argName: 'placeholderData',
-    typeCheckBody: mkDartBodyID((_, __) => Option.mk()),
-    reduceBody: mkDartBodyID((_, __) => throw Exception("don't reduce a placeholder u fool!")),
-    evalBody: mkDartBodyID((_, __) => throw Exception("don't evaluate a placeholder u fool!")),
+    typeCheckBody: const ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'),
+    reduceBody: const ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'),
+    evalBody: const ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'),
   );
 }
 
 final placeholder = Expr.mk(
   data: const Dict(),
-  impl: ImplDef.asImpl(Ctx.empty, Expr.interfaceDef, Placeholder.exprImplDef),
+  impl: ImplDef.asImpl(Ctx.empty.withFnMap(coreFnMap), Expr.interfaceDef, Placeholder.exprImplDef),
 );
 
 extension CtxType on Ctx {
@@ -2502,7 +1890,7 @@ extension CtxBinding on Ctx {
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
-final coreCtx = Option.unwrap(Module.load(Ctx.empty, coreModule)) as Ctx;
+final coreCtx = (Option.unwrap(Module.load(Ctx.empty.withFnMap(coreFnMap), coreModule)) as Ctx);
 
 final _substBindingID = ID('subst');
 dart.Map<ID, Object> _subst(Ctx ctx) {
@@ -2687,6 +2075,50 @@ bool occurs(Ctx ctx, ID a, Object b) {
   }
 }
 
+dart.Set<ID> freeVars(Ctx ctx, Object expr) {
+  if (Expr.dataType(expr) == Literal.type) return const {};
+  if (Expr.dataType(expr) == RecordAccess.type) {
+    return freeVars(ctx, RecordAccess.target(Expr.data(expr)));
+  }
+  if (Expr.dataType(expr) == Var.type) return {Var.id(Expr.data(expr))};
+  if (Expr.dataType(expr) == Construct.type) {
+    final typeDef = ctx.getType(Type.id(Construct.dataType(Expr.data(expr))));
+
+    final consVars = <ID>{};
+    return TypeTree.foldData<dart.Set<ID>>(
+      const {},
+      TypeDef.tree(typeDef),
+      Construct.tree(Expr.data(expr)),
+      (prev, _, dataLeaf, path) {
+        consVars.add(path.last as ID);
+        return prev.union(freeVars(ctx, dataLeaf));
+      },
+    );
+  } else if (Expr.dataType(expr) == List.mkExprType) {
+    return List.iterate(List.mkExprValues(Expr.data(expr)))
+        .fold(const {}, (prev, subExpr) => prev.union(freeVars(ctx, subExpr)));
+  } else if (Expr.dataType(expr) == FnApp.type) {
+    return freeVars(ctx, FnApp.fn(Expr.data(expr)))
+        .union(freeVars(ctx, FnApp.arg(Expr.data(expr))));
+  } else if (Expr.dataType(expr) == FnExpr.type) {
+    final bodyVars = FnExpr.bodyCases<dart.Set<ID>>(
+      Expr.data(expr),
+      dart: (_) => const {},
+      pal: (body) => freeVars(ctx, body),
+    );
+    final returnTypeVars = Option.cases(
+      FnExpr.returnType(Expr.data(expr)),
+      some: (returnType) => freeVars(ctx, returnType),
+      none: () => const <ID>{},
+    );
+    final argVar = {FnExpr.argID(Expr.data(expr))};
+    final argTypeVars = freeVars(ctx, FnExpr.argType(Expr.data(expr)));
+    return bodyVars.union(returnTypeVars).difference(argVar).union(argTypeVars);
+  } else {
+    throw Exception('freeVars not implemented for expr ${Expr.dataType(expr)}');
+  }
+}
+
 Object varSubst(Ctx ctx, ID fromID, ID toID, Object expr) {
   final exprType = Expr.dataType(expr);
   final exprData = Expr.data(expr);
@@ -2729,6 +2161,12 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
         Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.returnTypeID]),
       ),
     );
+    final argType = Literal.getValue(
+      Expr.data(Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.argTypeID])),
+    );
+    ctx = ctx.withBinding(
+      Binding.mk(id: ImplDef.definitionArgID, type: Type.lit(argType), name: 'definitionArg'),
+    );
     final subst = assignableSubst(ctx, bindingType, Type.lit(type));
     if (subst == null) continue;
     if (bestType != null) {
@@ -2746,9 +2184,6 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
     }
     bestType = bindingType;
     bestImpl = Option.unwrap(Binding.value(ctx, binding));
-    final argType = Literal.getValue(
-      Expr.data(Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.argTypeID])),
-    );
     bestArg = _extractSubstArg(ctx, argType, subst);
   }
   // TODO: the type in the literal is wrong but it doesn't rly matter
@@ -2809,7 +2244,7 @@ Object eval(Ctx ctx, Object expr) {
       );
     },
     dart: (bodyFn) {
-      return _fnMap[bodyFn]!(ctx, data);
+      return ctx.getFn(bodyFn)(ctx, data);
     },
   );
 }
@@ -2886,11 +2321,17 @@ ID? _tryReviveID(String string) {
 final _decoder = JsonDecoder((_, arg) => _revive(arg));
 dynamic deserialize(String json) => _decoder.convert(json);
 
-final _fnMap = <ID, Object Function(Ctx, Object)>{};
-ID mkDartBodyID(Object Function(Ctx, Object) fn, [ID? id]) {
-  id ??= ID();
-  _fnMap[id] = fn;
-  return id;
+class FnMapCtx extends CtxElement {
+  final FnMap fnMap;
+
+  FnMapCtx(this.fnMap);
+}
+
+extension FnMapCtxExt on Ctx {
+  Ctx withFnMap(FnMap map) =>
+      withElement(FnMapCtx({if (get<FnMapCtx>() != null) ...get<FnMapCtx>()!.fnMap, ...map}));
+
+  Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
 }
 
 final coreModule = Module.mk(name: 'core', definitions: [
@@ -2949,3 +2390,644 @@ final coreModule = Module.mk(name: 'core', definitions: [
   ImplDef.mkDef(Placeholder.exprImplDef),
   TypeDef.mkDef(Binding.def),
 ]);
+
+final FnMap coreFnMap = {
+  const ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'): (_, __) =>
+      throw Exception("don't evaluate a placeholder u fool!"),
+  const ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'): (_, __) =>
+      throw Exception("don't reduce a placeholder u fool!"),
+  const ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'): (_, __) => Option.mk(),
+  const ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f'): (Ctx ctx, Object arg) {
+    return Option.cases(
+      Binding.value(
+        ctx,
+        Option.cases(
+          ctx.getBinding(Var.id(arg)),
+          some: (binding) => binding,
+          none: () => throw Exception(),
+        ),
+      ),
+      some: (val) => val,
+      none: () => throw Exception('impossible!!'),
+    );
+  },
+  const ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d'): (Ctx ctx, Object arg) {
+    return Option.cases(
+      ctx.getBinding(Var.id(arg)),
+      none: () => Var.mk(Var.id(arg)),
+      some: (binding) => Option.cases(
+        Binding.value(
+          ctx,
+          binding,
+        ),
+        some: (val) => Literal.mk(
+          Literal.getValue(Expr.data(Binding.valueType(ctx, binding))),
+          val,
+        ),
+        none: () => Option.cases(
+          Binding.reducedValue(ctx, binding),
+          some: (reducedValue) => reduce(ctx, reducedValue),
+          none: () => Var.mk(Var.id(arg)),
+        ),
+      ),
+    );
+  },
+  const ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61'): (Ctx ctx, Object arg) {
+    return Option.cases(
+      ctx.getBinding(Var.id(arg)),
+      some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
+      none: () => Option.mk(),
+    );
+  },
+  const ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5'): (Ctx ctx, Object arg) =>
+      Literal.getValue(arg),
+  const ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a'): (Ctx ctx, Object arg) =>
+      Expr.mk(impl: Literal.exprImpl, data: arg),
+  const ID.from(id: '5249e346-b160-4a03-b657-2002027596be'): (Ctx ctx, Object arg) =>
+      Option.mk(Type.lit(Literal.getType(arg))),
+  const ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd'): (Ctx ctx, Object data) {
+    return (eval(ctx, RecordAccess.target(data)) as Dict)[RecordAccess.member(data)].unwrap!;
+  },
+  const ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802'): (Ctx ctx, Object data) {
+    final targetExpr = reduce(ctx, RecordAccess.target(data));
+    if (Expr.dataType(targetExpr) == Literal.type) {
+      final typeDef = ctx.getType(Type.id(Literal.getType(Expr.data(targetExpr))));
+      ctx = TypeTree.foldData<DartList>(
+        [],
+        TypeDef.tree(typeDef),
+        Literal.getValue(Expr.data(targetExpr)),
+        (bindings, _, dataLeaf, path) =>
+            [...bindings, Binding.mk(id: (path.last as ID), type: null, name: '', value: dataLeaf)],
+      ).fold(ctx, (ctx, binding) => ctx.withBinding(binding));
+
+      return (TypeTree.mapData(
+        TypeDef.tree(typeDef),
+        Literal.getValue(Expr.data(targetExpr)),
+        (typeLeaf, dataLeaf, path) => Literal.mk(eval(ctx, typeLeaf), dataLeaf),
+      ) as Dict)[RecordAccess.member(data)]
+          .unwrap!;
+    } else if (Expr.dataType(targetExpr) == Construct.type) {
+      return (Construct.tree(Expr.data(targetExpr)) as Dict)[RecordAccess.member(data)].unwrap!;
+    } else if (Expr.dataType(targetExpr) == Var.type) {
+      return RecordAccess.mk(targetExpr, RecordAccess.member(data));
+    }
+    throw Exception('reduce record access not implemented for record access!');
+  },
+  const ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4'): (Ctx ctx, Object arg) {
+    return Option.cases(
+      typeCheck(ctx, RecordAccess.target(arg)),
+      none: () => Option.mk(),
+      some: (targetTypeExpr) {
+        if (Expr.dataType(targetTypeExpr) == Literal.type) {
+          final targetType = Literal.getValue(Expr.data(targetTypeExpr));
+          final targetTypeDef = ctx.getType(Type.id(targetType));
+          final path = Type.path(targetType);
+          final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), List.iterate(path));
+          return TypeTree.treeCases(
+            treeAt,
+            leaf: (_) => Option.mk(),
+            union: (_) => Option.mk(),
+            record: (recordNode) {
+              final member = RecordAccess.member(arg);
+              final subTree = recordNode[member].unwrap!;
+              return TypeTree.treeCases(
+                subTree,
+                record: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
+                union: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
+                leaf: (leafNode) {
+                  final eachEquals = MemberHas.eachEquals(targetType);
+                  Iterable<Object> bindings(DartList path, Object typeTree) {
+                    return TypeTree.treeCases(
+                      typeTree,
+                      record: (record) => record.entries.expand(
+                        (entry) => bindings([...path, entry.key], entry.value),
+                      ),
+                      union: (union) => [],
+                      leaf: (leaf) => [
+                        eachEquals[List.mk(path)].cases(
+                          some: (value) => Binding.mk(
+                            id: path.last as ID,
+                            type: Type.lit(Equals.dataType(value)),
+                            name: TypeTree.name(typeTree),
+                            value: Equals.equalTo(value),
+                          ),
+                          none: () {
+                            return Binding.mkLazy(
+                              id: path.last as ID,
+                              name: TypeTree.name(typeTree),
+                              type: (ctx) => reduce(ctx, leaf),
+                              reducedValue: (ctx) =>
+                                  RecordAccess.chain(reduce(ctx, RecordAccess.target(arg)), path),
+                            );
+                          },
+                        )
+                      ],
+                    );
+                  }
+
+                  ctx = bindings([], TypeDef.tree(targetTypeDef)).fold<Ctx>(
+                    ctx,
+                    (ctx, binding) => ctx.withBinding(binding),
+                  );
+                  return Option.cases(
+                    typeCheck(ctx, leafNode),
+                    some: (_) => Option.mk(reduce(ctx, leafNode)),
+                    none: () => Option.mk(),
+                  );
+                },
+              );
+            },
+          );
+        } else {
+          throw Exception(
+            "typechecking recordaccess on non-literal target type not implemented!",
+          );
+        }
+      },
+    );
+  },
+  const ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852'): (Ctx ctx, Object arg) {
+    final typeDef = ctx.getType(Type.id(Construct.dataType(arg)));
+    final comptimeIDs = TypeDef.comptime(typeDef);
+    return TypeTree.maybeMapData(
+      TypeDef.tree(typeDef),
+      Construct.tree(arg),
+      (_, dataLeaf, path) =>
+          Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
+    );
+  },
+  const ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8'): (Ctx ctx, Object arg) {
+    bool nonLit = false;
+    final typeTree = TypeDef.tree(ctx.getType(Type.id(Construct.dataType(arg))));
+    final exprTree = TypeTree.mapData(
+      typeTree,
+      Construct.tree(arg),
+      (_, dataLeaf, __) {
+        final reduced = reduce(ctx, dataLeaf);
+        if (Expr.dataType(reduced) != Literal.type) nonLit = true;
+        return reduced;
+      },
+    );
+
+    if (nonLit) return Construct.mk(Construct.dataType(arg), exprTree);
+    return Literal.mk(
+      Construct.dataType(arg),
+      TypeTree.mapData(
+        typeTree,
+        exprTree,
+        (_, expr, __) => Literal.getValue(Expr.data(expr)),
+      ),
+    );
+  },
+  const ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce'): (Ctx origCtx, Object arg) {
+    final typeDef = origCtx.getType(Type.id(Construct.dataType(arg)));
+
+    final computedProps = <Object>[];
+    DartList lazyBindings(Object typeTree, Object dataTree, Object path) {
+      return TypeTree.treeCases(
+        typeTree,
+        record: (record) {
+          if (record.length != (dataTree as Dict).length) throw const MyException();
+          return [
+            ...record.entries.expand((entry) {
+              if (!dataTree.containsKey(entry.key)) throw const MyException();
+              return lazyBindings(
+                entry.value,
+                dataTree[entry.key].unwrap!,
+                List.add(path, entry.key),
+              );
+            }),
+          ];
+        },
+        union: (union) {
+          final tag = UnionTag.tag(dataTree);
+          if (!union.containsKey(tag)) throw const MyException();
+          return lazyBindings(union[tag].unwrap!, UnionTag.value(dataTree), List.add(path, tag));
+        },
+        leaf: (leaf) {
+          Object? lazyType;
+          Object? lazyValue;
+          computeType(Ctx ctx) {
+            if (lazyType == null) {
+              Option.cases(
+                typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
+                some: (checkedType) {
+                  if (!assignable(ctx, Type.lit(Type.type), checkedType)) {
+                    throw const MyException();
+                  }
+                },
+                none: () => throw const MyException(),
+              );
+              final defType = reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf);
+              lazyType = Option.cases(
+                typeCheck(origCtx, dataTree),
+                some: (dataType) {
+                  if (!assignable(ctx, defType, dataType)) throw const MyException();
+                  return dataType;
+                },
+                none: () => throw const MyException(),
+              );
+            }
+            return lazyType!;
+          }
+
+          computeValue(Ctx ctx) {
+            if (lazyValue == null) {
+              final dataType = computeType(ctx);
+              lazyValue = reduce(origCtx, dataTree);
+              computedProps.add(
+                MemberHas.mkEqualsExpr([...List.iterate(path)], dataType, lazyValue!),
+              );
+            }
+            return lazyValue!;
+          }
+
+          return [
+            Binding.mkLazy(
+              id: List.iterate(path).last as ID,
+              name: TypeTree.name(typeTree),
+              type: computeType,
+              reducedValue: computeValue,
+            ),
+          ];
+        },
+      );
+    }
+
+    final bindings = lazyBindings(TypeDef.tree(typeDef), Construct.tree(arg), List.mk(const []));
+    final typeCtx = bindings.fold<Ctx>(origCtx, (ctx, binding) => ctx.withBinding(binding));
+    try {
+      for (final binding in bindings) {
+        Binding.valueType(typeCtx, binding);
+      }
+    } on MyException {
+      return Option.mk();
+    }
+
+    return Option.mk(
+      reduce(origCtx, Type.mkExpr(Type.id(Construct.dataType(arg)), properties: computedProps)),
+    );
+  },
+  const ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19'): (Ctx ctx, Object data) {
+    final fn = eval(ctx, FnApp.fn(data));
+    final arg = eval(ctx, FnApp.arg(data));
+    return Fn.bodyCases(
+      fn,
+      pal: (body) => eval(
+        Fn.closure(fn).followedBy([
+          Binding.mk(
+            id: Fn.argID(fn),
+            type: null,
+            name: Fn.argName(fn),
+            value: arg,
+          )
+        ]).fold(ctx, (ctx, binding) => ctx.withBinding(binding)),
+        body,
+      ),
+      dart: (body) => ctx.getFn(body)(ctx, arg),
+    );
+  },
+  const ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719'): (Ctx ctx, Object fnApp) {
+    final reducedFn = reduce(ctx, FnApp.fn(fnApp));
+    if (Expr.dataType(reducedFn) == Literal.type || Expr.dataType(reducedFn) == FnExpr.type) {
+      if (Expr.dataType(reducedFn) == Literal.type) {
+        final fnValue = Literal.getValue(Expr.data(reducedFn));
+        return Fn.bodyCases(
+          fnValue,
+          pal: (bodyExpr) {
+            return reduce(
+              ctx.withBinding(Binding.mk(
+                id: Fn.argID(fnValue),
+                name: Fn.argName(fnValue),
+                type: Literal.mk(
+                  Type.type,
+                  Type.memberEquals(Literal.getType(Expr.data(reducedFn)), [Fn.argTypeID]),
+                ),
+              )),
+              bodyExpr,
+            );
+          },
+          dart: (_) => Expr.mk(impl: FnApp.exprImpl, data: fnApp),
+        );
+      } else {
+        final fnExpr = Expr.data(reducedFn);
+        return FnExpr.bodyCases(
+          fnExpr,
+          pal: (bodyExpr) {
+            return reduce(
+              ctx.withBinding(Binding.mk(
+                id: FnExpr.argID(fnExpr),
+                name: FnExpr.argName(fnExpr),
+                type: reduce(ctx, FnExpr.argType(fnExpr)),
+              )),
+              bodyExpr,
+            );
+          },
+          dart: (_) => Expr.mk(impl: FnApp.exprImpl, data: fnApp),
+        );
+      }
+    }
+    return Expr.mk(impl: FnApp.exprImpl, data: fnApp);
+  },
+  const ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b'): (Ctx ctx, Object fnApp) {
+    return Option.cases(
+      typeCheck(ctx, FnApp.fn(fnApp)),
+      none: () => Option.mk(),
+      some: (fnTypeExpr) {
+        if ({Literal.type, Construct.type}.contains(Expr.dataType(fnTypeExpr))) {
+          return Option.cases(
+            typeCheck(ctx, FnApp.arg(fnApp)),
+            none: () => Option.mk(),
+            some: (argType) {
+              // TODO: weird logic here around Fn arg types are exprs, so fnTypeExpr argtype member is??
+              final argAssignable = assignable(
+                ctx,
+                Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argTypeID]),
+                argType,
+              );
+              if (argAssignable) {
+                final argID = Literal.getValue(
+                  Expr.data(
+                    Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argIDID]),
+                  ),
+                ) as ID;
+                ctx = ctx.withBinding(
+                  Binding.mk(
+                    id: argID,
+                    type: argType,
+                    name: argID.label ?? '$argID',
+                    reducedValue: reduce(ctx, FnApp.arg(fnApp)),
+                  ),
+                );
+                return Option.mk(reduce(
+                  ctx,
+                  Literal.getValue(
+                    Expr.data(Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.returnTypeID])),
+                  ),
+                ));
+              } else {
+                return Option.mk();
+              }
+            },
+          );
+        }
+        throw Exception('type check fn app where fnType isn\'t literal not yet implemented!');
+      },
+    );
+  },
+  const ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a'): (Ctx ctx, Object arg) {
+    final exprFreeVars = freeVars(ctx, Expr.mk(impl: FnExpr.exprImpl, data: arg));
+    return Fn.mk(
+      argName: FnExpr.argName(arg),
+      argID: FnExpr.argID(arg),
+      body: UnionTag.mk(
+        UnionTag.tag(FnExpr.body(arg)) == FnExpr.palID ? Fn.palID : Fn.dartID,
+        UnionTag.value(FnExpr.body(arg)),
+      ),
+      closure: List.mk([
+        for (final freeVar in exprFreeVars)
+          ...Option.cases(ctx.getBinding(freeVar), some: (b) => [b], none: () => const [])
+      ]),
+    );
+  },
+  const ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468'): (Ctx ctx, Object fnData) =>
+      Expr.mk(impl: FnExpr.exprImpl, data: fnData),
+  const ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7'): (Ctx ctx, Object fn) {
+    return Option.cases(
+      typeCheck(ctx, FnExpr.argType(fn)),
+      none: () => Option.mk(),
+      some: (argTypeType) {
+        if (!assignable(ctx, Type.lit(Type.type), argTypeType)) {
+          return Option.mk();
+        }
+        final argType = reduce(ctx, FnExpr.argType(fn));
+        ctx = ctx.withBinding(
+          Binding.mk(
+            id: FnExpr.argID(fn),
+            type: argType,
+            name: FnExpr.argName(fn),
+          ),
+        );
+        return Option.cases(
+          FnExpr.returnType(fn),
+          none: () => FnExpr.bodyCases(
+            fn,
+            dart: (_) => throw Exception('dart Fn w no declared return type not allowed!'),
+            pal: (body) => Option.cases(
+              typeCheck(ctx, body),
+              none: () => Option.mk(),
+              some: (bodyType) {
+                if (Expr.dataType(argType) != Literal.type) {
+                  // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
+                  return Option.mk(Fn.typeExpr(
+                    argID: FnExpr.argID(fn),
+                    argType: argType,
+                    returnType: bodyType,
+                  ));
+                } else {
+                  return Option.mk(
+                    Literal.mk(
+                      Type.type,
+                      Fn.type(
+                        argID: FnExpr.argID(fn),
+                        argType: Literal.getValue(Expr.data(argType)),
+                        returnType: bodyType,
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+          ),
+          some: (returnTypeExpr) => Option.cases(
+            typeCheck(ctx, returnTypeExpr),
+            none: () => Option.mk(),
+            some: (returnTypeType) {
+              if (!assignable(ctx, Type.lit(Type.type), returnTypeType)) {
+                return Option.mk();
+              }
+              final returnType = reduce(ctx, returnTypeExpr);
+              return FnExpr.bodyCases(
+                fn,
+                pal: (body) => Option.cases(
+                  typeCheck(ctx, body),
+                  none: () => Option.mk(),
+                  some: (bodyType) {
+                    if (!assignable(ctx, returnType, bodyType)) return Option.mk();
+                    // TODO: weird logic here around expr wrapping in FnValue.types?
+                    if (Expr.dataType(argType) != Literal.type) {
+                      // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
+                      return Option.mk(Fn.typeExpr(
+                        argID: FnExpr.argID(fn),
+                        argType: argType,
+                        returnType: returnType,
+                      ));
+                    } else {
+                      return Option.mk(
+                        Literal.mk(
+                          Type.type,
+                          Fn.type(
+                            argID: FnExpr.argID(fn),
+                            argType: Literal.getValue(Expr.data(argType)),
+                            returnType: returnType,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                // TODO: typecheck arg & return type exprs
+                dart: (_) => Option.mk(reduce(
+                  ctx,
+                  Fn.typeExpr(
+                    argID: FnExpr.argID(fn),
+                    argType: argType,
+                    returnType: returnType,
+                  ),
+                )),
+              );
+            },
+          ),
+        );
+      },
+    );
+  },
+  const ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'): (ctx, arg) => Dict({
+        for (final entry in List.iterate((arg as Dict)[Map.mkEntriesID].unwrap!))
+          eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
+      }),
+  const ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'): (ctx, arg) {
+    throw Exception('reduce map expr not yet implemented!');
+  },
+  const ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'): (ctx, arg) {
+    final keyType = (arg as Dict)[Map.mkKeyID].unwrap!;
+    final valueType = arg[Map.mkValueID].unwrap!;
+
+    for (final entry in List.iterate(arg[Map.mkEntriesID].unwrap!)) {
+      if (typeCheck(ctx, List.iterate(entry).first) != Option.mk(keyType)) {
+        return Option.mk();
+      }
+      if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Option.mk(valueType)) {
+        return Option.mk();
+      }
+    }
+    return Option.mk(Map.type(keyType, valueType));
+  },
+  const ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823'): (Ctx ctx, Object arg) => List.mk(
+        [...List.iterate((arg as Dict)[List.mkValuesID].unwrap!).map((expr) => eval(ctx, expr))],
+      ),
+  const ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12'): (Ctx ctx, Object arg) {
+    bool nonLit = false;
+    final reducedSubExprs = <Object>[];
+    for (final subExpr in List.iterate((arg as Dict)[List.mkValuesID].unwrap!)) {
+      final reduced = reduce(ctx, subExpr);
+      if (Expr.dataType(reduced) != Literal.type) nonLit = true;
+      reducedSubExprs.add(reduced);
+    }
+    if (nonLit) return List.mkExpr(arg[List.mkTypeID].unwrap!, reducedSubExprs);
+    return Literal.mk(
+      List.type(arg[List.mkTypeID].unwrap!),
+      List.mk([...reducedSubExprs.map(Expr.data).map(Literal.getValue)]),
+    );
+  },
+  const ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1'): (Ctx ctx, Object arg) {
+    final listValueType = (arg as Dict)[List.mkTypeID].unwrap!;
+    for (final value in List.iterate(List.mkExprValues(arg))) {
+      final valueType = typeCheck(ctx, value);
+      if (!Option.isPresent(valueType)) return Option.mk();
+      if (!assignable(ctx, Type.lit(listValueType), Option.unwrap(valueType))) {
+        return Option.mk();
+      }
+    }
+    return Option.mk(Type.lit(List.type(listValueType)));
+  },
+  const ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'): (ctx, implDef) => List.mk([
+        Union.mk(
+          ModuleDef.type,
+          ValueDef.mk(
+            id: ImplDef.bindingID(implDef),
+            name:
+                'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
+            value: ImplDef.definition(implDef),
+          ),
+        ),
+      ]),
+  const ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'): (ctx, ifaceDef) {
+    return List.mk([
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: InterfaceDef.id(ifaceDef),
+          name: TypeTree.name(InterfaceDef.tree(ifaceDef)),
+          value: Literal.mk(InterfaceDef.type, ifaceDef),
+        ),
+      ),
+      Union.mk(
+        ModuleDef.type,
+        TypeDef.mkDef(
+          TypeDef.mk(
+            InterfaceDef.tree(ifaceDef),
+            id: InterfaceDef.innerTypeDefID(InterfaceDef.id(ifaceDef)),
+          ),
+        ),
+      ),
+    ]);
+  },
+  const ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'): (ctx, typeDef) {
+    return List.mk([
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: TypeDef.id(typeDef),
+          name: TypeTree.name(TypeDef.tree(typeDef)),
+          value: Literal.mk(TypeDef.type, typeDef),
+        ),
+      ),
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: TypeDef.id(typeDef).append(TypeDef._typeLitID),
+          name: TypeTree.name(TypeDef.tree(typeDef)),
+          value: Type.lit(TypeDef.asType(typeDef)),
+        ),
+      ),
+    ]);
+  },
+  const ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'): (ctx, arg) {
+    Object? lazyType;
+    Object? lazyValue;
+
+    final bindingID = (arg as Dict)[ValueDef.IDID].unwrap! as ID;
+    final expr = arg[ValueDef.valueID].unwrap!;
+    computeType(Ctx ctx) {
+      lazyType ??= Option.cases(
+        typeCheck(updateVisited(ctx, bindingID), expr),
+        some: (checkedType) => checkedType,
+        none: () => throw const MyException(),
+      );
+      if (Expr.dataType(lazyType!) != Literal.type) throw const MyException();
+      Option.cases(arg[ValueDef.expectedTypeID].unwrap!, none: () {}, some: (expectedType) {
+        if (!assignable(ctx, expectedType, lazyType!)) throw const MyException();
+      });
+      return lazyType!;
+    }
+
+    computeValue(Ctx ctx) {
+      computeType(ctx);
+      lazyValue ??= eval(updateVisited(ctx, bindingID), expr);
+      return lazyValue!;
+    }
+
+    return List.mk([
+      Union.mk(
+        Binding.type,
+        Binding.mkLazy(
+          id: bindingID,
+          name: arg[ValueDef.nameID].unwrap! as String,
+          type: computeType,
+          value: computeValue,
+        ),
+      ),
+    ]);
+  },
+};
