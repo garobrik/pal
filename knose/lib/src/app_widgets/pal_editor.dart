@@ -558,6 +558,14 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   final wrapperFocusNode = useFocusNode();
   final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
   final exprData = expr[Expr.dataID];
+  final typeError = useMemoized(
+    () => GetCursor.compute(
+      (ctx) => !Option.isPresent(typeCheck(ctx, expr.read(ctx))),
+      ctx: ctx,
+      compare: true,
+    ),
+    [ctx, expr],
+  );
 
   late final Widget child;
   if (exprType == Type.mk(FnExpr.typeDefID)) {
@@ -890,6 +898,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         ctx: ctx,
         builder: (context, ctx) => Container(
           decoration: BoxDecoration(
+            border: typeError.read(ctx) ? Border.all(color: Colors.red) : null,
             // border: Border.all(
             //   color: Focus.of(context).hasPrimaryFocus ? Colors.black : Colors.transparent,
             // ),
