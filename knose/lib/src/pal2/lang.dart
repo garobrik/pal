@@ -752,7 +752,9 @@ abstract class InterfaceDef {
   static Object tree(Object ifaceDef) => (ifaceDef as Dict)[treeID].unwrap!;
 
   static final _innerTypeDefID = ID('typeDef');
+  static final _dispatchCacheID = ID('dispatchCache');
   static ID innerTypeDefID(ID id) => id.append(_innerTypeDefID);
+  static ID dispatchCacheID(ID id) => id.append(_dispatchCacheID);
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
     bindings: FnExpr.dart(
@@ -1765,6 +1767,7 @@ abstract class Var extends Expr {
 
 abstract class Placeholder extends Expr {
   static final typeDef = TypeDef.unit('Placeholder');
+  static final type = TypeDef.asType(typeDef);
 
   static final exprImplDef = Expr.mkImplDef(
     dataType: TypeDef.asType(typeDef),
@@ -2151,7 +2154,14 @@ Object varSubst(Ctx ctx, ID fromID, ID toID, Object expr) {
 }
 
 Object dispatch(Ctx ctx, ID interfaceID, Object type) {
+  final dispatchCache = Option.unwrap(Binding.value(
+    ctx,
+    Option.unwrap(ctx.getBinding(InterfaceDef.dispatchCacheID(interfaceID))),
+  )) as dart.Map<Object, Object>;
+  if (dispatchCache.containsKey(type)) return Option.mk(dispatchCache[type]!);
+
   Object? bestImpl;
+  Object? bestArgType;
   Object? bestArg;
   Object? bestType;
   for (final binding in ctx.getBindings) {
@@ -2182,14 +2192,19 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
         varSubst(ctx, ImplDef.definitionArgID, ID().append(ImplDef.definitionArgID), bindingType),
       )) return Option.mk();
     }
+    bestArgType = argType;
     bestType = bindingType;
     bestImpl = Option.unwrap(Binding.value(ctx, binding));
     bestArg = _extractSubstArg(ctx, argType, subst);
   }
   // TODO: the type in the literal is wrong but it doesn't rly matter
-  return Option.mk(
-    bestImpl == null ? null : eval(ctx, FnApp.mk(Type.lit(bestImpl), bestArg!)),
-  );
+  if (bestImpl == null) {
+    return Option.mk();
+  } else {
+    final actualImpl = eval(ctx, FnApp.mk(Literal.mk(bestArgType!, bestImpl), bestArg!));
+    dispatchCache[type] = actualImpl;
+    return Option.mk(actualImpl);
+  }
 }
 
 Object _extractSubstArg(Ctx ctx, Object type, dart.Map<ID, Object> subst) {
@@ -2968,6 +2983,17 @@ final FnMap coreFnMap = {
           TypeDef.mk(
             InterfaceDef.tree(ifaceDef),
             id: InterfaceDef.innerTypeDefID(InterfaceDef.id(ifaceDef)),
+          ),
+        ),
+      ),
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: InterfaceDef.dispatchCacheID(InterfaceDef.id(ifaceDef)),
+          name: '${TypeTree.name(InterfaceDef.tree(ifaceDef))} dispatch cache',
+          value: Literal.mk(
+            Map.type(Type.type, InterfaceDef.implType(ifaceDef)),
+            <Object, Object>{},
           ),
         ),
       ),

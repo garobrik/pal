@@ -8,7 +8,7 @@ late final List<String> benchmarks;
 
 void main(List<String> args) {
   benchmarks = args;
-  late final ctx =
+  final ctx =
       (Option.unwrap(Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module)) as Ctx);
 
   final basicExpr = FnApp.mk(
@@ -17,6 +17,7 @@ void main(List<String> args) {
   );
 
   benchmark('print core module', () => eval(ctx, basicExpr));
+  benchmark('print core module warmed up', () => eval(ctx, basicExpr));
 }
 
 void benchmark(String name, void Function() benchmark) {
