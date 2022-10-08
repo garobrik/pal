@@ -1770,7 +1770,7 @@ abstract class Placeholder extends Expr {
   static final type = TypeDef.asType(typeDef);
 
   static final exprImplDef = Expr.mkImplDef(
-    dataType: TypeDef.asType(typeDef),
+    dataType: type,
     argName: 'placeholderData',
     typeCheckBody: const ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'),
     reduceBody: const ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'),

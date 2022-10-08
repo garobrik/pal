@@ -651,7 +651,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       Option.cases(
         targetType,
         some: (type) {
-          final typeDef = ctx.getType(Type.id(type));
+          final typeDef = ctx.getType(Type.id(Literal.getValue(Expr.data(type))));
           final record = TypeTree.treeCases(
             TypeDef.tree(typeDef),
             union: (_) => throw Exception(),
@@ -702,13 +702,14 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         const Text(')'),
       ],
     );
-  } else if (exprType == TypeDef.asType(Placeholder.typeDef)) {
+  } else if (exprType == Placeholder.type) {
     return ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
         final inputText = useCursor('');
         final isOpen = useCursor(false);
         return Focus(
+          skipTraversal: true,
           onFocusChange: isOpen.set,
           child: DeferredDropdown(
             isOpen: isOpen,
