@@ -201,11 +201,11 @@ abstract class ValueDef {
       );
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
-    dataType: TypeDef.asType(typeDef),
+    dataType: type,
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
       argName: 'valueDef',
-      argType: Type.lit(TypeDef.asType(typeDef)),
+      argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: const ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'),
     ),

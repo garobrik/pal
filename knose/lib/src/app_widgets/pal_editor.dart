@@ -1,8 +1,11 @@
 import 'dart:math';
+import 'dart:core';
+import 'dart:core' as dart;
 
 import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' as reified;
@@ -193,7 +196,7 @@ final FnMap palUIFnMap = {
           Text.rich(
             TextSpan(children: [
               const TextSpan(text: 'module '),
-              _inlineTextField(ctx, module[Module.nameID].cast<String>()),
+              _inlineTextSpan(ctx, module[Module.nameID].cast<String>()),
               const TextSpan(text: ' {'),
             ]),
           ),
@@ -263,44 +266,38 @@ final FnMap palUIFnMap = {
                       final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
                       if (dataType == TypeDef.type) {
                         final name = moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text.rich(TextSpan(children: [
-                              const TextSpan(text: 'type '),
-                              _inlineTextField(ctx, name.cast<String>()),
-                              const TextSpan(text: ' {'),
-                            ])),
-                            InsetChild(
-                              palEditor(
-                                ctx,
-                                TypeTree.type,
-                                moduleDef[ModuleDef.dataID][TypeDef.treeID],
-                              ),
-                            ),
-                            const Text('}'),
+                        return Inset(
+                          prefix: Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'type '),
+                            _inlineTextSpan(ctx, name.cast<String>()),
+                            const TextSpan(text: ' {'),
+                          ])),
+                          contents: [
+                            palEditor(
+                              ctx,
+                              TypeTree.type,
+                              moduleDef[ModuleDef.dataID][TypeDef.treeID],
+                            )
                           ],
+                          suffix: const Text('}'),
                         );
                       } else if (dataType == InterfaceDef.type) {
                         final name =
                             moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text.rich(TextSpan(children: [
-                              const TextSpan(text: 'interface '),
-                              _inlineTextField(ctx, name.cast<String>()),
-                              const TextSpan(text: ' {'),
-                            ])),
-                            InsetChild(
-                              palEditor(
-                                ctx,
-                                TypeTree.type,
-                                moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
-                              ),
-                            ),
-                            const Text('}'),
+                        return Inset(
+                          prefix: Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'interface '),
+                            _inlineTextSpan(ctx, name.cast<String>()),
+                            const TextSpan(text: ' {'),
+                          ])),
+                          contents: [
+                            palEditor(
+                              ctx,
+                              TypeTree.type,
+                              moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
+                            )
                           ],
+                          suffix: const Text('}'),
                         );
                       } else if (dataType == ImplDef.type) {
                         final interfaceDef = ctx.getInterface(
@@ -310,41 +307,34 @@ final FnMap palUIFnMap = {
                           Option.mk(interfaceDef),
                           none: () => const Text('unknown interface'),
                           some: (interfaceDef) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
-                                ),
-                                InsetChild(
-                                  ExprEditor(
-                                    ctx,
-                                    moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                                  ),
-                                ),
-                                const Text('}'),
+                            return Inset(
+                              prefix: Text(
+                                'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
+                              ),
+                              contents: [
+                                ExprEditor(
+                                  ctx,
+                                  moduleDef[ModuleDef.dataID][ImplDef.definitionID],
+                                )
                               ],
+                              suffix: const Text('}'),
                             );
                           },
                         );
                       } else if (dataType == ValueDef.type) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            RichText(
-                              text: TextSpan(children: [
-                                const TextSpan(text: 'let '),
-                                _inlineTextField(
-                                  ctx,
-                                  moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
-                                ),
-                                const TextSpan(text: ' ='),
-                              ]),
+                        return Inset(
+                          prefix: Text.rich(TextSpan(children: [
+                            const TextSpan(text: 'let '),
+                            _inlineTextSpan(
+                              ctx,
+                              moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
                             ),
-                            InsetChild(
-                              ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID]),
-                            ),
+                            const TextSpan(text: ' ='),
+                          ])),
+                          contents: [
+                            ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])
                           ],
+                          suffix: const SizedBox(),
                         );
                       } else {
                         throw Exception('unknown ModuleDef type $dataType');
@@ -365,25 +355,27 @@ final FnMap palUIFnMap = {
     final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
     if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
       final subTree = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final key in subTree.keys.read(ctx)) ...[
-            Text.rich(TextSpan(children: [
-              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.unionID)
-                const TextSpan(text: 'union '),
-              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.recordID)
-                const TextSpan(text: 'record '),
-              _inlineTextField(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
-              const TextSpan(text: ':'),
-            ])),
-            InsetChild(
-              palEditor(ctx, TypeTree.type, subTree[key].whenPresent),
-            ),
-          ]
+      return Inset(
+        prefix: const SizedBox(),
+        contents: [
+          for (final key in subTree.keys.read(ctx))
+            Inset(
+              prefix: Text.rich(TextSpan(children: [
+                if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                    TypeTree.unionID)
+                  const TextSpan(text: 'union '),
+                if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                    TypeTree.recordID)
+                  const TextSpan(text: 'record '),
+                _inlineTextSpan(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
+                const TextSpan(text: ': '),
+              ])),
+              contents: [palEditor(ctx, TypeTree.type, subTree[key].whenPresent)],
+              suffix: const SizedBox(),
+            )
         ],
+        suffix: const SizedBox(),
+        inset: EdgeInsets.zero,
       );
     } else if (tag == TypeTree.leafID) {
       return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
@@ -485,32 +477,20 @@ Widget _dataTreeEditor(
   return TypeTree.treeCases(
     typeTree,
     record: (record) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      return Inset(
+        prefix: const SizedBox(),
+        contents: [
           for (final entry in record.entries)
-            if (TypeTree.treeCases(
-              entry.value,
-              record: (_) => true,
-              union: (union) => true,
-              leaf: (_) => true,
-            )) ...[
-              Text('${TypeTree.name(entry.value)}:'),
-              InsetChild(
+            Inset(
+              prefix: Text('${TypeTree.name(entry.value)}: '),
+              contents: [
                 DataTreeEditor(ctx, entry.value, dataTree[entry.key], renderLeaf),
-              ),
-            ] else
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: '${TypeTree.name(entry.value)}: '),
-                    AlignedWidgetSpan(
-                      DataTreeEditor(ctx, entry.value, dataTree[entry.key], renderLeaf),
-                    )
-                  ],
-                ),
-              ),
+              ],
+              suffix: const SizedBox(),
+            ),
         ],
+        suffix: const SizedBox(),
+        inset: EdgeInsets.zero,
       );
     },
     union: (union) {
@@ -535,17 +515,19 @@ Widget _dataTreeEditor(
           ]),
         ),
       );
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text.rich(
-            TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
-          ),
-          InsetChild(
-            DataTreeEditor(ctx, union[currentTag].unwrap!, dataTree[UnionTag.valueID], renderLeaf),
-          ),
-          const Text(')')
+      return Inset(
+        prefix: Text.rich(
+          TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
+        ),
+        contents: [
+          DataTreeEditor(
+            ctx,
+            union[currentTag].unwrap!,
+            dataTree[UnionTag.valueID],
+            renderLeaf,
+          )
         ],
+        suffix: const Text(')'),
       );
     },
     leaf: (leaf) => renderLeaf(ctx, dataTree),
@@ -568,7 +550,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
   );
 
   late final Widget child;
-  if (exprType == Type.mk(FnExpr.typeDefID)) {
+  if (exprType == FnExpr.type) {
     late final Widget body;
     if (exprData[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
@@ -583,39 +565,36 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       );
     }
 
-    child = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text.rich(
-          TextSpan(children: [
-            const TextSpan(text: '('),
-            _inlineTextField(ctx, exprData[FnExpr.argNameID].cast<String>()),
-            const TextSpan(text: ': '),
-            AlignedWidgetSpan(ExprEditor(ctx, exprData[FnExpr.argTypeID])),
-            const TextSpan(text: ')'),
-            const WidgetSpan(
-              alignment: PlaceholderAlignment.bottom,
-              baseline: TextBaseline.ideographic,
-              child: Icon(
-                Icons.arrow_right_alt,
-                size: 16,
-              ),
+    child = Inset(
+      prefix: Text.rich(
+        TextSpan(children: [
+          const TextSpan(text: '('),
+          _inlineTextSpan(ctx, exprData[FnExpr.argNameID].cast<String>()),
+          const TextSpan(text: ': '),
+          AlignedWidgetSpan(ExprEditor(ctx, exprData[FnExpr.argTypeID])),
+          const TextSpan(text: ')'),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.bottom,
+            baseline: TextBaseline.ideographic,
+            child: Icon(
+              Icons.arrow_right_alt,
+              size: 16,
             ),
-            if (exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.tagID].read(ctx) ==
-                Option.someID)
-              AlignedWidgetSpan(
-                ExprEditor(ctx, exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.valueID]),
-              )
-            else
-              const TextSpan(text: '_'),
-            const TextSpan(text: ' {'),
-          ]),
-        ),
-        InsetChild(body),
-        const Text('}'),
-      ],
+          ),
+          if (exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.tagID].read(ctx) ==
+              Option.someID)
+            AlignedWidgetSpan(
+              ExprEditor(ctx, exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.valueID]),
+            )
+          else
+            const TextSpan(text: '_'),
+          const TextSpan(text: ' {'),
+        ]),
+      ),
+      contents: [body],
+      suffix: const Text('}'),
     );
-  } else if (exprType == TypeDef.asType(FnApp.typeDef)) {
+  } else if (exprType == FnApp.type) {
     if (exprData[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) ==
         TypeDef.asType(Var.typeDef)) {
       child = Text.rich(TextSpan(children: [
@@ -625,24 +604,16 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         const TextSpan(text: ')'),
       ]));
     } else {
-      child = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('apply('),
-          InsetChild(
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ExprEditor(ctx, exprData[FnApp.fnID]),
-                ExprEditor(ctx, exprData[FnApp.argID]),
-              ],
-            ),
-          ),
-          const Text(')'),
+      child = Inset(
+        prefix: const Text('apply('),
+        contents: [
+          ExprEditor(ctx, exprData[FnApp.fnID]),
+          ExprEditor(ctx, exprData[FnApp.argID]),
         ],
+        suffix: const Text(')'),
       );
     }
-  } else if (exprType == TypeDef.asType(RecordAccess.typeDef)) {
+  } else if (exprType == RecordAccess.type) {
     final targetType = typeCheck(ctx, exprData[RecordAccess.targetID].read(ctx));
 
     child = Text.rich(TextSpan(children: [
@@ -675,7 +646,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
       ),
     ]));
-  } else if (exprType == TypeDef.asType(Var.typeDef)) {
+  } else if (exprType == Var.type) {
     final varID = exprData[Var.IDID].read(ctx);
     child = Option.cases(
       ctx.getBinding(varID as ID),
@@ -685,22 +656,26 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         style: const TextStyle(fontStyle: FontStyle.italic),
       ),
     );
-  } else if (exprType == TypeDef.asType(Literal.typeDef)) {
-    child = Text(
-      palPrint(ctx, Literal.getType(exprData.read(ctx)), Literal.getValue(exprData.read(ctx))),
+  } else if (exprType == Literal.type) {
+    child = IntrinsicWidth(
+      child: Text(
+        palPrint(ctx, Literal.getType(exprData.read(ctx)), Literal.getValue(exprData.read(ctx))),
+      ),
     );
   } else if (exprType == Construct.type) {
     final typeDef = ctx.getType(exprData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
 
-    child = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
-        InsetChild(
-          DataTreeEditor(ctx, TypeDef.tree(typeDef), exprData[Construct.treeID], ExprEditor.new),
-        ),
-        const Text(')'),
+    child = Inset(
+      prefix: Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
+      contents: [
+        DataTreeEditor(
+          ctx,
+          TypeDef.tree(typeDef),
+          exprData[Construct.treeID],
+          ExprEditor.new,
+        )
       ],
+      suffix: const Text(')'),
     );
   } else if (exprType == Placeholder.type) {
     return ReaderWidget(
@@ -809,10 +784,13 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
 
                 return KeyEventResult.ignored;
               },
-              child: BoundTextFormField(
-                inputText,
-                ctx: ctx,
-                focusNode: placeholderFocusNode,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 200),
+                child: BoundTextFormField(
+                  inputText,
+                  ctx: ctx,
+                  focusNode: placeholderFocusNode,
+                ),
               ),
             ),
           ),
@@ -942,16 +920,20 @@ Widget _insetChild(Widget child) {
   );
 }
 
-InlineSpan _inlineTextField(Ctx ctx, Cursor<String> text) {
-  return AlignedWidgetSpan(
-    IntrinsicWidth(
-      child: Builder(
-        builder: (context) => BoundTextFormField(
+InlineSpan _inlineTextSpan(Ctx ctx, Cursor<String> text) {
+  return AlignedWidgetSpan(InlineTextField(ctx, text));
+}
+
+@reader
+Widget _inlineTextField(Ctx ctx, Cursor<String> text) {
+  return IntrinsicWidth(
+    child: Builder(
+      builder: (context) => Theme(
+        data: ThemeData(inputDecorationTheme: const InputDecorationTheme(border: InputBorder.none)),
+        child: BoundTextFormField(
           text,
           ctx: ctx,
-          decoration: const InputDecoration(
-            contentPadding: EdgeInsetsDirectional.all(2),
-          ),
+          decoration: const InputDecoration.collapsed(hintText: null),
           style: Theme.of(context).textTheme.bodyText2,
         ),
       ),
@@ -986,5 +968,181 @@ extension HierarchicalDescendants on FocusNode {
       if (child.canRequestFocus && !child.skipTraversal) yield child;
       yield* child.hierarchicalTraversableDescendants;
     }
+  }
+}
+
+class Inset extends MultiChildRenderObjectWidget {
+  final EdgeInsetsGeometry inset;
+
+  Inset({
+    required Widget prefix,
+    required dart.List<Widget> contents,
+    required Widget suffix,
+    this.inset = const EdgeInsetsDirectional.only(start: 10, end: 2),
+    super.key,
+  }) : super(children: [prefix, ...contents, suffix]);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => RenderInset(
+        inset: inset,
+        textDirection: Directionality.of(context),
+      );
+
+  @override
+  void updateRenderObject(BuildContext context, covariant RenderInset renderObject) {
+    renderObject
+      ..inset = inset
+      ..textDirection = Directionality.of(context);
+  }
+}
+
+class InsetParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _InsetChildren {
+  final RenderBox prefix;
+  final dart.List<RenderBox> contents;
+  final RenderBox suffix;
+
+  _InsetChildren(this.prefix, this.contents, this.suffix);
+}
+
+class RenderInset extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, InsetParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, InsetParentData> {
+  RenderInset({
+    required EdgeInsetsGeometry inset,
+    required TextDirection textDirection,
+  })  : _inset = inset,
+        _textDirection = textDirection;
+
+  EdgeInsetsGeometry get inset => _inset;
+  late EdgeInsetsGeometry _inset;
+  set inset(EdgeInsetsGeometry value) {
+    if (_inset != value) {
+      _inset = value;
+      markNeedsLayout();
+    }
+  }
+
+  TextDirection get textDirection => _textDirection;
+  late TextDirection _textDirection;
+  set textDirection(TextDirection value) {
+    if (_textDirection != value) {
+      _textDirection = value;
+      markNeedsLayout();
+    }
+  }
+
+  InsetParentData _parentData(RenderBox child) => child.parentData as InsetParentData;
+  _InsetChildren _children() {
+    final prefix = firstChild!;
+    var contentIterator = _parentData(prefix).nextSibling!;
+    final content = <RenderBox>[];
+    while (_parentData(contentIterator).nextSibling != null) {
+      content.add(contentIterator);
+      contentIterator = _parentData(contentIterator).nextSibling!;
+    }
+    return _InsetChildren(prefix, content, contentIterator);
+  }
+
+  @override
+  void setupParentData(covariant RenderObject child) {
+    if (child.parentData is! InsetParentData) {
+      child.parentData = InsetParentData();
+    }
+  }
+
+  @override
+  void performLayout() {
+    final constraints = this.constraints.loosen();
+    final children = _children();
+    final prefix = children.prefix;
+    final contents = children.contents;
+    final suffix = children.suffix;
+
+    prefix.layout(constraints, parentUsesSize: true);
+    for (final content in contents) {
+      content.layout(
+        constraints.deflate(inset.resolve(textDirection)),
+        parentUsesSize: true,
+      );
+    }
+    suffix.layout(constraints, parentUsesSize: true);
+
+    final double contentsWidth = contents.fold(0, (width, content) => width + content.size.width);
+
+    final narrowEnough =
+        contentsWidth < constraints.maxWidth - (prefix.size.width + suffix.size.width);
+    // TODO: compute the magic height constraint here properly
+    final shortEnough = contents.map((c) => c.size.height).fold(0.0, max) < 20;
+    final newLine = !narrowEnough || !shortEnough;
+    if (!newLine) {
+      size = Size(
+        max(contentsWidth + prefix.size.width + suffix.size.width, this.constraints.minWidth),
+        [...contents.map((c) => c.size), prefix.size, suffix.size]
+            .map((c) => c.height)
+            .fold(0, max),
+      );
+    } else {
+      final double contentsHeight =
+          contents.fold(0, (height, content) => height + content.size.height);
+      size = Size(
+        [
+          contents.map((c) => c.size.width).fold(0.0, max) + _inset.collapsedSize.width,
+          prefix.size.width,
+          suffix.size.width,
+          this.constraints.minWidth,
+        ].fold(0, max),
+        contentsHeight + prefix.size.height + suffix.size.height,
+      );
+    }
+
+    _parentData(prefix).offset = Offset.zero;
+    if (newLine) {
+      var cumulativeHeight = prefix.size.height;
+      for (final content in contents) {
+        _parentData(content).offset = Offset(inset.resolve(textDirection).left, cumulativeHeight);
+        cumulativeHeight += content.size.height;
+      }
+      _parentData(suffix).offset = Offset(0, cumulativeHeight);
+    } else {
+      var cumulativeWidth = prefix.size.width;
+      for (final content in contents) {
+        _parentData(content).offset = Offset(cumulativeWidth, 0);
+        cumulativeWidth += content.size.width;
+      }
+      _parentData(suffix).offset = Offset(cumulativeWidth, 0);
+    }
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    defaultPaint(context, offset);
+    final children = _children();
+    final firstOffset = children.contents.isEmpty ? 0 : _parentData(children.contents[0]).offset.dy;
+    if (firstOffset > 0) {
+      context.canvas.drawRect(
+        Rect.fromLTWH(
+          offset.dx,
+          offset.dy + firstOffset,
+          2,
+          children.contents.fold(0.0, (height, content) => height + content.size.height),
+        ),
+        Paint()
+          ..color = Colors.black12
+          ..style = PaintingStyle.fill,
+      );
+    }
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    return defaultHitTestChildren(result, position: position);
+  }
+
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) {
+    return defaultComputeDistanceToHighestActualBaseline(baseline);
   }
 }
