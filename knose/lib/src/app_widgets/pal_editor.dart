@@ -302,7 +302,7 @@ final FnMap palUIFnMap = {
                           some: (interfaceDef) {
                             return Inset(
                               prefix: Text(
-                                'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} {',
+                                'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
                               ),
                               contents: [
                                 ExprEditor(
@@ -348,30 +348,25 @@ final FnMap palUIFnMap = {
     final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
     if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
       final subTree = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-      return Inset(
-        prefix: const SizedBox(),
-        contents: [
-          for (final key in subTree.keys.read(ctx))
-            Inset(
-              prefix: Text.rich(TextSpan(children: [
-                if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                    TypeTree.unionID)
-                  const TextSpan(text: 'union '),
-                if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                    TypeTree.recordID)
-                  const TextSpan(text: 'record '),
-                _inlineTextSpan(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
-                const TextSpan(text: ': '),
-              ])),
-              contents: [palEditor(ctx, TypeTree.type, subTree[key].whenPresent)],
-              suffix: const SizedBox(),
-            )
-        ],
-        suffix: const SizedBox(),
-        inset: EdgeInsets.zero,
-      );
+      return InlineInset(contents: [
+        for (final key in subTree.keys.read(ctx))
+          Inset(
+            prefix: Text.rich(TextSpan(children: [
+              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.unionID)
+                const TextSpan(text: 'union '),
+              if (subTree[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.recordID)
+                const TextSpan(text: 'record '),
+              _inlineTextSpan(ctx, subTree[key].whenPresent[TypeTree.nameID].cast<String>()),
+              const TextSpan(text: ': '),
+            ])),
+            contents: [palEditor(ctx, TypeTree.type, subTree[key].whenPresent)],
+            suffix: const SizedBox(),
+          )
+      ]);
     } else if (tag == TypeTree.leafID) {
-      return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID]);
+      return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID], suffix: ', ');
     } else {
       throw Exception('unknown type tree union case');
     }
@@ -465,27 +460,27 @@ Widget _dataTreeEditor(
   Ctx ctx,
   Object typeTree,
   Cursor<Object> dataTree,
-  Widget Function(Ctx, Cursor<Object>) renderLeaf,
-) {
+  Widget Function(Ctx, Cursor<Object>, {String suffix}) renderLeaf, {
+  String suffix = '',
+}) {
   return TypeTree.treeCases(
     typeTree,
-    record: (record) {
-      return Inset(
-        prefix: const SizedBox(),
-        contents: [
-          for (final entry in record.entries)
-            Inset(
-              prefix: Text('${TypeTree.name(entry.value)}: '),
-              contents: [
-                DataTreeEditor(ctx, entry.value, dataTree[entry.key], renderLeaf),
-              ],
-              suffix: const SizedBox(),
+    record: (record) => InlineInset(contents: [
+      for (final entry in record.entries)
+        Inset(
+          prefix: Text('${TypeTree.name(entry.value)}: '),
+          contents: [
+            DataTreeEditor(
+              ctx,
+              entry.value,
+              dataTree[entry.key],
+              renderLeaf,
+              suffix: entry.key == record.entries.last.key ? '' : ', ',
             ),
-        ],
-        suffix: const SizedBox(),
-        inset: EdgeInsets.zero,
-      );
-    },
+          ],
+          suffix: const SizedBox(),
+        ),
+    ]),
     union: (union) {
       final currentTag = dataTree[UnionTag.tagID].read(ctx);
       final dropdown = IntrinsicWidth(
@@ -520,15 +515,15 @@ Widget _dataTreeEditor(
             renderLeaf,
           )
         ],
-        suffix: const Text(')'),
+        suffix: Text(')$suffix'),
       );
     },
-    leaf: (leaf) => renderLeaf(ctx, dataTree),
+    leaf: (leaf) => renderLeaf(ctx, dataTree, suffix: suffix),
   );
 }
 
 @reader
-Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
+Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String suffix = ''}) {
   final placeholderFocusNode = useFocusNode();
   final wrapperFocusNode = useFocusNode();
   final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
@@ -585,7 +580,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         ]),
       ),
       contents: [body],
-      suffix: const Text('}'),
+      suffix: Text('}$suffix'),
     );
   } else if (exprType == FnApp.type) {
     if (exprData[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) ==
@@ -594,16 +589,16 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.fnID])),
         const TextSpan(text: '('),
         AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.argID])),
-        const TextSpan(text: ')'),
+        TextSpan(text: ')$suffix'),
       ]));
     } else {
       child = Inset(
         prefix: const Text('apply('),
         contents: [
-          ExprEditor(ctx, exprData[FnApp.fnID]),
+          ExprEditor(ctx, exprData[FnApp.fnID], suffix: ', '),
           ExprEditor(ctx, exprData[FnApp.argID]),
         ],
-        suffix: const Text(')'),
+        suffix: Text(')$suffix'),
       );
     }
   } else if (exprType == RecordAccess.type) {
@@ -638,21 +633,23 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
         },
         none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
       ),
+      TextSpan(text: suffix),
     ]));
   } else if (exprType == Var.type) {
     final varID = exprData[Var.IDID].read(ctx);
     child = Option.cases(
       ctx.getBinding(varID as ID),
-      some: (binding) => Text(Binding.name(binding)),
+      some: (binding) => Text(Binding.name(binding) + suffix),
       none: () => Text(
-        'unknown var $varID',
+        'unknown var $varID$suffix',
         style: const TextStyle(fontStyle: FontStyle.italic),
       ),
     );
   } else if (exprType == Literal.type) {
     child = IntrinsicWidth(
       child: Text(
-        palPrint(ctx, Literal.getType(exprData.read(ctx)), Literal.getValue(exprData.read(ctx))),
+        palPrint(ctx, Literal.getType(exprData.read(ctx)), Literal.getValue(exprData.read(ctx))) +
+            suffix,
       ),
     );
   } else if (exprType == Construct.type) {
@@ -668,7 +665,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
           ExprEditor.new,
         )
       ],
-      suffix: const Text(')'),
+      suffix: Text(')$suffix'),
     );
   } else if (exprType == Placeholder.type) {
     return ReaderWidget(
@@ -779,10 +776,15 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
               },
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 200),
-                child: BoundTextFormField(
-                  inputText,
-                  ctx: ctx,
-                  focusNode: placeholderFocusNode,
+                child: RichText(
+                  text: TextSpan(children: [
+                    AlignedWidgetSpan(BoundTextFormField(
+                      inputText,
+                      ctx: ctx,
+                      focusNode: placeholderFocusNode,
+                    )),
+                    TextSpan(text: suffix),
+                  ]),
                 ),
               ),
             ),
@@ -791,13 +793,12 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr) {
       },
     );
   } else if (exprType == List.mkExprType) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final child in exprData[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx)) ...[
-          ExprEditor(ctx, child),
-          const Divider(),
-        ]
+    return Inset(
+      prefix: const Text('['),
+      suffix: Text(']$suffix'),
+      contents: [
+        for (final child in exprData[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx))
+          ExprEditor(ctx, child, suffix: ', '),
       ],
     );
   } else {
