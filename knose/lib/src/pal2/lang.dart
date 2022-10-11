@@ -614,6 +614,23 @@ abstract class TypeTree {
         );
   }
 
+  static Ctx typeBindings(Ctx ctx, Object typeTree, [ID? id]) {
+    return treeCases(
+      typeTree,
+      record: (record) =>
+          record.entries.fold(ctx, (ctx, e) => typeBindings(ctx, e.value, e.key as ID)),
+      union: (union) => ctx,
+      leaf: (leaf) {
+        if (id == null) return ctx;
+        return ctx.withBinding(Binding.mkLazy(
+          id: id,
+          name: TypeTree.name(typeTree),
+          type: (ctx) => reduce(ctx, leaf),
+        ));
+      },
+    );
+  }
+
   static Iterable<Object> dataBindings(Object typeTree, Object dataTree) {
     return foldData(
       [],
@@ -624,7 +641,7 @@ abstract class TypeTree {
         Binding.mkLazy(
           id: path.last as ID,
           name: (path.last as ID).label ?? '${path.last}',
-          type: (ctx) => eval(ctx, typeLeaf),
+          type: (ctx) => reduce(ctx, typeLeaf),
           value: (ctx) => dataLeaf,
         ),
       ],
