@@ -263,38 +263,31 @@ final FnMap palUIFnMap = {
                     key: ValueKey(id.read(ctx)),
                     ctx: ctx,
                     builder: (_, ctx) {
-                      final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                      if (dataType == TypeDef.type) {
-                        final name = moduleDef[ModuleDef.dataID][TypeDef.treeID][TypeTree.nameID];
+                      if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
+                        late final String kind;
+                        late final Cursor<Object> typeTree;
+                        if (dataType == TypeDef.type) {
+                          kind = 'type';
+                          typeTree = moduleDef[ModuleDef.dataID][TypeDef.treeID];
+                        } else if (dataType == InterfaceDef.type) {
+                          kind = 'interface';
+                          typeTree = moduleDef[ModuleDef.dataID][InterfaceDef.treeID];
+                        } else {
+                          throw Error();
+                        }
+                        final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
+                        ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
                         return Inset(
                           prefix: Text.rich(TextSpan(children: [
-                            const TextSpan(text: 'type '),
-                            _inlineTextSpan(ctx, name.cast<String>()),
-                            const TextSpan(text: ' {'),
+                            TextSpan(text: '$kind '),
+                            name,
+                            const TextSpan(text: ' { '),
                           ])),
                           contents: [
                             palEditor(
                               ctx,
                               TypeTree.type,
-                              moduleDef[ModuleDef.dataID][TypeDef.treeID],
-                            )
-                          ],
-                          suffix: const Text('}'),
-                        );
-                      } else if (dataType == InterfaceDef.type) {
-                        final name =
-                            moduleDef[ModuleDef.dataID][InterfaceDef.treeID][TypeTree.nameID];
-                        return Inset(
-                          prefix: Text.rich(TextSpan(children: [
-                            const TextSpan(text: 'interface '),
-                            _inlineTextSpan(ctx, name.cast<String>()),
-                            const TextSpan(text: ' {'),
-                          ])),
-                          contents: [
-                            palEditor(
-                              ctx,
-                              TypeTree.type,
-                              moduleDef[ModuleDef.dataID][InterfaceDef.treeID],
+                              typeTree,
                             )
                           ],
                           suffix: const Text('}'),
