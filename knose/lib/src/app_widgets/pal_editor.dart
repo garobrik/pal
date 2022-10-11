@@ -971,14 +971,26 @@ extension HierarchicalDescendants on FocusNode {
   }
 }
 
+class InlineInset extends Inset {
+  InlineInset({required super.contents, super.key})
+      : super(
+          prefix: const SizedBox(),
+          suffix: const SizedBox(),
+          inset: EdgeInsets.zero,
+          drawGuideLine: false,
+        );
+}
+
 class Inset extends MultiChildRenderObjectWidget {
   final EdgeInsetsGeometry inset;
+  final bool drawGuideLine;
 
   Inset({
     required Widget prefix,
     required dart.List<Widget> contents,
     required Widget suffix,
     this.inset = const EdgeInsetsDirectional.only(start: 10, end: 2),
+    this.drawGuideLine = true,
     super.key,
   }) : super(children: [prefix, ...contents, suffix]);
 
@@ -986,35 +998,44 @@ class Inset extends MultiChildRenderObjectWidget {
   RenderObject createRenderObject(BuildContext context) => RenderInset(
         inset: inset,
         textDirection: Directionality.of(context),
+        drawGuideLine: drawGuideLine,
       );
 
   @override
   void updateRenderObject(BuildContext context, covariant RenderInset renderObject) {
     renderObject
       ..inset = inset
-      ..textDirection = Directionality.of(context);
+      ..textDirection = Directionality.of(context)
+      ..drawGuideLine = drawGuideLine;
   }
 }
 
 class InsetParentData extends ContainerBoxParentData<RenderBox> {}
 
 class _InsetChildren {
-  final RenderBox prefix;
-  final dart.List<RenderBox> contents;
-  final RenderBox suffix;
+  final dart.List<RenderBox> children;
 
-  _InsetChildren(this.prefix, this.contents, this.suffix);
+  _InsetChildren(this.children);
+
+  RenderBox get prefix => children.first;
+  RenderBox get suffix => children.last;
+  Iterable<RenderBox> get contents => children.sublist(1, children.length - 1);
+  Iterable<RenderBox> get all => children;
 }
 
 class RenderInset extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, InsetParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, InsetParentData> {
+  static const textBaseline = TextBaseline.alphabetic;
+
   RenderInset({
     required EdgeInsetsGeometry inset,
     required TextDirection textDirection,
+    required bool drawGuideLine,
   })  : _inset = inset,
-        _textDirection = textDirection;
+        _textDirection = textDirection,
+        _drawGuideLine = drawGuideLine;
 
   EdgeInsetsGeometry get inset => _inset;
   late EdgeInsetsGeometry _inset;
@@ -1034,16 +1055,25 @@ class RenderInset extends RenderBox
     }
   }
 
+  bool get drawGuideLine => _drawGuideLine;
+  late bool _drawGuideLine;
+  set drawGuideLine(bool value) {
+    if (_drawGuideLine != value) {
+      _drawGuideLine = value;
+      markNeedsLayout();
+    }
+  }
+
   InsetParentData _parentData(RenderBox child) => child.parentData as InsetParentData;
   _InsetChildren _children() {
-    final prefix = firstChild!;
-    var contentIterator = _parentData(prefix).nextSibling!;
-    final content = <RenderBox>[];
+    var contentIterator = firstChild!;
+    final children = <RenderBox>[];
     while (_parentData(contentIterator).nextSibling != null) {
-      content.add(contentIterator);
+      children.add(contentIterator);
       contentIterator = _parentData(contentIterator).nextSibling!;
     }
-    return _InsetChildren(prefix, content, contentIterator);
+    children.add(contentIterator);
+    return _InsetChildren(children);
   }
 
   @override
@@ -1055,51 +1085,56 @@ class RenderInset extends RenderBox
 
   @override
   void performLayout() {
-    final constraints = this.constraints.loosen();
     final children = _children();
     final prefix = children.prefix;
     final contents = children.contents;
     final suffix = children.suffix;
 
-    prefix.layout(constraints, parentUsesSize: true);
+    prefix.layout(constraints.loosen(), parentUsesSize: true);
     for (final content in contents) {
       content.layout(
-        constraints.deflate(inset.resolve(textDirection)),
+        constraints.loosen().deflate(inset.resolve(textDirection)),
         parentUsesSize: true,
       );
     }
-    suffix.layout(constraints, parentUsesSize: true);
+    suffix.layout(constraints.loosen(), parentUsesSize: true);
 
-    final double contentsWidth = contents.fold(0, (width, content) => width + content.size.width);
-
-    final narrowEnough =
-        contentsWidth < constraints.maxWidth - (prefix.size.width + suffix.size.width);
-    // TODO: compute the magic height constraint here properly
-    final shortEnough = contents.map((c) => c.size.height).fold(0.0, max) < 20;
-    final newLine = !narrowEnough || !shortEnough;
+    final newLine = _needsNewLine(constraints, children);
+    double maxBaselineDistance = 0.0;
     if (!newLine) {
-      size = Size(
-        max(contentsWidth + prefix.size.width + suffix.size.width, this.constraints.minWidth),
-        [...contents.map((c) => c.size), prefix.size, suffix.size]
-            .map((c) => c.height)
-            .fold(0, max),
+      final allocatedSize = Size(
+        children.all.fold(0, (p, c) => p + c.size.width),
+        children.all.map((c) => c.size.height).fold(0, max),
       );
+
+      double height = allocatedSize.height;
+      double maxSizeAboveBaseline = 0;
+      double maxSizeBelowBaseline = 0;
+      for (final child in [prefix, ...contents, suffix]) {
+        final double? distance = child.getDistanceToBaseline(textBaseline, onlyReal: true);
+        if (distance != null) {
+          maxBaselineDistance = max(maxBaselineDistance, distance);
+          maxSizeAboveBaseline = max(distance, maxSizeAboveBaseline);
+          maxSizeBelowBaseline = max(child.size.height - distance, maxSizeBelowBaseline);
+          height = max(maxSizeAboveBaseline + maxSizeBelowBaseline, height);
+        }
+      }
+      size = constraints.constrain(Size(allocatedSize.width, height));
     } else {
       final double contentsHeight =
           contents.fold(0, (height, content) => height + content.size.height);
-      size = Size(
+      size = constraints.constrain(Size(
         [
           contents.map((c) => c.size.width).fold(0.0, max) + _inset.collapsedSize.width,
           prefix.size.width,
           suffix.size.width,
-          this.constraints.minWidth,
         ].fold(0, max),
         contentsHeight + prefix.size.height + suffix.size.height,
-      );
+      ));
     }
 
-    _parentData(prefix).offset = Offset.zero;
     if (newLine) {
+      _parentData(prefix).offset = Offset.zero;
       var cumulativeHeight = prefix.size.height;
       for (final content in contents) {
         _parentData(content).offset = Offset(inset.resolve(textDirection).left, cumulativeHeight);
@@ -1107,25 +1142,31 @@ class RenderInset extends RenderBox
       }
       _parentData(suffix).offset = Offset(0, cumulativeHeight);
     } else {
-      var cumulativeWidth = prefix.size.width;
-      for (final content in contents) {
-        _parentData(content).offset = Offset(cumulativeWidth, 0);
-        cumulativeWidth += content.size.width;
+      var cumulativeWidth = 0.0;
+      for (final child in [prefix, ...contents, suffix]) {
+        late final double height;
+        final double? distance = child.getDistanceToBaseline(textBaseline, onlyReal: true);
+        if (distance != null) {
+          height = maxBaselineDistance - distance;
+        } else {
+          height = 0.0;
+        }
+        _parentData(child).offset = Offset(cumulativeWidth, height);
+        cumulativeWidth += child.size.width;
       }
-      _parentData(suffix).offset = Offset(cumulativeWidth, 0);
     }
   }
 
   @override
   void paint(PaintingContext context, Offset offset) {
     defaultPaint(context, offset);
+    if (!drawGuideLine) return;
     final children = _children();
-    final firstOffset = children.contents.isEmpty ? 0 : _parentData(children.contents[0]).offset.dy;
-    if (firstOffset > 0) {
+    if (_needsNewLine(constraints, children)) {
       context.canvas.drawRect(
         Rect.fromLTWH(
           offset.dx,
-          offset.dy + firstOffset,
+          offset.dy + _parentData(children.contents.first).offset.dy,
           2,
           children.contents.fold(0.0, (height, content) => height + content.size.height),
         ),
@@ -1144,5 +1185,19 @@ class RenderInset extends RenderBox
   @override
   double? computeDistanceToActualBaseline(TextBaseline baseline) {
     return defaultComputeDistanceToHighestActualBaseline(baseline);
+  }
+
+  bool _needsNewLine(
+    BoxConstraints constraints,
+    _InsetChildren children,
+  ) {
+    final double contentsWidth =
+        children.contents.fold(0, (width, content) => width + content.size.width);
+
+    final narrowEnough = contentsWidth <=
+        constraints.maxWidth - (children.prefix.size.width + children.suffix.size.width);
+    // TODO: compute the magic height constraint here properly
+    final shortEnough = children.contents.map((c) => c.size.height).fold(0.0, max) <= 25;
+    return !narrowEnough || !shortEnough;
   }
 }
