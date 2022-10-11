@@ -107,7 +107,7 @@ extension GetCursorPartial<S> on GetCursor<S> {
     if (this is GetCursor<S1>) return this as GetCursor<S1>;
 
     return thenOpt(
-      OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
+      OptLens(const Vec([]), (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
       errorMsg: () => 'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
     );
   }
@@ -128,13 +128,14 @@ extension CursorPartial<S> on Cursor<S> {
     if (this is Cursor<S1>) return this as Cursor<S1>;
 
     return thenOpt(
-      OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
+      OptLens(const Vec([]), (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1)),
       errorMsg: () => 'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
     );
   }
 
   Cursor<S1> upcast<S1>() => thenOpt(
-        OptLens([], (s) => s is S1 ? Optional(s) : Optional.none(), (s, f) => f(s as S1) as S),
+        OptLens(const Vec([]), (s) => s is S1 ? Optional(s) : Optional.none(),
+            (s, f) => f(s as S1) as S),
         errorMsg: () =>
             'Tried to cast cursor of current type ${read(Ctx.empty).runtimeType} to $S1',
       );
@@ -341,19 +342,8 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
   _ComputedState(this.computation, {required this.ctx, this.compare = false});
 
   @override
-  void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) {
-    final dispose = _state.listen(path, callback);
-    return () {
-      dispose();
-      if (_state._listenables.isEmpty) {
-        for (final f in disposals) {
-          f();
-        }
-        disposals.clear();
-        dirty = true;
-      }
-    };
-  }
+  void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback) =>
+      _state.listen(path, callback);
 
   @override
   void handleDispose(void Function() dispose) {
@@ -367,16 +357,16 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
     }
     disposals.clear();
 
-    final newState = computation(ctx.withReader(this));
-    late final Diff diff;
-    if (compare && newState == _state.currentState) {
-      diff = const Diff();
-    } else {
-      diff = const Diff.allChanged();
+    if (_state._listenables.isEmpty && dirty != true) {
+      dirty = true;
+      return;
     }
 
+    final newState = computation(ctx.withReader(this));
+    if (compare && newState == _state.currentState) return;
+
     _state.transformAndNotify(
-      (_) => DiffResult(newState, diff),
+      (_) => DiffResult(newState, const Diff.allChanged()),
     );
   }
 

@@ -42,7 +42,7 @@ Iterable<Optic> generateAccessorOptics(Class clazz) {
                   call(
                       kind.fieldCtor,
                       [
-                        "const ['${a.name}']",
+                        "const Vec(['${a.name}'])",
                         '(t) => t.${a.name}',
                         if (kind == OpticKind.lens) '(t, f) => t.${mutater!.name}(f(t.${a.name}))',
                       ],

@@ -57,7 +57,7 @@ Iterable<Optic> generateMethodOptics(Class clazz) {
               : '$updateArg($getBody)',
       typeArgs: m.typeParams.map((tp) => tp.type),
     );
-    final pathExpression = "[Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])]";
+    final pathExpression = "Vec([Vec<dynamic>(<dynamic>['${m.name}', ${m.params.asArgs()}])])";
 
     return [
       Optic(

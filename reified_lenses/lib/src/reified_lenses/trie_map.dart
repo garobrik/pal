@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:reified_lenses/src/functional/string_ctx.dart';
 
 @immutable
 class TrieMap<K, V> extends Iterable<V> {
@@ -260,7 +261,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
 }
 
 @immutable
-class TrieSet<K> extends Iterable<Iterable<K>> {
+class TrieSet<K> extends Iterable<Iterable<K>> with ToStringCtx {
   final TrieMap<K, bool> _wrapped;
 
   const TrieSet.empty() : _wrapped = const TrieMap.empty();
@@ -305,7 +306,15 @@ class TrieSet<K> extends Iterable<Iterable<K>> {
   Iterator<Iterable<K>> get iterator => values().iterator;
 
   @override
-  String toString() {
-    return _wrapped.toString();
+  void doStringCtx(StringBuffer buffer, int leading) {
+    buffer.writeln('{');
+    for (final path in this) {
+      if (path is ToStringCtx) {
+        (path as ToStringCtx).doStringCtx(buffer, leading + 2);
+      } else {
+        buffer.writeln('$path'.padLeft(leading + 2));
+      }
+    }
+    buffer.write('}'.padLeft(leading + 1));
   }
 }

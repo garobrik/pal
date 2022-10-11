@@ -139,7 +139,7 @@ Widget _listConfig({
       'column': column,
       'impl': elementImpl
           .thenOpt<pal.Value>(OptLens(
-            const [],
+            const Vec([]),
             (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
             (t, f) => f(t),
           ))

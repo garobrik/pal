@@ -210,7 +210,7 @@ Optional<Widget> columnSpecificConfiguration(
       'column': column,
       'impl': column.dataImpl
           .thenOpt<pal.Value>(OptLens(
-            const [],
+            const Vec([]),
             (t) => t.type.assignableTo(ctx, currentType) ? Optional(t) : const Optional.none(),
             (t, f) => f(t),
           ))

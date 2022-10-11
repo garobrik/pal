@@ -51,7 +51,7 @@ extension GetCursorOptional<T> on GetCursor<Optional<T>> {
       );
 
   GetCursor<T> get whenPresent => thenOpt(
-        OptLens(['value'], (t) => t, (t, f) => t.map(f)),
+        OptLens(const Vec(['value']), (t) => t, (t, f) => t.map(f)),
         errorMsg: () => 'Tried to unwrap optional value which is not present.',
       );
 
@@ -74,20 +74,20 @@ extension GetCursorOptional<T> on GetCursor<Optional<T>> {
 extension CursorOptional<T> on Cursor<Optional<T>> {
   Cursor<T> get whenPresent {
     return thenOpt(
-      OptLens(['value'], (t) => t, (t, f) => t.map(f)),
+      OptLens(const Vec(['value']), (t) => t, (t, f) => t.map(f)),
       errorMsg: () => 'Tried to unwrap optional value which is not present.',
     );
   }
 
   Cursor<T> orElse(T defaultValue) => then(Lens(
-        ['value'],
+        const Vec(['value']),
         (t) => t.orElse(defaultValue),
         (t, f) => Optional(f(t.orElse(defaultValue))),
       ));
 
   Cursor<Optional<S>> optionalCast<S extends T>() => thenOpt(
         OptLens(
-          [],
+          const Vec(),
           (t) => t.unwrap is S? ? Optional(Optional.fromNullable(t.unwrap as S?)) : Optional.none(),
           (t, f) => f(t.map((t) => t as S)),
         ),

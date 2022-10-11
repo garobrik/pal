@@ -44,8 +44,8 @@ extension WrapValueExtension on Cursor<Object> {
   Cursor<Value> wrap(Type type) {
     return partial(
       to: (object) => Value(type, object),
-      from: (diff) => DiffResult(diff.value.value, diff.diff.atPrefix(['value'])),
-      update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(['value'])),
+      from: (diff) => DiffResult(diff.value.value, diff.diff.atPrefix(const Vec(['value']))),
+      update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(const Vec(['value']))),
     );
   }
 }
@@ -599,7 +599,7 @@ extension PalValueGetCursorExtensions on GetCursor<Object> {
     final currentTag = unionTag.tag.read(ctx);
     return cases[currentTag]!(unionTag.thenOpt(
       OptLens(
-        const ['value'],
+        const Vec(['value']),
         (t) => t.tag == currentTag ? Optional(t.value) : const Optional.none(),
         (t, f) => UnionTag(t.tag, f(t.value)),
       ),
@@ -633,7 +633,7 @@ extension PalValueCursorExtensions on Cursor<Object> {
     final currentTag = unionTag.tag.read(ctx);
     return cases[currentTag]!(unionTag.thenOpt(
       OptLens(
-        const ['value'],
+        const Vec(['value']),
         (t) => t.tag == currentTag ? Optional(t.value) : const Optional.none(),
         (t, f) => UnionTag(t.tag, f(t.value)),
       ),

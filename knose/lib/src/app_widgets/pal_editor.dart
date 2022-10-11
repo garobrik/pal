@@ -135,22 +135,22 @@ final palUIModule = Module.mk(
         argName: 'editable',
         argType: Type.lit(TypeDef.asType(editorArgsDef)),
         returnType: Type.lit(palWidget),
-        body: const ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'),
+        body: ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'),
       ),
     ),
     Editable.mkImpl(
       dataType: Module.type,
-      editor: const ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'),
+      editor: ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'),
     ),
     Editable.mkImpl(
       dataType: TypeTree.type,
-      editor: const ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'),
+      editor: ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'),
     ),
   ],
 );
 
 final FnMap palUIFnMap = {
-  const ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'): (ctx, arg) {
+  ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'): (ctx, arg) {
     final impl = Option.unwrap(
       dispatch(
         ctx,
@@ -184,7 +184,7 @@ final FnMap palUIFnMap = {
       ) as Widget,
     );
   },
-  const ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'): (ctx, arg) {
+  ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'): (ctx, arg) {
     final module = PalCursor.cursor(arg);
     final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
     return FocusTraversalGroup(
@@ -343,7 +343,7 @@ final FnMap palUIFnMap = {
       ),
     );
   },
-  const ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'): (ctx, arg) {
+  ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'): (ctx, arg) {
     final typeTree = PalCursor.cursor(arg);
     final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
     if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
@@ -377,9 +377,9 @@ final uiCtx = [
   [Printable.fnMap, Printable.module],
   [palUIFnMap, palUIModule]
 ].fold(
-    coreCtx,
-    (ctx, module) =>
-        Option.unwrap(Module.load(ctx.withFnMap(module[0] as FnMap), module[1])) as Ctx);
+  coreCtx,
+  (ctx, module) => Option.unwrap(Module.load(ctx.withFnMap(module[0] as FnMap), module[1])) as Ctx,
+);
 
 Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   return eval(
@@ -404,20 +404,10 @@ Widget _testThingy(Ctx ctx) {
     Vec([Printable.fnMap, Printable.module]),
     Vec([palUIFnMap, palUIModule])
   ]));
-  final moduleCtx = useMemoized(
-    () => GetCursor.compute(
-      (ctx) => modules.read(ctx).fold<Object>(
-            Option.mk(Ctx.empty),
-            (ctx, module) => Option.cases(
-              ctx,
-              some: (ctx) {
-                return Module.load((ctx as Ctx).withFnMap(module[0] as FnMap), module[1]);
-              },
-              none: () => Option.mk(),
-            ),
-          ),
-      ctx: ctx,
-    ),
+  final stale = useCursor(true);
+  final moduleCtx = useCursor(Option.mk());
+  useEffect(
+    () => modules.listen((old, nu, diff) => stale.set(true)),
   );
   final expr = useCursor(placeholder);
 
@@ -427,7 +417,7 @@ Widget _testThingy(Ctx ctx) {
       ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) {
-          final id = Cursor(ID());
+          final id = useCursor(ID());
           return TextButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: "ID.from(id: '${id.read(Ctx.empty).id}'):"));
@@ -437,6 +427,23 @@ Widget _testThingy(Ctx ctx) {
           );
         },
       ),
+      if (stale.read(ctx))
+        TextButton(
+          onPressed: () {
+            stale.set(false);
+            moduleCtx.set(modules.read(ctx).fold<Object>(
+                  Option.mk(Ctx.empty),
+                  (ctx, module) => Option.cases(
+                    ctx,
+                    some: (ctx) {
+                      return Module.load((ctx as Ctx).withFnMap(module[0] as FnMap), module[1]);
+                    },
+                    none: () => Option.mk(),
+                  ),
+                ));
+          },
+          child: const Text('Load Modules'),
+        ),
       ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) => Option.cases(
@@ -534,7 +541,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
       ctx: ctx,
       compare: true,
     ),
-    [ctx, expr],
+    [expr],
   );
 
   late final Widget child;

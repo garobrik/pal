@@ -32,7 +32,7 @@ Iterable<Optic> generateFieldOptics(
                   call(
                       kind.fieldCtor,
                       [
-                        "const ['${f.name}']",
+                        "const Vec(['${f.name}'])",
                         '(t) => t.${f.name}',
                         if (kind == OpticKind.lens)
                           '(t, f) => t.copyWith(${f.name}: f(t.${f.name}))'

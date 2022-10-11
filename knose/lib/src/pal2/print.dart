@@ -77,20 +77,20 @@ abstract class Printable {
         argName: 'object',
         argType: Type.lit(Any.type),
         returnType: Type.lit(text),
-        body: const ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'),
+        body: ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'),
       ),
     ),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'Default',
       argType: Type.type,
       dataType: (typeArg) => typeArg,
-      print: const ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'),
+      print: ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'),
     )),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'List',
       argType: Type.type,
       dataType: (typeArg) => List.typeExpr(typeArg),
-      print: const ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'),
+      print: ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'),
     )),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'Map',
@@ -99,52 +99,52 @@ abstract class Printable {
         RecordAccess.mk(typeArg, Pair.firstID),
         RecordAccess.mk(typeArg, Pair.secondID),
       ),
-      print: const ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'),
+      print: ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: Type.type,
-      print: const ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'),
+      print: ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: number,
-      print: const ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'),
+      print: ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: text,
-      print: const ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'),
+      print: ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: TypeProperty.type,
-      print: const ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'),
+      print: ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: MemberHas.type,
-      print: const ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'),
+      print: ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: Equals.type,
-      print: const ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'),
+      print: ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: Expr.type,
-      print: const ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'),
+      print: ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: ID.type,
-      print: const ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'),
+      print: ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: Var.type,
-      print: const ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'),
+      print: ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'),
     )),
     ImplDef.mkDef(mkImpl(
       dataType: Literal.type,
-      print: const ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'),
+      print: ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'),
     )),
   ]);
 
   static final FnMap fnMap = {
-    const ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'): (ctx, arg) {
+    ID.from(id: '0a433255-e890-48a8-b649-bdc5c8683101'): (ctx, arg) {
       final impl = Option.unwrap(
         dispatch(
           ctx,
@@ -167,7 +167,7 @@ abstract class Printable {
         ),
       );
     },
-    const ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'): mkParameterizedFwder(
+    ID.from(id: '13c11c7e-b549-45e5-8625-dc87846d000a'): mkParameterizedFwder(
       (ctx, typeArg, data) {
         final typeDef = ctx.getType(Type.id(typeArg));
 
@@ -211,20 +211,20 @@ abstract class Printable {
         return '${TypeTree.name(tree)}($resultString)';
       },
     ),
-    const ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'): mkParameterizedFwder(
+    ID.from(id: '6b85c52c-5c8f-4f52-ab8f-88872a7e2c1c'): mkParameterizedFwder(
       (ctx, listType, data) {
         final memberType = Type.memberEquals(listType, [List.typeID]);
         return '[${List.iterate(data).map((elem) => palPrint(ctx, memberType, elem)).join(", ")}]';
       },
     ),
-    const ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'): mkParameterizedFwder(
+    ID.from(id: '462d6740-375a-4054-b140-c7d42bc84e35'): mkParameterizedFwder(
       (ctx, mapType, data) {
         final keyType = Type.memberEquals(mapType, [Map.keyID]);
         final valueType = Type.memberEquals(mapType, [Map.valueID]);
         return '{${Map.entries(data).entries.map((entry) => "${palPrint(ctx, keyType, entry.key)}: ${palPrint(ctx, valueType, entry.value)}").join(", ")}}';
       },
     ),
-    const ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'): (ctx, type) {
+    ID.from(id: 'ce7456bd-6ca6-400d-9f6c-b5413624812a'): (ctx, type) {
       final tree = TypeDef.tree(ctx.getType(Type.id(type)));
       final name = TypeTree.name(tree);
       final props =
@@ -232,24 +232,24 @@ abstract class Printable {
       final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
       return '$name$suffix';
     },
-    const ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'): (_, number) => '$number',
-    const ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'): (_, text) => '"$text"',
-    const ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'): (ctx, prop) =>
+    ID.from(id: '2d7f0fe7-deaf-45e0-871a-375d5843d904'): (_, number) => '$number',
+    ID.from(id: '969a93c8-3470-4908-9a98-d8dd9881a274'): (_, text) => '"$text"',
+    ID.from(id: 'b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4'): (ctx, prop) =>
         palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop)),
-    const ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'): (ctx, memberHas) =>
+    ID.from(id: '4d779f78-c8e9-4144-a69f-9696f71647e1'): (ctx, memberHas) =>
         List.iterate(MemberHas.path(memberHas)).map((id) => (id as ID).label ?? id.id).join('.') +
         palPrint(ctx, TypeProperty.type, MemberHas.property(memberHas)),
-    const ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'): (ctx, equals) =>
+    ID.from(id: 'e0eb9e74-d730-4f8d-9de5-5305c435d715'): (ctx, equals) =>
         ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}',
-    const ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'): (ctx, expr) =>
+    ID.from(id: '8917399b-78d9-4d2d-9e8e-3c420aef3b54'): (ctx, expr) =>
         palPrint(ctx, Expr.dataType(expr), Expr.data(expr)),
-    const ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'): (ctx, id) => '$id',
-    const ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'): (ctx, varData) => Option.cases(
+    ID.from(id: 'b5418a3c-c0ce-431c-bd6c-885a6aed3712'): (ctx, id) => '$id',
+    ID.from(id: '57d1377c-16ea-4bce-8e91-e34742321815'): (ctx, varData) => Option.cases(
           ctx.getBinding(Var.id(varData)),
           some: (binding) => Binding.name(binding),
           none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
         ),
-    const ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'): (ctx, literalData) => palPrint(
+    ID.from(id: '05dfa958-82fb-48b6-9a93-66f9882af5fb'): (ctx, literalData) => palPrint(
           ctx,
           Literal.getType(literalData),
           Literal.getValue(literalData),

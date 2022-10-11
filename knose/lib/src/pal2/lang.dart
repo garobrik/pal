@@ -28,7 +28,7 @@ class ID implements Comparable<ID> {
       : id = _uuid.v4(),
         tail = null;
 
-  const ID.from({
+  ID.from({
     required this.id,
     this.label,
     this.tail,
@@ -37,8 +37,9 @@ class ID implements Comparable<ID> {
   @override
   bool operator ==(Object other) => other is ID && id == other.id && tail == other.tail;
 
+  int? _hashCode;
   @override
-  int get hashCode => Object.hash(id.hashCode, tail);
+  int get hashCode => _hashCode ??= Object.hash(id.hashCode, tail);
 
   @override
   String toString() => '$runtimeType(${_toStringImpl()})';
@@ -207,7 +208,7 @@ abstract class ValueDef {
       argName: 'valueDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: const ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'),
+      body: ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'),
     ),
     id: ID('ValueDefImpl'),
   );
@@ -262,7 +263,7 @@ abstract class TypeDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: const ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'),
+      body: ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'),
     ),
     id: ID('TypeDefImpl'),
   );
@@ -779,7 +780,7 @@ abstract class InterfaceDef {
       argName: 'interfaceDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: const ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'),
+      body: ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'),
     ),
     id: ID('InterfaceDefImpl'),
   );
@@ -849,7 +850,7 @@ abstract class ImplDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: const ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'),
+      body: ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'),
     ),
     id: ID('ImplDefImpl'),
   );
@@ -1188,11 +1189,11 @@ abstract class List {
   );
   static final mkExprType = Type.mk(mkExprTypeDefID);
 
-  static const _typeFn = ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1');
+  static final _typeFn = ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1');
 
-  static const _reduceFn = ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12');
+  static final _reduceFn = ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12');
 
-  static const _evalFn = ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823');
+  static final _evalFn = ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823');
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkExprType,
     argName: 'mkListData',
@@ -1276,9 +1277,9 @@ abstract class Map {
   static final mkExprImplDef = Expr.mkImplDef(
     dataType: mkType,
     argName: 'mkMapData',
-    typeCheckBody: const ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'),
-    reduceBody: const ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'),
-    evalBody: const ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'),
+    typeCheckBody: ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'),
+    reduceBody: ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'),
+    evalBody: ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'),
   );
   static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
         impl: ImplDef.asImpl(Ctx.empty.withFnMap(coreFnMap), Expr.interfaceDef, mkExprImplDef),
@@ -1443,11 +1444,11 @@ abstract class FnExpr extends Expr {
 
   static final exprImplID = ID('FnExprImpl');
 
-  static const typeFnBody = ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7');
+  static final typeFnBody = ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7');
 
-  static const reduceFnBody = ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468');
+  static final reduceFnBody = ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468');
 
-  static const evalFnBody = ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a');
+  static final evalFnBody = ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a');
 
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
@@ -1567,9 +1568,9 @@ abstract class FnApp extends Expr {
   }));
   static final type = TypeDef.asType(typeDef);
 
-  static const _typeFnBody = ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b');
-  static const _reduceFnBody = ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719');
-  static const _evalFnBody = ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19');
+  static final _typeFnBody = ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b');
+  static final _reduceFnBody = ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719');
+  static final _evalFnBody = ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19');
 
   static final exprImplDef = Expr.mkImplDef(
     argName: 'fnAppData',
@@ -1615,11 +1616,11 @@ abstract class Construct extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static const _typeFn = ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce');
+  static final _typeFn = ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce');
 
-  static const _reduceFn = ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8');
+  static final _reduceFn = ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8');
 
-  static const _evalFn = ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852');
+  static final _evalFn = ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852');
 
   static final exprImplID = ID('ConstructExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -1662,11 +1663,11 @@ abstract class RecordAccess extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static const _typeFn = ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4');
+  static final _typeFn = ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4');
 
-  static const _reduceFn = ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802');
+  static final _reduceFn = ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802');
 
-  static const _evalFn = ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd');
+  static final _evalFn = ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd');
 
   static final exprImplID = ID('exprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -1711,11 +1712,11 @@ abstract class Literal extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static const _typeFnData = ID.from(id: '5249e346-b160-4a03-b657-2002027596be');
+  static final _typeFnData = ID.from(id: '5249e346-b160-4a03-b657-2002027596be');
 
-  static const _reduceFnData = ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a');
+  static final _reduceFnData = ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a');
 
-  static const _evalFnData = ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5');
+  static final _evalFnData = ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5');
 
   static final exprImplID = ID('LiteralExprImpl');
   static final exprImplDef = Expr.mkImplDef(
@@ -1755,9 +1756,9 @@ abstract class Var extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static const _typeFn = ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61');
-  static const _reduceFn = ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d');
-  static const _evalFn = ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f');
+  static final _typeFn = ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61');
+  static final _reduceFn = ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d');
+  static final _evalFn = ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f');
 
   static final exprImplDef = Expr.mkImplDef(
     dataType: type,
@@ -1789,9 +1790,9 @@ abstract class Placeholder extends Expr {
   static final exprImplDef = Expr.mkImplDef(
     dataType: type,
     argName: 'placeholderData',
-    typeCheckBody: const ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'),
-    reduceBody: const ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'),
-    evalBody: const ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'),
+    typeCheckBody: ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'),
+    reduceBody: ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'),
+    evalBody: ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'),
   );
 }
 
@@ -2424,12 +2425,12 @@ final coreModule = Module.mk(name: 'core', definitions: [
 ]);
 
 final FnMap coreFnMap = {
-  const ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'): (_, __) =>
+  ID.from(id: '587c85cd-5ce2-4fb0-92a1-3e86086e1154'): (_, __) =>
       throw Exception("don't evaluate a placeholder u fool!"),
-  const ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'): (_, __) =>
+  ID.from(id: 'd695423c-c03f-4f9f-beb6-0d615eb938d9'): (_, __) =>
       throw Exception("don't reduce a placeholder u fool!"),
-  const ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'): (_, __) => Option.mk(),
-  const ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f'): (Ctx ctx, Object arg) {
+  ID.from(id: 'b1750fd4-b07f-490b-816f-7933361115e5'): (_, __) => Option.mk(),
+  ID.from(id: '71220800-2abd-40c3-b97a-5b8b1b743e6f'): (Ctx ctx, Object arg) {
     return Option.cases(
       Binding.value(
         ctx,
@@ -2443,7 +2444,7 @@ final FnMap coreFnMap = {
       none: () => throw Exception('impossible!!'),
     );
   },
-  const ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d'): (Ctx ctx, Object arg) {
+  ID.from(id: '6c0432ae-e016-4c21-9579-2e8c6e15412d'): (Ctx ctx, Object arg) {
     return Option.cases(
       ctx.getBinding(Var.id(arg)),
       none: () => Var.mk(Var.id(arg)),
@@ -2464,23 +2465,23 @@ final FnMap coreFnMap = {
       ),
     );
   },
-  const ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61'): (Ctx ctx, Object arg) {
+  ID.from(id: '3e9ec939-8b06-4ae1-b994-6d9ffce15b61'): (Ctx ctx, Object arg) {
     return Option.cases(
       ctx.getBinding(Var.id(arg)),
       some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
       none: () => Option.mk(),
     );
   },
-  const ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5'): (Ctx ctx, Object arg) =>
+  ID.from(id: 'e53622ea-9e07-48c1-bcb2-3376ae9eb0f5'): (Ctx ctx, Object arg) =>
       Literal.getValue(arg),
-  const ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a'): (Ctx ctx, Object arg) =>
+  ID.from(id: '407672c9-89c1-4c56-ae90-61114500136a'): (Ctx ctx, Object arg) =>
       Expr.mk(impl: Literal.exprImpl, data: arg),
-  const ID.from(id: '5249e346-b160-4a03-b657-2002027596be'): (Ctx ctx, Object arg) =>
+  ID.from(id: '5249e346-b160-4a03-b657-2002027596be'): (Ctx ctx, Object arg) =>
       Option.mk(Type.lit(Literal.getType(arg))),
-  const ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd'): (Ctx ctx, Object data) {
+  ID.from(id: 'e0018149-0f3c-4ddd-bcef-9c681cee4ddd'): (Ctx ctx, Object data) {
     return (eval(ctx, RecordAccess.target(data)) as Dict)[RecordAccess.member(data)].unwrap!;
   },
-  const ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802'): (Ctx ctx, Object data) {
+  ID.from(id: '9685059c-a3b5-4964-882d-107151dc7802'): (Ctx ctx, Object data) {
     final targetExpr = reduce(ctx, RecordAccess.target(data));
     if (Expr.dataType(targetExpr) == Literal.type) {
       final typeDef = ctx.getType(Type.id(Literal.getType(Expr.data(targetExpr))));
@@ -2505,7 +2506,7 @@ final FnMap coreFnMap = {
     }
     throw Exception('reduce record access not implemented for record access!');
   },
-  const ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4'): (Ctx ctx, Object arg) {
+  ID.from(id: '82bf53a9-470a-4a7c-9326-e367397c56d4'): (Ctx ctx, Object arg) {
     return Option.cases(
       typeCheck(ctx, RecordAccess.target(arg)),
       none: () => Option.mk(),
@@ -2578,7 +2579,7 @@ final FnMap coreFnMap = {
       },
     );
   },
-  const ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852'): (Ctx ctx, Object arg) {
+  ID.from(id: 'ff147616-dbb9-4759-9184-5aa800572852'): (Ctx ctx, Object arg) {
     final typeDef = ctx.getType(Type.id(Construct.dataType(arg)));
     final comptimeIDs = TypeDef.comptime(typeDef);
     return TypeTree.maybeMapData(
@@ -2588,7 +2589,7 @@ final FnMap coreFnMap = {
           Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
     );
   },
-  const ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8'): (Ctx ctx, Object arg) {
+  ID.from(id: '7a0fc27e-4511-463e-bc56-1445de7d65a8'): (Ctx ctx, Object arg) {
     bool nonLit = false;
     final typeTree = TypeDef.tree(ctx.getType(Type.id(Construct.dataType(arg))));
     final exprTree = TypeTree.mapData(
@@ -2611,7 +2612,7 @@ final FnMap coreFnMap = {
       ),
     );
   },
-  const ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce'): (Ctx origCtx, Object arg) {
+  ID.from(id: '3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce'): (Ctx origCtx, Object arg) {
     final typeDef = origCtx.getType(Type.id(Construct.dataType(arg)));
 
     final computedProps = <Object>[];
@@ -2700,7 +2701,7 @@ final FnMap coreFnMap = {
       reduce(origCtx, Type.mkExpr(Type.id(Construct.dataType(arg)), properties: computedProps)),
     );
   },
-  const ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19'): (Ctx ctx, Object data) {
+  ID.from(id: 'bb3a9958-31b9-4309-9113-5bbda9b7da19'): (Ctx ctx, Object data) {
     final fn = eval(ctx, FnApp.fn(data));
     final arg = eval(ctx, FnApp.arg(data));
     return Fn.bodyCases(
@@ -2719,7 +2720,7 @@ final FnMap coreFnMap = {
       dart: (body) => ctx.getFn(body)(ctx, arg),
     );
   },
-  const ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719'): (Ctx ctx, Object fnApp) {
+  ID.from(id: '64923943-f567-44dd-afb9-bf8a28ea7719'): (Ctx ctx, Object fnApp) {
     final reducedFn = reduce(ctx, FnApp.fn(fnApp));
     if (Expr.dataType(reducedFn) == Literal.type || Expr.dataType(reducedFn) == FnExpr.type) {
       if (Expr.dataType(reducedFn) == Literal.type) {
@@ -2761,7 +2762,7 @@ final FnMap coreFnMap = {
     }
     return Expr.mk(impl: FnApp.exprImpl, data: fnApp);
   },
-  const ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b'): (Ctx ctx, Object fnApp) {
+  ID.from(id: 'be6e4c77-a9fb-4d10-92cc-338c59ec3d5b'): (Ctx ctx, Object fnApp) {
     return Option.cases(
       typeCheck(ctx, FnApp.fn(fnApp)),
       none: () => Option.mk(),
@@ -2807,7 +2808,7 @@ final FnMap coreFnMap = {
       },
     );
   },
-  const ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a'): (Ctx ctx, Object arg) {
+  ID.from(id: '738cb307-4b48-4bf2-907b-e06e1e42a49a'): (Ctx ctx, Object arg) {
     final exprFreeVars = freeVars(ctx, Expr.mk(impl: FnExpr.exprImpl, data: arg));
     return Fn.mk(
       argName: FnExpr.argName(arg),
@@ -2822,9 +2823,9 @@ final FnMap coreFnMap = {
       ]),
     );
   },
-  const ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468'): (Ctx ctx, Object fnData) =>
+  ID.from(id: 'a814d41c-2b9b-49a0-afc2-9c6c25e47468'): (Ctx ctx, Object fnData) =>
       Expr.mk(impl: FnExpr.exprImpl, data: fnData),
-  const ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7'): (Ctx ctx, Object fn) {
+  ID.from(id: '916ccdd7-75de-4c37-b728-a318b101aff7'): (Ctx ctx, Object fn) {
     return Option.cases(
       typeCheck(ctx, FnExpr.argType(fn)),
       none: () => Option.mk(),
@@ -2924,14 +2925,14 @@ final FnMap coreFnMap = {
       },
     );
   },
-  const ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'): (ctx, arg) => Dict({
+  ID.from(id: '19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a'): (ctx, arg) => Dict({
         for (final entry in List.iterate((arg as Dict)[Map.mkEntriesID].unwrap!))
           eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
       }),
-  const ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'): (ctx, arg) {
+  ID.from(id: '7fa732c0-a61d-4e43-94e4-c4fafe04d254'): (ctx, arg) {
     throw Exception('reduce map expr not yet implemented!');
   },
-  const ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'): (ctx, arg) {
+  ID.from(id: '7f2c7445-867b-4d44-afae-040ee700bff6'): (ctx, arg) {
     final keyType = (arg as Dict)[Map.mkKeyID].unwrap!;
     final valueType = arg[Map.mkValueID].unwrap!;
 
@@ -2945,10 +2946,10 @@ final FnMap coreFnMap = {
     }
     return Option.mk(Map.type(keyType, valueType));
   },
-  const ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823'): (Ctx ctx, Object arg) => List.mk(
+  ID.from(id: 'd755250f-c583-4d96-84da-f4c0a6bdd823'): (Ctx ctx, Object arg) => List.mk(
         [...List.iterate((arg as Dict)[List.mkValuesID].unwrap!).map((expr) => eval(ctx, expr))],
       ),
-  const ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12'): (Ctx ctx, Object arg) {
+  ID.from(id: '6600af92-b24d-4e65-8b78-35d9ba9d8b12'): (Ctx ctx, Object arg) {
     bool nonLit = false;
     final reducedSubExprs = <Object>[];
     for (final subExpr in List.iterate((arg as Dict)[List.mkValuesID].unwrap!)) {
@@ -2962,7 +2963,7 @@ final FnMap coreFnMap = {
       List.mk([...reducedSubExprs.map(Expr.data).map(Literal.getValue)]),
     );
   },
-  const ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1'): (Ctx ctx, Object arg) {
+  ID.from(id: '6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1'): (Ctx ctx, Object arg) {
     final listValueType = (arg as Dict)[List.mkTypeID].unwrap!;
     for (final value in List.iterate(List.mkExprValues(arg))) {
       final valueType = typeCheck(ctx, value);
@@ -2973,7 +2974,7 @@ final FnMap coreFnMap = {
     }
     return Option.mk(Type.lit(List.type(listValueType)));
   },
-  const ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'): (ctx, implDef) => List.mk([
+  ID.from(id: '85c45fc9-c594-43b9-b126-739713a1c5e8'): (ctx, implDef) => List.mk([
         Union.mk(
           ModuleDef.type,
           ValueDef.mk(
@@ -2984,7 +2985,7 @@ final FnMap coreFnMap = {
           ),
         ),
       ]),
-  const ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'): (ctx, ifaceDef) {
+  ID.from(id: '524fbec2-aa08-43bd-b8b3-ffe89d89d7aa'): (ctx, ifaceDef) {
     return List.mk([
       Union.mk(
         ModuleDef.type,
@@ -3016,7 +3017,7 @@ final FnMap coreFnMap = {
       ),
     ]);
   },
-  const ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'): (ctx, typeDef) {
+  ID.from(id: '01415159-a7a9-42ce-a749-0c6428775166'): (ctx, typeDef) {
     return List.mk([
       Union.mk(
         ModuleDef.type,
@@ -3036,7 +3037,7 @@ final FnMap coreFnMap = {
       ),
     ]);
   },
-  const ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'): (ctx, arg) {
+  ID.from(id: '4a5ff699-216d-49c3-8fea-7687cb90a35b'): (ctx, arg) {
     Object? lazyType;
     Object? lazyValue;
 

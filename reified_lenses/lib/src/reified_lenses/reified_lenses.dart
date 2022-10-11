@@ -6,7 +6,7 @@ part 'reified_lenses.g.dart';
 typedef PathMap<V> = TrieMap<Object, V>;
 typedef PathMapSet<V> = TrieMapSet<Object, V>;
 typedef PathSet = TrieSet<Object>;
-typedef Path = Iterable<Object>;
+typedef Path = Vec<Object>;
 
 PathSet atPrefixWithParent(PathSet pathSet, Path prefix) {
   for (final pathElem in prefix) {
@@ -18,7 +18,7 @@ PathSet atPrefixWithParent(PathSet pathSet, Path prefix) {
 
 @immutable
 @reify
-class Diff with _DiffMixin {
+class Diff with _DiffMixin, ToStringCtx {
   @override
   final PathSet changed;
   @override
@@ -59,6 +59,20 @@ class Diff with _DiffMixin {
       );
 
   PathSet allPaths() => added.union(changed).union(removed);
+
+  @override
+  void doStringCtx(StringBuffer buffer, int leading) {
+    buffer.writeln('Diff(');
+    buffer.write('  changed:'.padLeft(leading));
+    changed.doStringCtx(buffer, leading + 2);
+    buffer.writeln(',');
+    buffer.write('  added:'.padLeft(leading));
+    added.doStringCtx(buffer, leading + 2);
+    buffer.writeln(',');
+    buffer.write('  removed:'.padLeft(leading));
+    removed.doStringCtx(buffer, leading + 2);
+    buffer.writeln(')');
+  }
 }
 
 @immutable
@@ -125,17 +139,17 @@ abstract class Lens<T, S> implements Getter<T, S>, OptLens<T, S> {
 
 extension OptGetterCompositions<T, S> on OptGetter<T, S> {
   OptGetter<T, S2> then<S2>(OptGetter<S, S2> getter) =>
-      OptGetter(path.followedBy(getter.path), (t) => getOpt(t).flatMap(getter.getOpt));
+      OptGetter(path.append(getter.path), (t) => getOpt(t).flatMap(getter.getOpt));
 }
 
 extension GetterCompositions<T, S> on Getter<T, S> {
   Getter<T, S2> then<S2>(Getter<S, S2> getter) =>
-      Getter(path.followedBy(getter.path), (t) => getter.get(get(t)));
+      Getter(path.append(getter.path), (t) => getter.get(get(t)));
 }
 
 extension OptLensCompositions<T, S> on OptLens<T, S> {
   OptLens<T, S2> then<S2>(OptLens<S, S2> lens) => OptLens(
-        path.followedBy(lens.path),
+        path.append(lens.path),
         (t) => getOpt(t).flatMap(lens.getOpt),
         (t, f) => mut(t, (s) => lens.mut(s, f)),
       );
@@ -153,7 +167,7 @@ extension OptLensCompositions<T, S> on OptLens<T, S> {
 
 extension LensCompositions<T, S> on Lens<T, S> {
   Lens<T, S2> then<S2>(Lens<S, S2> lens) => Lens(
-        path.followedBy(lens.path),
+        path.append(lens.path),
         (t) => lens.get(get(t)),
         (t, f) => mut(t, (s) => lens.mut(s, f)),
       );
@@ -228,7 +242,7 @@ class _IdentityImpl<T> implements Getter<T, T>, Lens<T, T> {
   _IdentityImpl();
 
   @override
-  Path get path => const [];
+  Path get path => const Vec();
 
   @override
   T get(T t) => t;

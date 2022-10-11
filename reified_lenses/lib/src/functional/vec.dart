@@ -41,6 +41,8 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
 
   Vec<Value> add(Value v) => insert(length, v);
 
+  Vec<Value> append(Vec<Value> other) => Vec.from([..._values, ...other]);
+
   Vec<Value> remove(int index) {
     assert(0 <= index && index < length);
     return Vec.from([..._values.take(index), ..._values.skip(index + 1)]);
@@ -92,7 +94,7 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
       }
       buffer.write(',');
     }
-    buffer.write('\n');
+    buffer.writeln();
     buffer.write(']'.padLeft(leading + 1));
   }
 }

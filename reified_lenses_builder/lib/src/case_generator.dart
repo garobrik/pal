@@ -110,7 +110,7 @@ AccessorPair _generateCaseGetter(Class clazz, Iterable<Type> cases) {
       'caze',
       Type('GetCursor', args: [Type('${clazz.name}Case')]),
       body: '''
-        thenGet<${clazz.name}Case>(${OpticKind.getter.fieldCtor}(const ['case'], ($param) { $ifElsePart }))
+        thenGet<${clazz.name}Case>(${OpticKind.getter.fieldCtor}(const Vec(['case']), ($param) { $ifElsePart }))
     ''',
     ),
   );

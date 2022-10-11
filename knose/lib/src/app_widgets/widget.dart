@@ -82,7 +82,7 @@ Widget _widgetRenderer(
   final currentName =
       instance.recordAccess(widget.instanceWidgetID).recordAccess(widget.nameID).read(ctx);
   final data = instance.recordAccess(widget.instanceDataID).thenOpt(OptLens<Object, Object>(
-        const [],
+        const Vec([]),
         (t) {
           if (currentName ==
               instance
