@@ -166,23 +166,20 @@ final FnMap palUIFnMap = {
     );
 
     final cursorType = PalCursor.type((impl as Dict)[Editable.dataTypeID].unwrap!);
-    return ReaderWidget(
-      ctx: ctx,
-      builder: (_, ctx) => eval(
-        ctx,
-        FnApp.mk(
-          Literal.mk(
-            Fn.type(
-              argID: Editable.editorArgID,
-              argType: cursorType,
-              returnType: Type.lit(palWidget),
-            ),
-            impl[Editable.editorID].unwrap!,
+    return eval(
+      ctx,
+      FnApp.mk(
+        Literal.mk(
+          Fn.type(
+            argID: Editable.editorArgID,
+            argType: cursorType,
+            returnType: Type.lit(palWidget),
           ),
-          Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
+          impl[Editable.editorID].unwrap!,
         ),
-      ) as Widget,
-    );
+        Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
+      ),
+    ) as Widget;
   },
   ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'): (ctx, arg) {
     final module = PalCursor.cursor(arg);

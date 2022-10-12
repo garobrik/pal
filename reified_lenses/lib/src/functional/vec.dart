@@ -31,11 +31,11 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
 
   Diff _insert_mutated(int index, Value v) => Diff(
         added: PathSet.from({
-          [length]
+          Vec([length])
         }),
         changed: PathSet.from({
-          for (final j in range(length, start: index)) [j],
-          ['length']
+          for (final j in range(length, start: index)) Vec([j]),
+          const Vec(['length'])
         }),
       );
 
@@ -53,13 +53,15 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
 
   Diff _remove_mutated(int index) => Diff(
         changed: PathSet.from({
-          for (final j in range(length - 1, start: index)) [j],
-          const ['length']
+          for (final j in range(length - 1, start: index)) Vec([j]),
+          const Vec(['length'])
         }),
         removed: PathSet.from({
-          [length - 1]
+          Vec([length - 1])
         }),
       );
+
+  Vec<Value> sublist(int start, [int? end]) => Vec.from(_values.sublist(start, end));
 
   @override
   Iterator<Value> get iterator => _values.iterator;

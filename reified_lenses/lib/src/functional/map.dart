@@ -34,21 +34,21 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
       if (!_values.containsKey(key)) {
         return Diff(
           added: PathSet.from({
-            [
+            Vec([
               Vec<dynamic>(<dynamic>['[]', key])
-            ]
+            ])
           }),
           changed: PathSet.from({
-            ['keys'],
-            ['length'],
+            const Vec(['keys']),
+            const Vec(['length']),
           }),
         );
       } else {
         return Diff(
           changed: PathSet.from({
-            [
+            Vec([
               Vec<dynamic>(<dynamic>['[]', key])
-            ]
+            ])
           }),
         );
       }
@@ -58,13 +58,13 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
       } else {
         return Diff(
           removed: PathSet.from({
-            [
+            Vec([
               Vec<dynamic>(<dynamic>['[]', key])
-            ]
+            ])
           }),
           changed: PathSet.from({
-            ['keys'],
-            ['length'],
+            const Vec(['keys']),
+            const Vec(['length']),
           }),
         );
       }
@@ -81,11 +81,11 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
     if (_values.containsKey(key)) {
       return Diff(
         removed: PathSet.from({
-          [key]
+          Vec([key])
         }),
         changed: PathSet.from({
-          ['keys'],
-          ['length']
+          const Vec(['keys']),
+          const Vec(['length'])
         }),
       );
     } else {

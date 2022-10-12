@@ -3,15 +3,13 @@ import 'package:reified_lenses/reified_lenses.dart';
 
 part 'reified_lenses.g.dart';
 
-typedef PathMap<V> = TrieMap<Object, V>;
-typedef PathMapSet<V> = TrieMapSet<Object, V>;
 typedef PathSet = TrieSet<Object>;
 typedef Path = Vec<Object>;
 
 PathSet atPrefixWithParent(PathSet pathSet, Path prefix) {
   for (final pathElem in prefix) {
     if (pathSet.containsRoot) return PathSet.root();
-    pathSet = pathSet.atPrefix([pathElem]);
+    pathSet = pathSet.atPrefix(Vec([pathElem]));
   }
   return pathSet;
 }

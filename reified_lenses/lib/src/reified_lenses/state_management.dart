@@ -2,6 +2,8 @@ import 'package:ctx/ctx.dart';
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
+typedef PathMapSet<V> = TrieMapSet<Object, V>;
+
 abstract class GetCursor<S> {
   const factory GetCursor(S state) = _ValueCursor<S>;
   factory GetCursor.compute(

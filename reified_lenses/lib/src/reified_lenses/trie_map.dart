@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:reified_lenses/src/functional/string_ctx.dart';
+import 'package:reified_lenses/src/functional/vec.dart';
 
 @immutable
 class TrieMap<K, V> extends Iterable<V> {
@@ -11,7 +12,7 @@ class TrieMap<K, V> extends Iterable<V> {
         _children = const {};
   const TrieMap(this._value, this._children);
 
-  factory TrieMap.from(Map<Iterable<K>, V> map) {
+  factory TrieMap.from(Map<Vec<K>, V> map) {
     var result = TrieMap<K, V>.empty();
     for (var entry in map.entries) {
       result = result.set(entry.key, entry.value);
@@ -19,7 +20,7 @@ class TrieMap<K, V> extends Iterable<V> {
     return result;
   }
 
-  TrieMap<K, V> update(Iterable<K> key, V? Function(V?) updateFn) {
+  TrieMap<K, V> update(Vec<K> key, V? Function(V?) updateFn) {
     if (key.isEmpty) {
       return TrieMap(updateFn(_value), _children);
     } else {
@@ -27,7 +28,7 @@ class TrieMap<K, V> extends Iterable<V> {
         for (final childEntry in _children.entries) childEntry.key: childEntry.value
       };
       newChildren[key.first] =
-          (newChildren[key.first] ?? TrieMap.empty()).update(key.skip(1), updateFn);
+          (newChildren[key.first] ?? TrieMap.empty()).update(key.sublist(1), updateFn);
       if (newChildren[key.first]?.isEmpty ?? true) {
         newChildren.remove(key.first);
       }
@@ -35,11 +36,11 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  TrieMap<K, V> set(Iterable<K> key, V value) {
+  TrieMap<K, V> set(Vec<K> key, V value) {
     return update(key, (_) => value);
   }
 
-  TrieMap<K, V> remove(Iterable<K> key) => update(key, (_) => null);
+  TrieMap<K, V> remove(Vec<K> key) => update(key, (_) => null);
 
   TrieMap<K, V> merge(TrieMap<K, V> other, {V? Function(V, V)? mergeFn}) {
     var result = this;
@@ -52,15 +53,15 @@ class TrieMap<K, V> extends Iterable<V> {
     return result;
   }
 
-  TrieMap<K, V> prepend(Iterable<K> key) {
+  TrieMap<K, V> prepend(Vec<K> key) {
     if (key.isEmpty || this.isEmpty) return this;
     return TrieMap<K, V>(null, <K, TrieMap<K, V>>{key.last: this})
-        .prepend(key.take(key.length - 1));
+        .prepend(key.sublist(0, key.length - 1));
   }
 
-  TrieMap<K, V> atPrefix(Iterable<K> key) {
+  TrieMap<K, V> atPrefix(Vec<K> key) {
     if (key.isEmpty) return this;
-    return _children[key.first]?.atPrefix(key.skip(1)) ?? TrieMap.empty();
+    return _children[key.first]?.atPrefix(key.sublist(1)) ?? TrieMap.empty();
   }
 
   Iterable<V> connectedValues(TrieSet<K> values) sync* {
@@ -77,9 +78,9 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<V> children([Vec<K> key = const Vec()]) sync* {
     if (key.isNotEmpty) {
-      yield* _children[key.first]?.children(key.skip(1)) ?? [];
+      yield* _children[key.first]?.children(key.sublist(1)) ?? [];
       return;
     }
 
@@ -91,53 +92,53 @@ class TrieMap<K, V> extends Iterable<V> {
     }
   }
 
-  Iterable<V> eachChildren(Iterable<Iterable<K>> keys) sync* {
+  Iterable<V> eachChildren(Iterable<Vec<K>> keys) sync* {
     for (final key in keys) {
       yield* children(key);
     }
   }
 
-  Iterable<MapEntry<Iterable<K>, V>> entries([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<MapEntry<Vec<K>, V>> entries([Vec<K> key = const Vec()]) sync* {
     if (key.isNotEmpty) {
-      final entries = _children[key.first]?.entries(key.skip(1)) ?? [];
+      final entries = _children[key.first]?.entries(key.sublist(1)) ?? [];
       yield* entries.map(
-        (entry) => MapEntry([key.first].followedBy(entry.key), entry.value),
+        (entry) => MapEntry(Vec([key.first]).append(entry.key), entry.value),
       );
       return;
     }
 
     if (_value != null) {
-      yield MapEntry(Iterable.empty(), _value as V);
+      yield MapEntry(const Vec(), _value as V);
     }
     for (final childEntry in _children.entries) {
       yield* childEntry.value.entries().map(
-            (entry) => MapEntry([childEntry.key].followedBy(entry.key), entry.value),
+            (entry) => MapEntry(Vec([childEntry.key]).append(entry.key), entry.value),
           );
     }
   }
 
-  Iterable<Iterable<K>> keys([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<Vec<K>> keys([Vec<K> key = const Vec()]) sync* {
     if (key.isNotEmpty) {
-      final keys = _children[key.first]?.keys(key.skip(1)) ?? [];
+      final keys = _children[key.first]?.keys(key.sublist(1)) ?? [];
       yield* keys.map(
-        (childKey) => [key.first].followedBy(childKey),
+        (childKey) => Vec([key.first]).append(childKey),
       );
       return;
     }
 
     if (_value != null) {
-      yield Iterable.empty();
+      yield const Vec();
     }
     for (final entry in _children.entries) {
       yield* entry.value.keys().map(
-            (childKey) => [entry.key].followedBy(childKey),
+            (childKey) => Vec([entry.key]).append(childKey),
           );
     }
   }
 
-  V? operator [](Iterable<K> key) {
+  V? operator [](Vec<K> key) {
     if (key.isEmpty) return _value;
-    return _children[key.first]?[key.skip(1)];
+    return _children[key.first]?[key.sublist(1)];
   }
 
   @override
@@ -177,7 +178,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
       : _wrapped = TrieMap<K, Set<V>>(values, children);
   const TrieMapSet._fromTrieMap(this._wrapped);
 
-  factory TrieMapSet.from(Map<Iterable<K>, V> map) {
+  factory TrieMapSet.from(Map<Vec<K>, V> map) {
     var result = TrieMapSet<K, V>.empty();
     for (var entry in map.entries) {
       result = result.add(entry.key, entry.value);
@@ -185,7 +186,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
     return result;
   }
 
-  TrieMapSet<K, V> add(Iterable<K> key, V value) {
+  TrieMapSet<K, V> add(Vec<K> key, V value) {
     return TrieMapSet._fromTrieMap(
       TrieMap(_wrapped._value, _wrapped._children).update(
         key,
@@ -194,7 +195,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
     );
   }
 
-  TrieMapSet<K, V> remove(Iterable<K> key, V value) {
+  TrieMapSet<K, V> remove(Vec<K> key, V value) {
     return TrieMapSet._fromTrieMap(
       TrieMap(_wrapped._value, _wrapped._children).update(
         key,
@@ -216,11 +217,11 @@ class TrieMapSet<K, V> extends Iterable<V> {
     );
   }
 
-  TrieMapSet<K, V> prepend(Iterable<K> key) {
+  TrieMapSet<K, V> prepend(Vec<K> key) {
     return TrieMapSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).prepend(key));
   }
 
-  TrieMapSet<K, V> atPrefix(Iterable<K> key) {
+  TrieMapSet<K, V> atPrefix(Vec<K> key) {
     return TrieMapSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).atPrefix(key));
   }
 
@@ -230,29 +231,29 @@ class TrieMapSet<K, V> extends Iterable<V> {
         .fold<Set<V>>(Set.identity(), (set1, set2) => set1.union(set2));
   }
 
-  Iterable<V> children([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<V> children([Vec<K> key = const Vec()]) sync* {
     for (final set in TrieMap(_wrapped._value, _wrapped._children).children(key)) {
       yield* set;
     }
   }
 
-  Iterable<V> eachChildren(Iterable<Iterable<K>> keys) sync* {
+  Iterable<V> eachChildren(Iterable<Vec<K>> keys) sync* {
     for (final key in keys) {
       yield* children(key);
     }
   }
 
-  Iterable<MapEntry<Iterable<K>, V>> entries([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<MapEntry<Vec<K>, V>> entries([Vec<K> key = const Vec()]) sync* {
     for (final entry in TrieMap(_wrapped._value, _wrapped._children).entries(key)) {
       yield* entry.value.map((value) => MapEntry(entry.key, value));
     }
   }
 
-  Iterable<Iterable<K>> keys([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<Vec<K>> keys([Vec<K> key = const Vec()]) sync* {
     yield* TrieMap(_wrapped._value, _wrapped._children).keys(key);
   }
 
-  Set<V> operator [](Iterable<K> key) {
+  Set<V> operator [](Vec<K> key) {
     return TrieMap(_wrapped._value, _wrapped._children)[key] ?? const {};
   }
 
@@ -261,26 +262,26 @@ class TrieMapSet<K, V> extends Iterable<V> {
 }
 
 @immutable
-class TrieSet<K> extends Iterable<Iterable<K>> with ToStringCtx {
+class TrieSet<K> extends Iterable<Vec<K>> with ToStringCtx {
   final TrieMap<K, bool> _wrapped;
 
   const TrieSet.empty() : _wrapped = const TrieMap.empty();
   const TrieSet.root() : _wrapped = const TrieMap(true, {});
   const TrieSet._fromTrieMap(this._wrapped);
 
-  factory TrieSet.from(Set<Iterable<K>> set) {
+  factory TrieSet.from(Set<Vec<K>> set) {
     var result = TrieSet<K>.empty();
     for (var key in set) {
-      result = result.add(key.isEmpty ? <K>[] : key);
+      result = result.add(key.isEmpty ? const Vec() : key);
     }
     return result;
   }
 
-  TrieSet<K> add(Iterable<K> key) {
+  TrieSet<K> add(Vec<K> key) {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).set(key, true));
   }
 
-  TrieSet<K> remove(Iterable<K> key) {
+  TrieSet<K> remove(Vec<K> key) {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).remove(key));
   }
 
@@ -288,32 +289,28 @@ class TrieSet<K> extends Iterable<Iterable<K>> with ToStringCtx {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).merge(other._wrapped));
   }
 
-  TrieSet<K> prepend(Iterable<K> key) {
+  TrieSet<K> prepend(Vec<K> key) {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).prepend(key));
   }
 
-  TrieSet<K> atPrefix(Iterable<K> key) {
+  TrieSet<K> atPrefix(Vec<K> key) {
     return TrieSet._fromTrieMap(TrieMap(_wrapped._value, _wrapped._children).atPrefix(key));
   }
 
-  Iterable<Iterable<K>> values([Iterable<K> key = const Iterable.empty()]) sync* {
+  Iterable<Vec<K>> values([Vec<K> key = const Vec()]) sync* {
     yield* TrieMap(_wrapped._value, _wrapped._children).keys(key);
   }
 
   bool get containsRoot => _wrapped._value == true;
 
   @override
-  Iterator<Iterable<K>> get iterator => values().iterator;
+  Iterator<Vec<K>> get iterator => values().iterator;
 
   @override
   void doStringCtx(StringBuffer buffer, int leading) {
     buffer.writeln('{');
     for (final path in this) {
-      if (path is ToStringCtx) {
-        (path as ToStringCtx).doStringCtx(buffer, leading + 2);
-      } else {
-        buffer.writeln('$path'.padLeft(leading + 2));
-      }
+      path.doStringCtx(buffer, leading + 2);
     }
     buffer.write('}'.padLeft(leading + 1));
   }
