@@ -67,54 +67,52 @@ class CursorProvider<T> extends InheritedWidget {
   }
 }
 
-class ReaderWidget extends HookWidget {
+class ReaderWidget extends StatefulHookWidget {
   final Widget Function(BuildContext, Ctx) builder;
   final Ctx ctx;
 
   const ReaderWidget({required this.builder, required this.ctx, Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) => builder(context, useCursorReader(ctx));
+  State<ReaderWidget> createState() => _ReaderWidgetState();
 }
 
-Ctx useCursorReader(Ctx ctx) => use(_CursorReaderHook(ctx));
-
-class _CursorReaderHook extends Hook<Ctx> {
-  final Ctx ctx;
-
-  const _CursorReaderHook(this.ctx);
+class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
+  final Map<Object, void Function()> disposals = {};
+  final Set<Object> keepKeys = {};
 
   @override
-  _CursorReaderHookState createState() => _CursorReaderHookState();
-}
-
-class _CursorReaderHookState extends HookState<Ctx, _CursorReaderHook> implements Reader {
-  List<void Function()> disposals = [];
-
-  @override
-  Ctx build(BuildContext context) {
-    for (final dispose in disposals) {
-      dispose();
+  Widget build(BuildContext context) {
+    final oldKeys = {...disposals.keys};
+    keepKeys.clear();
+    final child = widget.builder(context, widget.ctx.withReader(this));
+    for (final removeKey in oldKeys.difference(keepKeys)) {
+      disposals.remove(removeKey)!();
     }
-    disposals.clear();
-
-    return hook.ctx.withReader(this);
+    return child;
   }
 
   @override
   void dispose() {
     super.dispose();
-    for (final dispose in disposals) {
+    for (final dispose in disposals.values) {
       dispose();
     }
+    disposals.clear();
   }
 
   @override
   void onChanged() => setState(() {});
 
   @override
-  void handleDispose(void Function() dispose) {
-    disposals.add(dispose);
+  void handleDispose(Object key, void Function() dispose) {
+    disposals[key] = dispose;
+  }
+
+  @override
+  bool isListening(Object key) {
+    keepKeys.add(key);
+    return disposals.containsKey(key);
   }
 }
 

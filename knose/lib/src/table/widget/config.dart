@@ -7,7 +7,6 @@ import 'package:knose/model.dart';
 import 'package:knose/table.dart' hide Column;
 import 'package:knose/pal.dart' as pal;
 import 'package:knose/widget.dart' as widget;
-import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'config.g.dart';
 

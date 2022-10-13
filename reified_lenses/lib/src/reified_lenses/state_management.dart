@@ -44,35 +44,14 @@ extension GetCursorHelpers<S> on GetCursor<S> {
 }
 
 abstract class Reader extends CtxElement {
-  const factory Reader({
-    required void Function() onChanged,
-    required void Function(void Function()) handleDispose,
-  }) = _CallbackReader;
-
   void onChanged();
-  void handleDispose(void Function() dispose);
+  bool isListening(Object key);
+  void handleDispose(Object key, void Function() dispose);
 }
 
 extension ReaderCtxExtension on Ctx {
   Ctx withReader(Reader reader) => withElement(reader);
   Reader? get reader => get<Reader>();
-}
-
-class _CallbackReader implements Reader {
-  final void Function() _onChangedFn;
-  final void Function(void Function()) _handleDisposeFn;
-
-  const _CallbackReader({
-    required void Function() onChanged,
-    required void Function(void Function()) handleDispose,
-  })  : _onChangedFn = onChanged,
-        _handleDisposeFn = handleDispose;
-
-  @override
-  void onChanged() => _onChangedFn();
-
-  @override
-  void handleDispose(void Function() dispose) => _handleDisposeFn(dispose);
 }
 
 abstract class Cursor<S> implements GetCursor<S> {
@@ -207,9 +186,14 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
   @override
   S read(Ctx ctx) {
     final currentState = lens.getOpt(state.currentState);
-    ctx.reader?.handleDispose(state.listen(lens.path, (_, nu, ___) {
-      if (lens.getOpt(nu).isPresent) ctx.reader!.onChanged();
-    }));
+    if (!(ctx.reader?.isListening(this) ?? true)) {
+      ctx.reader?.handleDispose(
+        this,
+        state.listen(lens.path, (_, nu, ___) {
+          if (lens.getOpt(nu).isPresent) ctx.reader!.onChanged();
+        }),
+      );
+    }
     return currentState.unwrap!;
   }
 
@@ -321,7 +305,8 @@ class _ValueCursor<S> with GetCursor<S> {
 class _ComputedState<T> implements Reader, ListenableState<T> {
   final T Function(Ctx) computation;
   final Ctx ctx;
-  final List<void Function()> disposals = [];
+  final Map<Object, void Function()> disposals = {};
+  final Set<Object> keepKeys = {};
 
   ListenableStateBase<T>? _stateVar;
   ListenableStateBase<T> get _state {
@@ -348,23 +333,34 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
       _state.listen(path, callback);
 
   @override
-  void handleDispose(void Function() dispose) {
-    disposals.add(dispose);
+  bool isListening(Object key) {
+    keepKeys.add(key);
+    return disposals.containsKey(key);
   }
 
   @override
-  void onChanged() {
-    for (final f in disposals) {
-      f();
-    }
-    disposals.clear();
+  void handleDispose(Object key, void Function() dispose) => disposals[key] = dispose;
 
+  @override
+  void onChanged() {
     if (_state._listenables.isEmpty && dirty != true) {
+      for (final dispose in disposals.values) {
+        dispose();
+      }
+      disposals.clear();
       dirty = true;
       return;
     }
 
+    final oldKeys = {...disposals.keys};
+
     final newState = computation(ctx.withReader(this));
+
+    for (final removeKey in oldKeys.difference(keepKeys)) {
+      disposals.remove(removeKey)!();
+    }
+    keepKeys.clear();
+
     if (compare && newState == _state.currentState) return;
 
     _state.transformAndNotify(

@@ -21,7 +21,8 @@ class FlutterReifiedLensesGenerator extends Generator {
         library.annotatedWith(const TypeChecker.fromRuntime(ReaderWidgetAnnotation)).where((elem) {
       if (elem.element is FunctionElement) return true;
       log.warning(
-          '@reader_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.');
+        '@reader_widget annotation can only be applied to methods, was applied to ${elem.element.logString}.',
+      );
       return false;
     });
 
@@ -83,10 +84,15 @@ void _generateBoundWidget(
   final nonSpecialParams = function.params.where((p) => p != buildContextParam && p != keyParam);
   final buildBody = StringBuffer();
   if (ctxParam != null) {
-    buildBody.writeln('final ${ctxParam.name} = useCursorReader(this.${ctxParam.name});');
+    buildBody.write(
+      'return ReaderWidget(ctx: ${ctxParam.name}, builder: (${buildContextParam?.name ?? "_"}, ${ctxParam.name}) => ',
+    );
+  } else {
+    buildBody.write('return ');
   }
-  final returnValue = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
-  buildBody.writeln('return $returnValue;');
+  buildBody.write(function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type)));
+  if (ctxParam != null) buildBody.write(')');
+  buildBody.writeln(';');
 
   final ctorParams = [
     for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
@@ -96,7 +102,7 @@ void _generateBoundWidget(
   Class(
     name,
     params: function.typeParams,
-    extendedType: const Type('HookWidget'),
+    extendedType: Type(ctxParam == null ? 'HookWidget' : 'StatelessWidget'),
     constructors: (clazz) => [
       Constructor(
         parent: clazz,

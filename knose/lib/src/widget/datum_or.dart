@@ -4,7 +4,6 @@ import 'package:knose/infra_widgets.dart';
 import 'package:knose/model.dart' as model;
 import 'package:knose/pal.dart' as pal;
 import 'package:flutter/material.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
 
 part 'datum_or.g.dart';
 

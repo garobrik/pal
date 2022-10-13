@@ -404,7 +404,9 @@ Widget _testThingy(Ctx ctx) {
   final stale = useCursor(true);
   final moduleCtx = useCursor(Option.mk());
   useEffect(
-    () => modules.listen((old, nu, diff) => stale.set(true)),
+    () => modules.listen((old, nu, diff) {
+      if (!stale.read(Ctx.empty)) stale.set(true);
+    }),
   );
   final expr = useCursor(placeholder);
 
