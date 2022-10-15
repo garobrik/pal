@@ -2,7 +2,6 @@
 
 import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:knose/src/app_widgets/pal_editor.dart';
 import 'package:knose/src/pal2/lang.dart' hide List;
 import 'package:knose/src/pal2/print.dart';

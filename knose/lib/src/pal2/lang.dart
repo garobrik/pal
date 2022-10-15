@@ -1906,6 +1906,11 @@ extension CtxBinding on Ctx {
           (get<BindingCtx>() ?? const BindingCtx()).bindings.put(Binding.id(binding), binding),
         ),
       );
+  Ctx withoutBinding(ID id) => withElement(
+        BindingCtx(
+          (get<BindingCtx>() ?? const BindingCtx()).bindings.remove(id),
+        ),
+      );
   Object getBinding(ID id) =>
       Option.mk((get<BindingCtx>() ?? const BindingCtx()).bindings[id].unwrap);
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
