@@ -79,7 +79,7 @@ abstract class Module {
   static final type = TypeDef.asType(def);
 
   static Object mk({ID? id, required String name, required DartList definitions}) =>
-      Dict({IDID: id ?? ID(), nameID: name, definitionsID: List.mk(definitions)});
+      Dict({IDID: id ?? ID(name), nameID: name, definitionsID: List.mk(definitions)});
 
   static Object load(Ctx ctx, Object module) {
     Iterable<Object> expandDef(Object moduleDef) {

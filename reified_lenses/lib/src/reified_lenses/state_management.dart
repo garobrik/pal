@@ -162,7 +162,7 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
 
   @override
   List<String> stringify() {
-    return ['ListenableStateBase<$T>'];
+    return ['ListenableStateBase($currentState)'];
   }
 }
 
