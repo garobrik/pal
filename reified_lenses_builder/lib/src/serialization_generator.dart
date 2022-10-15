@@ -1,8 +1,7 @@
 import 'package:analyzer/dart/element/type.dart' as analyzer;
 import 'package:reified_lenses/annotations.dart';
 
-import 'parsing.dart';
-import 'generating.dart';
+import 'package:parse_generate/parse_generate.dart';
 
 Class maybeGenerateSerialization(
   StringBuffer output,
@@ -124,7 +123,7 @@ String checkedToJsonCall(Type? type, String arg) {
   final element = (dartType is analyzer.InterfaceType)
       ? dartType.element2
       : dartType is analyzer.TypeParameterType
-          ? dartType.element
+          ? dartType.element2
           : null;
   final typeSystem = element?.library?.typeSystem;
   final typeProvider = element?.library?.typeProvider;

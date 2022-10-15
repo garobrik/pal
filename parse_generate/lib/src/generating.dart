@@ -145,7 +145,7 @@ extension FunctionGenerating on FunctionDefinition {
     for (final annotation in annotations) {
       output.writeln(annotation);
     }
-    output.write(this.returnType?.toString() ?? 'void');
+    output.write(returnType?.toString() ?? 'void');
     output.write(' ');
     output.write(name);
     output.write(typeParams.asDeclaration);
@@ -192,7 +192,7 @@ extension MethodGenerating on Method {
       output.writeln(annotation);
     }
     if (isStatic) output.write('static ');
-    output.write(this.returnType?.toString() ?? 'void');
+    output.write(returnType?.toString() ?? 'void');
     output.write(' ');
     if (isOperator) output.write('operator');
     output.write(name);

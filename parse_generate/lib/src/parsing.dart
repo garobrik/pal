@@ -193,7 +193,7 @@ class Class extends DefinitionHolder<ClassElement> {
     var result = <TypeParam>[];
     while (result.length < count) {
       final candidateName = 'T$suffix';
-      if (this.params.every((param) => param.name != candidateName)) {
+      if (params.every((param) => param.name != candidateName)) {
         result.add(TypeParam(candidateName));
       }
       suffix++;
@@ -689,7 +689,7 @@ class FunctionType implements Type {
 
     output.write(')');
 
-    if (this.isNullable) {
+    if (isNullable) {
       output.write('?');
     }
 
@@ -728,12 +728,12 @@ abstract class ConcreteType implements Type {
   @override
   bool typeEquals(Type b) {
     if (b is ConcreteType) {
-      if (this.name != b.name || this.args.length != b.args.length) {
+      if (name != b.name || args.length != b.args.length) {
         return false;
       }
       if (isNullable != b.isNullable) return false;
 
-      final thisIter = this.args.iterator;
+      final thisIter = args.iterator;
       final bIter = b.args.iterator;
       while (thisIter.moveNext() && bIter.moveNext()) {
         if (!thisIter.current.typeEquals(bIter.current)) return false;
@@ -783,7 +783,7 @@ class _ConcreteTypeImpl with ConcreteType {
   @override
   Type withNullable(bool isNullable) {
     if (isNullable == this.isNullable) return this;
-    return _ConcreteTypeImpl(this.name, args: this.args, isNullable: isNullable);
+    return _ConcreteTypeImpl(name, args: args, isNullable: isNullable);
   }
 }
 
@@ -792,7 +792,7 @@ extension Subst on Type {
     final iterFrom = from.iterator;
     final iterTo = to.iterator;
     while (iterFrom.moveNext() && iterTo.moveNext()) {
-      if (this.typeEquals(iterFrom.current)) {
+      if (typeEquals(iterFrom.current)) {
         return iterTo.current;
       }
     }

@@ -1,7 +1,6 @@
 import 'package:reified_lenses/annotations.dart';
 
-import 'parsing.dart';
-import 'generating.dart';
+import 'package:parse_generate/parse_generate.dart';
 
 Class equalityGenerator(StringBuffer output, Class clazz) {
   final cases = clazz

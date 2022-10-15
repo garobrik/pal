@@ -6,9 +6,7 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 import 'package:flutter_reified_lenses/flutter_annotations.dart';
 import 'package:source_gen/source_gen.dart';
-import 'parsing.dart';
-import 'parsing.dart' as parsing;
-import 'generating.dart';
+import 'package:parse_generate/parse_generate.dart';
 
 class FlutterReifiedLensesGenerator extends Generator {
   const FlutterReifiedLensesGenerator();

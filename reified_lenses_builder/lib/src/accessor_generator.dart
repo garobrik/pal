@@ -1,7 +1,6 @@
 import 'package:reified_lenses/annotations.dart';
 
-import 'parsing.dart';
-import 'generating.dart';
+import 'package:parse_generate/parse_generate.dart';
 import 'optics.dart';
 
 Iterable<Optic> generateAccessorOptics(Class clazz) {

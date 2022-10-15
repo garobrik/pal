@@ -1,5 +1,4 @@
-import 'parsing.dart';
-import 'generating.dart';
+import 'package:parse_generate/parse_generate.dart';
 
 void generateMutations(StringBuffer output, Class clazz) {
   final potentialMutations = clazz.methods.where(

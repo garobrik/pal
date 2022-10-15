@@ -1,6 +1,6 @@
 import 'package:reified_lenses/annotations.dart';
 
-import 'parsing.dart';
+import 'package:parse_generate/parse_generate.dart';
 
 class Optic {
   final OpticKind kind;
