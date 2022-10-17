@@ -4,10 +4,10 @@ import 'package:knose/src/pal2/lang.dart';
 
 void main() {
   test('load core module', () {
-    expect(Option.isPresent(Module.load(Ctx.empty.withFnMap(coreFnMap), coreModule)), isTrue);
+    expect(Option.isPresent(Module.load(Ctx.empty.withFnMap(langFnMap), coreModule)), isTrue);
   });
 
-  final sillyID = ID();
+  final sillyID = ID.mk();
   final sillyRecordDef = TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Type.lit(number))});
 
   late final testCtx = Option.unwrap(Module.load(
@@ -110,9 +110,9 @@ void main() {
   });
 
   test('InterfaceAccess + self reference', () {
-    final ifaceID = ID('testIface');
-    final dataTypeID = ID('testDataType');
-    final valueID = ID('testValue');
+    final ifaceID = ID.mk('testIface');
+    final dataTypeID = ID.mk('testDataType');
+    final valueID = ID.mk('testValue');
     final interfaceDef = InterfaceDef.mk(
       TypeTree.record('testIface', {
         dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
@@ -121,7 +121,7 @@ void main() {
       id: ifaceID,
     );
 
-    final implID = ID('testImpl');
+    final implID = ID.mk('testImpl');
     final implDef = ImplDef.mk(
       id: implID,
       implemented: ifaceID,
@@ -154,7 +154,7 @@ void main() {
   });
 
   test('parametric function!', () {
-    final arg = Var.mk(ID('testArg'));
+    final arg = Var.mk(ID.mk('testArg'));
     final fn = FnExpr.pal(
       argID: Var.id(Expr.data(arg)),
       argName: 'someting!!',

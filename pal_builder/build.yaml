@@ -1,0 +1,17 @@
+targets:
+  $default:
+    builders:
+      pal_builder:
+        enabled: true
+
+builders:
+  pal_builder:
+    import: "package:pal_builder/builder.dart"
+    builder_factories: ["palBuilder"]
+    build_extensions: { ".dart": [".pal.g.part"] }
+    auto_apply: dependents
+    build_to: cache
+    applies_builders: ["source_gen|combining_builder"]
+    defaults:
+      options:
+        delete_conflicting_outputs: true

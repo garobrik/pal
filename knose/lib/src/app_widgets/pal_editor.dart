@@ -16,10 +16,10 @@ import 'package:knose/src/pal2/print.dart';
 part 'pal_editor.g.dart';
 
 abstract class PalCursor {
-  static final dataTypeID = ID('dataType');
-  static final cursorID = ID('cursor');
+  static final dataTypeID = ID.mk('dataType');
+  static final cursorID = ID.mk('cursor');
 
-  static final defID = ID('Cursor');
+  static final defID = ID.mk('Cursor');
   static final def = TypeDef.record(
     'Cursor',
     {
@@ -48,9 +48,9 @@ final palWidgetDef = TypeDef.unit('Widget');
 final palWidget = TypeDef.asType(palWidgetDef);
 
 abstract class Editable {
-  static final dataTypeID = ID('dataType');
-  static final editorID = ID('editor');
-  static final editorArgID = ID('editorArg');
+  static final dataTypeID = ID.mk('dataType');
+  static final editorID = ID.mk('editor');
+  static final editorArgID = ID.mk('editorArg');
   static final interfaceDef = InterfaceDef.record('Editable', {
     dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     editorID: TypeTree.mk(
@@ -88,7 +88,7 @@ abstract class Editable {
     required ID editor,
   }) =>
       ImplDef.mkParameterized(
-        id: ID(name),
+        id: ID.mk(name),
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
         definition: (arg) => Dict({
@@ -112,9 +112,9 @@ abstract class Editable {
       );
 }
 
-final editorFn = Var.mk(ID('editor'));
-final editorArgsDataTypeID = ID('dataType');
-final editorArgsCursorID = ID('cursor');
+final editorFn = Var.mk(ID.mk('editor'));
+final editorArgsDataTypeID = ID.mk('dataType');
+final editorArgsCursorID = ID.mk('cursor');
 final editorArgsDef = TypeDef.record('EditorArgs', {
   editorArgsDataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
   editorArgsCursorID: TypeTree.mk('cursor', PalCursor.typeExpr(Var.mk(editorArgsDataTypeID))),
@@ -241,7 +241,7 @@ Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
 @reader
 Widget _testThingy(Ctx ctx) {
   final modules = useCursor(reified.Vec([
-    Vec([coreFnMap, coreModule]),
+    Vec([langFnMap, coreModule]),
     Vec([Printable.fnMap, Printable.module]),
     Vec([palUIFnMap, palUIModule])
   ]));
@@ -261,11 +261,11 @@ Widget _testThingy(Ctx ctx) {
       ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) {
-          final id = useCursor(ID());
+          final id = useCursor(ID.mk());
           return TextButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: "ID.from(id: '${id.read(Ctx.empty).id}'):"));
-              id.set(ID());
+              id.set(ID.mk());
             },
             child: Text(id.read(ctx).id),
           );
@@ -974,7 +974,7 @@ Widget _addDefinitionButton(Ctx ctx, void Function(Object) addDefinition) {
           ),
           TextButton(
             onPressed: () =>
-                addDefinition(ValueDef.mk(id: ID(), name: 'unnamed', value: placeholder)),
+                addDefinition(ValueDef.mk(id: ID.mk(), name: 'unnamed', value: placeholder)),
             child: const Text('Add Interface Implementation'),
           ),
         ],

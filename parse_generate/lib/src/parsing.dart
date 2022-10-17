@@ -206,6 +206,19 @@ class Class extends DefinitionHolder<ClassElement> {
 }
 
 @meta.immutable
+class TopLevelFunction extends ElementAnalogue<FunctionElement> {
+  final FunctionType type;
+  final Iterable<Param> parameters;
+  final Type returnType;
+
+  TopLevelFunction.fromElement(LibraryElement usageContext, FunctionElement element)
+      : type = FunctionType.fromDartType(usageContext, element.type),
+        parameters = element.parameters.map((p) => Param.fromElement(usageContext, p)),
+        returnType = Type.fromDartType(usageContext, element.returnType),
+        super.fromElement(usageContext, element);
+}
+
+@meta.immutable
 class Constructor extends ElementAnalogue<ConstructorElement> {
   final Class parent;
   final Iterable<Param> params;

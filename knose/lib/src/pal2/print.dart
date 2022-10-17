@@ -2,9 +2,9 @@ import 'package:ctx/ctx.dart';
 import 'package:knose/src/pal2/lang.dart';
 
 abstract class Printable {
-  static final dataTypeID = ID('dataType');
-  static final printID = ID('print');
-  static final printArgID = ID('print');
+  static final dataTypeID = ID.mk('dataType');
+  static final printID = ID.mk('print');
+  static final printArgID = ID.mk('print');
   static final interfaceDef = InterfaceDef.record('Printable', {
     dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
     printID: TypeTree.mk(
@@ -18,7 +18,7 @@ abstract class Printable {
   });
 
   static Object mkImpl({required Object dataType, required ID print}) => ImplDef.mk(
-        id: ID(Type.id(dataType).label),
+        id: ID.mk(Type.id(dataType).label),
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
           dataTypeID: Type.lit(dataType),
@@ -39,7 +39,7 @@ abstract class Printable {
     required ID print,
   }) =>
       ImplDef.mkParameterized(
-        id: ID(name),
+        id: ID.mk(name),
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
         definition: (arg) => Dict({
@@ -67,7 +67,7 @@ abstract class Printable {
   ) =>
       (ctx, any) => print(ctx, Any.getType(any), Any.getValue(any));
 
-  static final printFnID = ID('print');
+  static final printFnID = ID.mk('print');
   static final module = Module.mk(name: 'Print', definitions: [
     InterfaceDef.mkDef(interfaceDef),
     ValueDef.mk(

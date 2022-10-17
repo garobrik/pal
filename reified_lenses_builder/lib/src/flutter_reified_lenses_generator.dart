@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:core';
 
-import 'package:analyzer/dart/element/type.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:build/build.dart';
 import 'package:flutter_reified_lenses/flutter_annotations.dart';
@@ -26,22 +25,13 @@ class FlutterReifiedLensesGenerator extends Generator {
 
     if (boundWidgetElements.isEmpty) return output.toString();
 
-    Future<Type> resolveType(String uri, String name) async {
-      final libraryElement = await buildStep.resolver.libraryFor(
-        AssetId.resolve(Uri.parse(uri), from: buildStep.inputId),
-      );
-      final element = libraryElement.exportNamespace.get(name);
-      if (element is! ClassElement) {
-        throw UnresolvableTypeException(uri, name);
-      }
-      return Type.fromDartType(library.element, element.thisType);
-    }
-
     final resolvedTypes = _ResolvedTypes(
-      buildContext: await resolveType('package:flutter/widgets.dart', 'BuildContext'),
-      key: await resolveType('package:flutter/widgets.dart', 'Key'),
-      getCursor: await resolveType('package:reified_lenses/reified_lenses.dart', 'GetCursor'),
-      ctx: await resolveType('package:ctx/ctx.dart', 'Ctx'),
+      buildContext: await resolveType(
+          buildStep, library.element, 'package:flutter/widgets.dart', 'BuildContext'),
+      key: await resolveType(buildStep, library.element, 'package:flutter/widgets.dart', 'Key'),
+      getCursor: await resolveType(
+          buildStep, library.element, 'package:reified_lenses/reified_lenses.dart', 'GetCursor'),
+      ctx: await resolveType(buildStep, library.element, 'package:ctx/ctx.dart', 'Ctx'),
     );
 
     for (final annotated in boundWidgetElements) {
@@ -125,13 +115,8 @@ void _generateBoundWidget(
 Param? firstOfNameAndType(Iterable<Param> params, String name, Type type) {
   final firstOfName = params.maybeFirstWhere((p) => p.name == name);
   if (firstOfName == null) return null;
-  if (firstOfName.type.dartType!.isAssignableTo(type)) {
+  if (firstOfName.type.isAssignableTo(type)) {
     return firstOfName;
   }
   return null;
-}
-
-extension AssignableTo on DartType {
-  bool isAssignableTo(Type type) =>
-      TypeChecker.fromStatic(type.dartType!).isAssignableFromType(this);
 }

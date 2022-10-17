@@ -1,0 +1,21 @@
+name: pal_builder
+description: A starting point for Dart libraries or applications.
+version: 1.0.0
+publish_to: none
+# homepage: https://www.example.com
+
+environment:
+  sdk: '>=2.17.0 <3.0.0'
+
+dependencies:
+  parse_generate:
+    path: ../parse_generate
+  build: ^2.0.1
+  source_gen: ^1.0.0
+  knose:
+    path: ../knose
+
+dev_dependencies:
+  lints: ^2.0.0
+  test: 
+  build_runner: ^2.3.0
