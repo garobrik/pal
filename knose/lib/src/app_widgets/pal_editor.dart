@@ -3,11 +3,13 @@ import 'dart:core';
 import 'dart:core' as dart;
 
 import 'package:ctx/ctx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' as reified;
+import 'package:knose/annotations.dart';
 import 'package:knose/infra_widgets.dart';
 import 'package:knose/src/pal2/lang.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -134,89 +136,88 @@ final palUIModule = Module.mk(
         argName: 'editable',
         argType: Type.lit(TypeDef.asType(editorArgsDef)),
         returnType: Type.lit(palWidget),
-        body: ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'),
+        body: palEditorInverseFnMap[_editorFn]!,
       ),
     ),
     Editable.mkImpl(
       dataType: Module.type,
-      editor: ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'),
+      editor: palEditorInverseFnMap[_moduleEditorFn]!,
     ),
     Editable.mkImpl(
       dataType: TypeTree.type,
-      editor: ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'),
+      editor: palEditorInverseFnMap[_typeTreeEditorFn]!,
     ),
   ],
 );
 
-final FnMap palUIFnMap = {
-  ID.from(id: '1be6008b-3a4c-4901-be16-58760b31ff3f'): (ctx, arg) {
-    final impl = Option.unwrap(
-      dispatch(
-        ctx,
-        InterfaceDef.id(Editable.interfaceDef),
-        InterfaceDef.implType(Editable.interfaceDef, [
-          MemberHas.mkEquals(
-            [Editable.dataTypeID],
-            Type.type,
-            (arg as Dict)[editorArgsDataTypeID].unwrap!,
-          )
-        ]),
-      ),
-    );
-
-    final cursorType = PalCursor.type((impl as Dict)[Editable.dataTypeID].unwrap!);
-    return eval(
+@DartFn('1be6008b-3a4c-4901-be16-58760b31ff3f')
+Object _editorFn(Ctx ctx, Object arg) {
+  final impl = Option.unwrap(
+    dispatch(
       ctx,
-      FnApp.mk(
-        Literal.mk(
-          Fn.type(
-            argID: Editable.editorArgID,
-            argType: cursorType,
-            returnType: Type.lit(palWidget),
-          ),
-          impl[Editable.editorID].unwrap!,
+      InterfaceDef.id(Editable.interfaceDef),
+      InterfaceDef.implType(Editable.interfaceDef, [
+        MemberHas.mkEquals(
+          [Editable.dataTypeID],
+          Type.type,
+          (arg as Dict)[editorArgsDataTypeID].unwrap!,
+        )
+      ]),
+    ),
+  );
+
+  final cursorType = PalCursor.type((impl as Dict)[Editable.dataTypeID].unwrap!);
+  return eval(
+    ctx,
+    FnApp.mk(
+      Literal.mk(
+        Fn.type(
+          argID: Editable.editorArgID,
+          argType: cursorType,
+          returnType: Type.lit(palWidget),
         ),
-        Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
+        impl[Editable.editorID].unwrap!,
       ),
-    ) as Widget;
-  },
-  ID.from(id: '72213f44-7f10-4758-8a02-6451d8a8e961'): (ctx, arg) =>
-      ModuleEditor(ctx, PalCursor.cursor(arg)),
-  ID.from(id: 'ba3db78e-e181-4ff7-b94e-ecdc01b22e0e'): (ctx, arg) {
-    final typeTree = PalCursor.cursor(arg);
-    final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
-    if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
-      final dict = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-      return InlineInset(contents: [
-        for (final key in dict.keys.read(ctx))
-          Inset(
-            prefix: Text.rich(TextSpan(children: [
-              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.unionID)
-                const TextSpan(text: 'union '),
-              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.recordID)
-                const TextSpan(text: 'record '),
-              _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
-              const TextSpan(text: ': '),
-            ])),
-            contents: [
-              palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
-            ],
-            suffix: const SizedBox(),
-          )
-      ]);
-    } else if (tag == TypeTree.leafID) {
-      return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID], suffix: ', ');
-    } else {
-      throw Exception('unknown type tree union case');
-    }
-  },
-};
+      Literal.mk(cursorType, arg[editorArgsCursorID].unwrap!),
+    ),
+  ) as Widget;
+}
+
+@DartFn('ba3db78e-e181-4ff7-b94e-ecdc01b22e0e')
+Object _typeTreeEditorFn(Ctx ctx, Object arg) {
+  final typeTree = PalCursor.cursor(arg);
+  final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
+  if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
+    final dict = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+    return InlineInset(contents: [
+      for (final key in dict.keys.read(ctx))
+        Inset(
+          prefix: Text.rich(TextSpan(children: [
+            if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                TypeTree.unionID)
+              const TextSpan(text: 'union '),
+            if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                TypeTree.recordID)
+              const TextSpan(text: 'record '),
+            _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
+            const TextSpan(text: ': '),
+          ])),
+          contents: [
+            palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
+          ],
+          suffix: const SizedBox(),
+        )
+    ]);
+  } else if (tag == TypeTree.leafID) {
+    return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID], suffix: ', ');
+  } else {
+    throw Exception('unknown type tree union case');
+  }
+}
 
 final uiCtx = [
   [Printable.fnMap, Printable.module],
-  [palUIFnMap, palUIModule]
+  [palEditorFnMap, palUIModule]
 ].fold(
   coreCtx,
   (ctx, module) => Option.unwrap(Module.load(ctx.withFnMap(module[0] as FnMap), module[1])) as Ctx,
@@ -243,7 +244,7 @@ Widget _testThingy(Ctx ctx) {
   final modules = useCursor(reified.Vec([
     Vec([langFnMap, coreModule]),
     Vec([Printable.fnMap, Printable.module]),
-    Vec([palUIFnMap, palUIModule])
+    Vec([palEditorFnMap, palUIModule])
   ]));
   final stale = useCursor(true);
   final moduleCtx = useCursor(Option.mk());
@@ -264,7 +265,7 @@ Widget _testThingy(Ctx ctx) {
           final id = useCursor(ID.mk());
           return TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: "ID.from(id: '${id.read(Ctx.empty).id}'):"));
+              Clipboard.setData(ClipboardData(text: "@DartFn('${id.read(Ctx.empty).id}')"));
               id.set(ID.mk());
             },
             child: Text(id.read(ctx).id),
@@ -333,9 +334,100 @@ ID _moduleDefID(Ctx ctx, Cursor<Object> def) {
   }
 }
 
+@DartFn('72213f44-7f10-4758-8a02-6451d8a8e961')
+Object _moduleEditorFn(Ctx ctx, Object arg) => ModuleEditor(ctx, PalCursor.cursor(arg));
+
 @reader
 Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
   final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
+
+  final childMap = useMemoized(() => <ID, Widget>{}, [module]);
+  Widget childForDef(Ctx ctx, IndexedValue<Cursor<Object>> indexedModuleDef) {
+    final id = _moduleDefID(ctx, indexedModuleDef.value);
+    return childMap[id] ??= FocusableNode(
+      key: ValueKey(_moduleDefID(ctx, indexedModuleDef.value)),
+      onDelete: () => definitions.remove(indexedModuleDef.index),
+      onAddBelow: () => definitions.insert(
+        indexedModuleDef.index + 1,
+        TypeDef.mkDef(TypeDef.unit('unnamed')),
+      ),
+      child: ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) {
+          final moduleDef = indexedModuleDef.value;
+          final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+          if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
+            late final String kind;
+            late final Cursor<Object> typeTree;
+            if (dataType == TypeDef.type) {
+              kind = 'type';
+              typeTree = moduleDef[ModuleDef.dataID][TypeDef.treeID];
+            } else if (dataType == InterfaceDef.type) {
+              kind = 'interface';
+              typeTree = moduleDef[ModuleDef.dataID][InterfaceDef.treeID];
+            } else {
+              throw Error();
+            }
+            final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
+            ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
+            return Inset(
+              prefix: Text.rich(TextSpan(children: [
+                TextSpan(text: '$kind '),
+                name,
+                const TextSpan(text: ' { '),
+              ])),
+              contents: [
+                palEditor(
+                  ctx,
+                  TypeTree.type,
+                  typeTree,
+                )
+              ],
+              suffix: const Text('}'),
+            );
+          } else if (dataType == ImplDef.type) {
+            final interfaceDef = ctx.getInterface(
+              moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+            );
+            return Option.cases(
+              Option.mk(interfaceDef),
+              none: () => const Text('unknown interface'),
+              some: (interfaceDef) {
+                return Inset(
+                  prefix: Text(
+                    'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
+                  ),
+                  contents: [
+                    ExprEditor(
+                      ctx,
+                      moduleDef[ModuleDef.dataID][ImplDef.definitionID],
+                    )
+                  ],
+                  suffix: const Text('}'),
+                );
+              },
+            );
+          } else if (dataType == ValueDef.type) {
+            return Inset(
+              prefix: Text.rich(TextSpan(children: [
+                const TextSpan(text: 'let '),
+                _inlineTextSpan(
+                  ctx,
+                  moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
+                ),
+                const TextSpan(text: ' = '),
+              ])),
+              contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
+              suffix: const SizedBox(),
+            );
+          } else {
+            throw Exception('unknown ModuleDef type $dataType');
+          }
+        },
+      ),
+    );
+  }
+
   return FocusTraversalGroup(
     policy: HierarchicalOrderTraversalPolicy(),
     child: SingleChildScrollView(
@@ -349,84 +441,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
         ),
         contents: [
           for (final indexedModuleDef in definitions.indexedValues(ctx))
-            FocusableNode(
-              key: ValueKey(_moduleDefID(ctx, indexedModuleDef.value)),
-              onDelete: () => definitions.remove(indexedModuleDef.index),
-              child: ReaderWidget(
-                ctx: ctx,
-                builder: (_, ctx) {
-                  final moduleDef = indexedModuleDef.value;
-                  final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-                  if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
-                    late final String kind;
-                    late final Cursor<Object> typeTree;
-                    if (dataType == TypeDef.type) {
-                      kind = 'type';
-                      typeTree = moduleDef[ModuleDef.dataID][TypeDef.treeID];
-                    } else if (dataType == InterfaceDef.type) {
-                      kind = 'interface';
-                      typeTree = moduleDef[ModuleDef.dataID][InterfaceDef.treeID];
-                    } else {
-                      throw Error();
-                    }
-                    final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
-                    ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
-                    return Inset(
-                      prefix: Text.rich(TextSpan(children: [
-                        TextSpan(text: '$kind '),
-                        name,
-                        const TextSpan(text: ' { '),
-                      ])),
-                      contents: [
-                        palEditor(
-                          ctx,
-                          TypeTree.type,
-                          typeTree,
-                        )
-                      ],
-                      suffix: const Text('}'),
-                    );
-                  } else if (dataType == ImplDef.type) {
-                    final interfaceDef = ctx.getInterface(
-                      moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-                    );
-                    return Option.cases(
-                      Option.mk(interfaceDef),
-                      none: () => const Text('unknown interface'),
-                      some: (interfaceDef) {
-                        return Inset(
-                          prefix: Text(
-                            'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
-                          ),
-                          contents: [
-                            ExprEditor(
-                              ctx,
-                              moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                            )
-                          ],
-                          suffix: const Text('}'),
-                        );
-                      },
-                    );
-                  } else if (dataType == ValueDef.type) {
-                    return Inset(
-                      prefix: Text.rich(TextSpan(children: [
-                        const TextSpan(text: 'let '),
-                        _inlineTextSpan(
-                          ctx,
-                          moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
-                        ),
-                        const TextSpan(text: ' = '),
-                      ])),
-                      contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
-                      suffix: const SizedBox(),
-                    );
-                  } else {
-                    throw Exception('unknown ModuleDef type $dataType');
-                  }
-                },
-              ),
-            )
+            childForDef(ctx, indexedModuleDef)
         ],
         suffix: const Text('} '),
       ),
@@ -818,6 +833,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
 Widget _focusableNode({
   FocusNode? focusNode,
   void Function()? onDelete,
+  void Function()? onAddBelow,
   required Widget child,
 }) {
   final wrapperFocusNode = focusNode ?? useFocusNode();
@@ -827,6 +843,9 @@ Widget _focusableNode({
       shortcuts: {
         if (onDelete != null)
           const SingleActivator(LogicalKeyboardKey.backspace): VoidCallbackIntent(onDelete),
+        if (onAddBelow != null)
+          const SingleActivator(LogicalKeyboardKey.add, shift: true):
+              VoidCallbackIntent(onAddBelow),
         const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
           var child = wrapperFocusNode;
           for (final parent in wrapperFocusNode.ancestors) {
@@ -992,7 +1011,7 @@ extension _PalAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
 }
 
-class _TrieList<T> extends Iterable<T> {
+class _TrieList<T extends Object> extends Iterable<T> {
   T? element;
   dart.List<_TrieList<T>> children;
 
@@ -1007,20 +1026,32 @@ class _TrieList<T> extends Iterable<T> {
       yield* child;
     }
   }
+
+  void removeWhere(bool Function(T) predicate) {
+    if (element != null && predicate(element!)) element = null;
+    for (final child in children) {
+      child.removeWhere(predicate);
+    }
+  }
 }
 
 class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
     with DirectionalFocusTraversalPolicyMixin {
   @override
   Iterable<FocusNode> sortDescendants(Iterable<FocusNode> descendants, FocusNode currentNode) {
+    return sortDescendantsStatic(descendants);
+  }
+
+  static Iterable<FocusNode> sortDescendantsStatic(Iterable<FocusNode> descendants) {
     final sorted = _TrieList<FocusNode>(null);
     for (final descendant in descendants) {
       _place(sorted, descendant);
     }
+    _sortSiblings(sorted);
     return sorted;
   }
 
-  void _place(_TrieList<FocusNode> sorted, FocusNode node) {
+  static void _place(_TrieList<FocusNode> sorted, FocusNode node) {
     if (sorted.isEmpty) {
       sorted.element = node;
     } else if (sorted.element == null || node.ancestors.contains(sorted.element)) {
@@ -1042,15 +1073,32 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
       sorted.element = null;
     }
   }
+
+  static void _sortSiblings(_TrieList<FocusNode> sorted) {
+    mergeSort<_TrieList<FocusNode>>(sorted.children, compare: (t1, t2) {
+      final heightDifference = t1.element!.offset.dy - t2.element!.offset.dy;
+      if (heightDifference.round() != 0) return heightDifference.round();
+      return t2.element!.offset.dx < t1.element!.offset.dx ? 1 : -1;
+    });
+    sorted.children.forEach(_sortSiblings);
+  }
 }
 
 extension HierarchicalDescendants on FocusNode {
-  Iterable<FocusNode> get hierarchicalTraversableDescendants sync* {
-    if (!descendantsAreFocusable) return;
-    for (final child in children) {
-      if (child.canRequestFocus && !child.skipTraversal) yield child;
-      yield* child.hierarchicalTraversableDescendants;
-    }
+  Iterable<FocusNode> get hierarchicalTraversableDescendants {
+    if (!descendantsAreFocusable) return const [];
+    final descendants = _traversableDescendants;
+    descendants.element = null;
+    HierarchicalOrderTraversalPolicy._sortSiblings(descendants);
+    descendants.removeWhere((node) => !node.canRequestFocus || node.skipTraversal);
+    return descendants;
+  }
+
+  _TrieList<FocusNode> get _traversableDescendants {
+    return _TrieList(this, [
+      for (final child in children)
+        if (child.descendantsAreFocusable) child._traversableDescendants
+    ]);
   }
 }
 
