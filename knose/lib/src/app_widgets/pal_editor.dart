@@ -338,93 +338,116 @@ ID _moduleDefID(Ctx ctx, Cursor<Object> def) {
 Object _moduleEditorFn(Ctx ctx, Object arg) => ModuleEditor(ctx, PalCursor.cursor(arg));
 
 @reader
-Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
+Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
   final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
 
   final childMap = useMemoized(() => <ID, Widget>{}, [module]);
-  Widget childForDef(Ctx ctx, IndexedValue<Cursor<Object>> indexedModuleDef) {
-    final id = _moduleDefID(ctx, indexedModuleDef.value);
-    return childMap[id] ??= FocusableNode(
-      key: ValueKey(_moduleDefID(ctx, indexedModuleDef.value)),
-      onDelete: () => definitions.remove(indexedModuleDef.index),
-      onAddBelow: () => definitions.insert(
-        indexedModuleDef.index + 1,
-        TypeDef.mkDef(TypeDef.unit('unnamed')),
-      ),
-      child: ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final moduleDef = indexedModuleDef.value;
-          final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-          if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
-            late final String kind;
-            late final Cursor<Object> typeTree;
-            if (dataType == TypeDef.type) {
-              kind = 'type';
-              typeTree = moduleDef[ModuleDef.dataID][TypeDef.treeID];
-            } else if (dataType == InterfaceDef.type) {
-              kind = 'interface';
-              typeTree = moduleDef[ModuleDef.dataID][InterfaceDef.treeID];
-            } else {
-              throw Error();
-            }
-            final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
-            ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
-            return Inset(
-              prefix: Text.rich(TextSpan(children: [
-                TextSpan(text: '$kind '),
-                name,
-                const TextSpan(text: ' { '),
-              ])),
-              contents: [
-                palEditor(
-                  ctx,
-                  TypeTree.type,
-                  typeTree,
-                )
-              ],
-              suffix: const Text('}'),
-            );
-          } else if (dataType == ImplDef.type) {
-            final interfaceDef = ctx.getInterface(
-              moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
-            );
-            return Option.cases(
-              Option.mk(interfaceDef),
-              none: () => const Text('unknown interface'),
-              some: (interfaceDef) {
-                return Inset(
-                  prefix: Text(
-                    'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
-                  ),
-                  contents: [
-                    ExprEditor(
-                      ctx,
-                      moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                    )
-                  ],
-                  suffix: const Text('}'),
-                );
-              },
-            );
-          } else if (dataType == ValueDef.type) {
-            return Inset(
-              prefix: Text.rich(TextSpan(children: [
-                const TextSpan(text: 'let '),
-                _inlineTextSpan(
-                  ctx,
-                  moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
-                ),
-                const TextSpan(text: ' = '),
-              ])),
-              contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
-              suffix: const SizedBox(),
-            );
+  Widget childForDef(Ctx ctx, Cursor<Object> moduleDef) {
+    final id = _moduleDefID(ctx, moduleDef);
+    return childMap[id] ??= ReaderWidget(
+      ctx: ctx,
+      builder: (_, ctx) {
+        final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+        if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
+          late final String kind;
+          late final Cursor<Object> typeTree;
+          if (dataType == TypeDef.type) {
+            kind = 'type';
+            typeTree = moduleDef[ModuleDef.dataID][TypeDef.treeID];
+          } else if (dataType == InterfaceDef.type) {
+            kind = 'interface';
+            typeTree = moduleDef[ModuleDef.dataID][InterfaceDef.treeID];
           } else {
-            throw Exception('unknown ModuleDef type $dataType');
+            throw Error();
           }
-        },
-      ),
+          final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
+          ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
+          return Inset(
+            prefix: Text.rich(TextSpan(children: [
+              TextSpan(text: '$kind '),
+              name,
+              const TextSpan(text: ' { '),
+            ])),
+            contents: [
+              palEditor(
+                ctx,
+                TypeTree.type,
+                typeTree,
+              )
+            ],
+            suffix: const Text('}'),
+          );
+        } else if (dataType == ImplDef.type) {
+          final interfaceDef = ctx.getInterface(
+            moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
+          );
+          return Option.cases(
+            Option.mk(interfaceDef),
+            none: () => const Text('unknown interface'),
+            some: (interfaceDef) {
+              return Inset(
+                prefix: Text(
+                  'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
+                ),
+                contents: [
+                  ExprEditor(
+                    ctx,
+                    moduleDef[ModuleDef.dataID][ImplDef.definitionID],
+                  )
+                ],
+                suffix: const Text('}'),
+              );
+            },
+          );
+        } else if (dataType == ValueDef.type) {
+          return Inset(
+            prefix: Text.rich(TextSpan(children: [
+              const TextSpan(text: 'let '),
+              _inlineTextSpan(
+                ctx,
+                moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
+              ),
+              const TextSpan(text: ' = '),
+            ])),
+            contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
+            suffix: const SizedBox(),
+          );
+        } else {
+          throw Exception('unknown ModuleDef type $dataType');
+        }
+      },
+    );
+  }
+
+  Widget childForIndexedDef(Ctx ctx, IndexedValue<Cursor<Object>> indexedModuleDef) {
+    return ReaderWidget(
+      ctx: ctx,
+      key: ValueKey(_moduleDefID(ctx, indexedModuleDef.value)),
+      builder: (_, ctx) {
+        final isOpen = useCursor(false);
+        final dropdownFocus = useFocusNode();
+
+        return DeferredDropdown(
+          dropdownFocus: dropdownFocus,
+          isOpen: isOpen,
+          dropdown: AddDefinitionDropdown(
+            ctx,
+            dropdownFocus: dropdownFocus,
+            addDefinition: (def) {
+              definitions.insert(indexedModuleDef.index + 1, def);
+              isOpen.set(false);
+            },
+          ),
+          child: FocusableNode(
+            onDelete: () => definitions.remove(indexedModuleDef.index),
+            onAddBelow: () => isOpen.set(true),
+            child: childForDef(
+              ctx,
+              indexedModuleDef.value,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -441,7 +464,7 @@ Widget _moduleEditor(Ctx ctx, Cursor<Object> module) {
         ),
         contents: [
           for (final indexedModuleDef in definitions.indexedValues(ctx))
-            childForDef(ctx, indexedModuleDef)
+            childForIndexedDef(ctx, indexedModuleDef)
         ],
         suffix: const Text('} '),
       ),
@@ -965,45 +988,91 @@ Widget _inlineTextField(Ctx ctx, Cursor<String> text) {
 }
 
 @reader
-Widget _addDefinitionButton(Ctx ctx, void Function(Object) addDefinition) {
+Widget _addDefinitionDropdown(
+  BuildContext context,
+  Ctx ctx, {
+  required FocusNode dropdownFocus,
+  required void Function(Object) addDefinition,
+}) {
   final isOpen = useCursor(false);
-  final dropdownFocus = useFocusNode();
+
   return DeferredDropdown(
     isOpen: isOpen,
-    childAnchor: Alignment.topLeft,
-    dropdownFocus: dropdownFocus,
-    dropdown: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 200),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextButton(
-            focusNode: dropdownFocus,
-            onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit('unnamed'))),
-            child: const Text('Add Type Definition'),
+    dropdown: SelectInterfaceDropdown(
+      ctx,
+      (interface) => addDefinition(
+        ImplDef.mkDef(
+          ImplDef.mk(
+            implemented: InterfaceDef.id(interface),
+            definition: TypeTree.instantiate(InterfaceDef.tree(interface), placeholder),
           ),
-          TextButton(
-            onPressed: () => addDefinition(InterfaceDef.mkDef(InterfaceDef.record('unnamed', {}))),
-            child: const Text('Add Interface Definition'),
-          ),
-          TextButton(
-            onPressed: () {}, //addDefinition(ImplDef.mk(implemented: , definition: )),
-            child: const Text('Add Interface Implementation'),
-          ),
-          TextButton(
-            onPressed: () =>
-                addDefinition(ValueDef.mk(id: ID.mk(), name: 'unnamed', value: placeholder)),
-            child: const Text('Add Interface Implementation'),
-          ),
-        ],
+        ),
       ),
     ),
-    child: TextButton.icon(
-      onPressed: () => isOpen.set(!isOpen.read(Ctx.empty)),
-      icon: const Icon(Icons.add),
-      label: const Text('Add definition'),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MySimpleDialogOption(
+          focusNode: dropdownFocus,
+          onPressed: () =>
+              addDefinition(ValueDef.mk(id: ID.mk(), name: 'unnamed', value: placeholder)),
+          child: const Text('Add Value Definition'),
+        ),
+        MySimpleDialogOption(
+          onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit('unnamed'))),
+          child: const Text('Add Type Definition'),
+        ),
+        MySimpleDialogOption(
+          onPressed: () => addDefinition(InterfaceDef.mkDef(InterfaceDef.record('unnamed', {}))),
+          child: const Text('Add Interface Definition'),
+        ),
+        MySimpleDialogOption(
+          closeOnSelect: false,
+          onPressed: () => isOpen.set(true),
+          child: const Text('Add Interface Implementation'),
+        ),
+      ],
     ),
+  );
+}
+
+@reader
+Widget _selectInterfaceDropdown(Ctx ctx, void Function(Object) selectedInterface) {
+  final interfaces = ctx.getBindings.expand((b) => [
+        if (Binding.valueType(ctx, b) == Type.lit(InterfaceDef.type))
+          Option.unwrap(Binding.value(ctx, b))
+      ]);
+
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final interface in interfaces)
+        MySimpleDialogOption(
+          onPressed: () => selectedInterface(interface),
+          child: Text(TypeTree.name(InterfaceDef.tree(interface))),
+        ),
+    ],
+  );
+}
+
+@reader
+Widget _mySimpleDialogOption(
+  BuildContext context, {
+  required VoidCallback onPressed,
+  required Widget child,
+  FocusNode? focusNode,
+  bool autofocus = false,
+  bool closeOnSelect = true,
+}) {
+  return TextButton(
+    autofocus: autofocus,
+    focusNode: focusNode,
+    onPressed: () {
+      onPressed();
+      if (closeOnSelect) InheritedValue.maybeOf<DropdownContext>(context)?.close();
+    },
+    child: child,
   );
 }
 

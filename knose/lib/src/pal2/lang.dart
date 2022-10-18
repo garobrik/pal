@@ -1826,10 +1826,6 @@ extension CtxType on Ctx {
           ),
         ),
       );
-  Iterable<Object> get getTypes => getBindings.expand((binding) => [
-        if (Binding.valueType(this, binding) == TypeDef.type)
-          Option.unwrap(Binding.value(this, binding)),
-      ]);
 
   Object getInterface(ID id) => Option.unwrap(Binding.value(this, Option.unwrap(getBinding(id))));
 
