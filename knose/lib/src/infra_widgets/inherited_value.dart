@@ -9,6 +9,9 @@ class InheritedValue<V> extends InheritedWidget {
   static V of<V>(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<InheritedValue<V>>()!.value;
 
+  static V? maybeOf<V>(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<InheritedValue<V>>()?.value;
+
   @override
   bool updateShouldNotify(covariant InheritedValue oldWidget) => this.value != oldWidget.value;
 }

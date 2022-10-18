@@ -92,6 +92,14 @@ Widget _textButtonDropdown(
   );
 }
 
+class DropdownContext {
+  final Cursor<bool> _isOpen;
+
+  DropdownContext._(this._isOpen);
+
+  void close() => _isOpen.set(false);
+}
+
 @reader
 Widget _deferredDropdown(
   BuildContext context, {
@@ -135,19 +143,22 @@ Widget _deferredDropdown(
       constrainHeight: constrainHeight,
       constrainWidth: constrainWidth,
       modifyConstraints: modifyConstraints,
-      deferee: FocusTraversalGroup(
-        policy: previousPolicy,
-        child: Focus(
-          onKey: (node, key) {
-            if (key.logicalKey == LogicalKeyboardKey.escape) {
-              isOpen.set(false);
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          skipTraversal: true,
-          onFocusChange: closeOnExit ? isOpen.set : null,
-          child: DropdownBackground(child: dropdown),
+      deferee: InheritedValue(
+        value: DropdownContext._(isOpen),
+        child: FocusTraversalGroup(
+          policy: previousPolicy,
+          child: Focus(
+            onKey: (node, key) {
+              if (key.logicalKey == LogicalKeyboardKey.escape) {
+                isOpen.set(false);
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            skipTraversal: true,
+            onFocusChange: closeOnExit ? isOpen.set : null,
+            child: DropdownBackground(child: dropdown),
+          ),
         ),
       ),
       child: FocusTraversalGroup(
