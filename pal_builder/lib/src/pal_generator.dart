@@ -22,7 +22,8 @@ class PalGenerator extends Generator {
     if (dartFns.isEmpty) return '';
 
     final prefix = library.element.source.shortName
-        .substring(0, library.element.source.shortName.indexOf('.'));
+        .substring(0, library.element.source.shortName.indexOf('.'))
+        .replaceAllMapped(RegExp(r'_([a-z])'), (match) => match[1]!.toUpperCase());
 
     output.writeln('FnMap ${prefix}FnMap = {');
     for (final fn in dartFns) {
