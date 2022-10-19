@@ -67,14 +67,31 @@ class CursorProvider<T> extends InheritedWidget {
   }
 }
 
-class ReaderWidget extends StatefulHookWidget {
-  final Widget Function(BuildContext, Ctx) builder;
+abstract class ReaderWidget extends StatefulHookWidget {
   final Ctx ctx;
 
-  const ReaderWidget({required this.builder, required this.ctx, Key? key}) : super(key: key);
+  const factory ReaderWidget({
+    Key? key,
+    required Ctx ctx,
+    required Widget Function(BuildContext context, Ctx ctx) builder,
+  }) = _CallbackReaderWidget;
+
+  const ReaderWidget.generative({required this.ctx, Key? key}) : super(key: key);
 
   @override
   State<ReaderWidget> createState() => _ReaderWidgetState();
+
+  Widget build(BuildContext context, Ctx ctx);
+}
+
+class _CallbackReaderWidget extends ReaderWidget {
+  final Widget Function(BuildContext context, Ctx ctx) builder;
+
+  const _CallbackReaderWidget({Key? key, required Ctx ctx, required this.builder})
+      : super.generative(key: key, ctx: ctx);
+
+  @override
+  Widget build(BuildContext context, Ctx ctx) => builder(context, ctx);
 }
 
 class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
@@ -85,7 +102,7 @@ class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
   Widget build(BuildContext context) {
     final oldKeys = {...disposals.keys};
     keepKeys.clear();
-    final child = widget.builder(context, widget.ctx.withReader(this));
+    final child = widget.build(context, widget.ctx.withReader(this));
     for (final removeKey in oldKeys.difference(keepKeys)) {
       disposals.remove(removeKey)!();
     }

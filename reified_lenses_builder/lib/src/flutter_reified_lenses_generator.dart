@@ -69,20 +69,12 @@ void _generateBoundWidget(
       firstOfNameAndType(function.params, 'context', resolvedTypes.buildContext);
   final keyParam = firstOfNameAndType(function.params, 'key', resolvedTypes.key);
   final ctxParam = firstOfNameAndType(function.params, 'ctx', resolvedTypes.ctx);
-  final nonSpecialParams = function.params.where((p) => p != buildContextParam && p != keyParam);
-  final buildBody = StringBuffer();
-  if (ctxParam != null) {
-    buildBody.write(
-      'return ReaderWidget(ctx: ${ctxParam.name}, builder: (${buildContextParam?.name ?? "_"}, ${ctxParam.name}) => ',
-    );
-  } else {
-    buildBody.write('return ');
-  }
-  buildBody.write(function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type)));
-  if (ctxParam != null) buildBody.write(')');
-  buildBody.writeln(';');
+  final nonSpecialParams =
+      function.params.where((p) => !{buildContextParam, ctxParam, keyParam}.contains(p));
+  final buildBody = function.invokeFromParams(typeArgs: function.typeParams.map((tp) => tp.type));
 
   final ctorParams = [
+    if (ctxParam != null) ctxParam,
     for (final param in nonSpecialParams) param.copyWith(isInitializingFormal: true),
     Param(resolvedTypes.key.withNullable(true), 'key', isNamed: true, isRequired: false),
   ];
@@ -90,13 +82,13 @@ void _generateBoundWidget(
   Class(
     name,
     params: function.typeParams,
-    extendedType: Type(ctxParam == null ? 'HookWidget' : 'StatelessWidget'),
+    extendedType: Type(ctxParam == null ? 'HookWidget' : 'ReaderWidget'),
     constructors: (clazz) => [
       Constructor(
         parent: clazz,
         isConst: true,
         params: ctorParams,
-        initializers: 'super(key: key)',
+        initializers: ctxParam == null ? 'super(key: key)' : 'super.generative(key: key, ctx: ctx)',
       ),
     ],
     fields: nonSpecialParams.map((p) => Field(p.name, type: p.type, isFinal: true)),
@@ -105,8 +97,11 @@ void _generateBoundWidget(
         'build',
         annotations: const ['@override'],
         returnType: const Type('Widget'),
-        params: [buildContextParam ?? const Param(Type('BuildContext'), 'context')],
-        body: buildBody.toString(),
+        params: [
+          buildContextParam ?? Param(resolvedTypes.buildContext, 'context'),
+          if (ctxParam != null) Param(resolvedTypes.ctx, 'ctx')
+        ],
+        body: 'return $buildBody;',
       ),
     ],
   ).declare(output);

@@ -328,12 +328,12 @@ class Param extends ElementAnalogue<ParameterElement> {
   @override
   int get hashCode => hash(<dynamic>[name, isInitializingFormal, isNamed, isRequired]);
 
-  Param copyWith({bool? isInitializingFormal}) => Param(
+  Param copyWith({bool? isInitializingFormal, bool? isNamed, bool? isRequired}) => Param(
         type,
         name,
         isInitializingFormal: isInitializingFormal ?? this.isInitializingFormal,
-        isNamed: isNamed,
-        isRequired: isRequired,
+        isNamed: isNamed ?? this.isNamed,
+        isRequired: isRequired ?? this.isRequired,
         defaultValue: defaultValue,
       );
 }
