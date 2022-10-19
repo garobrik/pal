@@ -541,7 +541,6 @@ Widget _dataTreeEditor(
 
 @reader
 Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String suffix = ''}) {
-  final placeholderFocusNode = useFocusNode();
   final wrapperFocusNode = useFocusNode();
   final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
   final exprData = expr[Expr.dataID];
@@ -685,141 +684,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
       suffix: Text(')$suffix'),
     );
   } else if (exprType == Placeholder.type) {
-    return ReaderWidget(
-      ctx: ctx,
-      builder: (_, ctx) {
-        final inputText = useCursor('');
-        final isOpen = useCursor(false);
-        return Focus(
-          skipTraversal: true,
-          onFocusChange: isOpen.set,
-          child: DeferredDropdown(
-            isOpen: isOpen,
-            closeOnExit: false,
-            dropdown: ReaderWidget(
-              ctx: ctx,
-              builder: (_, ctx) {
-                final children = ctx.getBindings
-                    .expand((binding) {
-                      final bindingType = Binding.valueType(ctx, binding);
-                      if (bindingType == Type.lit(TypeDef.type)) {
-                        return Option.cases(Binding.value(ctx, binding),
-                            none: () => <reified.Pair<String, Widget>>[],
-                            some: (value) {
-                              final name = '${TypeTree.name(TypeDef.tree(value))}.mk(...)';
-                              return [
-                                reified.Pair(
-                                  name,
-                                  ReaderWidget(
-                                    ctx: ctx,
-                                    builder: (_, ctx) => TextButton(
-                                      onPressed: () {
-                                        expr.set(Construct.mk(
-                                          TypeDef.asType(value),
-                                          TypeTree.instantiate(TypeDef.tree(value), placeholder),
-                                        ));
-                                        wrapperFocusNode.requestFocus();
-                                      },
-                                      child: Text(name),
-                                    ),
-                                  ),
-                                ),
-                              ];
-                            });
-                      } else {
-                        return [
-                          reified.Pair(
-                            Binding.name(binding),
-                            ReaderWidget(
-                              ctx: ctx,
-                              builder: (_, ctx) => TextButton(
-                                onPressed: () {
-                                  expr.set(Var.mk(Binding.id(binding)));
-                                  wrapperFocusNode.requestFocus();
-                                },
-                                child: Text(
-                                  '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
-                                ),
-                              ),
-                            ),
-                          )
-                        ];
-                      }
-                    })
-                    .expand(
-                      (pair) => [
-                        if (pair.first.toLowerCase().startsWith(inputText.read(ctx).toLowerCase()))
-                          pair.second
-                      ],
-                    )
-                    .toList();
-
-                return Container(
-                  constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: children.length,
-                    itemBuilder: (_, index) => Container(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: children[index],
-                    ),
-                  ),
-                );
-              },
-            ),
-            child: Focus(
-              skipTraversal: true,
-              onKeyEvent: (node, event) {
-                if (event.logicalKey == LogicalKeyboardKey.enter) {
-                  final currentText = inputText.read(Ctx.empty);
-                  final tryNum = num.tryParse(currentText);
-                  if (tryNum != null) {
-                    expr.set(Literal.mk(number, tryNum));
-                    wrapperFocusNode.requestFocus();
-                  }
-
-                  if (currentText.startsWith("'") && currentText.endsWith("'")) {
-                    final tryString = currentText.substring(1, currentText.length - 1);
-                    if (!tryString.contains("'")) {
-                      expr.set(Literal.mk(text, tryString));
-                      wrapperFocusNode.requestFocus();
-                    }
-                  }
-
-                  return KeyEventResult.handled;
-                }
-
-                return KeyEventResult.ignored;
-              },
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 200),
-                child: RichText(
-                  text: TextSpan(children: [
-                    AlignedWidgetSpan(
-                      IntrinsicWidth(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minWidth: 40),
-                          child: BoundTextFormField(
-                            inputText,
-                            ctx: ctx,
-                            style: Theme.of(context).textTheme.bodyText2,
-                            focusNode: placeholderFocusNode,
-                            decoration: const InputDecoration(
-                              contentPadding: EdgeInsets.only(left: 2, top: 4, bottom: 4),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    TextSpan(text: suffix),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
+    return PlaceholderEditor(ctx, expr: expr, focusNode: wrapperFocusNode);
   } else if (exprType == List.mkExprType) {
     return Inset(
       prefix: const Text('['),
@@ -836,7 +701,6 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   return FocusableNode(
     onDelete: () {
       expr.set(placeholder);
-      placeholderFocusNode.requestFocus();
     },
     focusNode: wrapperFocusNode,
     child: ReaderWidget(
@@ -847,6 +711,138 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
           borderRadius: const BorderRadius.all(Radius.circular(3)),
         ),
         child: child,
+      ),
+    ),
+  );
+}
+
+@reader
+Widget _placeholderEditor(
+  BuildContext context,
+  Ctx ctx, {
+  required Cursor<Object> expr,
+  required FocusNode focusNode,
+  String suffix = '',
+}) {
+  final inputText = useCursor('');
+  final isOpen = useCursor(focusNode.hasPrimaryFocus);
+  return Focus(
+    skipTraversal: true,
+    onFocusChange: isOpen.set,
+    child: DeferredDropdown(
+      isOpen: isOpen,
+      closeOnExit: false,
+      dropdown: ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) {
+          final children = ctx.getBindings
+              .expand((binding) {
+                final bindingType = Binding.valueType(ctx, binding);
+                if (bindingType == Type.lit(TypeDef.type)) {
+                  return Option.cases(Binding.value(ctx, binding),
+                      none: () => <reified.Pair<String, Widget>>[],
+                      some: (value) {
+                        final name = '${TypeTree.name(TypeDef.tree(value))}.mk(...)';
+                        return [
+                          reified.Pair(
+                            name,
+                            ReaderWidget(
+                              ctx: ctx,
+                              builder: (_, ctx) => TextButton(
+                                onPressed: () {
+                                  expr.set(Construct.mk(
+                                    TypeDef.asType(value),
+                                    TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                                  ));
+                                },
+                                child: Text(name),
+                              ),
+                            ),
+                          ),
+                        ];
+                      });
+                } else {
+                  return [
+                    reified.Pair(
+                      Binding.name(binding),
+                      ReaderWidget(
+                        ctx: ctx,
+                        builder: (_, ctx) => TextButton(
+                          onPressed: () => expr.set(Var.mk(Binding.id(binding))),
+                          child: Text(
+                            '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
+                          ),
+                        ),
+                      ),
+                    )
+                  ];
+                }
+              })
+              .expand(
+                (pair) => [
+                  if (pair.first.toLowerCase().startsWith(inputText.read(ctx).toLowerCase()))
+                    pair.second
+                ],
+              )
+              .toList();
+
+          return Container(
+            constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: children.length,
+              itemBuilder: (_, index) => Container(
+                alignment: AlignmentDirectional.centerStart,
+                child: children[index],
+              ),
+            ),
+          );
+        },
+      ),
+      child: Focus(
+        skipTraversal: true,
+        onKeyEvent: (node, event) {
+          if (event.logicalKey == LogicalKeyboardKey.enter) {
+            final currentText = inputText.read(Ctx.empty);
+            final tryNum = num.tryParse(currentText);
+            if (tryNum != null) {
+              expr.set(Literal.mk(number, tryNum));
+            } else if (currentText.startsWith("'") && currentText.endsWith("'")) {
+              final tryString = currentText.substring(1, currentText.length - 1);
+              if (!tryString.contains("'")) {
+                expr.set(Literal.mk(text, tryString));
+              }
+            }
+
+            return KeyEventResult.handled;
+          }
+
+          return KeyEventResult.ignored;
+        },
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: RichText(
+            text: TextSpan(children: [
+              AlignedWidgetSpan(
+                IntrinsicWidth(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 40),
+                    child: BoundTextFormField(
+                      inputText,
+                      ctx: ctx,
+                      style: Theme.of(context).textTheme.bodyText2,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.only(left: 2, top: 4, bottom: 4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              TextSpan(text: suffix),
+            ]),
+          ),
+        ),
       ),
     ),
   );
