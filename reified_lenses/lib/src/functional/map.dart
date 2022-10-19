@@ -1,11 +1,12 @@
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.map)
-class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
+class Dict<Key extends Object, Value>
+    with _DictMixin<Key, Value>, ToStringCtx, DiagnosticableTreeMixin {
   @override
   @skip
   final Map<Key, Value> _values;
@@ -159,4 +160,23 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, ToStringCtx {
       Dict(_values.map((key, value) => MapEntry(key, fn(key, value))));
 
   bool containsKey(Key key) => _values.containsKey(key);
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    for (final entry in entries) {
+      if (entry.value is! Diagnosticable) {
+        properties.add(DiagnosticsProperty(entry.key.toString(), entry.value));
+      }
+    }
+  }
+
+  @override
+  List<DiagnosticsNode> debugDescribeChildren() {
+    return [
+      for (final entry in entries)
+        if (entry.value is Diagnosticable)
+          (entry.value as Diagnosticable).toDiagnosticsNode(name: entry.key.toString())
+    ];
+  }
 }

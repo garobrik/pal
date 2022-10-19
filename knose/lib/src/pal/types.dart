@@ -41,13 +41,13 @@ class Value extends Type with _ValueMixin {
 }
 
 extension WrapValueExtension on Cursor<Object> {
-  Cursor<Value> wrap(Type type) {
-    return partial(
-      to: (object) => Value(type, object),
-      from: (diff) => DiffResult(diff.value.value, diff.diff.atPrefix(const Vec(['value']))),
-      update: (old, nu, diff) => DiffResult(Value(type, nu), diff.prepend(const Vec(['value']))),
-    );
-  }
+  Cursor<Value> wrap(Type type) => then(
+        Lens(
+          const Vec([]),
+          (object) => Value(type, object),
+          (obj, f) => f(Value(type, obj)).value,
+        ),
+      );
 }
 
 extension Assignable on Type {

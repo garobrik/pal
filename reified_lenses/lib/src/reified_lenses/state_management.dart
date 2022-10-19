@@ -1,10 +1,10 @@
 import 'package:ctx/ctx.dart';
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 typedef PathMapSet<V> = TrieMapSet<Object, V>;
 
-abstract class GetCursor<S> {
+abstract class GetCursor<S> implements DiagnosticableTree {
   const factory GetCursor(S state) = _ValueCursor<S>;
   factory GetCursor.compute(
     S Function(Ctx) computation, {
@@ -30,9 +30,6 @@ abstract class GetCursor<S> {
   S read(Ctx ctx);
 
   List<String> stringify();
-
-  @override
-  String toString() => stringify().join('\n');
 }
 
 extension GetCursorHelpers<S> on GetCursor<S> {
@@ -78,9 +75,6 @@ abstract class Cursor<S> implements GetCursor<S> {
     // TODO: implement
     return f(this);
   }
-
-  @override
-  String toString() => stringify().join('\n');
 }
 
 extension GetCursorPartial<S> on GetCursor<S> {
@@ -95,16 +89,6 @@ extension GetCursorPartial<S> on GetCursor<S> {
 }
 
 extension CursorPartial<S> on Cursor<S> {
-  Cursor<S1> partial<S1>({
-    required S1? Function(S) to,
-    required DiffResult<S> Function(DiffResult<S1>) from,
-    DiffResult<S1?> Function(S old, S nu, Diff)? update,
-  }) =>
-      MutableStateCursor(
-        _MutablePartialViewState(viewed: this, to: to, from: from, update: update),
-        Lens.identity(),
-      );
-
   Cursor<S1> cast<S1 extends S>() {
     if (this is Cursor<S1>) return this as Cursor<S1>;
 
@@ -232,9 +216,25 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
       ];
     }
   }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    properties.add(DiagnosticsProperty('state', state));
+    properties.add(DiagnosticsProperty('path', lens.path.join('.')));
+    final value = read(Ctx.empty);
+    if (value is! Diagnosticable) {
+      properties.add(DiagnosticsProperty('value', read(Ctx.empty)));
+    }
+  }
+
+  @override
+  List<DiagnosticsNode> debugDescribeChildren() {
+    final value = read(Ctx.empty);
+    return [if (value is Diagnosticable) value.toDiagnosticsNode(name: 'value')];
+  }
 }
 
-class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
+class StateCursor<T, S> with GetCursor<S>, DiagnosticableTreeMixin, StateCursorBase<T, S> {
   @override
   final ListenableState<T> state;
   @override
@@ -244,7 +244,7 @@ class StateCursor<T, S> with GetCursor<S>, StateCursorBase<T, S> {
 }
 
 @immutable
-class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
+class MutableStateCursor<T, S> with Cursor<S>, DiagnosticableTreeMixin, StateCursorBase<T, S> {
   @override
   final MutableListenableState<T> state;
   @override
@@ -272,7 +272,7 @@ class MutableStateCursor<T, S> with Cursor<S>, StateCursorBase<T, S> {
 }
 
 @immutable
-class _ValueCursor<S> with GetCursor<S> {
+class _ValueCursor<S> with GetCursor<S>, DiagnosticableTreeMixin {
   final S state;
 
   const _ValueCursor(this.state);
@@ -299,6 +299,19 @@ class _ValueCursor<S> with GetCursor<S> {
   @override
   List<String> stringify() {
     return ['ValueCursor($state)'];
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    if (state is! Diagnosticable) properties.add(DiagnosticsProperty('state', state));
+  }
+
+  @override
+  List<DiagnosticsNode> debugDescribeChildren() {
+    return [
+      if (state is Diagnosticable) (state as Diagnosticable).toDiagnosticsNode(name: 'state')
+    ];
   }
 }
 
@@ -374,93 +387,6 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
   }
 }
 
-abstract class _PartialViewStateBase<T, S> implements ListenableState<S> {
-  GetCursor<T> get viewed;
-  S? Function(T) get to;
-  DiffResult<S?> Function(T old, T nu, Diff)? get update;
-  void Function()? get disposeListener;
-  set disposeListener(void Function()? disposeListener);
-
-  ListenableStateBase<S> get _state;
-
-  @override
-  S get currentState => _state.currentState;
-
-  @override
-  void Function() listen(Path path, void Function(S old, S nu, Diff diff) callback) {
-    final dispose = _state.listen(path, callback);
-
-    disposeListener ??= viewed.listen((old, nu, diff) {
-      late final DiffResult<S?> result;
-
-      if (update != null) {
-        result = update!(old, nu, diff);
-      } else {
-        result = DiffResult(to(nu), const Diff.allChanged());
-      }
-
-      if (result.value != null) {
-        _state.transformAndNotify((_) => DiffResult(result.value as S, result.diff));
-      }
-    });
-
-    return () {
-      dispose();
-      if (_state._listenables.isEmpty) {
-        if (disposeListener != null) disposeListener!();
-        disposeListener = null;
-      }
-    };
-  }
-
-  @override
-  List<String> stringify() {
-    final viewedString = viewed.stringify();
-    return [
-      'View<$T as $S>(',
-      '  ${currentState.runtimeType}',
-      ...viewedString.map((s) => '  $s'),
-      ')',
-    ];
-  }
-}
-
-class _MutablePartialViewState<T, S>
-    with _PartialViewStateBase<T, S>
-    implements MutableListenableState<S> {
-  @override
-  final Cursor<T> viewed;
-  @override
-  final S? Function(T) to;
-  final DiffResult<T> Function(DiffResult<S>) from;
-  @override
-  final DiffResult<S?> Function(T old, T nu, Diff)? update;
-  @override
-  void Function()? disposeListener;
-
-  ListenableStateBase<S>? _stateVar;
-
-  _MutablePartialViewState({
-    required this.viewed,
-    required this.to,
-    required this.from,
-    this.update,
-  });
-
-  @override
-  ListenableStateBase<S> get _state {
-    _stateVar ??= ListenableStateBase(to(viewed.read(Ctx.empty)) as S);
-    return _stateVar!;
-  }
-
-  @override
-  DiffResult<S> transformAndNotify(DiffResult<S> Function(S p1) transform) {
-    final result = transform(_state.currentState);
-    viewed.setResult(from(result));
-    return result;
-  }
-}
-
 abstract class _FlattenStateBase<T> implements ListenableState<T> {
   GetCursor<GetCursor<T>> get viewed;
   void Function()? get disposeListener;
@@ -511,6 +437,9 @@ abstract class _FlattenStateBase<T> implements ListenableState<T> {
       ')',
     ];
   }
+
+  @override
+  String toString() => runtimeType.toString();
 }
 
 class _FlattenState<T> with _FlattenStateBase<T> {

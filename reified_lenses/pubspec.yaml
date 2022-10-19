@@ -5,13 +5,15 @@ description: >-
 publish_to: none
 
 environment:
-  sdk: ">=2.17.0 <3.0.0"
+  sdk: ">=2.18.0 <3.0.0"
 
 dependencies:
   meta:
   ctx:
     path:
       ../ctx
+  flutter:
+    sdk: flutter
 
 dev_dependencies:
   reified_lenses_builder:

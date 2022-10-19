@@ -1,4 +1,5 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:reified_lenses/reified_lenses.dart';
@@ -133,4 +134,49 @@ class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
   }
 }
 
-Cursor<T> useCursor<T>(T initialValue) => useMemoized(() => Cursor(initialValue));
+Cursor<T> useCursor<T>(T initialValue) {
+  return use(
+    _CursorHook(
+      initialValue,
+    ),
+  );
+}
+
+class _CursorHook<T> extends Hook<Cursor<T>> {
+  const _CursorHook(
+    this.initialValue, {
+    List<Object?>? keys,
+  }) : super(keys: keys);
+
+  final T initialValue;
+
+  @override
+  _CursorHookState<T> createState() => _CursorHookState<T>();
+}
+
+class _CursorHookState<T> extends HookState<Cursor<T>, _CursorHook<T>>
+    with DiagnosticableTreeMixin {
+  late final value = Cursor(hook.initialValue);
+
+  @override
+  Cursor<T> build(BuildContext context) {
+    return value;
+  }
+
+  @override
+  String get debugLabel => 'useCursor<$T>';
+
+  @override
+  bool get debugHasShortDescription => false;
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(value.toDiagnosticsNode(name: 'cursor'));
+  }
+
+  @override
+  List<DiagnosticsNode> debugDescribeChildren() {
+    return [value.toDiagnosticsNode(name: 'cursor')];
+  }
+}

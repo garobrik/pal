@@ -1,12 +1,13 @@
 import 'package:ctx/ctx.dart';
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 part 'vec.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.list)
-class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
+class Vec<Value> extends Iterable<Value>
+    with _VecMixin<Value>, ToStringCtx, DiagnosticableTreeMixin {
   @override
   @skip
   final List<Value> _values;
@@ -98,6 +99,18 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, ToStringCtx {
     }
     buffer.writeln();
     buffer.write(']'.padLeft(leading + 1));
+  }
+
+  @override
+  List<DiagnosticsNode> debugDescribeChildren() {
+    var count = 0;
+    return [
+      for (final value in this)
+        if (value is Diagnosticable)
+          value.toDiagnosticsNode(name: 'child ${count++}')
+        else
+          DiagnosticsProperty('child ${count++}', value),
+    ];
   }
 }
 
