@@ -1,4 +1,5 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter/material.dart';
@@ -17,24 +18,44 @@ Widget _boundTextFormField(
   TextAlignVertical? textAlignVertical,
   bool autofocus = false,
   FocusNode? focusNode,
-  bool readOnly = false,
   bool expands = false,
 }) {
   focusNode = useMemoized(
-    () => focusNode == null
-        ? FocusNode(skipTraversal: readOnly)
-        : (focusNode..skipTraversal = readOnly),
-    [focusNode, readOnly],
+    () => focusNode ?? FocusNode(),
+    [focusNode],
   );
-  final textController = useTextEditingController(text: text.read(Ctx.empty));
+  final textController = useMemoized(
+    () {
+      return TextEditingController.fromValue(
+        TextEditingValue(
+          text: text.read(Ctx.empty),
+          selection: TextSelection.collapsed(offset: focusNode!.hasPrimaryFocus ? 0 : -1),
+        ),
+      );
+    },
+    [text],
+  );
 
   useEffect(() {
-    return text.listen((_, __, Diff diff) {
+    return text.listen((_, nu, diff) {
       if (!focusNode!.hasFocus && diff.isNotEmpty) {
-        textController.text = text.read(Ctx.empty);
+        textController.text = nu;
       }
     });
   }, [textController, text, focusNode]);
+
+  useEffect(() {
+    if (focusNode!.hasPrimaryFocus) {
+      SchedulerBinding.instance.addPostFrameCallback(
+        (_) {
+          focusNode?.context?.findAncestorStateOfType<EditableTextState>()?.requestKeyboard();
+          // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+          focusNode?.notifyListeners();
+        },
+      );
+    }
+    return null;
+  }, []);
 
   return TextFormField(
     maxLines: maxLines,
@@ -45,7 +66,6 @@ Widget _boundTextFormField(
     textAlignVertical: textAlignVertical,
     autofocus: autofocus,
     focusNode: focusNode,
-    readOnly: readOnly,
     onChanged: text.set,
     expands: expands,
   );
