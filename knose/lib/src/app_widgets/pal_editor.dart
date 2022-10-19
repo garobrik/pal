@@ -812,6 +812,15 @@ Widget _placeholderEditor(
               if (!tryString.contains("'")) {
                 expr.set(Literal.mk(text, tryString));
               }
+            } else if (currentText == '\\') {
+              expr.set(
+                FnExpr.pal(
+                  argName: 'arg',
+                  argType: Type.lit(unit),
+                  returnType: Type.lit(unit),
+                  body: unitExpr,
+                ),
+              );
             }
 
             return KeyEventResult.handled;
