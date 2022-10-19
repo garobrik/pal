@@ -85,12 +85,15 @@ abstract class Module {
   static final def = TypeDef.record('Module', {
     IDID: TypeTree.mk('id', Type.lit(ID.type)),
     nameID: TypeTree.mk('name', Type.lit(text)),
-    definitionsID: TypeTree.mk('definitions', Type.lit(List.type(ModuleDef.type))),
+    definitionsID: TypeTree.mk('definitions', Type.lit(OrderedMap.type(ID.type, ModuleDef.type))),
   });
   static final type = TypeDef.asType(def);
 
-  static Object mk({ID? id, required String name, required DartList definitions}) =>
-      Dict({IDID: id ?? ID.mk(name), nameID: name, definitionsID: List.mk(definitions)});
+  static Object mk({ID? id, required String name, required DartList definitions}) => Dict({
+        IDID: id ?? ID.mk(name),
+        nameID: name,
+        definitionsID: OrderedMap.mk([...definitions.map(ModuleDef.idFor)], definitions)
+      });
 
   static Object load(Ctx ctx, Object module) {
     Iterable<Object> expandDef(Object moduleDef) {
@@ -112,7 +115,8 @@ abstract class Module {
       );
     }
 
-    final bindings = List.iterate((module as Dict)[definitionsID].unwrap!).expand(expandDef);
+    final definitions = (module as Dict)[definitionsID].unwrap!;
+    final bindings = Map.entries(OrderedMap.valueMap(definitions)).values.expand(expandDef);
     ctx = bindings.fold<Ctx>(ctx, (ctx, binding) => ctx.withBinding(binding));
     // try {
     for (final binding in bindings) {
@@ -180,6 +184,22 @@ abstract class ModuleDef extends InterfaceDef {
 
   static Object impl(Object moduleDef) => (moduleDef as Dict)[implID].unwrap!;
   static Object dataType(Object moduleDef) => (impl(moduleDef) as Dict)[dataTypeID].unwrap!;
+  static Object data(Object moduleDef) => (moduleDef as Dict)[dataID].unwrap!;
+
+  static ID idFor(Object moduleDef) {
+    final type = ModuleDef.dataType(moduleDef);
+    if (type == TypeDef.type) {
+      return TypeDef.id(ModuleDef.data(moduleDef));
+    } else if (type == InterfaceDef.type) {
+      return InterfaceDef.id(ModuleDef.data(moduleDef));
+    } else if (type == ImplDef.type) {
+      return ImplDef.id(ModuleDef.data(moduleDef));
+    } else if (type == ValueDef.type) {
+      return ValueDef.id(ModuleDef.data(moduleDef));
+    } else {
+      throw UnimplementedError('unknown moduleDef type $type');
+    }
+  }
 }
 
 abstract class ValueDef {
@@ -223,6 +243,8 @@ abstract class ValueDef {
     ),
     id: ID.mk('ValueDefImpl'),
   );
+
+  static ID id(Object valueDef) => (valueDef as Dict)[IDID].unwrap! as ID;
 }
 
 abstract class TypeDef {
@@ -1246,6 +1268,38 @@ abstract class List {
       List.mk(f(_items(list)));
   static Object add(Object list, Object item) => _withList(list, (i) => [...i, item]);
   static Object tail(Object list) => _withList(list, (i) => [...i.skip(1)]);
+}
+
+abstract class OrderedMap {
+  static final keyID = ID.mk('key');
+  static final valueID = ID.mk('value');
+  static final keyOrderID = ID.mk('keyOrder');
+  static final valueMapID = ID.mk('valueMap');
+  static final def = TypeDef.record(
+    'OrderedMap',
+    {
+      keyID: TypeTree.mk('key', Type.lit(Type.type)),
+      valueID: TypeTree.mk('value', Type.lit(Type.type)),
+      keyOrderID: TypeTree.mk('keyOrder', List.typeExpr(Var.mk(keyID))),
+      valueMapID: TypeTree.mk('valueMap', Map.typeExpr(Var.mk(keyID), Var.mk(valueID))),
+    },
+    comptime: [keyID, valueID],
+  );
+
+  static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
+        MemberHas.mkEquals([keyID], Type.type, key),
+        MemberHas.mkEquals([valueID], Type.type, value),
+      ]);
+  static Object typeExpr(Object key, Object value) => Type.mkExpr(TypeDef.id(def), properties: [
+        MemberHas.mkEqualsExpr([keyID], Type.lit(Type.type), key),
+        MemberHas.mkEqualsExpr([valueID], Type.lit(Type.type), value),
+      ]);
+
+  static Object mk(dart.List<Object> keys, dart.List<Object> values) =>
+      Dict({keyOrderID: List.mk(keys), valueMapID: Map.mk(dart.Map.fromIterables(keys, values))});
+
+  static Object keyOrder(Object orderedMap) => (orderedMap as Dict)[keyOrderID].unwrap!;
+  static Object valueMap(Object orderedMap) => (orderedMap as Dict)[valueMapID].unwrap!;
 }
 
 abstract class Map {
@@ -2416,6 +2470,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   TypeDef.mkDef(Map.def),
   // TypeDef.mkDef(Map.exprDataDef),
   // ImplDef.mkDef(Map.mkExprImplDef),
+  TypeDef.mkDef(OrderedMap.def),
   TypeDef.mkDef(Any.def),
   TypeDef.mkDef(textDef),
   TypeDef.mkDef(numberDef),

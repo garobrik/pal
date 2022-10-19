@@ -319,34 +319,21 @@ Widget _testThingy(Ctx ctx) {
   );
 }
 
-ID _moduleDefID(Ctx ctx, Cursor<Object> def) {
-  final dataType = def[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
-  if (dataType == TypeDef.type) {
-    return def[ModuleDef.dataID][TypeDef.IDID].read(ctx) as ID;
-  } else if (dataType == InterfaceDef.type) {
-    return def[ModuleDef.dataID][InterfaceDef.IDID].read(ctx) as ID;
-  } else if (dataType == ImplDef.type) {
-    return def[ModuleDef.dataID][ImplDef.IDID].read(ctx) as ID;
-  } else if (dataType == ValueDef.type) {
-    return def[ModuleDef.dataID][ValueDef.IDID].read(ctx) as ID;
-  } else {
-    throw UnimplementedError('unknown module type $dataType');
-  }
-}
-
 @DartFn('72213f44-7f10-4758-8a02-6451d8a8e961')
 Object _moduleEditorFn(Ctx ctx, Object arg) => ModuleEditor(ctx, PalCursor.cursor(arg));
 
 @reader
 Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
-  final definitions = module[Module.definitionsID][List.itemsID].cast<Vec>();
+  final definitions = module[Module.definitionsID];
+  final definitionIDs = definitions[OrderedMap.keyOrderID][List.itemsID].cast<Vec>();
+  final definitionMap = definitions[OrderedMap.valueMapID][Map.entriesID].cast<Dict>();
 
   final childMap = useMemoized(() => <ID, Widget>{}, [module]);
-  Widget childForDef(Ctx ctx, Cursor<Object> moduleDef) {
-    final id = _moduleDefID(ctx, moduleDef);
+  Widget childForDef(Ctx ctx, ID id) {
     return childMap[id] ??= ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) {
+        final moduleDef = definitionMap[id].whenPresent;
         final dataType = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
         if (dataType == TypeDef.type || dataType == InterfaceDef.type) {
           late final String kind;
@@ -419,10 +406,10 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
     );
   }
 
-  Widget childForIndexedDef(Ctx ctx, IndexedValue<Cursor<Object>> indexedModuleDef) {
+  Widget childForIndexedID(Ctx ctx, int index, ID id) {
     return ReaderWidget(
       ctx: ctx,
-      key: ValueKey(_moduleDefID(ctx, indexedModuleDef.value)),
+      key: ValueKey(id),
       builder: (_, ctx) {
         final isOpen = useCursor(false);
         final dropdownFocus = useFocusNode();
@@ -434,16 +421,22 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             ctx,
             dropdownFocus: dropdownFocus,
             addDefinition: (def) {
-              definitions.insert(indexedModuleDef.index + 1, def);
+              final id = ModuleDef.idFor(def);
+              definitionMap[id] = Optional(def);
+              definitionIDs.insert(index + 1, id);
               isOpen.set(false);
             },
           ),
           child: FocusableNode(
-            onDelete: () => definitions.remove(indexedModuleDef.index),
+            onDelete: () {
+              final id = definitionIDs[index].read(Ctx.empty);
+              definitionIDs.remove(index);
+              definitionMap.remove(id);
+            },
             onAddBelow: () => isOpen.set(true),
             child: childForDef(
               ctx,
-              indexedModuleDef.value,
+              id,
             ),
           ),
         );
@@ -463,8 +456,8 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
           ]),
         ),
         contents: [
-          for (final indexedModuleDef in definitions.indexedValues(ctx))
-            childForIndexedDef(ctx, indexedModuleDef)
+          for (final indexedID in definitionIDs.indexedValues(ctx))
+            childForIndexedID(ctx, indexedID.index, indexedID.value.read(ctx) as ID)
         ],
         suffix: const Text('} '),
       ),
@@ -1081,7 +1074,7 @@ Widget _mySimpleDialogOption(
   );
 }
 
-extension _PalAccess on Cursor<Object> {
+extension _PalCursorAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
 }
 
