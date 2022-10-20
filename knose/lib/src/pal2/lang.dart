@@ -2950,6 +2950,7 @@ Object _fnAppReduce(Ctx ctx, Object fnApp) {
                 Type.type,
                 Type.memberEquals(Literal.getType(Expr.data(reducedFn)), [Fn.argTypeID]),
               ),
+              reducedValue: reduce(ctx, FnApp.arg(fnApp)),
             )),
             bodyExpr,
           );
@@ -2966,6 +2967,7 @@ Object _fnAppReduce(Ctx ctx, Object fnApp) {
               id: FnExpr.argID(fnExpr),
               name: FnExpr.argName(fnExpr),
               type: reduce(ctx, FnExpr.argType(fnExpr)),
+              reducedValue: reduce(ctx, FnApp.arg(fnApp)),
             )),
             bodyExpr,
           );
