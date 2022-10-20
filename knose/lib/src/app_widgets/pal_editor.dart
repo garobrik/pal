@@ -540,7 +540,20 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   final exprData = expr[Expr.dataID];
   final typeError = useMemoized(
     () => GetCursor.compute(
-      (ctx) => !Option.isPresent(typeCheck(ctx, expr.read(ctx))),
+      (ctx) => Result.cases(
+        typeCheck(ctx, expr.read(ctx)),
+        ok: (_) => Option.mk(),
+        error: (err) => Option.mk(err),
+      ),
+      ctx: ctx,
+      compare: true,
+    ),
+    [expr],
+  );
+  final isHovered = useCursor(false);
+  final showHover = useMemoized(
+    () => GetCursor.compute(
+      (ctx) => Option.isPresent(typeError.read(ctx)) && isHovered.read(ctx),
       ctx: ctx,
       compare: true,
     ),
@@ -617,9 +630,9 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     child = Text.rich(TextSpan(children: [
       AlignedWidgetSpan(ExprEditor(ctx, exprData[RecordAccess.targetID])),
       const TextSpan(text: '.'),
-      Option.cases(
+      Result.cases(
         targetType,
-        some: (type) {
+        ok: (type) {
           final typeDef = ctx.getType(Type.id(Literal.getValue(Expr.data(type))));
           final record = TypeTree.treeCases(
             TypeDef.tree(typeDef),
@@ -641,7 +654,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
             ),
           ));
         },
-        none: () => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
+        error: (_) => const TextSpan(text: 'member', style: TextStyle(fontStyle: FontStyle.italic)),
       ),
       TextSpan(text: suffix),
     ]));
@@ -692,19 +705,39 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
 
-  return FocusableNode(
-    onDelete: () {
-      expr.set(placeholder);
-    },
-    focusNode: wrapperFocusNode,
-    child: ReaderWidget(
+  return FollowingDeferredPainter(
+    ctx: ctx,
+    isOpen: showHover,
+    childAnchor: AlignmentDirectional.topStart,
+    overlayAnchor: AlignmentDirectional.bottomStart,
+    offset: const Offset(5, -5),
+    modifyConstraints: (constraints) => constraints.loosen().copyWith(
+          maxWidth: max(constraints.maxWidth, 500),
+          maxHeight: double.infinity,
+        ),
+    deferee: ReaderWidget(
       ctx: ctx,
       builder: (_, ctx) => Container(
         decoration: BoxDecoration(
-          border: typeError.read(ctx) ? Border.all(color: Colors.red) : null,
-          borderRadius: const BorderRadius.all(Radius.circular(3)),
+          color: Theme.of(context).canvasColor,
+          boxShadow: const [_myBoxShadow],
         ),
-        child: child,
+        child: Text(Option.unwrap(typeError.read(ctx)) as String),
+      ),
+    ),
+    child: FocusableNode(
+      onHover: isHovered.set,
+      onDelete: () => expr.set(placeholder),
+      focusNode: wrapperFocusNode,
+      child: ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) => Container(
+          decoration: BoxDecoration(
+            border: Option.isPresent(typeError.read(ctx)) ? Border.all(color: Colors.red) : null,
+            borderRadius: const BorderRadius.all(Radius.circular(3)),
+          ),
+          child: child,
+        ),
       ),
     ),
   );
@@ -921,19 +954,14 @@ Widget _focusableNode({
         }),
       },
     ),
-    child: Focus(
+    child: FocusableActionDetector(
       focusNode: wrapperFocusNode,
+      onShowHoverHighlight: onHover,
       child: Builder(
         builder: (context) => Container(
           decoration: BoxDecoration(
             borderRadius: const BorderRadius.all(Radius.circular(3)),
-            boxShadow: [
-              BoxShadow(
-                blurRadius: 8,
-                color: Focus.of(context).hasPrimaryFocus ? Colors.grey : Colors.transparent,
-                blurStyle: BlurStyle.outer,
-              )
-            ],
+            boxShadow: [if (Focus.of(context).hasPrimaryFocus) _myBoxShadow],
           ),
           child: child,
         ),
@@ -941,6 +969,8 @@ Widget _focusableNode({
     ),
   );
 }
+
+const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
 
 class NonTextEditingShortcutManager extends ShortcutManager {
   NonTextEditingShortcutManager({required super.shortcuts});
