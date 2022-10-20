@@ -2144,6 +2144,8 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
           final pathA = Literal.getValue(Expr.data(
             reduce(ctx, RecordAccess.mk(memberHasA, MemberHas.pathID)),
           ));
+          // TODO: temporary hack til subtyping can be configured properly
+          if (List.iterate(pathA).last == Fn.argIDID) continue;
           for (final propertyB in Type.exprIterateProperties(ctx, b)) {
             if (TypeProperty.exprDataType(ctx, propertyB) == MemberHas.type) {
               final memberHasB = reduce(ctx, RecordAccess.mk(propertyB, TypeProperty.dataID));
@@ -2172,6 +2174,7 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
           );
         }
       }
+      return true;
     } else {
       final typeDef = ctx.getType(Type.id(typeA));
       Object wrapTree(Ctx ctx, Object expr) {
@@ -2223,7 +2226,6 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
         wrapTree(ctx, b),
       );
     }
-    return true;
   } else {
     throw UnimplementedError('assignableImpl for expr type ${Expr.dataType(a)}');
   }
