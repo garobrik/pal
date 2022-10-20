@@ -448,6 +448,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
     policy: HierarchicalOrderTraversalPolicy(),
     child: SingleChildScrollView(
       child: Inset(
+        repaintBoundaries: true,
         prefix: Text.rich(
           TextSpan(children: [
             const TextSpan(text: 'module '),
@@ -1189,8 +1190,13 @@ class Inset extends MultiChildRenderObjectWidget {
     required Widget suffix,
     this.inset = const EdgeInsetsDirectional.only(start: 10, end: 2),
     this.drawGuideLine = true,
+    bool repaintBoundaries = false,
     super.key,
-  }) : super(children: [prefix, ...contents, suffix]);
+  }) : super(
+          children: repaintBoundaries
+              ? RepaintBoundary.wrapAll([prefix, ...contents, suffix])
+              : [prefix, ...contents, suffix],
+        );
 
   @override
   RenderObject createRenderObject(BuildContext context) => RenderInset(
