@@ -12,11 +12,14 @@ class PalGenerator extends Generator {
 
   @override
   FutureOr<String> generate(LibraryReader library, BuildStep buildStep) async {
-    final output = StringBuffer();
-
-    final dartFns = [
+    final dartFns = <ElementAnalogue>[
       for (final fn in library.element.units.expand((cu) => cu.functions))
         if (fn.hasAnnotation(DartFn)) TopLevelFunction.fromElement(library.element, fn),
+      for (final fn in library.element.units
+          .expand((cu) => cu.classes)
+          .expand((cl) => cl.methods)
+          .where((m) => m.isStatic))
+        if (fn.hasAnnotation(DartFn)) Method.fromElement(library.element, fn),
     ];
 
     if (dartFns.isEmpty) return '';
@@ -25,32 +28,35 @@ class PalGenerator extends Generator {
         .substring(0, library.element.source.shortName.indexOf('.'))
         .replaceAllMapped(RegExp(r'_([a-z])'), (match) => match[1]!.toUpperCase());
 
-    output.writeln('FnMap ${prefix}FnMap = {');
+    String qualifiedFnName(ElementAnalogue fn) {
+      if (fn is TopLevelFunction) {
+        return fn.name;
+      } else if (fn is Method) {
+        return '${fn.element!.enclosingElement3.name!}.${fn.name}';
+      } else {
+        throw UnimplementedError();
+      }
+    }
+
+    final fnMapOutput = StringBuffer();
+    final inverseMapOutput = StringBuffer();
+    fnMapOutput.writeln('FnMap ${prefix}FnMap = {');
+    inverseMapOutput.writeln('InverseFnMap ${prefix}InverseFnMap = {');
     for (final fn in dartFns) {
       final annotation = fn.getAnnotation(DartFn)!;
       final id = annotation.read('id').stringValue;
-      final label = annotation.read('label').isNull
-          ? ''
-          : 'label: \'${annotation.read('label').stringValue}\', ';
+      final label =
+          annotation.read('label').isNull ? fn.name : annotation.read('label').stringValue;
       final hashCode = Object.hash(id, null);
 
-      output.writeln('const ID.constant(id: \'$id\', $label hashCode: $hashCode): ${fn.name},');
+      final idString = 'const ID.constant(id: \'$id\', label: \'$label\', hashCode: $hashCode)';
+      final fnString = qualifiedFnName(fn);
+      fnMapOutput.writeln('$idString: $fnString,');
+      inverseMapOutput.writeln('$fnString: $idString,');
     }
-    output.writeln('};');
+    fnMapOutput.writeln('};');
+    inverseMapOutput.writeln('};');
 
-    output.writeln('const InverseFnMap ${prefix}InverseFnMap = {');
-    for (final fn in dartFns) {
-      final annotation = fn.getAnnotation(DartFn)!;
-      final id = annotation.read('id').stringValue;
-      final label = annotation.read('label').isNull
-          ? ''
-          : 'label: \'${annotation.read('label').stringValue}\', ';
-      final hashCode = Object.hash(id, null);
-
-      output.writeln('${fn.name}: ID.constant(id: \'$id\', $label hashCode: $hashCode),');
-    }
-    output.writeln('};');
-
-    return output.toString();
+    return '$fnMapOutput\n$inverseMapOutput';
   }
 }
