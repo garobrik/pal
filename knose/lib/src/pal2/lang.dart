@@ -1099,11 +1099,14 @@ abstract class Result {
   static Object map(Object result, Object Function(Object) f) =>
       cases(result, ok: (val) => Result.mkOk(f(val)), error: (err) => Result.mkErr(err));
 
-  static Object flatMap(Object result, Object Function(Object) f) =>
-      cases(result, ok: (val) => f(val), error: (err) => Result.mkErr(err));
+  static Object flatMap(Object result, Object Function(Object) f, [String errCtx = '']) =>
+      cases(result, ok: (val) => f(val), error: (err) => Result.mkErr(err.wrap(errCtx)));
 
-  static Object unwrap(Object result) =>
-      Result.cases(result, ok: (v) => v, error: (_) => throw Exception());
+  static Object flatten(Object result, [String errCtx = '']) =>
+      cases(result, ok: (result) => result, error: (err) => Result.mkErr(err.wrap(errCtx)));
+
+  static Object unwrap(Object result, [Object Function(String)? onErr]) =>
+      cases(result, ok: (v) => v, error: (err) => onErr != null ? onErr(err) : throw Exception());
 
   static bool isOk(Object result) => Result.cases(result, ok: (_) => true, error: (_) => false);
 
@@ -1757,6 +1760,8 @@ class MyException implements Exception {
   String toString() {
     return 'MyException(${msg ?? ""})';
   }
+
+  static T throwFn<T>([String? msg]) => throw MyException(msg);
 }
 
 abstract class Construct extends Expr {
@@ -2100,15 +2105,29 @@ dart.Map<ID, Object>? assignableSubst(Ctx ctx, Object a, Object b) {
 
 bool assignable(Ctx ctx, Object a, Object b) => assignableImpl(_initSubst(ctx), a, b);
 
-Object assignableErr(Ctx ctx, Object a, Object b, Object Function() ifAssignable,
-    {String? errContext}) {
+Object assignableErr(
+  Ctx ctx,
+  Object a,
+  Object b,
+  String errCtx,
+  Object Function() ifAssignable,
+) =>
+    assignableErrFlat(ctx, a, b, errCtx, () => Result.mkOk(ifAssignable()));
+
+Object assignableErrFlat(
+  Ctx ctx,
+  Object a,
+  Object b,
+  String errContext,
+  Object Function() ifAssignable,
+) {
   if (assignableImpl(_initSubst(ctx), a, b)) {
-    return Result.mkOk(ifAssignable());
+    return ifAssignable();
   } else {
     final msg =
         'expected:\n  ${palPrint(ctx, Expr.type, a)}\nactual:\n  ${palPrint(ctx, Expr.type, b)}';
     return Result.mkErr(
-      errContext == null ? msg : '$errContext:\n${msg.indent}',
+      errContext.isEmpty ? msg : '$errContext:\n${msg.indent}',
     );
   }
 }
@@ -2847,28 +2866,34 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
         Object? lazyValue;
         computeType(Ctx ctx) {
           if (lazyType == null) {
-            Result.cases(
-              typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
-              ok: (checkedType) {
-                if (!assignable(ctx, Type.lit(Type.type), checkedType)) {
-                  throw const MyException('type tree leaf expr is not a type!');
-                }
-              },
-              error: (msg) =>
-                  throw MyException('type tree leaf expr doesn\'t type check because $msg'),
+            Result.unwrap(
+              Result.flatMap(
+                typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
+                (checkedType) => assignableErr(
+                  ctx,
+                  Type.lit(Type.type),
+                  checkedType,
+                  'type tree leaf expr is not a type',
+                  () => unit,
+                ),
+                'type tree leaf expr doesn\'t type check',
+              ),
+              MyException.throwFn,
             );
             final defType = reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf);
-            lazyType = Result.cases(
-              typeCheck(origCtx, dataTree),
-              ok: (dataType) {
-                return Result.cases(
-                  assignableErr(ctx, defType, dataType, () => dataType),
-                  ok: (t) => t,
-                  error: (err) =>
-                      throw MyException('construct data doesn\'t match:\n ${err.indent}'),
-                );
-              },
-              error: (msg) => throw MyException('construct data doesn\'t type check because $msg'),
+            lazyType = Result.unwrap(
+              Result.flatMap(
+                typeCheck(origCtx, dataTree),
+                (dataType) => assignableErr(
+                  ctx,
+                  defType,
+                  dataType,
+                  'construct data doesn\'t match',
+                  () => dataType,
+                ),
+                'construct data doesn\'t type check',
+              ),
+              MyException.throwFn,
             );
           }
           return lazyType!;
@@ -2987,14 +3012,12 @@ Object _fnAppTypeCheck(Ctx ctx, Object fnApp) {
       if ({Literal.type, Construct.type}.contains(Expr.dataType(fnTypeExpr))) {
         return Result.flatMap(
           typeCheck(ctx, FnApp.arg(fnApp)),
-          (argType) {
-            // TODO: weird logic here around Fn arg types are exprs, so fnTypeExpr argtype member is??
-            final argAssignable = assignable(
-              ctx,
-              Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argTypeID]),
-              argType,
-            );
-            if (argAssignable) {
+          (argType) => assignableErr(
+            ctx,
+            Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argTypeID]),
+            argType,
+            'fn argument doesn\'t match expected type',
+            () {
               final argID = Literal.getValue(
                 Expr.data(
                   Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.argIDID]),
@@ -3008,16 +3031,14 @@ Object _fnAppTypeCheck(Ctx ctx, Object fnApp) {
                   reducedValue: reduce(ctx, FnApp.arg(fnApp)),
                 ),
               );
-              return Result.mkOk(reduce(
+              return reduce(
                 ctx,
                 Literal.getValue(
                   Expr.data(Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.returnTypeID])),
                 ),
-              ));
-            } else {
-              return Result.mkErr('fn app arg is not assignable to fn arg type');
-            }
-          },
+              );
+            },
+          ),
         );
       } else {
         return Result.mkErr('type check fn app where fnType isn\'t literal not yet implemented!');
@@ -3092,52 +3113,41 @@ Object _fnExprTypeCheck(Ctx ctx, Object fn) {
         ),
         some: (returnTypeExpr) => Result.flatMap(
           typeCheck(ctx, returnTypeExpr),
-          (returnTypeType) {
-            if (!assignable(ctx, Type.lit(Type.type), returnTypeType)) {
-              return Result.mkErr('return type type expr not a type');
-            }
-            final returnType = reduce(ctx, returnTypeExpr);
-            return FnExpr.bodyCases(
-              fn,
-              pal: (body) => Result.flatMap(
-                typeCheck(ctx, body),
-                (bodyType) {
-                  return assignableErr(ctx, returnType, bodyType, () {
+          (returnTypeType) => assignableErrFlat(
+            ctx,
+            Type.lit(Type.type),
+            returnTypeType,
+            'return type not a type',
+            () {
+              final returnType = reduce(ctx, returnTypeExpr);
+              return FnExpr.bodyCases(
+                fn,
+                pal: (body) => Result.flatMap(
+                  typeCheck(ctx, body),
+                  (bodyType) => assignableErr(
+                    ctx,
+                    returnType,
+                    bodyType,
+                    'fn expr body not assignable to return type',
                     // TODO: weird logic here around expr wrapping in FnValue.types?
-                    if (Expr.dataType(argType) != Literal.type) {
-                      // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                      return reduce(
-                        ctx,
-                        Fn.typeExpr(
-                          argID: FnExpr.argID(fn),
-                          argType: argType,
-                          returnType: returnType,
-                        ),
-                      );
-                    } else {
-                      return Literal.mk(
-                        Type.type,
-                        Fn.type(
-                          argID: FnExpr.argID(fn),
-                          argType: Literal.getValue(Expr.data(argType)),
-                          returnType: returnType,
-                        ),
-                      );
-                    }
-                  }, errContext: 'fn expr body not assignable to return type');
-                },
-              ),
-              // TODO: typecheck arg & return type exprs
-              dart: (_) => Result.mkOk(reduce(
-                ctx,
-                Fn.typeExpr(
-                  argID: FnExpr.argID(fn),
-                  argType: argType,
-                  returnType: returnType,
+                    () => reduce(
+                      ctx,
+                      Fn.typeExpr(
+                        argID: FnExpr.argID(fn),
+                        argType: argType,
+                        returnType: returnType,
+                      ),
+                    ),
+                  ),
                 ),
-              )),
-            );
-          },
+                // TODO: typecheck arg & return type exprs
+                dart: (_) => Result.mkOk(reduce(
+                  ctx,
+                  Fn.typeExpr(argID: FnExpr.argID(fn), argType: argType, returnType: returnType),
+                )),
+              );
+            },
+          ),
         ),
       );
     },
@@ -3341,4 +3351,5 @@ Object _valueDefBindings(Ctx ctx, Object arg) {
 
 extension Indent on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => s.padLeft(2));
+  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx:\n$indent';
 }
