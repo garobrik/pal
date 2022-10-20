@@ -1989,18 +1989,22 @@ abstract class Binding {
     nameID: TypeTree.mk('name', Type.lit(text)),
     reducedValueID: TypeTree.mk(
       'reducedValue',
-      Fn.typeExpr(
-        argID: ID.mk('_'),
-        argType: Type.lit(unit),
-        returnType: Option.typeExpr(Expr.type),
+      Type.lit(
+        Fn.type(
+          argID: ID.mk('_'),
+          argType: unit,
+          returnType: Type.lit(Option.type(Expr.type)),
+        ),
       ),
     ),
     valueID: TypeTree.mk(
       'value',
-      Fn.typeExpr(
-        argID: ID.mk('_'),
-        argType: Type.lit(unit),
-        returnType: Option.typeExpr(Var.mk(valueTypeID)),
+      Type.lit(
+        Fn.type(
+          argID: ID.mk('_'),
+          argType: unit,
+          returnType: Option.typeExpr(Var.mk(valueTypeID)),
+        ),
       ),
     ),
   });
