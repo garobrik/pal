@@ -61,8 +61,8 @@ void main() {
 
     final result5 =
         eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
-    expect(Option.isPresent(result5), isTrue);
-    expect(assignable(testCtx, Type.lit(number), Option.unwrap(result5)), isTrue);
+    expect(Result.isOk(result5), isTrue);
+    expect(assignable(testCtx, Type.lit(number), Result.unwrap(result5)), isTrue);
   });
 
   test('RecordAccess + Literal', () {
@@ -72,7 +72,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Type.lit(number))));
+    expect(type, equals(Result.mkOk(Type.lit(number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -85,7 +85,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Type.lit(TypeDef.asType(sillyRecordDef)))));
+    expect(type, equals(Result.mkOk(Type.lit(TypeDef.asType(sillyRecordDef)))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(Dict({sillyID: 0})));
@@ -103,7 +103,7 @@ void main() {
     );
 
     final type = typeCheck(testCtx, expr);
-    expect(type, equals(Option.mk(Type.lit(number))));
+    expect(type, equals(Result.mkOk(Type.lit(number))));
 
     final result = eval(testCtx, expr);
     expect(result, equals(0));
@@ -147,7 +147,7 @@ void main() {
       valueID,
     );
     final type = typeCheck(thisCtx, expr);
-    expect(type, equals(Option.mk(Type.lit(number))));
+    expect(type, equals(Result.mkOk(Type.lit(number))));
 
     final result = eval(thisCtx, expr);
     expect(result, equals(0));
@@ -168,7 +168,7 @@ void main() {
         coreCtx,
         fn,
       ),
-      equals(Option.mk(
+      equals(Result.mkOk(
         reduce(
           coreCtx,
           Fn.typeExpr(
@@ -181,7 +181,7 @@ void main() {
     );
 
     final fnApplied = FnApp.mk(fn, Literal.mk(Literal.type, Expr.data(Literal.mk(number, 0))));
-    expect(typeCheck(coreCtx, fnApplied), equals(Option.mk(Type.lit(number))));
+    expect(typeCheck(coreCtx, fnApplied), equals(Result.mkOk(Type.lit(number))));
     expect(eval(coreCtx, fnApplied), equals(0));
   });
 

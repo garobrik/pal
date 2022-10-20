@@ -1127,7 +1127,7 @@ abstract class Expr {
         Fn.typeExpr(
           argID: typeCheckArgID,
           argType: Var.mk(dataTypeID),
-          returnType: Type.lit(Option.type(typeExprType)),
+          returnType: Type.lit(Result.type(typeExprType)),
         ),
       ),
       reduceID: TypeTree.mk(
@@ -1166,7 +1166,7 @@ abstract class Expr {
           dataTypeID: Type.lit(dataType),
           typeCheckID: FnExpr.dart(
             argType: Type.lit(dataType),
-            returnType: Type.lit(Option.type(typeExprType)),
+            returnType: Type.lit(Result.type(typeExprType)),
             argID: typeCheckArgID,
             argName: argName,
             body: typeCheckBody,
@@ -1243,7 +1243,7 @@ abstract class Expr {
   static Object typeCheckFn = FnExpr.from(
     argName: 'expr',
     argType: Type.lit(Expr.type),
-    returnType: (_) => Type.lit(Option.type(typeExprType)),
+    returnType: (_) => Type.lit(Result.type(typeExprType)),
     body: (arg) => FnApp.mk(
       RecordAccess.mk(RecordAccess.mk(arg, implID), typeCheckID),
       RecordAccess.mk(arg, dataID),
@@ -1730,7 +1730,14 @@ abstract class FnApp extends Expr {
 }
 
 class MyException implements Exception {
-  const MyException();
+  final String? msg;
+
+  const MyException([this.msg]);
+
+  @override
+  String toString() {
+    return 'MyException(${msg ?? ""})';
+  }
 }
 
 abstract class Construct extends Expr {
@@ -2069,6 +2076,19 @@ dart.Map<ID, Object>? assignableSubst(Ctx ctx, Object a, Object b) {
 }
 
 bool assignable(Ctx ctx, Object a, Object b) => assignableImpl(_initSubst(ctx), a, b);
+
+Object assignableErr(Ctx ctx, Object a, Object b, Object Function() ifAssignable,
+    {String? errContext}) {
+  if (assignableImpl(_initSubst(ctx), a, b)) {
+    return Result.mkOk(ifAssignable());
+  } else {
+    final msg =
+        'expected:\n  ${palPrint(ctx, Expr.type, a)}\nactual:\n  ${palPrint(ctx, Expr.type, b)}';
+    return Result.mkErr(
+      errContext == null ? msg : '$errContext:\n${msg.indent}',
+    );
+  }
+}
 
 bool assignableImpl(Ctx ctx, Object a, Object b) {
   if (a == b) {
@@ -2567,7 +2587,8 @@ Object _placeholderEval(Ctx _, Object __) =>
 Object _placeholderReduce(Ctx _, Object __) =>
     throw Exception("don't reduce a placeholder u fool!");
 @DartFn('b1750fd4-b07f-490b-816f-7933361115e5')
-Object _placeholderTypeCheck(Ctx _, Object __) => Option.mk();
+Object _placeholderTypeCheck(Ctx _, Object __) =>
+    Result.mkErr('this placeholder needs to be filled in');
 @DartFn('71220800-2abd-40c3-b97a-5b8b1b743e6f')
 Object _varEval(Ctx ctx, Object arg) {
   return Option.cases(
@@ -2611,8 +2632,8 @@ Object _varReduce(Ctx ctx, Object arg) {
 Object _varTypeCheck(Ctx ctx, Object arg) {
   return Option.cases(
     ctx.getBinding(Var.id(arg)),
-    some: (binding) => Option.mk(Binding.valueType(ctx, binding)),
-    none: () => Option.mk(),
+    some: (binding) => Result.mkOk(Binding.valueType(ctx, binding)),
+    none: () => Result.mkErr('unknown var ${Var.id(arg)}'),
   );
 }
 
@@ -2621,7 +2642,7 @@ Object _literalEval(Ctx ctx, Object arg) => Literal.getValue(arg);
 @DartFn('407672c9-89c1-4c56-ae90-61114500136a')
 Object _literalReduce(Ctx ctx, Object arg) => Expr.mk(impl: Literal.exprImpl, data: arg);
 @DartFn('5249e346-b160-4a03-b657-2002027596be')
-Object _literalTypeCheck(Ctx ctx, Object arg) => Option.mk(Type.lit(Literal.getType(arg)));
+Object _literalTypeCheck(Ctx ctx, Object arg) => Result.mkOk(Type.lit(Literal.getType(arg)));
 @DartFn('e0018149-0f3c-4ddd-bcef-9c681cee4ddd')
 Object _recordAccessEval(Ctx ctx, Object data) {
   return (eval(ctx, RecordAccess.target(data)) as Dict)[RecordAccess.member(data)].unwrap!;
@@ -2656,10 +2677,9 @@ Object _recordAccessReduce(Ctx ctx, Object data) {
 
 @DartFn('82bf53a9-470a-4a7c-9326-e367397c56d4')
 Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
-  return Option.cases(
+  return Result.flatMap(
     typeCheck(ctx, RecordAccess.target(arg)),
-    none: () => Option.mk(),
-    some: (targetTypeExpr) {
+    (targetTypeExpr) {
       if (Expr.dataType(targetTypeExpr) == Literal.type) {
         final targetType = Literal.getValue(Expr.data(targetTypeExpr));
         final targetTypeDef = ctx.getType(Type.id(targetType));
@@ -2667,15 +2687,19 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
         final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), List.iterate(path));
         return TypeTree.treeCases(
           treeAt,
-          leaf: (_) => Option.mk(),
-          union: (_) => Option.mk(),
+          leaf: (_) => Result.mkErr('record access on leaf node!'),
+          union: (_) => Result.mkErr('record access on union!'),
           record: (recordNode) {
             final member = RecordAccess.member(arg);
             final subTree = recordNode[member].unwrap!;
             return TypeTree.treeCases(
               subTree,
-              record: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
-              union: (_) => (targetType as Dict).put(Type.pathID, List.add(path, member)),
+              record: (_) => Result.mkOk(
+                Type.lit((targetType as Dict).put(Type.pathID, List.add(path, member))),
+              ),
+              union: (_) => Result.mkOk(
+                Type.lit((targetType as Dict).put(Type.pathID, List.add(path, member))),
+              ),
               leaf: (leafNode) {
                 final eachEquals = MemberHas.eachEquals(targetType);
                 Iterable<Object> bindings(DartList path, Object typeTree) {
@@ -2711,18 +2735,14 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                   ctx,
                   (ctx, binding) => ctx.withBinding(binding),
                 );
-                return Option.cases(
-                  typeCheck(ctx, leafNode),
-                  some: (_) => Option.mk(reduce(ctx, leafNode)),
-                  none: () => Option.mk(),
-                );
+                return Result.map(typeCheck(ctx, leafNode), (_) => reduce(ctx, leafNode));
               },
             );
           },
         );
       } else {
-        throw Exception(
-          "typechecking recordaccess on non-literal target type not implemented!",
+        return Result.mkErr(
+          'typechecking record access on non-literal target type not implemented!',
         );
       }
     },
@@ -2774,10 +2794,14 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
     return TypeTree.treeCases(
       typeTree,
       record: (record) {
-        if (record.length != (dataTree as Dict).length) throw const MyException();
+        if (record.length != (dataTree as Dict).length) {
+          throw const MyException('construct tree shape does not match type');
+        }
         return [
           ...record.entries.expand((entry) {
-            if (!dataTree.containsKey(entry.key)) throw const MyException();
+            if (!dataTree.containsKey(entry.key)) {
+              throw const MyException('construct tree shape does not match type');
+            }
             return lazyBindings(
               entry.value,
               dataTree[entry.key].unwrap!,
@@ -2788,7 +2812,9 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
       },
       union: (union) {
         final tag = UnionTag.tag(dataTree);
-        if (!union.containsKey(tag)) throw const MyException();
+        if (!union.containsKey(tag)) {
+          throw const MyException('construct tree shape does not match type');
+        }
         return lazyBindings(union[tag].unwrap!, UnionTag.value(dataTree), List.add(path, tag));
       },
       leaf: (leaf) {
@@ -2796,23 +2822,28 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
         Object? lazyValue;
         computeType(Ctx ctx) {
           if (lazyType == null) {
-            Option.cases(
+            Result.cases(
               typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
-              some: (checkedType) {
+              ok: (checkedType) {
                 if (!assignable(ctx, Type.lit(Type.type), checkedType)) {
-                  throw const MyException();
+                  throw const MyException('type tree leaf expr is not a type!');
                 }
               },
-              none: () => throw const MyException(),
+              error: (msg) =>
+                  throw MyException('type tree leaf expr doesn\'t type check because $msg'),
             );
             final defType = reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf);
-            lazyType = Option.cases(
+            lazyType = Result.cases(
               typeCheck(origCtx, dataTree),
-              some: (dataType) {
-                if (!assignable(ctx, defType, dataType)) throw const MyException();
-                return dataType;
+              ok: (dataType) {
+                return Result.cases(
+                  assignableErr(ctx, defType, dataType, () => dataType),
+                  ok: (t) => t,
+                  error: (err) =>
+                      throw MyException('construct data doesn\'t match:\n ${err.indent}'),
+                );
               },
-              none: () => throw const MyException(),
+              error: (msg) => throw MyException('construct data doesn\'t type check because $msg'),
             );
           }
           return lazyType!;
@@ -2847,11 +2878,11 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
     for (final binding in bindings) {
       Binding.valueType(typeCtx, binding);
     }
-  } on MyException {
-    return Option.mk();
+  } on MyException catch (e) {
+    return Result.mkErr(e.msg ?? '');
   }
 
-  return Option.mk(
+  return Result.mkOk(
     reduce(origCtx, Type.mkExpr(Type.id(Construct.dataType(arg)), properties: computedProps)),
   );
 }
@@ -2923,15 +2954,13 @@ Object _fnAppReduce(Ctx ctx, Object fnApp) {
 
 @DartFn('be6e4c77-a9fb-4d10-92cc-338c59ec3d5b')
 Object _fnAppTypeCheck(Ctx ctx, Object fnApp) {
-  return Option.cases(
+  return Result.flatMap(
     typeCheck(ctx, FnApp.fn(fnApp)),
-    none: () => Option.mk(),
-    some: (fnTypeExpr) {
+    (fnTypeExpr) {
       if ({Literal.type, Construct.type}.contains(Expr.dataType(fnTypeExpr))) {
-        return Option.cases(
+        return Result.flatMap(
           typeCheck(ctx, FnApp.arg(fnApp)),
-          none: () => Option.mk(),
-          some: (argType) {
+          (argType) {
             // TODO: weird logic here around Fn arg types are exprs, so fnTypeExpr argtype member is??
             final argAssignable = assignable(
               ctx,
@@ -2952,19 +2981,20 @@ Object _fnAppTypeCheck(Ctx ctx, Object fnApp) {
                   reducedValue: reduce(ctx, FnApp.arg(fnApp)),
                 ),
               );
-              return Option.mk(reduce(
+              return Result.mkOk(reduce(
                 ctx,
                 Literal.getValue(
                   Expr.data(Type.exprMemberEquals(ctx, fnTypeExpr, [Fn.returnTypeID])),
                 ),
               ));
             } else {
-              return Option.mk();
+              return Result.mkErr('fn app arg is not assignable to fn arg type');
             }
           },
         );
+      } else {
+        return Result.mkErr('type check fn app where fnType isn\'t literal not yet implemented!');
       }
-      throw Exception('type check fn app where fnType isn\'t literal not yet implemented!');
     },
   );
 }
@@ -2991,12 +3021,11 @@ Object _fnExprReduce(Ctx ctx, Object fnData) => Expr.mk(impl: FnExpr.exprImpl, d
 
 @DartFn('916ccdd7-75de-4c37-b728-a318b101aff7')
 Object _fnExprTypeCheck(Ctx ctx, Object fn) {
-  return Option.cases(
+  return Result.flatMap(
     typeCheck(ctx, FnExpr.argType(fn)),
-    none: () => Option.mk(),
-    some: (argTypeType) {
+    (argTypeType) {
       if (!assignable(ctx, Type.lit(Type.type), argTypeType)) {
-        return Option.mk();
+        return Result.mkErr('fn expr arg type expr is not a type');
       }
       final argType = reduce(ctx, FnExpr.argType(fn));
       ctx = ctx.withBinding(
@@ -3010,72 +3039,69 @@ Object _fnExprTypeCheck(Ctx ctx, Object fn) {
         FnExpr.returnType(fn),
         none: () => FnExpr.bodyCases(
           fn,
-          dart: (_) => throw Exception('dart Fn w no declared return type not allowed!'),
-          pal: (body) => Option.cases(
+          dart: (_) => Result.mkErr('dart Fn w no declared return type not allowed!'),
+          pal: (body) => Result.map(
             typeCheck(ctx, body),
-            none: () => Option.mk(),
-            some: (bodyType) {
+            (bodyType) {
               if (Expr.dataType(argType) != Literal.type) {
                 // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                return Option.mk(Fn.typeExpr(
+                return Fn.typeExpr(
                   argID: FnExpr.argID(fn),
                   argType: argType,
                   returnType: bodyType,
-                ));
+                );
               } else {
-                return Option.mk(
-                  Literal.mk(
-                    Type.type,
-                    Fn.type(
-                      argID: FnExpr.argID(fn),
-                      argType: Literal.getValue(Expr.data(argType)),
-                      returnType: bodyType,
-                    ),
+                return Literal.mk(
+                  Type.type,
+                  Fn.type(
+                    argID: FnExpr.argID(fn),
+                    argType: Literal.getValue(Expr.data(argType)),
+                    returnType: bodyType,
                   ),
                 );
               }
             },
           ),
         ),
-        some: (returnTypeExpr) => Option.cases(
+        some: (returnTypeExpr) => Result.flatMap(
           typeCheck(ctx, returnTypeExpr),
-          none: () => Option.mk(),
-          some: (returnTypeType) {
+          (returnTypeType) {
             if (!assignable(ctx, Type.lit(Type.type), returnTypeType)) {
-              return Option.mk();
+              return Result.mkErr('return type type expr not a type');
             }
             final returnType = reduce(ctx, returnTypeExpr);
             return FnExpr.bodyCases(
               fn,
-              pal: (body) => Option.cases(
+              pal: (body) => Result.flatMap(
                 typeCheck(ctx, body),
-                none: () => Option.mk(),
-                some: (bodyType) {
-                  if (!assignable(ctx, returnType, bodyType)) return Option.mk();
-                  // TODO: weird logic here around expr wrapping in FnValue.types?
-                  if (Expr.dataType(argType) != Literal.type) {
-                    // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                    return Option.mk(Fn.typeExpr(
-                      argID: FnExpr.argID(fn),
-                      argType: argType,
-                      returnType: returnType,
-                    ));
-                  } else {
-                    return Option.mk(
-                      Literal.mk(
+                (bodyType) {
+                  return assignableErr(ctx, returnType, bodyType, () {
+                    // TODO: weird logic here around expr wrapping in FnValue.types?
+                    if (Expr.dataType(argType) != Literal.type) {
+                      // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
+                      return reduce(
+                        ctx,
+                        Fn.typeExpr(
+                          argID: FnExpr.argID(fn),
+                          argType: argType,
+                          returnType: returnType,
+                        ),
+                      );
+                    } else {
+                      return Literal.mk(
                         Type.type,
                         Fn.type(
                           argID: FnExpr.argID(fn),
                           argType: Literal.getValue(Expr.data(argType)),
                           returnType: returnType,
                         ),
-                      ),
-                    );
-                  }
+                      );
+                    }
+                  }, errContext: 'fn expr body not assignable to return type');
                 },
               ),
               // TODO: typecheck arg & return type exprs
-              dart: (_) => Option.mk(reduce(
+              dart: (_) => Result.mkOk(reduce(
                 ctx,
                 Fn.typeExpr(
                   argID: FnExpr.argID(fn),
@@ -3108,14 +3134,14 @@ Object _mkMapTypeCheck(Ctx ctx, Object arg) {
   final valueType = arg[Map.mkValueID].unwrap!;
 
   for (final entry in List.iterate(arg[Map.mkEntriesID].unwrap!)) {
-    if (typeCheck(ctx, List.iterate(entry).first) != Option.mk(keyType)) {
-      return Option.mk();
+    if (typeCheck(ctx, List.iterate(entry).first) != Result.mkOk(keyType)) {
+      return Result.mkErr('map key does not match key type');
     }
-    if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Option.mk(valueType)) {
-      return Option.mk();
+    if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Result.mkOk(valueType)) {
+      return Result.mkErr('map value does not match value type');
     }
   }
-  return Option.mk(Map.type(keyType, valueType));
+  return Result.mkOk(Map.type(keyType, valueType));
 }
 
 @DartFn('d755250f-c583-4d96-84da-f4c0a6bdd823')
@@ -3144,12 +3170,20 @@ Object _mkListTypeCheck(Ctx ctx, Object arg) {
   final listValueType = (arg as Dict)[List.mkTypeID].unwrap!;
   for (final value in List.iterate(List.mkExprValues(arg))) {
     final valueType = typeCheck(ctx, value);
-    if (!Option.isPresent(valueType)) return Option.mk();
-    if (!assignable(ctx, Type.lit(listValueType), Option.unwrap(valueType))) {
-      return Option.mk();
-    }
+    final mapError = Result.cases(
+      valueType,
+      error: (msg) => Result.mkErr('list value doesn\' type check because $msg'),
+      ok: (type) {
+        if (!assignable(ctx, Type.lit(listValueType), type)) {
+          return Result.mkErr('list value not assignable to list type');
+        } else {
+          return Result.mkOk(type);
+        }
+      },
+    );
+    if (!Result.isOk(mapError)) return mapError;
   }
-  return Option.mk(Type.lit(List.type(listValueType)));
+  return Result.mkOk(Type.lit(List.type(listValueType)));
 }
 
 @DartFn('85c45fc9-c594-43b9-b126-739713a1c5e8')
@@ -3228,10 +3262,10 @@ Object _valueDefBindings(Ctx ctx, Object arg) {
   final bindingID = (arg as Dict)[ValueDef.IDID].unwrap! as ID;
   final expr = arg[ValueDef.valueID].unwrap!;
   computeType(Ctx ctx) {
-    lazyType ??= Option.cases(
+    lazyType ??= Result.cases(
       typeCheck(updateVisited(ctx, bindingID), expr),
-      some: (checkedType) => checkedType,
-      none: () => throw const MyException(),
+      ok: (checkedType) => checkedType,
+      error: (msg) => throw MyException('type checking binding failed because $msg'),
     );
     if (Expr.dataType(lazyType!) != Literal.type) throw const MyException();
     Option.cases(arg[ValueDef.expectedTypeID].unwrap!, none: () {}, some: (expectedType) {
@@ -3257,4 +3291,8 @@ Object _valueDefBindings(Ctx ctx, Object arg) {
       ),
     ),
   ]);
+}
+
+extension Indent on String {
+  String get indent => splitMapJoin('\n', onNonMatch: (s) => s.padLeft(2));
 }
