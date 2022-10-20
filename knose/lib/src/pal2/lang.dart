@@ -277,8 +277,8 @@ abstract class TypeDef {
       );
 
   static ID id(Object typeDef) => (typeDef as Dict)[IDID].unwrap! as ID;
-  static Iterable<Object> comptime(Object typeDef) =>
-      List.iterate((typeDef as Dict)[comptimeID].unwrap!);
+  static Iterable<ID> comptime(Object typeDef) =>
+      List.iterate((typeDef as Dict)[comptimeID].unwrap!).cast<ID>();
   static Object tree(Object typeDef) => (typeDef as Dict)[treeID].unwrap!;
 
   static final def = TypeDef.record('TypeDef', {
@@ -288,7 +288,7 @@ abstract class TypeDef {
   });
   static final type = asType(def);
 
-  static final _typeLitID = ID.mk('TypeLiteral');
+  static final _typeConstructorID = ID.mk('TypeConstructor');
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
     bindings: FnExpr.dart(
@@ -781,6 +781,25 @@ abstract class TypeTree {
       ),
       leaf: (leaf) => data,
     );
+  }
+
+  static Object? find(Object typeTree, ID id) {
+    final dict = treeCases(
+      typeTree,
+      record: (record) => record,
+      union: (union) => union,
+      leaf: (_) => const Dict(),
+    );
+    for (final entry in dict.entries) {
+      if (id == entry.key) {
+        return entry.value;
+      }
+      final subFind = find(entry.value, id);
+      if (subFind != null) {
+        return subFind;
+      }
+    }
+    return null;
   }
 }
 
@@ -3246,9 +3265,28 @@ Object _typeDefBindings(Ctx ctx, Object typeDef) {
     Union.mk(
       ModuleDef.type,
       ValueDef.mk(
-        id: TypeDef.id(typeDef).append(TypeDef._typeLitID),
+        id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
         name: TypeTree.name(TypeDef.tree(typeDef)),
-        value: Type.lit(TypeDef.asType(typeDef)),
+        value: (() {
+          final comptime = TypeDef.comptime(typeDef);
+          if (comptime.isEmpty) {
+            return Type.lit(TypeDef.asType(typeDef));
+          } else if (comptime.length == 1) {
+            final tree = TypeTree.find(TypeDef.tree(typeDef), comptime.first)!;
+            final type = TypeTree.treeCases(tree,
+                record: (_) => null, union: (_) => null, leaf: (leaf) => leaf)!;
+            return FnExpr.from(
+              argName: TypeTree.name(tree),
+              argType: type,
+              returnType: (_) => Type.lit(Type.type),
+              body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [
+                MemberHas.mkEqualsExpr([comptime.first], type, arg)
+              ]),
+            );
+          } else {
+            return Type.lit(TypeDef.asType(typeDef));
+          }
+        })(),
       ),
     ),
   ]);
