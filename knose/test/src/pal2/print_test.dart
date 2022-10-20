@@ -14,8 +14,8 @@ void main() {
     );
 
     final type = typeCheck(ctx, basicExpr);
-    expect(Option.isPresent(type), isTrue);
-    expect(Option.unwrap(type), equals(Type.lit(text)));
+    expect(Result.isOk(type), isTrue);
+    expect(Result.unwrap(type), equals(Type.lit(text)));
     expect(
       eval(ctx, basicExpr),
       equals(
@@ -31,8 +31,8 @@ void main() {
     );
 
     final type = typeCheck(ctx, compoundTypeExpr);
-    expect(Option.isPresent(type), isTrue);
-    expect(Option.unwrap(type), equals(Type.lit(text)));
+    expect(Result.isOk(type), isTrue);
+    expect(Result.unwrap(type), equals(Type.lit(text)));
     expect(
       eval(ctx, compoundTypeExpr),
       equals(
@@ -84,7 +84,7 @@ void main() {
         InterfaceDef.tree(ModuleDef.interfaceDef),
       ),
       equals(
-        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Construct(dataType: Type, tree: Unit())))}))',
+        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Type.mk(id: ID(Fn), path: [], properties: [argID = ID(bindingsArg), TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: MemberHas.mk(path: [ID(argType)], property: TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: Equals.mk(dataType: Type, equalTo: dataType)))), TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: MemberHas.mk(path: [ID(returnType)], property: TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: Equals.mk(dataType: Expr, equalTo: List<type = Union<dataType = [ModuleDef, Binding]>>))))])))}))',
       ),
     );
   });
