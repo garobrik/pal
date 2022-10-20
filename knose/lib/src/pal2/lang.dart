@@ -1014,7 +1014,7 @@ abstract class Option {
   }
 
   static Object map(Object option, Object Function(Object) f) =>
-      cases(option, some: f, none: () => Option.mk());
+      cases(option, some: (val) => Option.mk(f(val)), none: () => Option.mk());
 
   static Object unwrap(Object option) =>
       Option.cases(option, some: (v) => v, none: () => throw Exception());
@@ -1035,13 +1035,77 @@ abstract class Option {
         }),
       );
 
-  static Object noneExpr(Object dataType) => Construct.mk(
+  static Object noneExpr(Object dataType) => Literal.mk(Option.type(dataType), Option.mk());
+}
+
+abstract class Result {
+  static final dataTypeID = ID.mk('dataType');
+  static final valueID = ID.mk('value');
+  static final okID = ID.mk('ok');
+  static final errorID = ID.mk('error');
+
+  static final typeDefID = ID.mk('Result');
+  static final def = TypeDef.record(
+    'Result',
+    {
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      valueID: TypeTree.union('value', {
+        okID: TypeTree.mk('ok', Var.mk(dataTypeID)),
+        errorID: TypeTree.mk('error', Type.lit(text)),
+      }),
+    },
+    id: typeDefID,
+    comptime: [dataTypeID],
+  );
+
+  static Object type(Object dataType) => Type.mk(typeDefID, properties: [
+        MemberHas.mk(path: [dataTypeID], property: Equals.mk(Type.type, dataType)),
+      ]);
+
+  static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)), properties: [
+        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), dataType),
+      ]);
+
+  static T cases<T>(
+    Object result, {
+    required T Function(Object) ok,
+    required T Function(String) error,
+  }) {
+    final value = (result as Dict)[valueID].unwrap!;
+    return UnionTag.tag(value) == okID
+        ? ok(UnionTag.value(value))
+        : error(UnionTag.value(value) as String);
+  }
+
+  static Object map(Object result, Object Function(Object) f) =>
+      cases(result, ok: (val) => Result.mkOk(f(val)), error: (err) => Result.mkErr(err));
+
+  static Object flatMap(Object result, Object Function(Object) f) =>
+      cases(result, ok: (val) => f(val), error: (err) => Result.mkErr(err));
+
+  static Object unwrap(Object result) =>
+      Result.cases(result, ok: (v) => v, error: (_) => throw Exception());
+
+  static bool isOk(Object result) => Result.cases(result, ok: (_) => true, error: (_) => false);
+
+  static Object mkOk(Object value) => Dict({
+        valueID: UnionTag.mk(okID, value),
+      });
+
+  static Object mkErr(String msg) => Dict({
+        valueID: UnionTag.mk(errorID, msg),
+      });
+
+  static Object okExpr(Object dataType, Object value) => Construct.mk(
         Option.type(dataType),
         Dict({
           dataTypeID: Type.lit(dataType),
-          valueID: UnionTag.mk(noneID, const Dict()),
+          valueID: UnionTag.mk(okID, value),
         }),
       );
+
+  static Object errExpr(Object dataType, String msg) =>
+      Literal.mk(Result.type(dataType), mkErr(msg));
 }
 
 abstract class Expr {
@@ -2462,6 +2526,7 @@ final coreModule = Module.mk(name: 'core', definitions: [
   TypeDef.mkDef(ImplDef.def),
   ImplDef.mkDef(ImplDef.moduleDefImplDef),
   TypeDef.mkDef(Option.def),
+  TypeDef.mkDef(Result.def),
   TypeDef.mkDef(Expr.def),
   InterfaceDef.mkDef(Expr.interfaceDef),
   TypeDef.mkDef(List.def),
