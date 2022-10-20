@@ -765,43 +765,41 @@ Widget _placeholderEditor(
           final children = ctx.getBindings
               .expand((binding) {
                 final bindingType = Binding.valueType(ctx, binding);
+                final bindingTypeLit = Expr.dataType(bindingType) == Literal.type
+                    ? Literal.getValue(Expr.data(bindingType))
+                    : null;
                 if (bindingType == Type.lit(TypeDef.type)) {
-                  return Option.cases(Binding.value(ctx, binding),
-                      none: () => <reified.Pair<String, Widget>>[],
-                      some: (value) {
-                        final name = '${TypeTree.name(TypeDef.tree(value))}.mk(...)';
-                        return [
-                          reified.Pair(
-                            name,
-                            ReaderWidget(
-                              ctx: ctx,
-                              builder: (_, ctx) => TextButton(
-                                onPressed: () {
-                                  expr.set(Construct.mk(
-                                    TypeDef.asType(value),
-                                    TypeTree.instantiate(TypeDef.tree(value), placeholder),
-                                  ));
-                                },
-                                child: Text(name),
-                              ),
-                            ),
-                          ),
-                        ];
-                      });
+                  return Option.cases(
+                    Binding.value(ctx, binding),
+                    none: () => <reified.Pair<String, Widget>>[],
+                    some: (value) => [
+                      _placeholderEntry(
+                        ctx: ctx,
+                        name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
+                        onPressed: () => expr.set(Construct.mk(
+                          TypeDef.asType(value),
+                          TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                        )),
+                      ),
+                    ],
+                  );
+                } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
+                  return [
+                    _placeholderEntry(
+                      ctx: ctx,
+                      name: '${Binding.name(binding)}(...)',
+                      onPressed: () => expr.set(FnApp.mk(Var.mk(Binding.id(binding)), placeholder)),
+                    ),
+                  ];
                 } else {
                   return [
-                    reified.Pair(
-                      Binding.name(binding),
-                      ReaderWidget(
-                        ctx: ctx,
-                        builder: (_, ctx) => TextButton(
-                          onPressed: () => expr.set(Var.mk(Binding.id(binding))),
-                          child: Text(
-                            '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
-                          ),
-                        ),
-                      ),
-                    )
+                    _placeholderEntry(
+                      ctx: ctx,
+                      name: Binding.name(binding),
+                      detailedName: (ctx) =>
+                          '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
+                      onPressed: () => expr.set(Var.mk(Binding.id(binding))),
+                    ),
                   ];
                 }
               })
@@ -884,14 +882,35 @@ Widget _placeholderEditor(
   );
 }
 
+reified.Pair<String, Widget> _placeholderEntry({
+  required Ctx ctx,
+  required String name,
+  required void Function() onPressed,
+  String Function(Ctx)? detailedName,
+}) {
+  return reified.Pair(
+    name,
+    ReaderWidget(
+      ctx: ctx,
+      builder: (_, ctx) => TextButton(
+        onPressed: onPressed,
+        child: Text(detailedName != null ? detailedName(ctx) : name),
+      ),
+    ),
+  );
+}
+
 @reader
 Widget _focusableNode({
   FocusNode? focusNode,
   void Function()? onDelete,
   void Function()? onAddBelow,
+  void Function()? onShiftNodeDown,
+  void Function()? onShiftNodeUp,
+  void Function(bool)? onHover,
   required Widget child,
 }) {
-  final wrapperFocusNode = focusNode ?? useFocusNode();
+  final wrapperFocusNode = useMemoized(() => focusNode ?? FocusNode(), [focusNode == null]);
 
   return Shortcuts.manager(
     manager: NonTextEditingShortcutManager(
