@@ -434,6 +434,18 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
               definitionMap.remove(id);
             },
             onAddBelow: () => isOpen.set(true),
+            onShiftNodeUp: () {
+              if (index > 0) {
+                definitionIDs[index] = definitionIDs[index - 1].read(Ctx.empty);
+                definitionIDs[index - 1] = id;
+              }
+            },
+            onShiftNodeDown: () {
+              if (index < definitionIDs.length.read(Ctx.empty) - 1) {
+                definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
+                definitionIDs[index + 1] = id;
+              }
+            },
             child: childForDef(
               ctx,
               id,
@@ -920,6 +932,12 @@ Widget _focusableNode({
         if (onAddBelow != null)
           const SingleActivator(LogicalKeyboardKey.add, shift: true):
               VoidCallbackIntent(onAddBelow),
+        if (onShiftNodeUp != null)
+          const SingleActivator(LogicalKeyboardKey.keyK, shift: true):
+              VoidCallbackIntent(onShiftNodeUp),
+        if (onShiftNodeDown != null)
+          const SingleActivator(LogicalKeyboardKey.keyJ, shift: true):
+              VoidCallbackIntent(onShiftNodeDown),
         const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
           var child = wrapperFocusNode;
           for (final parent in wrapperFocusNode.ancestors) {
