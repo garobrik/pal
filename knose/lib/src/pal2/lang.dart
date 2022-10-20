@@ -3219,7 +3219,7 @@ Object _implDefBindings(Ctx ctx, Object implDef) => List.mk([
         ModuleDef.type,
         ValueDef.mk(
           id: ImplDef.bindingID(implDef),
-          name: 'impl of ${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}',
+          name: '${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}Impl',
           value: ImplDef.definition(implDef),
         ),
       ),
