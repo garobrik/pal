@@ -136,6 +136,31 @@ class RenderDeferredPainter extends RenderProxyBox {
   }
 
   @override
+  double computeMinIntrinsicWidth(double height) => 0.0;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => 0.0;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => 0.0;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => 0.0;
+
+  @override
+  double? computeDistanceToActualBaseline(TextBaseline baseline) =>
+      super.computeDistanceToActualBaseline(baseline);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => computeSizeForNoChild(constraints);
+
+  @override
+  void performLayout() {
+    child?.layout(constraints, parentUsesSize: true);
+    size = computeSizeForNoChild(constraints);
+  }
+
+  @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     return false;
   }
