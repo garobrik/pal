@@ -75,6 +75,12 @@ class ID implements Comparable<ID> {
     if (other.tail == null) return false;
     return this.tail!.isPrefixOf(other.tail!);
   }
+
+  bool contains(ID other) {
+    if (other.isPrefixOf(this)) return true;
+    if (tail == null) return false;
+    return tail!.contains(other);
+  }
 }
 
 abstract class Module {
@@ -302,8 +308,8 @@ abstract class TypeDef {
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
 
-  static final _typeConstructorID = ID.mk('TypeConstructor');
-  static final _typeArgsID = ID.mk('TypeArgs');
+  static final typeConstructorID = ID.mk('TypeConstructor');
+  static final typeArgsID = ID.mk('TypeArgs');
   @DartFn('01415159-a7a9-42ce-a749-0c6428775166')
   static Object _typeDefBindings(Ctx ctx, Object typeDef) {
     final comptime = TypeDef.comptime(typeDef);
@@ -325,21 +331,21 @@ abstract class TypeDef {
             TypeDef.record(
               '${TypeTree.name(typeTree)}TypeArgs',
               {for (final id in comptime) id: TypeTree.find(typeTree, id)!},
-              id: TypeDef.id(typeDef).append(_typeArgsID),
+              id: TypeDef.id(typeDef).append(typeArgsID),
             ),
           ),
         ),
       Union.mk(
         ModuleDef.type,
         ValueDef.mk(
-          id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
-          name: TypeTree.name(typeTree) + (comptime.isEmpty ? '' : '.type'),
+          id: TypeDef.id(typeDef).append(TypeDef.typeConstructorID),
+          name: TypeTree.name(typeTree),
           value: comptime.isEmpty
               ? Type.lit(TypeDef.asType(typeDef))
               : FnExpr.from(
                   argName: 'typeArgs',
                   argType: Var.mk(
-                    TypeDef.id(typeDef).append(_typeArgsID).append(TypeDef._typeConstructorID),
+                    TypeDef.id(typeDef).append(typeArgsID).append(TypeDef.typeConstructorID),
                   ),
                   returnType: (_) => Type.lit(Type.type),
                   body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [
