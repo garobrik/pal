@@ -288,7 +288,6 @@ abstract class TypeDef {
   });
   static final type = asType(def);
 
-  static final _typeConstructorID = ID.mk('TypeConstructor');
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
     bindings: FnExpr.dart(
@@ -302,6 +301,65 @@ abstract class TypeDef {
   );
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
+
+  static final _typeConstructorID = ID.mk('TypeConstructor');
+  static final _typeArgsID = ID.mk('TypeArgs');
+  @DartFn('01415159-a7a9-42ce-a749-0c6428775166')
+  static Object _typeDefBindings(Ctx ctx, Object typeDef) {
+    final comptime = TypeDef.comptime(typeDef);
+    final typeTree = TypeDef.tree(typeDef);
+
+    return List.mk([
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: TypeDef.id(typeDef),
+          name: TypeTree.name(typeTree),
+          value: Literal.mk(TypeDef.type, typeDef),
+        ),
+      ),
+      if (comptime.isNotEmpty)
+        Union.mk(
+          ModuleDef.type,
+          TypeDef.mkDef(
+            TypeDef.record(
+              '${TypeTree.name(typeTree)}TypeArgs',
+              {for (final id in comptime) id: TypeTree.find(typeTree, id)!},
+              id: TypeDef.id(typeDef).append(_typeArgsID),
+            ),
+          ),
+        ),
+      Union.mk(
+        ModuleDef.type,
+        ValueDef.mk(
+          id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
+          name: TypeTree.name(typeTree) + (comptime.isEmpty ? '' : '.type'),
+          value: comptime.isEmpty
+              ? Type.lit(TypeDef.asType(typeDef))
+              : FnExpr.from(
+                  argName: 'typeArgs',
+                  argType: Var.mk(
+                    TypeDef.id(typeDef).append(_typeArgsID).append(TypeDef._typeConstructorID),
+                  ),
+                  returnType: (_) => Type.lit(Type.type),
+                  body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [
+                    for (final id in comptime)
+                      MemberHas.mkEqualsExpr(
+                        [id],
+                        TypeTree.treeCases(
+                          TypeTree.find(typeTree, id)!,
+                          record: (_) => null,
+                          union: (_) => null,
+                          leaf: (leaf) => leaf,
+                        )!,
+                        RecordAccess.mk(arg, id),
+                      ),
+                  ]),
+                ),
+        ),
+      ),
+    ]);
+  }
 }
 
 abstract class Type {
@@ -3264,47 +3322,6 @@ Object _ifaceDefBindings(Ctx ctx, Object ifaceDef) {
           Map.type(Type.type, InterfaceDef.implType(ifaceDef)),
           <Object, Object>{},
         ),
-      ),
-    ),
-  ]);
-}
-
-@DartFn('01415159-a7a9-42ce-a749-0c6428775166')
-Object _typeDefBindings(Ctx ctx, Object typeDef) {
-  return List.mk([
-    Union.mk(
-      ModuleDef.type,
-      ValueDef.mk(
-        id: TypeDef.id(typeDef),
-        name: TypeTree.name(TypeDef.tree(typeDef)),
-        value: Literal.mk(TypeDef.type, typeDef),
-      ),
-    ),
-    Union.mk(
-      ModuleDef.type,
-      ValueDef.mk(
-        id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
-        name: TypeTree.name(TypeDef.tree(typeDef)),
-        value: (() {
-          final comptime = TypeDef.comptime(typeDef);
-          if (comptime.isEmpty) {
-            return Type.lit(TypeDef.asType(typeDef));
-          } else if (comptime.length == 1) {
-            final tree = TypeTree.find(TypeDef.tree(typeDef), comptime.first)!;
-            final type = TypeTree.treeCases(tree,
-                record: (_) => null, union: (_) => null, leaf: (leaf) => leaf)!;
-            return FnExpr.from(
-              argName: TypeTree.name(tree),
-              argType: type,
-              returnType: (_) => Type.lit(Type.type),
-              body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [
-                MemberHas.mkEqualsExpr([comptime.first], type, arg)
-              ]),
-            );
-          } else {
-            return Type.lit(TypeDef.asType(typeDef));
-          }
-        })(),
       ),
     ),
   ]);
