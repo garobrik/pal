@@ -308,8 +308,9 @@ abstract class TypeDef {
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
 
-  static final typeConstructorID = ID.mk('TypeConstructor');
+  static final _typeConstructorID = ID.mk('TypeConstructor');
   static final typeArgsID = ID.mk('TypeArgs');
+  static bool isTypeConstructorID(ID id) => id.contains(_typeConstructorID);
   @DartFn('01415159-a7a9-42ce-a749-0c6428775166')
   static Object _typeDefBindings(Ctx ctx, Object typeDef) {
     final comptime = TypeDef.comptime(typeDef);
@@ -338,14 +339,14 @@ abstract class TypeDef {
       Union.mk(
         ModuleDef.type,
         ValueDef.mk(
-          id: TypeDef.id(typeDef).append(TypeDef.typeConstructorID),
+          id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
           name: TypeTree.name(typeTree),
           value: comptime.isEmpty
               ? Type.lit(TypeDef.asType(typeDef))
               : FnExpr.from(
                   argName: 'typeArgs',
                   argType: Var.mk(
-                    TypeDef.id(typeDef).append(typeArgsID).append(TypeDef.typeConstructorID),
+                    TypeDef.id(typeDef).append(typeArgsID).append(TypeDef._typeConstructorID),
                   ),
                   returnType: (_) => Type.lit(Type.type),
                   body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [

@@ -488,22 +488,32 @@ Widget _dataTreeEditor(
 }) {
   return TypeTree.treeCases(
     typeTree,
-    record: (record) => InlineInset(contents: [
-      for (final entry in record.entries)
-        Inset(
-          prefix: Text('${TypeTree.name(entry.value)}: '),
-          contents: [
-            DataTreeEditor(
-              ctx,
-              entry.value,
-              dataTree[entry.key],
-              renderLeaf,
-              suffix: entry.key == record.entries.last.key ? '' : ', ',
-            ),
-          ],
-          suffix: const SizedBox(),
-        ),
-    ]),
+    record: (record) {
+      if (record.length == 1) {
+        return DataTreeEditor(
+          ctx,
+          record.values.single,
+          dataTree[record.keys.single],
+          renderLeaf,
+        );
+      }
+      return InlineInset(contents: [
+        for (final entry in record.entries)
+          Inset(
+            prefix: Text('${TypeTree.name(entry.value)}: '),
+            contents: [
+              DataTreeEditor(
+                ctx,
+                entry.value,
+                dataTree[entry.key],
+                renderLeaf,
+                suffix: entry.key == record.entries.last.key ? '' : ', ',
+              ),
+            ],
+            suffix: const SizedBox(),
+          ),
+      ]);
+    },
     union: (union) {
       final currentTag = dataTree[UnionTag.tagID].read(ctx);
       final dropdown = IntrinsicWidth(
@@ -618,24 +628,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
       suffix: Text('}$suffix'),
     );
   } else if (exprType == FnApp.type) {
-    if (exprData[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) ==
-        TypeDef.asType(Var.typeDef)) {
-      child = Text.rich(TextSpan(children: [
-        AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.fnID])),
-        const TextSpan(text: '('),
-        AlignedWidgetSpan(ExprEditor(ctx, exprData[FnApp.argID])),
-        TextSpan(text: ')$suffix'),
-      ]));
-    } else {
-      child = Inset(
-        prefix: const Text('apply('),
-        contents: [
-          ExprEditor(ctx, exprData[FnApp.fnID], suffix: ', '),
-          ExprEditor(ctx, exprData[FnApp.argID]),
-        ],
-        suffix: Text(')$suffix'),
-      );
-    }
+    child = FnAppEditor(ctx, fnApp: exprData, suffix: suffix);
   } else if (exprType == RecordAccess.type) {
     final targetType = typeCheck(ctx, exprData[RecordAccess.targetID].read(ctx));
 
@@ -688,22 +681,9 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
       ),
     );
   } else if (exprType == Construct.type) {
-    final typeDef = ctx.getType(exprData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
-
-    child = Inset(
-      prefix: Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
-      contents: [
-        DataTreeEditor(
-          ctx,
-          TypeDef.tree(typeDef),
-          exprData[Construct.treeID],
-          ExprEditor.new,
-        )
-      ],
-      suffix: Text(')$suffix'),
-    );
+    child = ConstructEditor(ctx, exprData: exprData, suffix: suffix);
   } else if (exprType == Placeholder.type) {
-    return PlaceholderEditor(ctx, expr: expr, focusNode: wrapperFocusNode);
+    return PlaceholderEditor(ctx, expr: expr, focusNode: wrapperFocusNode, suffix: suffix);
   } else if (exprType == List.mkExprType) {
     return Inset(
       prefix: const Text('['),
@@ -756,6 +736,67 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
 }
 
 @reader
+Widget _constructEditor(Ctx ctx, {required Cursor<Object> exprData, String suffix = ''}) {
+  final typeDef = ctx.getType(exprData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
+
+  return Inset(
+    prefix: Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
+    contents: [
+      DataTreeEditor(
+        ctx,
+        TypeDef.tree(typeDef),
+        exprData[Construct.treeID],
+        ExprEditor.new,
+      )
+    ],
+    suffix: Text(')$suffix'),
+  );
+}
+
+@reader
+Widget _fnAppEditor(
+  BuildContext context,
+  Ctx ctx, {
+  required Cursor<Object> fnApp,
+  String suffix = '',
+}) {
+  if (fnApp[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) == Var.type) {
+    Widget argEditor = ExprEditor(ctx, fnApp[FnApp.argID]);
+    var surrounder = paren;
+    if (fnApp[FnApp.argID][Expr.implID][Expr.dataTypeID].read(ctx) == Construct.type) {
+      final constructData = fnApp[FnApp.argID][Expr.dataID];
+      final typeDef = ctx.getType(constructData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
+      if (TypeDef.id(typeDef).contains(TypeDef.typeArgsID)) {
+        argEditor = DataTreeEditor(
+          ctx,
+          TypeDef.tree(typeDef),
+          constructData[Construct.treeID],
+          ExprEditor.new,
+        );
+        surrounder = angle;
+      }
+    }
+    return Inset(
+      prefix: Text.rich(TextSpan(children: [
+        AlignedWidgetSpan(ExprEditor(ctx, fnApp[FnApp.fnID])),
+        TextSpan(text: surrounder.open),
+      ])),
+      contents: [argEditor],
+      suffix: Text('${surrounder.close}$suffix'),
+    );
+  } else {
+    return Inset(
+      prefix: const Text('apply('),
+      contents: [
+        ExprEditor(ctx, fnApp[FnApp.fnID], suffix: ', '),
+        ExprEditor(ctx, fnApp[FnApp.argID]),
+      ],
+      suffix: Text(')$suffix'),
+    );
+  }
+}
+
+@reader
 Widget _placeholderEditor(
   BuildContext context,
   Ctx ctx, {
@@ -796,11 +837,24 @@ Widget _placeholderEditor(
                     ],
                   );
                 } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
+                  final isTypeConstructor = TypeDef.isTypeConstructorID(Binding.id(binding));
+                  final surround = isTypeConstructor ? angle : paren;
                   return [
                     _placeholderEntry(
                       ctx: ctx,
-                      name: '${Binding.name(binding)}(...)',
-                      onPressed: () => expr.set(FnApp.mk(Var.mk(Binding.id(binding)), placeholder)),
+                      name: '${Binding.name(binding)}${surround.apply("...")}',
+                      onPressed: () {
+                        Object innerExpr = placeholder;
+                        if (isTypeConstructor) {
+                          final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
+                          final argTypeDef = ctx.getType(Type.id(argType));
+                          innerExpr = Construct.mk(
+                            argType,
+                            TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
+                          );
+                        }
+                        expr.set(FnApp.mk(Var.mk(Binding.id(binding)), innerExpr));
+                      },
                     ),
                   ];
                 } else {
