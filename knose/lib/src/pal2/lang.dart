@@ -1020,13 +1020,13 @@ abstract class Union {
 }
 
 abstract class Pair {
-  static final firstTypeID = ID.mk('firstType');
-  static final secondTypeID = ID.mk('secondType');
+  static final firstTypeID = ID.mk('First');
+  static final secondTypeID = ID.mk('Second');
   static final firstID = ID.mk('first');
   static final secondID = ID.mk('second');
   static final def = TypeDef.record('Pair', {
-    firstTypeID: TypeTree.mk('firstType', Type.lit(Type.type)),
-    secondTypeID: TypeTree.mk('secondType', Type.lit(Type.type)),
+    firstTypeID: TypeTree.mk('First', Type.lit(Type.type)),
+    secondTypeID: TypeTree.mk('Second', Type.lit(Type.type)),
     firstID: TypeTree.mk('first', Var.mk(firstTypeID)),
     secondID: TypeTree.mk('second', Var.mk(secondTypeID)),
   }, comptime: [
