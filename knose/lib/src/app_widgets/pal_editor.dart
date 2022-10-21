@@ -1472,3 +1472,20 @@ class RenderInset extends RenderBox
     return !narrowEnough || !shortEnough;
   }
 }
+
+class Surrounder {
+  final String open;
+  final String close;
+
+  const Surrounder(this.open, this.close);
+  const Surrounder.same(String openClose)
+      : open = openClose,
+        close = openClose;
+
+  String apply(String string) => '$open$string$close';
+}
+
+const paren = Surrounder('(', ')');
+const angle = Surrounder('<', '>');
+const bracket = Surrounder('[', ']');
+const brace = Surrounder('{', '}');
