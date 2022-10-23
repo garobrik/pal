@@ -134,6 +134,14 @@ class _ReaderWidgetState extends State<ReaderWidget> implements Reader {
   }
 }
 
+GetCursor<T> useComputed<T>(
+  Ctx ctx,
+  T Function(Ctx) computation, {
+  List<Object?> keys = const [],
+  bool compare = true,
+}) =>
+    useMemoized(() => GetCursor.compute(computation, ctx: ctx, compare: compare), keys);
+
 Cursor<T> useCursor<T>(T initialValue) {
   return use(
     _CursorHook(

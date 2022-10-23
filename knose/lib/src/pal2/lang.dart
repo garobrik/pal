@@ -2011,24 +2011,6 @@ abstract class Var extends Expr {
   static ID id(Object varAccess) => (varAccess as Dict)[IDID].unwrap! as ID;
 }
 
-abstract class Placeholder extends Expr {
-  static final typeDef = TypeDef.unit('Placeholder');
-  static final type = TypeDef.asType(typeDef);
-
-  static final exprImplDef = Expr.mkImplDef(
-    dataType: type,
-    argName: 'placeholderData',
-    typeCheckBody: langInverseFnMap[_placeholderTypeCheck]!,
-    reduceBody: langInverseFnMap[_placeholderReduce]!,
-    evalBody: langInverseFnMap[_placeholderEval]!,
-  );
-}
-
-final placeholder = Expr.mk(
-  data: const Dict(),
-  impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, Placeholder.exprImplDef),
-);
-
 extension CtxType on Ctx {
   Object getType(ID id) => Option.unwrap(
         Binding.value(
@@ -2684,20 +2666,9 @@ final coreModule = Module.mk(name: 'core', definitions: [
   ImplDef.mkDef(Literal.exprImplDef),
   TypeDef.mkDef(Var.typeDef),
   ImplDef.mkDef(Var.exprImplDef),
-  TypeDef.mkDef(Placeholder.typeDef),
-  ImplDef.mkDef(Placeholder.exprImplDef),
   TypeDef.mkDef(Binding.def),
 ]);
 
-@DartFn('587c85cd-5ce2-4fb0-92a1-3e86086e1154')
-Object _placeholderEval(Ctx _, Object __) =>
-    throw Exception("don't evaluate a placeholder u fool!");
-@DartFn('d695423c-c03f-4f9f-beb6-0d615eb938d9')
-Object _placeholderReduce(Ctx _, Object __) =>
-    throw Exception("don't reduce a placeholder u fool!");
-@DartFn('b1750fd4-b07f-490b-816f-7933361115e5')
-Object _placeholderTypeCheck(Ctx _, Object __) =>
-    Result.mkErr('this placeholder needs to be filled in');
 @DartFn('71220800-2abd-40c3-b97a-5b8b1b743e6f')
 Object _varEval(Ctx ctx, Object arg) {
   return Option.cases(

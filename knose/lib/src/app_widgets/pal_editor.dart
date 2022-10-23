@@ -129,6 +129,10 @@ final palUIModule = Module.mk(
     TypeDef.mkDef(palWidgetDef),
     InterfaceDef.mkDef(Editable.interfaceDef),
     TypeDef.mkDef(editorArgsDef),
+    TypeDef.mkDef(Placeholder.typeDef),
+    ImplDef.mkDef(Placeholder.exprImplDef),
+    TypeDef.mkDef(DotPlaceholder.typeDef),
+    ImplDef.mkDef(DotPlaceholder.exprImplDef),
     ValueDef.mk(
       id: Var.id(Expr.data(editorFn)),
       name: 'editor',
@@ -588,13 +592,28 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     if (exprData[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
       body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
     } else {
-      body = ExprEditor(
-        ctx.withBinding(Binding.mk(
-          id: exprData[FnExpr.argIDID].read(ctx) as ID,
-          type: exprData[FnExpr.argTypeID].read(ctx),
-          name: exprData[FnExpr.argNameID].read(ctx) as String,
-        )),
-        exprData[FnExpr.bodyID][UnionTag.valueID],
+      body = ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) {
+          final argType = Result.flatMap(
+            typeCheck(ctx, exprData[FnExpr.argTypeID].read(ctx)),
+            (typeExpr) => assignableErr(
+              ctx,
+              Type.lit(Type.type),
+              typeExpr,
+              '',
+              () => reduce(ctx, exprData[FnExpr.argTypeID].read(ctx)),
+            ),
+          );
+          return ExprEditor(
+            ctx.withBinding(Binding.mk(
+              id: exprData[FnExpr.argIDID].read(ctx) as ID,
+              type: Result.unwrap(argType, (err) => Type.lit(unit)),
+              name: exprData[FnExpr.argNameID].read(ctx) as String,
+            )),
+            exprData[FnExpr.bodyID][UnionTag.valueID],
+          );
+        },
       );
     }
 
@@ -684,6 +703,8 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     child = ConstructEditor(ctx, exprData: exprData, suffix: suffix);
   } else if (exprType == Placeholder.type) {
     return PlaceholderEditor(ctx, expr: expr, focusNode: wrapperFocusNode, suffix: suffix);
+  } else if (exprType == DotPlaceholder.type) {
+    child = DotPlaceholderEditor(ctx, expr: expr, suffix: suffix);
   } else if (exprType == List.mkExprType) {
     return Inset(
       prefix: const Text('['),
@@ -720,6 +741,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     child: FocusableNode(
       onHover: isHovered.set,
       onDelete: () => expr.set(placeholder),
+      onAddDot: () => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
       focusNode: wrapperFocusNode,
       child: ReaderWidget(
         ctx: ctx,
@@ -804,116 +826,210 @@ Widget _placeholderEditor(
   required FocusNode focusNode,
   String suffix = '',
 }) {
+  return RichText(
+    text: TextSpan(children: [
+      AlignedWidgetSpan(GenericPlaceholder(
+        ctx,
+        focusNode: focusNode,
+        entries: useComputed(
+          ctx,
+          (ctx) => reified.Vec(
+            ctx.getBindings.expand((binding) {
+              final bindingType = Binding.valueType(ctx, binding);
+              final bindingTypeLit = Expr.dataType(bindingType) == Literal.type
+                  ? Literal.getValue(Expr.data(bindingType))
+                  : null;
+              if (bindingType == Type.lit(TypeDef.type)) {
+                return Option.cases(
+                  Binding.value(ctx, binding),
+                  none: () => <PlaceholderEntry>[],
+                  some: (value) => [
+                    PlaceholderEntry(
+                      name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
+                      onPressed: () => expr.set(Construct.mk(
+                        TypeDef.asType(value),
+                        TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                      )),
+                    ),
+                  ],
+                );
+              } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
+                final isTypeConstructor = TypeDef.isTypeConstructorID(Binding.id(binding));
+                final surround = isTypeConstructor ? angle : paren;
+                return [
+                  PlaceholderEntry(
+                    name: '${Binding.name(binding)}${surround.apply("...")}',
+                    onPressed: () {
+                      Object innerExpr = placeholder;
+                      if (isTypeConstructor) {
+                        final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
+                        final argTypeDef = ctx.getType(Type.id(argType));
+                        innerExpr = Construct.mk(
+                          argType,
+                          TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
+                        );
+                      }
+                      expr.set(FnApp.mk(Var.mk(Binding.id(binding)), innerExpr));
+                    },
+                  ),
+                ];
+              } else {
+                return [
+                  PlaceholderEntry(
+                    name: Binding.name(binding),
+                    detailedName: (ctx) =>
+                        '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
+                    onPressed: () => expr.set(Var.mk(Binding.id(binding))),
+                  ),
+                ];
+              }
+            }).toList(),
+          ),
+          keys: [],
+        ),
+        onSubmitted: (currentText) {
+          final tryNum = num.tryParse(currentText);
+          if (tryNum != null) {
+            expr.set(Literal.mk(number, tryNum));
+          } else if (currentText.startsWith("'") && currentText.endsWith("'")) {
+            final tryString = currentText.substring(1, currentText.length - 1);
+            if (!tryString.contains("'")) {
+              expr.set(Literal.mk(text, tryString));
+            }
+          } else if (currentText == '\\') {
+            expr.set(
+              FnExpr.pal(
+                argName: 'arg',
+                argType: Type.lit(unit),
+                returnType: Type.lit(unit),
+                body: unitExpr,
+              ),
+            );
+          }
+        },
+      )),
+      TextSpan(text: suffix),
+    ]),
+  );
+}
+
+@reader
+Widget _dotPlaceholderEditor(
+  BuildContext context,
+  Ctx ctx, {
+  required Cursor<Object> expr,
+  String suffix = '',
+}) {
+  final Cursor<Object> exprData = expr[Expr.dataID];
+  final argType = useComputed(
+    ctx,
+    (ctx) {
+      return Result.flatMap(
+        typeCheck(ctx, exprData[DotPlaceholder.prefixID].read(ctx)),
+        (typeExpr) {
+          if (Expr.dataType(typeExpr) != Literal.type) return Result.mkErr('');
+
+          final typeDef = ctx.getType(Type.id(Literal.getValue(Expr.data(typeExpr))));
+          return TypeTree.treeCases(
+            TypeDef.tree(typeDef),
+            union: (_) => Result.mkErr(''),
+            leaf: (_) => Result.mkErr(''),
+            record: (record) => Result.mkOk(reified.Vec([
+              ...record.entries.expand(
+                (e) => [
+                  if (!TypeDef.comptime(typeDef).contains(e.key))
+                    PlaceholderEntry(
+                      name: TypeTree.name(e.value),
+                      onPressed: () => expr.set(
+                        RecordAccess.mk(exprData[DotPlaceholder.prefixID].read(ctx), e.key),
+                      ),
+                    )
+                ],
+              )
+            ])),
+          );
+        },
+      );
+    },
+    keys: [exprData],
+    compare: true,
+  );
+  return Text.rich(TextSpan(children: [
+    AlignedWidgetSpan(ExprEditor(ctx, exprData[DotPlaceholder.prefixID])),
+    const TextSpan(text: '.'),
+    AlignedWidgetSpan(ReaderWidget(
+      ctx: ctx,
+      builder: (_, ctx) {
+        if (argType[Result.valueID][UnionTag.tagID].read(ctx) as ID == Result.errorID) {
+          return const Text('unknown');
+        } else {
+          return GenericPlaceholder(
+            ctx,
+            entries:
+                argType[Result.valueID][UnionTag.valueID].cast<reified.Vec<PlaceholderEntry>>(),
+          );
+        }
+      },
+    )),
+    TextSpan(text: suffix),
+  ]));
+}
+
+@reader
+Widget _genericPlaceholder(
+  BuildContext context,
+  Ctx ctx, {
+  GetCursor<reified.Vec<PlaceholderEntry>> entries = const GetCursor(reified.Vec()),
+  void Function(String)? onSubmitted,
+  FocusNode? focusNode,
+}) {
   final inputText = useCursor('');
-  final isOpen = useCursor(focusNode.hasPrimaryFocus);
+  focusNode = focusNode ?? useMemoized(() => FocusNode(), [focusNode == null]);
+  final isOpen = useCursor(focusNode!.hasPrimaryFocus);
+
   return Focus(
     skipTraversal: true,
     onFocusChange: isOpen.set,
     child: DeferredDropdown(
       isOpen: isOpen,
       closeOnExit: false,
-      dropdown: ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final children = ctx.getBindings
-              .expand((binding) {
-                final bindingType = Binding.valueType(ctx, binding);
-                final bindingTypeLit = Expr.dataType(bindingType) == Literal.type
-                    ? Literal.getValue(Expr.data(bindingType))
-                    : null;
-                if (bindingType == Type.lit(TypeDef.type)) {
-                  return Option.cases(
-                    Binding.value(ctx, binding),
-                    none: () => <reified.Pair<String, Widget>>[],
-                    some: (value) => [
-                      _placeholderEntry(
-                        ctx: ctx,
-                        name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
-                        onPressed: () => expr.set(Construct.mk(
-                          TypeDef.asType(value),
-                          TypeTree.instantiate(TypeDef.tree(value), placeholder),
-                        )),
-                      ),
-                    ],
-                  );
-                } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
-                  final isTypeConstructor = TypeDef.isTypeConstructorID(Binding.id(binding));
-                  final surround = isTypeConstructor ? angle : paren;
+      dropdown: Container(
+        constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
+        child: ReaderWidget(
+          ctx: ctx,
+          builder: (_, ctx) {
+            final filteredEntries = useComputed(
+              ctx,
+              (ctx) => entries.read(ctx).expand(
+                (entry) {
                   return [
-                    _placeholderEntry(
-                      ctx: ctx,
-                      name: '${Binding.name(binding)}${surround.apply("...")}',
-                      onPressed: () {
-                        Object innerExpr = placeholder;
-                        if (isTypeConstructor) {
-                          final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
-                          final argTypeDef = ctx.getType(Type.id(argType));
-                          innerExpr = Construct.mk(
-                            argType,
-                            TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
-                          );
-                        }
-                        expr.set(FnApp.mk(Var.mk(Binding.id(binding)), innerExpr));
-                      },
-                    ),
+                    if (entry.name.toLowerCase().startsWith(inputText.read(ctx).toLowerCase()))
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: TextButton(
+                          onPressed: entry.onPressed,
+                          child: Text(
+                            entry.detailedName != null ? entry.detailedName!(ctx) : entry.name,
+                          ),
+                        ),
+                      )
                   ];
-                } else {
-                  return [
-                    _placeholderEntry(
-                      ctx: ctx,
-                      name: Binding.name(binding),
-                      detailedName: (ctx) =>
-                          '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
-                      onPressed: () => expr.set(Var.mk(Binding.id(binding))),
-                    ),
-                  ];
-                }
-              })
-              .expand(
-                (pair) => [
-                  if (pair.first.toLowerCase().startsWith(inputText.read(ctx).toLowerCase()))
-                    pair.second
-                ],
-              )
-              .toList();
-
-          return Container(
-            constraints: const BoxConstraints(maxHeight: 500, maxWidth: 500),
-            child: ListView.builder(
+                },
+              ).toList(),
+              keys: [entries],
+            );
+            return ListView(
               shrinkWrap: true,
-              itemCount: children.length,
-              itemBuilder: (_, index) => Container(
-                alignment: AlignmentDirectional.centerStart,
-                child: children[index],
-              ),
-            ),
-          );
-        },
+              children: filteredEntries.read(ctx),
+            );
+          },
+        ),
       ),
       child: Focus(
         skipTraversal: true,
         onKeyEvent: (node, event) {
           if (event.logicalKey == LogicalKeyboardKey.enter) {
-            final currentText = inputText.read(Ctx.empty);
-            final tryNum = num.tryParse(currentText);
-            if (tryNum != null) {
-              expr.set(Literal.mk(number, tryNum));
-            } else if (currentText.startsWith("'") && currentText.endsWith("'")) {
-              final tryString = currentText.substring(1, currentText.length - 1);
-              if (!tryString.contains("'")) {
-                expr.set(Literal.mk(text, tryString));
-              }
-            } else if (currentText == '\\') {
-              expr.set(
-                FnExpr.pal(
-                  argName: 'arg',
-                  argType: Type.lit(unit),
-                  returnType: Type.lit(unit),
-                  body: unitExpr,
-                ),
-              );
-            }
-
+            if (onSubmitted != null) onSubmitted(inputText.read(Ctx.empty));
             return KeyEventResult.handled;
           }
 
@@ -939,7 +1055,6 @@ Widget _placeholderEditor(
                   ),
                 ),
               ),
-              TextSpan(text: suffix),
             ]),
           ),
         ),
@@ -948,22 +1063,12 @@ Widget _placeholderEditor(
   );
 }
 
-reified.Pair<String, Widget> _placeholderEntry({
-  required Ctx ctx,
-  required String name,
-  required void Function() onPressed,
-  String Function(Ctx)? detailedName,
-}) {
-  return reified.Pair(
-    name,
-    ReaderWidget(
-      ctx: ctx,
-      builder: (_, ctx) => TextButton(
-        onPressed: onPressed,
-        child: Text(detailedName != null ? detailedName(ctx) : name),
-      ),
-    ),
-  );
+class PlaceholderEntry {
+  final String name;
+  final void Function() onPressed;
+  final String Function(Ctx)? detailedName;
+
+  PlaceholderEntry({required this.name, required this.onPressed, this.detailedName});
 }
 
 @reader
@@ -973,6 +1078,7 @@ Widget _focusableNode({
   void Function()? onAddBelow,
   void Function()? onShiftNodeDown,
   void Function()? onShiftNodeUp,
+  void Function()? onAddDot,
   void Function(bool)? onHover,
   required Widget child,
 }) {
@@ -992,6 +1098,8 @@ Widget _focusableNode({
         if (onShiftNodeDown != null)
           const SingleActivator(LogicalKeyboardKey.keyJ, shift: true):
               VoidCallbackIntent(onShiftNodeDown),
+        if (onAddDot != null)
+          const SingleActivator(LogicalKeyboardKey.period): VoidCallbackIntent(onAddDot),
         const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
           var child = wrapperFocusNode;
           for (final parent in wrapperFocusNode.ancestors) {
@@ -1194,6 +1302,10 @@ Widget _mySimpleDialogOption(
     },
     child: child,
   );
+}
+
+extension _PalGetCursorAccess on GetCursor<Object> {
+  GetCursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
 }
 
 extension _PalCursorAccess on Cursor<Object> {
@@ -1543,3 +1655,59 @@ const paren = Surrounder('(', ')');
 const angle = Surrounder('<', '>');
 const bracket = Surrounder('[', ']');
 const brace = Surrounder('{', '}');
+
+abstract class Placeholder extends Expr {
+  static final typeDef = TypeDef.unit('Placeholder');
+  static final type = TypeDef.asType(typeDef);
+
+  static final exprImplDef = Expr.mkImplDef(
+    dataType: type,
+    argName: 'placeholderData',
+    typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
+    reduceBody: palEditorInverseFnMap[_reduce]!,
+    evalBody: palEditorInverseFnMap[_eval]!,
+  );
+
+  @DartFn('b1750fd4-b07f-490b-816f-7933361115e5')
+  static Object _typeCheck(Ctx _, Object __) =>
+      Result.mkErr('this placeholder needs to be filled in');
+  @DartFn('587c85cd-5ce2-4fb0-92a1-3e86086e1154')
+  static Object _reduce(Ctx _, Object __) => throw Exception("don't reduce a placeholder u fool!");
+
+  @DartFn('d695423c-c03f-4f9f-beb6-0d615eb938d9')
+  static Object _eval(Ctx _, Object __) => throw Exception("don't evaluate a placeholder u fool!");
+}
+
+final placeholder = Expr.mk(
+  data: const Dict(),
+  impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, Placeholder.exprImplDef),
+);
+
+abstract class DotPlaceholder extends Expr {
+  static final prefixID = ID.mk('prefix');
+  static final typeDef = TypeDef.record('DotPlaceholder', {prefixID: Expr.type});
+  static final type = TypeDef.asType(typeDef);
+
+  static final exprImplDef = Expr.mkImplDef(
+    dataType: type,
+    argName: 'placeholderData',
+    typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
+    reduceBody: palEditorInverseFnMap[_reduce]!,
+    evalBody: palEditorInverseFnMap[_eval]!,
+  );
+
+  static Object mk(Object expr) => Expr.mk(
+        impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, exprImplDef),
+        data: Dict({prefixID: expr}),
+      );
+
+  @DartFn('b1750fd4-b07e-490b-816f-7933361115e5')
+  static Object _typeCheck(Ctx _, Object __) =>
+      Result.mkErr('this placeholder needs to be filled in');
+
+  @DartFn('587c85cd-5ce6-4fb0-92a1-3e86086e1154')
+  static Object _reduce(Ctx _, Object __) => throw Exception("don't reduce a placeholder u fool!");
+
+  @DartFn('d695423c-c03a-4f9f-beb6-0d615eb938d9')
+  static Object _eval(Ctx _, Object __) => throw Exception("don't evaluate a placeholder u fool!");
+}
