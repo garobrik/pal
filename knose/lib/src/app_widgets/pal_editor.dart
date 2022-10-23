@@ -258,7 +258,7 @@ Widget _testThingy(Ctx ctx) {
     }),
   );
   final expr = useCursor(placeholder);
-  final currentModule = useCursor(modules[0][1][Module.IDID].read(ctx) as ID);
+  final currentModule = useCursor(modules[0][1][Module.IDID].read(ctx));
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,16 +301,37 @@ Widget _testThingy(Ctx ctx) {
           none: () => const Text('module load error!'),
         ),
       ),
-      DropdownMenu<ID>(
-        items: modules.values(ctx).map((m) => m[1][Module.IDID].read(ctx) as ID),
-        currentItem: currentModule.read(ctx),
-        onItemSelected: currentModule.set,
-        buildItem: (id) => Text(
-          modules
+      DropdownMenu(
+        items: modules
+            .values(ctx)
+            .map((m) => Option.mk(m[1][Module.IDID].read(ctx)))
+            .followedBy([Option.mk()]),
+        currentItem: Option.mk(currentModule.read(ctx)),
+        onItemSelected: (item) {
+          currentModule.set(Option.unwrap(item, orElse: () {
+            final id = ID.mk();
+            modules.add(
+              Vec([
+                // ignore: prefer_collection_literals
+                FnMap(),
+                Module.mk(
+                  id: id,
+                  name: 'untitled',
+                  definitions: [ValueDef.mk(id: id, name: 'value', value: placeholder)],
+                )
+              ]),
+            );
+            return id;
+          }));
+        },
+        buildItem: (id) => Text(Option.cases(
+          id,
+          none: () => 'New module',
+          some: (id) => modules
               .values(ctx)
               .firstWhere((m) => m[1][Module.IDID].read(ctx) == id)[1][Module.nameID]
               .read(ctx) as String,
-        ),
+        )),
         child: const Text('select module'),
       ),
       for (final module in modules.values(ctx))

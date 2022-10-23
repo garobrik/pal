@@ -1100,8 +1100,11 @@ abstract class Option {
   static Object map(Object option, Object Function(Object) f) =>
       cases(option, some: (val) => Option.mk(f(val)), none: () => Option.mk());
 
-  static Object unwrap(Object option) =>
-      Option.cases(option, some: (v) => v, none: () => throw Exception());
+  static Object unwrap(Object option, {Object Function()? orElse}) => Option.cases(
+        option,
+        some: (v) => v,
+        none: () => orElse != null ? orElse() : throw Exception(),
+      );
 
   static bool isPresent(Object option) =>
       Option.cases(option, some: (_) => true, none: () => false);
