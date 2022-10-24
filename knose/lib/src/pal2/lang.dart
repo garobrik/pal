@@ -2949,6 +2949,7 @@ extension FnMapCtxExt on Ctx {
       withElement(FnMapCtx({if (get<FnMapCtx>() != null) ...get<FnMapCtx>()!.fnMap, ...map}));
 
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
+  String getFnName(ID id) => get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id).label!;
 }
 
 const coreModuleID =

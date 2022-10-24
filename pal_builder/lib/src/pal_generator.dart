@@ -45,8 +45,9 @@ class PalGenerator extends Generator {
     for (final fn in dartFns) {
       final annotation = fn.getAnnotation(DartFn)!;
       final id = annotation.read('id').stringValue;
-      final label =
-          annotation.read('label').isNull ? fn.name : annotation.read('label').stringValue;
+      final label = annotation.read('label').isNull
+          ? fn.name.replaceFirst(RegExp('^_'), '')
+          : annotation.read('label').stringValue;
       final hashCode = Hash.all(id, null);
 
       final idString = 'const ID.constant(id: \'$id\', label: \'$label\', hashCode: $hashCode)';

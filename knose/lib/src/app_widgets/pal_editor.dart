@@ -707,7 +707,10 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   if (exprType == FnExpr.type) {
     late final Widget body;
     if (exprData[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
-      body = const Text('dart implementation', style: TextStyle(fontStyle: FontStyle.italic));
+      body = Text(
+        'dart(${ctx.getFnName(exprData[FnExpr.bodyID][UnionTag.valueID].read(ctx) as ID)})',
+        style: const TextStyle(fontStyle: FontStyle.italic),
+      );
     } else {
       body = ReaderWidget(
         ctx: ctx,
