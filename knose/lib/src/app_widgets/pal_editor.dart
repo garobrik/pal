@@ -252,12 +252,10 @@ Object _typeTreeEditorFn(Ctx ctx, Object arg) {
 }
 
 final uiCtx = [
-  [Printable.fnMap, Printable.module],
-  [palEditorFnMap, palUIModule]
-].fold(
-  coreCtx,
-  (ctx, module) => Option.unwrap(Module.load(ctx.withFnMap(module[0] as FnMap), module[1])) as Ctx,
-);
+  coreModule,
+  Printable.module,
+  palUIModule,
+].fold(_allFnMap, (ctx, module) => Option.unwrap(Module.load(ctx, module)) as Ctx);
 
 Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   return eval(
@@ -275,13 +273,30 @@ Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   ) as Widget;
 }
 
+final _allFnMap =
+    Ctx.empty.withFnMap(langFnMap).withFnMap(Printable.fnMap).withFnMap(palEditorFnMap);
+
 @reader
 Widget _testThingy(Ctx ctx) {
-  final modules = useCursor(reified.Vec([
-    Vec([langFnMap, coreModule]),
-    Vec([Printable.fnMap, Printable.module]),
-    Vec([palEditorFnMap, palUIModule])
-  ]));
+  final saveDir = Directory('pal');
+
+  final modules = useCursor(const Vec());
+
+  Future<void> loadFiles() async {
+    final files = await saveDir.list().toList();
+    modules.set(
+      Vec([
+        for (final file in files)
+          if (file is File) deserialize(file.readAsStringSync()) as Object
+      ]),
+    );
+  }
+
+  useEffect(() {
+    loadFiles();
+    return null;
+  }, []);
+
   final stale = useCursor(true);
   final moduleCtx = useCursor(Option.mk());
   useEffect(
@@ -290,9 +305,7 @@ Widget _testThingy(Ctx ctx) {
     }),
   );
   final expr = useCursor(placeholder);
-  final currentModule = useCursor(modules[0][1][Module.IDID].read(ctx));
-
-  final dir = Directory('pal');
+  final currentModule = useCursor(Option.mk());
 
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,12 +313,16 @@ Widget _testThingy(Ctx ctx) {
       TextButton(
         onPressed: () {
           for (final module in modules.read(Ctx.empty)) {
-            final name = Module.name(module[1]);
-            final file = File('${dir.path}/$name.pal');
-            file.writeAsString(serialize(module[1], '  '));
+            final name = Module.name(module);
+            final file = File('${saveDir.path}/$name.pal');
+            file.writeAsString(serialize(module, '  '));
           }
         },
-        child: Text('save modules to ${dir.absolute.path}'),
+        child: Text('save modules to ${saveDir.absolute.path}'),
+      ),
+      TextButton(
+        onPressed: loadFiles,
+        child: Text('load modules from ${saveDir.absolute.path}'),
       ),
       TextButton(
         onPressed: () {
@@ -362,12 +379,10 @@ Widget _testThingy(Ctx ctx) {
           onPressed: () {
             stale.set(false);
             moduleCtx.set(modules.read(ctx).fold<Object>(
-                  Option.mk(Ctx.empty),
+                  Option.mk(_allFnMap),
                   (ctx, module) => Option.cases(
                     ctx,
-                    some: (ctx) {
-                      return Module.load((ctx as Ctx).withFnMap(module[0] as FnMap), module[1]);
-                    },
+                    some: (ctx) => Module.load(ctx as Ctx, module),
                     none: () => Option.mk(),
                   ),
                 ));
@@ -385,11 +400,11 @@ Widget _testThingy(Ctx ctx) {
       DropdownMenu(
         items: modules
             .values(ctx)
-            .map((m) => Option.mk(m[1][Module.IDID].read(ctx)))
+            .map((m) => Option.mk(m[Module.IDID].read(ctx)))
             .followedBy([Option.mk()]),
-        currentItem: Option.mk(currentModule.read(ctx)),
+        currentItem: currentModule.read(ctx),
         onItemSelected: (item) {
-          currentModule.set(Option.unwrap(item, orElse: () {
+          currentModule.set(Option.mk(Option.unwrap(item, orElse: () {
             final id = ID.mk();
             modules.add(
               Vec([
@@ -403,23 +418,23 @@ Widget _testThingy(Ctx ctx) {
               ]),
             );
             return id;
-          }));
+          })));
         },
         buildItem: (id) => Text(Option.cases(
           id,
           none: () => 'New module',
           some: (id) => modules
               .values(ctx)
-              .firstWhere((m) => m[1][Module.IDID].read(ctx) == id)[1][Module.nameID]
+              .firstWhere((m) => m[Module.IDID].read(ctx) == id)[Module.nameID]
               .read(ctx) as String,
         )),
         child: const Text('select module'),
       ),
       for (final module in modules.values(ctx))
-        if (module[1][Module.IDID].read(ctx) == currentModule.read(ctx))
+        if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
-            key: ValueKey(module[1][Module.IDID].read(ctx)),
-            child: palEditor(uiCtx, Module.type, module[1]),
+            key: ValueKey(module[Module.IDID].read(ctx)),
+            child: palEditor(uiCtx, Module.type, module),
           ),
     ],
   );
