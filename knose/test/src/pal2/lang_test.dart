@@ -8,15 +8,20 @@ void main() {
   });
 
   final sillyID = ID.mk();
-  final sillyRecordDef = TypeDef.record('silly', {sillyID: TypeTree.mk('silly', Type.lit(number))});
+  final sillyRecordDef = TypeDef.record(
+    'silly',
+    {sillyID: TypeTree.mk('silly', Type.lit(number))},
+    id: ID.mk(),
+  );
 
   late final testCtx = Option.unwrap(Module.load(
     coreCtx,
-    Module.mk(name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
+    Module.mk(id: ID.mk(), name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
   )) as Ctx;
 
   test('TypeCheckFn', () {
     final varFn = FnExpr.from(
+      argID: ID.mk(),
       argName: 'arg',
       argType: Type.lit(Expr.type),
       returnType: (_) => Type.lit(Option.type(Type.type)),
@@ -27,6 +32,7 @@ void main() {
     expect(result, equals(Literal.mk(number, 0)));
 
     final implFn = FnExpr.from(
+      argID: ID.mk(),
       argName: 'arg',
       argType: Type.lit(Expr.type),
       returnType: (_) => Type.lit(Option.type(Type.type)),
@@ -37,6 +43,7 @@ void main() {
     expect((result2 as Dict)[Expr.dataTypeID].unwrap!, equals(TypeDef.asType(Literal.typeDef)));
 
     final dataFn = FnExpr.from(
+      argID: ID.mk(),
       argName: 'arg',
       argType: Type.lit(Expr.type),
       returnType: (_) => Type.lit(Option.type(Type.type)),
@@ -50,6 +57,7 @@ void main() {
     );
 
     final typeCheckFn = FnExpr.from(
+      argID: ID.mk(),
       argName: 'arg',
       argType: Type.lit(Expr.type),
       returnType: (_) => Type.lit(Option.type(Type.type)),
@@ -94,6 +102,7 @@ void main() {
   test('Fn + FnApp + VarAccess', () {
     final expr = FnApp.mk(
       FnExpr.from(
+        argID: ID.mk(),
         argName: 'arg',
         argType: Type.lit(TypeDef.asType(sillyRecordDef)),
         returnType: (_) => Type.lit(number),
@@ -110,9 +119,9 @@ void main() {
   });
 
   test('InterfaceAccess + self reference', () {
-    final ifaceID = ID.mk('testIface');
-    final dataTypeID = ID.mk('testDataType');
-    final valueID = ID.mk('testValue');
+    final ifaceID = ID.mk();
+    final dataTypeID = ID.mk();
+    final valueID = ID.mk();
     final interfaceDef = InterfaceDef.mk(
       TypeTree.record('testIface', {
         dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
@@ -121,7 +130,7 @@ void main() {
       id: ifaceID,
     );
 
-    final implID = ID.mk('testImpl');
+    final implID = ID.mk();
     final implDef = ImplDef.mk(
       id: implID,
       implemented: ifaceID,
@@ -132,6 +141,7 @@ void main() {
     final thisCtx = Option.unwrap(Module.load(
       coreCtx,
       Module.mk(
+        id: ID.mk(),
         name: 'testIface',
         definitions: [InterfaceDef.mkDef(interfaceDef), ImplDef.mkDef(implDef)],
       ),
@@ -154,7 +164,7 @@ void main() {
   });
 
   test('parametric function!', () {
-    final arg = Var.mk(ID.mk('testArg'));
+    final arg = Var.mk(ID.mk());
     final fn = FnExpr.pal(
       argID: Var.id(Expr.data(arg)),
       argName: 'someting!!',

@@ -47,7 +47,7 @@ class PalGenerator extends Generator {
       final id = annotation.read('id').stringValue;
       final label =
           annotation.read('label').isNull ? fn.name : annotation.read('label').stringValue;
-      final hashCode = Object.hash(id, null);
+      final hashCode = Hash.all(id, null);
 
       final idString = 'const ID.constant(id: \'$id\', label: \'$label\', hashCode: $hashCode)';
       final fnString = qualifiedFnName(fn);

@@ -5,23 +5,30 @@ import 'package:knose/src/pal2/lang.dart';
 part 'print.g.dart';
 
 abstract class Printable {
-  static final dataTypeID = ID.mk('dataType');
-  static final printID = ID.mk('print');
-  static final printArgID = ID.mk('print');
-  static final interfaceDef = InterfaceDef.record('Printable', {
-    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
-    printID: TypeTree.mk(
-      'print',
-      Fn.typeExpr(
-        argID: printArgID,
-        argType: Var.mk(dataTypeID),
-        returnType: Type.lit(text),
+  static const dataTypeID = ID.constant(
+      id: '0ede4654-f0b0-47ed-a856-012c292a46f2', hashCode: 363298241, label: 'dataType');
+  static const printID =
+      ID.constant(id: '926e4d43-3f78-4fc5-b6aa-d6f4a2ab5853', hashCode: 411444004, label: 'print');
+  static const printArgID =
+      ID.constant(id: '8a1c6dec-1993-4e90-afee-63c2db3bff0f', hashCode: 150960822, label: 'print');
+  static final interfaceDef = InterfaceDef.record(
+    'Printable',
+    {
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      printID: TypeTree.mk(
+        'print',
+        Fn.typeExpr(
+          argID: printArgID,
+          argType: Var.mk(dataTypeID),
+          returnType: Type.lit(text),
+        ),
       ),
-    ),
-  });
+    },
+    id: const ID.constant(id: 'fd7cb66a-b70d-4165-b675-51133faed6ba', hashCode: 19279715),
+  );
 
-  static Object mkImpl({required Object dataType, required ID print}) => ImplDef.mk(
-        id: ID.mk(Type.id(dataType).label),
+  static Object mkImpl({required ID id, required Object dataType, required ID print}) => ImplDef.mk(
+        id: id,
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
           dataTypeID: Type.lit(dataType),
@@ -36,13 +43,14 @@ abstract class Printable {
       );
 
   static Object mkParameterizedImpl({
+    required ID id,
     required String name,
     required Object argType,
     required Object Function(Object) dataType,
     required ID print,
   }) =>
       ImplDef.mkParameterized(
-        id: ID.mk(name),
+        id: id,
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
         definition: (arg) => Dict({
@@ -54,6 +62,8 @@ abstract class Printable {
             returnType: Type.lit(text),
             body: FnApp.mk(
               FnExpr.dart(
+                argID: const ID.constant(
+                    id: '733cfd40-e86d-45de-8639-b1e82570e945', hashCode: 344043086),
                 argName: 'printArg',
                 argType: Type.lit(Any.type),
                 returnType: Type.lit(text),
@@ -65,13 +75,17 @@ abstract class Printable {
         }),
       );
 
-  static final printFnID = ID.mk('print');
-  static final module = Module.mk(name: 'Print', definitions: [
+  static const printFnID =
+      ID.constant(id: '0043f7c5-fcc8-466e-b575-25eb6a1a4fd1', hashCode: 25799240, label: 'print');
+  static const moduleID =
+      ID.constant(id: 'd522e29d-bff9-45d8-b017-0021330d2474', hashCode: 236908208, label: 'print');
+  static final module = Module.mk(id: moduleID, name: 'Print', definitions: [
     InterfaceDef.mkDef(interfaceDef),
     ValueDef.mk(
       id: printFnID,
       name: 'print',
       value: FnExpr.dart(
+        argID: const ID.constant(id: 'cdcbd002-6fde-4783-abaf-b8f9cf896c55', hashCode: 536055723),
         argName: 'object',
         argType: Type.lit(Any.type),
         returnType: Type.lit(text),
@@ -83,12 +97,14 @@ abstract class Printable {
       argType: Type.type,
       dataType: (typeArg) => typeArg,
       print: printInverseFnMap[_defaultFn]!,
+      id: const ID.constant(id: 'a91f54c0-894d-4658-b2ce-f1173c587a27', hashCode: 511135028),
     )),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'List',
       argType: Type.type,
       dataType: (typeArg) => List.typeExpr(typeArg),
       print: printInverseFnMap[_listFn]!,
+      id: const ID.constant(id: 'e658adf0-12ba-419e-9af3-ebb8cd33101f', hashCode: 190298448),
     )),
     ImplDef.mkDef(mkParameterizedImpl(
       name: 'Map',
@@ -98,20 +114,73 @@ abstract class Printable {
         RecordAccess.mk(typeArg, Pair.secondID),
       ),
       print: printInverseFnMap[_mapFn]!,
+      id: const ID.constant(id: 'd8a6923b-5f19-438a-983b-ae817776f2b3', hashCode: 378268881),
     )),
-    ImplDef.mkDef(mkImpl(dataType: Type.type, print: printInverseFnMap[_typeFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: number, print: printInverseFnMap[_numberFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: text, print: printInverseFnMap[_textFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: TypeProperty.type, print: printInverseFnMap[_typePropFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: MemberHas.type, print: printInverseFnMap[_memberHasFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: Equals.type, print: printInverseFnMap[_equalsFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: Expr.type, print: printInverseFnMap[_exprFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: ID.type, print: printInverseFnMap[_idFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: Var.type, print: printInverseFnMap[_varFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: Literal.type, print: printInverseFnMap[_literalFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: Construct.type, print: printInverseFnMap[_constructFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: List.mkExprType, print: printInverseFnMap[_listExprFn]!)),
-    ImplDef.mkDef(mkImpl(dataType: FnApp.type, print: printInverseFnMap[_fnAppFn]!)),
+    ImplDef.mkDef(mkImpl(
+      dataType: Type.type,
+      print: printInverseFnMap[_typeFn]!,
+      id: const ID.constant(id: '04893f0a-dcd6-4f2b-b35b-2ca0b0b6e1d9', hashCode: 366776310),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: number,
+      print: printInverseFnMap[_numberFn]!,
+      id: const ID.constant(id: 'e8614674-88fc-4d07-98f5-9a9a2a73d536', hashCode: 499492708),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: text,
+      print: printInverseFnMap[_textFn]!,
+      id: const ID.constant(id: 'b347e6fe-0491-44ba-bffd-68bebf3ad390', hashCode: 500290122),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: TypeProperty.type,
+      print: printInverseFnMap[_typePropFn]!,
+      id: const ID.constant(id: '21c5302f-66ea-4232-a59e-95bc71b54e5d', hashCode: 327841775),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: MemberHas.type,
+      print: printInverseFnMap[_memberHasFn]!,
+      id: const ID.constant(id: '57517694-5c5d-499d-8428-46e93ef2badf', hashCode: 342624459),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Equals.type,
+      print: printInverseFnMap[_equalsFn]!,
+      id: const ID.constant(id: 'b7241f5d-740f-4e13-98ac-3e17089612e7', hashCode: 496252195),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Expr.type,
+      print: printInverseFnMap[_exprFn]!,
+      id: const ID.constant(id: '4145c6f8-facf-4422-9f04-c7196feef7b8', hashCode: 62292771),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: ID.type,
+      print: printInverseFnMap[_idFn]!,
+      id: const ID.constant(id: 'bd1614d2-c7e8-47f8-8863-437fbff525f9', hashCode: 478363742),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Var.type,
+      print: printInverseFnMap[_varFn]!,
+      id: const ID.constant(id: 'b1e00a92-c704-40b8-8ca2-726e76cdc97b', hashCode: 449000542),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Literal.type,
+      print: printInverseFnMap[_literalFn]!,
+      id: const ID.constant(id: 'e9b4df23-adb5-416e-8dad-0011b306b9db', hashCode: 287598169),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: Construct.type,
+      print: printInverseFnMap[_constructFn]!,
+      id: const ID.constant(id: 'ca5036fc-b545-4c73-a56e-dd4e1082da13', hashCode: 61827497),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: List.mkExprType,
+      print: printInverseFnMap[_listExprFn]!,
+      id: const ID.constant(id: 'e6a39c55-e3bf-4ca8-8539-11ab3111cd91', hashCode: 128755319),
+    )),
+    ImplDef.mkDef(mkImpl(
+      dataType: FnApp.type,
+      print: printInverseFnMap[_fnAppFn]!,
+      id: const ID.constant(id: 'c8c7cddd-0d6f-47b2-9da2-f7f54b10ba3a', hashCode: 370936441),
+    )),
   ]);
 
   @DartFn('0a433255-e890-48a8-b649-bdc5c8683101')

@@ -1,7 +1,10 @@
+// ignore_for_file: constant_identifier_names
+
 import 'dart:convert';
 import 'dart:core' as dart;
 import 'dart:core';
 import 'package:ctx/ctx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
 import 'package:uuid/uuid.dart';
 // ignore: unused_import
@@ -18,7 +21,8 @@ typedef Vec = reified.Vec<Object>;
 typedef Set = reified.CSet<Object>;
 
 class ID implements Comparable<ID> {
-  static final typeDefID = ID.mk('ID');
+  static const typeDefID =
+      ID.constant(id: 'c79400b7-6ea7-44a9-a3af-cecdd5a0c15c', hashCode: 220248298, label: 'ID');
   static final def = TypeDef.unit('ID', id: typeDefID);
   static final type = Type.mk(typeDefID);
 
@@ -30,9 +34,9 @@ class ID implements Comparable<ID> {
   @override
   final int hashCode;
 
-  static ID mk([String? label]) {
+  static ID mk() {
     final id = _uuid.v4();
-    return ID.constant(id: id, label: label, hashCode: Object.hash(id, null));
+    return ID.constant(id: id, hashCode: Hash.all(id, null));
   }
 
   static ID from({
@@ -40,7 +44,7 @@ class ID implements Comparable<ID> {
     String? label,
     ID? tail,
   }) =>
-      ID.constant(id: id, label: label, tail: tail, hashCode: Object.hash(id, tail));
+      ID.constant(id: id, label: label, tail: tail, hashCode: Hash.all(id, tail));
 
   const ID.constant({
     required this.id,
@@ -84,19 +88,26 @@ class ID implements Comparable<ID> {
 }
 
 abstract class Module {
-  static final IDID = ID.mk('ID');
-  static final nameID = ID.mk('name');
-  static final definitionsID = ID.mk('definitions');
+  static const IDID =
+      ID.constant(id: 'cf905c6c-5e71-4cbb-b7ab-4c5e420a74c7', hashCode: 532616109, label: 'ID');
+  static const nameID =
+      ID.constant(id: 'd9d54c42-e7e6-446d-a85e-78d94682b48b', hashCode: 322951081, label: 'name');
+  static const definitionsID = ID.constant(
+      id: '73bf53f8-cff1-4c96-98d7-69a722f6b7db', hashCode: 317448442, label: 'definitions');
 
-  static final def = TypeDef.record('Module', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    nameID: TypeTree.mk('name', Type.lit(text)),
-    definitionsID: TypeTree.mk('definitions', Type.lit(OrderedMap.type(ID.type, ModuleDef.type))),
-  });
+  static final def = TypeDef.record(
+    'Module',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      nameID: TypeTree.mk('name', Type.lit(text)),
+      definitionsID: TypeTree.mk('definitions', Type.lit(OrderedMap.type(ID.type, ModuleDef.type))),
+    },
+    id: const ID.constant(id: '5e9ca3d6-0b81-43d2-bf15-981ad734f4ba', hashCode: 7334404),
+  );
   static final type = TypeDef.asType(def);
 
-  static Object mk({ID? id, required String name, required DartList definitions}) => Dict({
-        IDID: id ?? ID.mk(name),
+  static Object mk({required ID id, required String name, required DartList definitions}) => Dict({
+        IDID: id,
         nameID: name,
         definitionsID: OrderedMap.mk([...definitions.map(ModuleDef.idFor)], definitions)
       });
@@ -135,28 +146,40 @@ abstract class Module {
   }
 
   static final bindingOrType = Union.type([ModuleDef.type, Binding.type]);
+
+  static String name(Object module) => (module as Dict)[Module.nameID].unwrap! as String;
 }
 
 abstract class ModuleDef extends InterfaceDef {
-  static final dataTypeID = ID.mk('dataType');
-  static final bindingsID = ID.mk('bindings');
-  static final bindingsArgID = ID.mk('bindingsArg');
-  static final interfaceDef = InterfaceDef.record('ModuleDef', {
-    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
-    bindingsID: TypeTree.mk(
-      'bindings',
-      Fn.typeExpr(
-        argID: bindingsArgID,
-        argType: Var.mk(dataTypeID),
-        returnType: Type.lit(List.type(Module.bindingOrType)),
+  static const dataTypeID = ID.constant(
+      id: 'ca0051e6-45c7-44d8-9da0-79f16e17ad0f', hashCode: 415278287, label: 'dataType');
+
+  static const bindingsID = ID.constant(
+      id: 'ef45d862-6c1c-4dda-aadf-a8e611ff3fe4', hashCode: 268996972, label: 'bindings');
+
+  static const bindingsArgID = ID.constant(
+      id: '649453ed-3f2e-41df-85da-2cbd314f71df', hashCode: 524918232, label: 'bindingsArg');
+
+  static final interfaceDef = InterfaceDef.record(
+    'ModuleDef',
+    {
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      bindingsID: TypeTree.mk(
+        'bindings',
+        Fn.typeExpr(
+          argID: bindingsArgID,
+          argType: Var.mk(dataTypeID),
+          returnType: Type.lit(List.type(Module.bindingOrType)),
+        ),
       ),
-    ),
-  });
+    },
+    id: const ID.constant(id: 'df55c7f5-cef0-48c5-9315-85576d4a8f77', hashCode: 536841652),
+  );
 
   static Object mkImpl({
     required Object dataType,
     required Object bindings,
-    ID? id,
+    required ID id,
   }) =>
       ImplDef.mk(
         id: id,
@@ -167,9 +190,15 @@ abstract class ModuleDef extends InterfaceDef {
         }),
       );
 
-  static final implID = ID.mk('impl');
-  static final dataID = ID.mk('data');
-  static final typeDefID = ID.mk('ModuleDef');
+  static const implID =
+      ID.constant(id: 'b4919631-a2e0-497b-8309-80b8c18f97b5', hashCode: 351840823, label: 'impl');
+
+  static const dataID =
+      ID.constant(id: '661c5818-62cb-4122-b262-6ba7b3205e2d', hashCode: 160646736, label: 'data');
+
+  static const typeDefID = ID.constant(
+      id: '8564c2e2-5ceb-4398-9c20-2afcdd845968', hashCode: 438744664, label: 'ModuleDef');
+
   static final typeDef = TypeDef.record(
     'ModuleDef',
     {
@@ -209,17 +238,25 @@ abstract class ModuleDef extends InterfaceDef {
 }
 
 abstract class ValueDef {
-  static final IDID = ID.mk('ID');
-  static final nameID = ID.mk('name');
-  static final expectedTypeID = ID.mk('expectedType');
-  static final valueID = ID.mk('value');
+  static const IDID =
+      ID.constant(id: 'c441c1b1-cb2f-4f62-b794-985b6bea8f36', hashCode: 326891059, label: 'ID');
+  static const nameID =
+      ID.constant(id: 'c1e49d93-30b4-4588-8877-98c43d5f8606', hashCode: 435572148, label: 'name');
+  static const expectedTypeID = ID.constant(
+      id: '750bfe41-a85d-4895-874b-38f17c2067f6', hashCode: 329201515, label: 'expectedType');
+  static const valueID =
+      ID.constant(id: 'd842696a-2c8b-42ec-a155-9d6215b25413', hashCode: 329211109, label: 'value');
 
-  static final typeDef = TypeDef.record('ValueDef', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    nameID: TypeTree.mk('name', Type.lit(text)),
-    expectedTypeID: TypeTree.mk('expectedType', Type.lit(Option.type(Type.type))),
-    valueID: TypeTree.mk('value', Type.lit(Expr.type)),
-  });
+  static final typeDef = TypeDef.record(
+    'ValueDef',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      nameID: TypeTree.mk('name', Type.lit(text)),
+      expectedTypeID: TypeTree.mk('expectedType', Type.lit(Option.type(Type.type))),
+      valueID: TypeTree.mk('value', Type.lit(Expr.type)),
+    },
+    id: const ID.constant(id: '3f61635c-a401-4bd4-a2d8-8a35251469a5', hashCode: 202619742),
+  );
   static final type = TypeDef.asType(typeDef);
 
   static Object mk({
@@ -247,35 +284,41 @@ abstract class ValueDef {
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: langInverseFnMap[_valueDefBindings]!,
     ),
-    id: ID.mk('ValueDefImpl'),
+    id: const ID.constant(
+        id: '52b13cdf-4771-42e8-bdbb-93d4ccc2db37', hashCode: 443583250, label: 'ValueDefImpl'),
   );
 
   static ID id(Object valueDef) => (valueDef as Dict)[IDID].unwrap! as ID;
 }
 
 abstract class TypeDef {
-  static final IDID = ID.mk('ID');
-  static final comptimeID = ID.mk('comptime');
-  static final treeID = ID.mk('tree');
+  static const IDID =
+      ID.constant(id: '9234172f-4ecc-454e-8837-60f08c7d1f58', hashCode: 102864945, label: 'ID');
+
+  static const comptimeID = ID.constant(
+      id: '68d2b51f-1018-4ec2-a785-b47143ddbb58', hashCode: 492289506, label: 'comptime');
+
+  static const treeID =
+      ID.constant(id: '889690b1-bc8d-4bab-a3ec-93bced68b943', hashCode: 197296904, label: 'tree');
 
   static Object record(
     String name,
     dart.Map<ID, Object> members, {
-    ID? id,
+    required ID id,
     DartList comptime = const [],
   }) =>
       mk(TypeTree.record(name, members), id: id, comptime: comptime);
   static Object union(
     String name,
     dart.Map<ID, Dict> cases, {
-    ID? id,
+    required ID id,
     DartList comptime = const [],
   }) =>
       mk(TypeTree.union(name, cases), id: id, comptime: comptime);
-  static Object unit(String name, {ID? id}) => mk(TypeTree.unit(name), id: id);
+  static Object unit(String name, {required ID id}) => mk(TypeTree.unit(name), id: id);
 
-  static Object mk(Object tree, {ID? id, DartList comptime = const []}) =>
-      Dict({IDID: id ?? ID.mk(TypeTree.name(tree)), comptimeID: List.mk(comptime), treeID: tree});
+  static Object mk(Object tree, {required ID id, DartList comptime = const []}) =>
+      Dict({IDID: id, comptimeID: List.mk(comptime), treeID: tree});
 
   static Object asType(Object typeDef, {DartList properties = const []}) => Type.mk(
         (typeDef as Dict)[IDID].unwrap! as ID,
@@ -287,11 +330,15 @@ abstract class TypeDef {
       List.iterate((typeDef as Dict)[comptimeID].unwrap!).cast<ID>();
   static Object tree(Object typeDef) => (typeDef as Dict)[treeID].unwrap!;
 
-  static final def = TypeDef.record('TypeDef', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    comptimeID: TypeTree.mk('comptime', Type.lit(List.type(ID.type))),
-    treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
-  });
+  static final def = TypeDef.record(
+    'TypeDef',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      comptimeID: TypeTree.mk('comptime', Type.lit(List.type(ID.type))),
+      treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
+    },
+    id: const ID.constant(id: 'efb5d9f0-79ef-4d03-8fb4-08597aa8d531', hashCode: 160382566),
+  );
   static final type = asType(def);
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
@@ -303,13 +350,18 @@ abstract class TypeDef {
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: langInverseFnMap[_typeDefBindings]!,
     ),
-    id: ID.mk('TypeDefImpl'),
+    id: const ID.constant(
+        id: '9236177b-15c5-4124-ad20-4bfc443a2af5', hashCode: 402914795, label: 'TypeDefImpl'),
   );
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
 
-  static final _typeConstructorID = ID.mk('TypeConstructor');
-  static final typeArgsID = ID.mk('TypeArgs');
+  static const _typeConstructorID = ID.constant(
+      id: 'c60a9c79-2254-4ed4-a7a1-4b6c19a90346', hashCode: 362484140, label: 'TypeConstructor');
+
+  static const typeArgsID = ID.constant(
+      id: '04443546-52ad-4236-832f-c68b178b3856', hashCode: 207883027, label: 'TypeArgs');
+
   static bool isTypeConstructorID(ID id) => id.contains(_typeConstructorID);
   @DartFn('01415159-a7a9-42ce-a749-0c6428775166')
   static Object _typeDefBindings(Ctx ctx, Object typeDef) {
@@ -344,6 +396,8 @@ abstract class TypeDef {
           value: comptime.isEmpty
               ? Type.lit(TypeDef.asType(typeDef))
               : FnExpr.from(
+                  argID: const ID.constant(
+                      id: '2f034e10-516f-4a90-b252-757e863a394c', hashCode: 141926094),
                   argName: 'typeArgs',
                   argType: Var.mk(
                     TypeDef.id(typeDef).append(typeArgsID).append(TypeDef._typeConstructorID),
@@ -370,11 +424,18 @@ abstract class TypeDef {
 }
 
 abstract class Type {
-  static final IDID = ID.mk('ID');
-  static final pathID = ID.mk('path');
-  static final propertiesID = ID.mk('properties');
+  static const IDID =
+      ID.constant(id: 'a28a156a-bcea-4606-9830-dcd34b414044', hashCode: 303242969, label: 'ID');
 
-  static final _typeID = ID.mk('Type');
+  static const pathID =
+      ID.constant(id: 'ac4de6ad-864d-4c8e-89a7-57f7af493003', hashCode: 198777100, label: 'path');
+
+  static const propertiesID = ID.constant(
+      id: 'b32d8c5a-6513-4cf0-867d-3dba59656e6e', hashCode: 169791881, label: 'properties');
+
+  static const _typeID =
+      ID.constant(id: '6c1d5fb9-b1e7-4ff5-a8ad-a8f25f270156', hashCode: 178744587, label: 'Type');
+
   static final def = TypeDef.record(
     'Type',
     {
@@ -472,8 +533,12 @@ abstract class Type {
 }
 
 abstract class TypeProperty {
-  static final dataTypeID = ID.mk('dataType');
-  static final interfaceID = ID.mk('TypeProperty');
+  static const dataTypeID = ID.constant(
+      id: '75d2b8ec-ff22-4c68-8423-72f210092aa1', hashCode: 494493746, label: 'dataType');
+
+  static const interfaceID = ID.constant(
+      id: 'a4dbc0f9-adfe-45b6-b65d-56c471b897a2', hashCode: 341377764, label: 'TypeProperty');
+
   static final interfaceDef = InterfaceDef.record(
     'TypePropertyImpl',
     {
@@ -493,15 +558,23 @@ abstract class TypeProperty {
         definition: Dict({dataTypeID: Type.lit(dataType)}),
       );
 
-  static final implID = ID.mk('impl');
-  static final dataID = ID.mk('data');
-  static final typeDef = TypeDef.record('TypeProperty', {
-    implID: TypeTree.mk('impl', Type.lit(implType)),
-    dataID: TypeTree.mk(
-      'data',
-      RecordAccess.mk(Var.mk(implID), dataTypeID),
-    ),
-  });
+  static const implID =
+      ID.constant(id: 'c63d7901-2b2e-49c4-b619-e885bb319ae8', hashCode: 21829240, label: 'impl');
+
+  static const dataID =
+      ID.constant(id: '329b1a1d-fdad-4bc8-b46a-844126b8b8fd', hashCode: 459810058, label: 'data');
+
+  static final typeDef = TypeDef.record(
+    'TypeProperty',
+    {
+      implID: TypeTree.mk('impl', Type.lit(implType)),
+      dataID: TypeTree.mk(
+        'data',
+        RecordAccess.mk(Var.mk(implID), dataTypeID),
+      ),
+    },
+    id: const ID.constant(id: '5b98db2b-8fac-467a-b583-6796f920a144', hashCode: 111057732),
+  );
   static final type = TypeDef.asType(typeDef);
 
   static Dict mk(Object impl, Object data) => Dict({implID: impl, dataID: data});
@@ -524,10 +597,15 @@ abstract class TypeProperty {
 }
 
 abstract class Equals extends TypeProperty {
-  static final dataTypeID = ID.mk('dataType');
-  static final equalToID = ID.mk('equalTo');
+  static const dataTypeID = ID.constant(
+      id: '0b574b87-30b8-4727-a0c1-4cc306503bb5', hashCode: 338351793, label: 'dataType');
 
-  static final typeDefID = ID.mk('Equals');
+  static const equalToID = ID.constant(
+      id: '490a3580-6f73-4e38-8e57-ca99c3c84cb1', hashCode: 445973261, label: 'equalTo');
+
+  static const typeDefID =
+      ID.constant(id: 'a41bed42-1341-414a-83c6-f94e5baf473a', hashCode: 480239291, label: 'Equals');
+
   static final typeDef = TypeDef.record(
     'Equals',
     {
@@ -538,8 +616,11 @@ abstract class Equals extends TypeProperty {
   );
   static final type = Type.mk(typeDefID);
 
-  static final propImplDef =
-      TypeProperty.mkImpl(id: ID.mk('EqualsTypePropertyImpl'), dataType: type);
+  static final propImplDef = TypeProperty.mkImpl(
+    id: const ID.constant(
+        id: 'e754cfb6-d4fa-4884-ac4c-40cecfa1d851', hashCode: 335104296, label: 'EqualsImpl'),
+    dataType: type,
+  );
   static final impl = Dict({TypeProperty.dataTypeID: type});
 
   static Dict mk(Object dataType, Object equalTo) =>
@@ -561,10 +642,15 @@ abstract class Equals extends TypeProperty {
 }
 
 abstract class MemberHas extends TypeProperty {
-  static final pathID = ID.mk('path');
-  static final propertyID = ID.mk('property');
+  static const pathID =
+      ID.constant(id: '29332a1f-c57e-4a2c-a89d-15fde53d0575', hashCode: 57823015, label: 'path');
 
-  static final typeDefID = ID.mk('MemberHas');
+  static const propertyID = ID.constant(
+      id: '5851a4f1-4b4f-4271-b35c-d7d1bc6317e3', hashCode: 63111110, label: 'property');
+
+  static const typeDefID = ID.constant(
+      id: 'e70d358a-4911-4a86-8661-fd9263dd74f6', hashCode: 217541326, label: 'MemberHas');
+
   static final typeDef = TypeDef.record(
     'MemberHas',
     {
@@ -576,7 +662,8 @@ abstract class MemberHas extends TypeProperty {
   static final type = Type.mk(typeDefID);
 
   static final propImplDef = TypeProperty.mkImpl(
-    id: ID.mk('MemberHasTypePropertyImpl'),
+    id: const ID.constant(
+        id: 'b876dad4-949d-4b3c-bcb6-257166644158', hashCode: 470405332, label: 'MemberHasImpl'),
     dataType: type,
   );
   static final propImpl = Dict({TypeProperty.dataTypeID: type});
@@ -613,13 +700,20 @@ abstract class MemberHas extends TypeProperty {
 }
 
 abstract class UnionTag {
-  static final tagID = ID.mk('tag');
-  static final valueID = ID.mk('value');
+  static const tagID =
+      ID.constant(id: 'ebc689d7-167b-49c9-9d96-c06228da1bab', hashCode: 508643769, label: 'tag');
 
-  static final def = TypeDef.record('UnionTag', {
-    tagID: TypeTree.mk('tag', Type.lit(ID.type)),
-    valueID: TypeTree.mk('value', Type.lit(Any.type)),
-  });
+  static const valueID =
+      ID.constant(id: 'cb1254dd-1f07-4c45-bf5c-517fe7bf9937', hashCode: 490888290, label: 'value');
+
+  static final def = TypeDef.record(
+    'UnionTag',
+    {
+      tagID: TypeTree.mk('tag', Type.lit(ID.type)),
+      valueID: TypeTree.mk('value', Type.lit(Any.type)),
+    },
+    id: const ID.constant(id: '5fb4d4b1-8743-4e31-9878-eab42ec483b6', hashCode: 482709390),
+  );
 
   static final type = TypeDef.asType(def);
 
@@ -630,13 +724,23 @@ abstract class UnionTag {
 }
 
 abstract class TypeTree {
-  static final nameID = ID.mk('name');
-  static final treeID = ID.mk('tree');
-  static final recordID = ID.mk('record');
-  static final unionID = ID.mk('union');
-  static final leafID = ID.mk('leaf');
+  static const nameID =
+      ID.constant(id: '6c2239f9-fce8-4ddb-b2f0-7acfc5a109c6', hashCode: 204989073, label: 'name');
 
-  static final id = ID.mk('TypeTree');
+  static const treeID =
+      ID.constant(id: 'fb489a21-eb81-45c1-a752-47431bc67501', hashCode: 50170016, label: 'tree');
+
+  static const recordID =
+      ID.constant(id: 'fc0efb56-e6dd-4d6d-8f3c-c2440124f251', hashCode: 394119794, label: 'record');
+
+  static const unionID =
+      ID.constant(id: '0277e3b5-0802-4120-b2c2-9915bc1d9a38', hashCode: 157424920, label: 'union');
+
+  static const leafID =
+      ID.constant(id: '100090cc-5382-4603-b4ff-f1f0995c021d', hashCode: 138565156, label: 'leaf');
+
+  static const id = ID.constant(
+      id: '0e6ae671-776d-488e-a779-3dbc0609615c', hashCode: 34273951, label: 'TypeTree');
   static final def = TypeDef.record(
     'TypeTree',
     {
@@ -869,27 +973,37 @@ abstract class TypeTree {
 }
 
 abstract class InterfaceDef {
-  static final IDID = ID.mk('ID');
-  static final treeID = ID.mk('tree');
+  static const IDID =
+      ID.constant(id: 'ef1a8c93-483f-4335-88ae-4b5bbe2f3146', hashCode: 356292979, label: 'ID');
 
-  static final def = TypeDef.record('InterfaceDef', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
-  });
+  static const treeID =
+      ID.constant(id: '36e28e87-1563-4ff7-9100-033146102507', hashCode: 296821927, label: 'tree');
+
+  static final def = TypeDef.record(
+    'InterfaceDef',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      treeID: TypeTree.mk('tree', Type.lit(TypeTree.type)),
+    },
+    id: const ID.constant(id: '735883c8-1b4a-4949-9cb0-1b1e7391be08', hashCode: 508445355),
+  );
   static final type = TypeDef.asType(def);
 
-  static Dict mk(Dict tree, {ID? id}) =>
-      Dict({IDID: id ?? ID.mk(TypeTree.name(tree)), treeID: tree});
-  static Object record(String name, dart.Map<ID, Dict> members, {ID? id}) =>
+  static Dict mk(Dict tree, {required ID id}) => Dict({IDID: id, treeID: tree});
+  static Object record(String name, dart.Map<ID, Dict> members, {required ID id}) =>
       InterfaceDef.mk(TypeTree.record(name, members), id: id);
-  static Dict union(String name, dart.Map<ID, Dict> cases, {ID? id}) =>
+  static Dict union(String name, dart.Map<ID, Dict> cases, {required ID id}) =>
       InterfaceDef.mk(TypeTree.union(name, cases), id: id);
 
   static ID id(Object ifaceDef) => (ifaceDef as Dict)[IDID].unwrap! as ID;
   static Object tree(Object ifaceDef) => (ifaceDef as Dict)[treeID].unwrap!;
 
-  static final _innerTypeDefID = ID.mk('typeDef');
-  static final _dispatchCacheID = ID.mk('dispatchCache');
+  static const _innerTypeDefID = ID.constant(
+      id: '7412698d-6c16-4627-88db-c4d512c37216', hashCode: 366469750, label: 'typeDef');
+
+  static const _dispatchCacheID = ID.constant(
+      id: '432d66c8-63e3-4cf5-b05d-f4ea61a98be6', hashCode: 146540200, label: 'dispatchCache');
+
   static ID innerTypeDefID(ID id) => id.append(_innerTypeDefID);
   static ID dispatchCacheID(ID id) => id.append(_dispatchCacheID);
   static final moduleDefImplDef = ModuleDef.mkImpl(
@@ -901,7 +1015,8 @@ abstract class InterfaceDef {
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: langInverseFnMap[_ifaceDefBindings]!,
     ),
-    id: ID.mk('InterfaceDefImpl'),
+    id: const ID.constant(
+        id: '970807fb-7618-49c3-b657-c136ed4ba1e0', hashCode: 240586499, label: 'InterfaceDefImpl'),
   );
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
@@ -916,19 +1031,30 @@ abstract class InterfaceDef {
 }
 
 abstract class ImplDef {
-  static final IDID = ID.mk('ID');
-  static final implementedID = ID.mk('implemented');
-  static final definitionID = ID.mk('definition');
-  static final definitionArgID = ID.mk('definitionArg');
+  static const IDID =
+      ID.constant(id: '672645db-27d7-475e-b318-64f5d3f2d82d', hashCode: 528256935, label: 'ID');
 
-  static final def = TypeDef.record('ImplDef', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    implementedID: TypeTree.mk('implemented', Type.lit(ID.type)),
-    definitionID: TypeTree.mk('definition', Type.lit(Expr.type)),
-  });
+  static const implementedID = ID.constant(
+      id: '551230e0-66fb-49c1-b273-0c4fa7c599a2', hashCode: 295780074, label: 'implemented');
+
+  static const definitionID = ID.constant(
+      id: '9cc447df-ae3e-4566-84a7-2bd908cb28c0', hashCode: 515187887, label: 'definition');
+
+  static const definitionArgID = ID.constant(
+      id: '140bdf0f-eb94-4942-927d-70a27eff547a', hashCode: 483485653, label: 'definitionArg');
+
+  static final def = TypeDef.record(
+    'ImplDef',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      implementedID: TypeTree.mk('implemented', Type.lit(ID.type)),
+      definitionID: TypeTree.mk('definition', Type.lit(Expr.type)),
+    },
+    id: const ID.constant(id: '431de7b8-4662-441d-85f1-b84b37623232', hashCode: 30812446),
+  );
   static final type = TypeDef.asType(def);
 
-  static Object mk({ID? id, required ID implemented, required Object definition}) =>
+  static Object mk({required ID id, required ID implemented, required Object definition}) =>
       mkParameterized(
         id: id,
         implemented: implemented,
@@ -937,13 +1063,13 @@ abstract class ImplDef {
       );
 
   static Dict mkParameterized({
-    ID? id,
+    required ID id,
     required ID implemented,
     required Object argType,
     required Object Function(Object) definition,
   }) =>
       Dict({
-        IDID: id ?? ID.mk(),
+        IDID: id,
         implementedID: implemented,
         definitionID: FnExpr.palInferred(
           argID: definitionArgID,
@@ -958,7 +1084,9 @@ abstract class ImplDef {
 
   static Object definition(Object implDef) => (implDef as Dict)[definitionID].unwrap!;
 
-  static final _bindingIDPrefixID = ID.mk('ImplDefBindingIDPrefix');
+  static const _bindingIDPrefixID = ID.constant(
+      id: '3dc81333-74ed-48bb-a3a6-7d1cf97319c8', hashCode: 362710046, label: 'BindingIDPrefix');
+
   static ID bindingIDPrefixForID(ID interfaceID) => _bindingIDPrefixID.append(interfaceID);
   static ID bindingIDPrefix(Object implDef) => bindingIDPrefixForID(ImplDef.implemented(implDef));
   static ID bindingID(Object implDef) => bindingIDPrefix(implDef).append(ImplDef.id(implDef));
@@ -971,7 +1099,8 @@ abstract class ImplDef {
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: langInverseFnMap[_implDefBindings]!,
     ),
-    id: ID.mk('ImplDefImpl'),
+    id: const ID.constant(
+        id: 'd3a12fbe-f4b6-4129-8183-cce33ce42b05', hashCode: 3876398, label: 'ImplDefImpl'),
   );
 
   static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
@@ -993,15 +1122,24 @@ abstract class ImplDef {
 }
 
 abstract class Union {
-  static final possibleTypesID = ID.mk('dataType');
-  static final thisTypeID = ID.mk('thisType');
-  static final valueID = ID.mk('value');
+  static const possibleTypesID = ID.constant(
+      id: 'de2fd937-c8c1-4f43-87cc-39cd9f974d93', hashCode: 385961892, label: 'dataType');
 
-  static final def = TypeDef.record('Union', {
-    possibleTypesID: TypeTree.mk('possibleTypes', Type.lit(List.type(Type.type))),
-    thisTypeID: TypeTree.mk('thisType', Type.lit(Type.type)),
-    valueID: TypeTree.mk('value', Var.mk(thisTypeID)),
-  });
+  static const thisTypeID = ID.constant(
+      id: 'c9e4a051-aaea-4dc8-9622-ac69a5f948a3', hashCode: 448638895, label: 'thisType');
+
+  static const valueID =
+      ID.constant(id: 'b25981ca-3378-4d2f-a79a-0ca68a5425cb', hashCode: 360204934, label: 'value');
+
+  static final def = TypeDef.record(
+    'Union',
+    {
+      possibleTypesID: TypeTree.mk('possibleTypes', Type.lit(List.type(Type.type))),
+      thisTypeID: TypeTree.mk('thisType', Type.lit(Type.type)),
+      valueID: TypeTree.mk('value', Var.mk(thisTypeID)),
+    },
+    id: const ID.constant(id: 'd441a18a-8320-49c2-8669-8bfe27b08f59', hashCode: 10276879),
+  );
 
   static Object mk(Object thisType, Object value) => Dict({
         thisTypeID: thisType,
@@ -1021,19 +1159,29 @@ abstract class Union {
 }
 
 abstract class Pair {
-  static final firstTypeID = ID.mk('First');
-  static final secondTypeID = ID.mk('Second');
-  static final firstID = ID.mk('first');
-  static final secondID = ID.mk('second');
-  static final def = TypeDef.record('Pair', {
-    firstTypeID: TypeTree.mk('First', Type.lit(Type.type)),
-    secondTypeID: TypeTree.mk('Second', Type.lit(Type.type)),
-    firstID: TypeTree.mk('first', Var.mk(firstTypeID)),
-    secondID: TypeTree.mk('second', Var.mk(secondTypeID)),
-  }, comptime: [
-    firstTypeID,
-    secondTypeID
-  ]);
+  static const firstTypeID =
+      ID.constant(id: '39012ab4-aec5-4707-b004-85f9e31f4c79', hashCode: 73773440, label: 'First');
+
+  static const secondTypeID =
+      ID.constant(id: 'f2b678ab-1b34-4613-b6f7-88907990d084', hashCode: 437302955, label: 'Second');
+
+  static const firstID =
+      ID.constant(id: '48e0b3c5-3f3c-4273-b952-3c82b258356f', hashCode: 57881127, label: 'first');
+
+  static const secondID =
+      ID.constant(id: '18e565b5-ee20-4c41-a175-5d73197bb064', hashCode: 300200603, label: 'second');
+
+  static final def = TypeDef.record(
+    'Pair',
+    {
+      firstTypeID: TypeTree.mk('First', Type.lit(Type.type)),
+      secondTypeID: TypeTree.mk('Second', Type.lit(Type.type)),
+      firstID: TypeTree.mk('first', Var.mk(firstTypeID)),
+      secondID: TypeTree.mk('second', Var.mk(secondTypeID)),
+    },
+    comptime: [firstTypeID, secondTypeID],
+    id: const ID.constant(id: '25ccfe71-9c35-4ac8-9d4f-d169f6cef165', hashCode: 59087433),
+  );
 
   static Object type(Object first, Object second) => TypeDef.asType(def, properties: [
         MemberHas.mkEquals([firstTypeID], Type.type, first),
@@ -1061,12 +1209,21 @@ abstract class Pair {
 }
 
 abstract class Option {
-  static final dataTypeID = ID.mk('dataType');
-  static final valueID = ID.mk('value');
-  static final someID = ID.mk('some');
-  static final noneID = ID.mk('none');
+  static const dataTypeID = ID.constant(
+      id: '65d1ec90-6ae3-4656-ae97-e841204ff433', hashCode: 341412707, label: 'dataType');
 
-  static final typeDefID = ID.mk('Option');
+  static const valueID =
+      ID.constant(id: '0637ed04-4480-4ba5-9e34-66373ec0f16e', hashCode: 160567884, label: 'value');
+
+  static const someID =
+      ID.constant(id: '54b54373-ceb0-435a-b12c-051e06075473', hashCode: 405428472, label: 'some');
+
+  static const noneID =
+      ID.constant(id: '066cffa7-bb7a-4e24-95e2-cd16bcf72a50', hashCode: 338797295, label: 'none');
+
+  static const typeDefID =
+      ID.constant(id: 'dba2b8d2-11ec-4c56-91e8-fd9af7d9851f', hashCode: 227142816, label: 'Option');
+
   static final def = TypeDef.record(
     'Option',
     {
@@ -1126,12 +1283,21 @@ abstract class Option {
 }
 
 abstract class Result {
-  static final dataTypeID = ID.mk('dataType');
-  static final valueID = ID.mk('value');
-  static final okID = ID.mk('ok');
-  static final errorID = ID.mk('error');
+  static const dataTypeID = ID.constant(
+      id: '3aaa05ca-9874-4c92-805b-764a2282a34f', hashCode: 198448261, label: 'dataType');
 
-  static final typeDefID = ID.mk('Result');
+  static const valueID =
+      ID.constant(id: '95f72c79-afd0-42cb-8169-4655e267b79d', hashCode: 43477464, label: 'value');
+
+  static const okID =
+      ID.constant(id: '5c25b177-d312-4766-adfa-10d31476e1a9', hashCode: 158842468, label: 'ok');
+
+  static const errorID =
+      ID.constant(id: '71879f42-3c5c-426f-913f-99a33a145fdd', hashCode: 297337715, label: 'error');
+
+  static const typeDefID =
+      ID.constant(id: '76537380-58bc-4f71-9254-5c303f3abbba', hashCode: 226558687, label: 'Result');
+
   static final def = TypeDef.record(
     'Result',
     {
@@ -1199,15 +1365,30 @@ abstract class Result {
 }
 
 abstract class Expr {
-  static final dataTypeID = ID.mk('dataType');
-  static final typeCheckID = ID.mk('typeCheck');
-  static final typeCheckArgID = ID.mk('typeCheckArg');
-  static final reduceID = ID.mk('reduce');
-  static final reduceArgID = ID.mk('reduceArg');
-  static final evalExprID = ID.mk('evalExpr');
-  static final evalExprArgID = ID.mk('evalExprArg');
+  static const dataTypeID = ID.constant(
+      id: '2127875b-fdc0-41f4-b12b-8842ad8a3fc5', hashCode: 125573506, label: 'dataType');
 
-  static final interfaceID = ID.mk('Expr');
+  static const typeCheckID = ID.constant(
+      id: 'fab53ccf-34c7-4c11-bca8-4db900cd8dcd', hashCode: 452264354, label: 'typeCheck');
+
+  static const typeCheckArgID = ID.constant(
+      id: 'bc235d0c-a356-43ea-a1ed-8eb734c62faa', hashCode: 186591319, label: 'typeCheckArg');
+
+  static const reduceID =
+      ID.constant(id: '0a53bc15-7a95-452f-8b5a-cfc1739d8183', hashCode: 417204557, label: 'reduce');
+
+  static const reduceArgID = ID.constant(
+      id: 'd67a7d35-48b5-45c5-a745-657fd050a6f7', hashCode: 292873807, label: 'reduceArg');
+
+  static const evalExprID = ID.constant(
+      id: '43dd13e9-a834-420a-b0f2-4b116c6a0d9b', hashCode: 343615493, label: 'evalExpr');
+
+  static const evalExprArgID = ID.constant(
+      id: '1959f3ec-9584-4e9d-9d03-c41e875ac9c0', hashCode: 128012697, label: 'evalExprArg');
+
+  static const interfaceID =
+      ID.constant(id: '882c6c97-b16d-453c-bc15-14ac344bf9f1', hashCode: 64328690, label: 'Expr');
+
   static final interfaceDef = InterfaceDef.record(
     'ExprInterface',
     {
@@ -1247,10 +1428,10 @@ abstract class Expr {
     required ID typeCheckBody,
     required ID reduceBody,
     required ID evalBody,
-    ID? id,
+    required ID id,
   }) =>
       ImplDef.mk(
-        id: id ?? ID.mk(),
+        id: id,
         implemented: interfaceID,
         definition: Dict({
           dataTypeID: Type.lit(dataType),
@@ -1307,9 +1488,15 @@ abstract class Expr {
   static Object dataType(Object expr) => (impl(expr) as Dict)[dataTypeID].unwrap!;
   static Object evalExpr(Object expr) => (impl(expr) as Dict)[evalExprID].unwrap!;
 
-  static final implID = ID.mk('impl');
-  static final dataID = ID.mk('data');
-  static final _defID = ID.mk('ExprData');
+  static const implID =
+      ID.constant(id: '26adcf86-e1bc-4e6b-b78e-b96abaa28d64', hashCode: 269157767, label: 'impl');
+
+  static const dataID =
+      ID.constant(id: '711313fd-932e-4e62-ac56-9eba135798af', hashCode: 473650145, label: 'data');
+
+  static const _defID = ID.constant(
+      id: '92529509-1da1-47b4-bb9d-7f8e00f46e97', hashCode: 521436227, label: 'ExprData');
+
   static final def = TypeDef.record(
     'Expr',
     {
@@ -1331,6 +1518,7 @@ abstract class Expr {
   static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
 
   static Object typeCheckFn = FnExpr.from(
+    argID: const ID.constant(id: '776d4a07-c4c0-40e8-85b2-48fcf02be57d', hashCode: 101041817),
     argName: 'expr',
     argType: Type.lit(Expr.type),
     returnType: (_) => Type.lit(Result.type(typeExprType)),
@@ -1341,6 +1529,7 @@ abstract class Expr {
   );
 
   static Object reduceFn = FnExpr.from(
+    argID: const ID.constant(id: '9ebd140a-24a5-42fa-aaad-35bb4796cfe4', hashCode: 49431941),
     argName: 'expr',
     argType: Type.lit(Expr.type),
     returnType: (_) => Type.lit(Option.type(Expr.type)),
@@ -1352,9 +1541,15 @@ abstract class Expr {
 }
 
 abstract class List {
-  static final typeID = ID.mk('type');
-  static final itemsID = ID.mk('items');
-  static final typeDefID = ID.mk('List');
+  static const typeID =
+      ID.constant(id: 'de0040cf-1f5c-436c-977c-59819da7a2a5', hashCode: 442255260, label: 'type');
+
+  static const itemsID =
+      ID.constant(id: 'f697f2d8-63d2-4e8f-aea3-747778a3b752', hashCode: 419227200, label: 'items');
+
+  static const typeDefID =
+      ID.constant(id: '86eba6ed-fef9-4489-918c-4941c1801c17', hashCode: 38374837, label: 'List');
+
   static final def = TypeDef.record(
     'List',
     {
@@ -1365,9 +1560,15 @@ abstract class List {
     comptime: [typeID],
   );
 
-  static final mkExprTypeDefID = ID.mk('mkExpr');
-  static final mkTypeID = ID.mk('mkType');
-  static final mkValuesID = ID.mk('mkValues');
+  static const mkExprTypeDefID =
+      ID.constant(id: '92d36ef8-49f0-446f-a981-5ab5918cf787', hashCode: 241917088, label: 'mkExpr');
+
+  static const mkTypeID =
+      ID.constant(id: '26e75d84-8f82-4422-9e27-363b6020a71c', hashCode: 349088087, label: 'mkType');
+
+  static const mkValuesID = ID.constant(
+      id: 'd4235672-f280-4a7c-b11e-2e85ae6959f3', hashCode: 104139111, label: 'mkValues');
+
   static final exprTypeDef = TypeDef.record(
     'MkList',
     {
@@ -1390,6 +1591,7 @@ abstract class List {
     typeCheckBody: _typeFn,
     reduceBody: _reduceFn,
     evalBody: _evalFn,
+    id: const ID.constant(id: 'd2d4e3e8-7eb0-4580-bd86-fa7e958c7d40', hashCode: 365836427),
   );
   static final mkExprImpl = Expr.mkImpl(
     dataType: mkExprType,
@@ -1425,10 +1627,18 @@ abstract class List {
 }
 
 abstract class OrderedMap {
-  static final keyID = ID.mk('key');
-  static final valueID = ID.mk('value');
-  static final keyOrderID = ID.mk('keyOrder');
-  static final valueMapID = ID.mk('valueMap');
+  static const keyID =
+      ID.constant(id: 'b8bc1e54-d150-41e4-b63b-d548f895accf', hashCode: 450527056, label: 'key');
+
+  static const valueID =
+      ID.constant(id: '17626e5b-133e-4aef-979c-e7b42d95ee4e', hashCode: 410810779, label: 'value');
+
+  static const keyOrderID = ID.constant(
+      id: '7fa6f7f5-aeba-4569-be16-392decda0015', hashCode: 385489906, label: 'keyOrder');
+
+  static const valueMapID = ID.constant(
+      id: '8e273d0a-91d0-46bb-b584-ef07c80d69f3', hashCode: 239896861, label: 'valueMap');
+
   static final def = TypeDef.record(
     'OrderedMap',
     {
@@ -1438,6 +1648,7 @@ abstract class OrderedMap {
       valueMapID: TypeTree.mk('valueMap', Map.typeExpr(Var.mk(keyID), Var.mk(valueID))),
     },
     comptime: [keyID, valueID],
+    id: const ID.constant(id: '953d00a7-2287-458b-8ae4-ea7a39a60df7', hashCode: 323861333),
   );
 
   static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
@@ -1457,9 +1668,15 @@ abstract class OrderedMap {
 }
 
 abstract class Map {
-  static final keyID = ID.mk('key');
-  static final valueID = ID.mk('value');
-  static final entriesID = ID.mk('entries');
+  static const keyID =
+      ID.constant(id: 'd530c2c0-cf24-4def-80bb-ebcab95d2d5f', hashCode: 294905267, label: 'key');
+
+  static const valueID =
+      ID.constant(id: 'ab5ffa2c-281b-46aa-8603-e61b019caced', hashCode: 274708939, label: 'value');
+
+  static const entriesID = ID.constant(
+      id: '8d9c47f4-a98f-4244-8931-de9d80b410ad', hashCode: 369787388, label: 'entries');
+
   static final def = TypeDef.record(
     'Map',
     {
@@ -1468,6 +1685,7 @@ abstract class Map {
       entriesID: TypeTree.mk('entries', Type.lit(unit)),
     },
     comptime: [keyID, valueID],
+    id: const ID.constant(id: '376258e5-bf48-4ced-b71d-cbdd91778f73', hashCode: 310697086),
   );
 
   static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
@@ -1481,10 +1699,18 @@ abstract class Map {
 
   static Object mk(dart.Map<Object, Object> values) => Dict({entriesID: Dict(values)});
 
-  static final mkExprID = ID.mk('mkExpr');
-  static final mkKeyID = ID.mk('mkKey');
-  static final mkValueID = ID.mk('mkValue');
-  static final mkEntriesID = ID.mk('mkValues');
+  static const mkExprID =
+      ID.constant(id: '3ae0055e-6dd0-4b05-99bc-59d1c84e80ea', hashCode: 468893412, label: 'mkExpr');
+
+  static const mkKeyID =
+      ID.constant(id: '9d915b46-613e-4dac-8506-c8441ef1c749', hashCode: 410566295, label: 'mkKey');
+
+  static const mkValueID = ID.constant(
+      id: '5b914784-cc28-49e5-bf9d-20c51b732003', hashCode: 356481698, label: 'mkValue');
+
+  static const mkEntriesID = ID.constant(
+      id: '34ba3fa8-c05b-4065-8574-60ff1af8a690', hashCode: 360165744, label: 'mkValues');
+
   static final exprDataDef = TypeDef.record(
     'MkMap',
     {
@@ -1502,6 +1728,7 @@ abstract class Map {
     typeCheckBody: langInverseFnMap[_mkMapTypeCheck]!,
     reduceBody: langInverseFnMap[_mkMapReduce]!,
     evalBody: langInverseFnMap[_mkMapEval]!,
+    id: const ID.constant(id: '670cb618-686f-48f9-85a5-731ddf72d405', hashCode: 93616803),
   );
   static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
         impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, mkExprImplDef),
@@ -1512,10 +1739,15 @@ abstract class Map {
 }
 
 abstract class Any {
-  static final typeID = ID.mk('type');
-  static final valueID = ID.mk('value');
+  static const typeID =
+      ID.constant(id: '334ebc93-c233-4bb0-b2c2-924d17dc416a', hashCode: 211223142, label: 'type');
 
-  static final anyTypeID = ID.mk('Any');
+  static const valueID =
+      ID.constant(id: 'ea44ba9e-777d-4bb8-b94c-5fa98162e17b', hashCode: 82992540, label: 'value');
+
+  static const anyTypeID =
+      ID.constant(id: 'e177aaf9-298e-4367-a404-36e5ceb7aec3', hashCode: 496085763, label: 'Any');
+
   static final def = TypeDef.record(
     'Any',
     {
@@ -1534,31 +1766,63 @@ abstract class Any {
       Construct.mk(Any.type, Dict({typeID: type, valueID: value}));
 }
 
-final textDef = TypeDef.unit('Text');
+final textDef = TypeDef.unit(
+  'Text',
+  id: const ID.constant(id: '86290c47-720e-4f1b-8a70-ff70a6a0e6f7', hashCode: 416510342),
+);
 final text = TypeDef.asType(textDef);
-final numberDef = TypeDef.unit('Number');
+final numberDef = TypeDef.unit(
+  'Number',
+  id: const ID.constant(id: '7fa75f16-9300-4c40-a278-7542888ed46e', hashCode: 461660923),
+);
 final number = TypeDef.asType(numberDef);
-final booleanDef = TypeDef.unit('Boolean');
+final booleanDef = TypeDef.unit(
+  'Boolean',
+  id: const ID.constant(id: 'e6e9e479-4d47-4877-905f-c40550db497b', hashCode: 14476584),
+);
 final boolean = TypeDef.asType(booleanDef);
-final unitDef = TypeDef.unit('Unit');
+final unitDef = TypeDef.unit(
+  'Unit',
+  id: const ID.constant(id: 'd6560fde-7408-457c-87e9-972dece2a19b', hashCode: 240639897),
+);
 final unit = TypeDef.asType(unitDef);
 const unitValue = Dict();
 final unitExpr = Literal.mk(unit, unitValue);
-final bottomDef = TypeDef.mk(TypeTree.union('Bottom', const {}));
+final bottomDef = TypeDef.mk(
+  TypeTree.union('Bottom', const {}),
+  id: const ID.constant(id: '7d3fe3b3-a851-44e6-966d-f5d8b4a63532', hashCode: 485841715),
+);
 final bottom = TypeDef.asType(bottomDef);
 final typeExprType = Expr.type;
 
 abstract class Fn {
-  static final argIDID = ID.mk('argID');
-  static final argNameID = ID.mk('argName');
-  static final argTypeID = ID.mk('argType');
-  static final returnTypeID = ID.mk('returnType');
-  static final bodyID = ID.mk('body');
-  static final palID = ID.mk('pal');
-  static final dartID = ID.mk('dart');
-  static final closureID = ID.mk('closure');
+  static const argIDID =
+      ID.constant(id: 'e0f8fa96-7976-439e-b543-ded405a4edc7', hashCode: 18372969, label: 'argID');
 
-  static final typeDefID = ID.mk('Fn');
+  static const argNameID = ID.constant(
+      id: 'b9f2073e-046e-4ad1-a1c4-4728a8784cc4', hashCode: 461342352, label: 'argName');
+
+  static const argTypeID = ID.constant(
+      id: '223d6028-ab69-4868-ada7-a23679c12bc2', hashCode: 317191343, label: 'argType');
+
+  static const returnTypeID = ID.constant(
+      id: 'b152248e-1873-472d-9586-37b6864a9001', hashCode: 363697882, label: 'returnType');
+
+  static const bodyID =
+      ID.constant(id: 'da6ffa1b-be44-4b5b-b45c-c13a1a47edc5', hashCode: 379211532, label: 'body');
+
+  static const palID =
+      ID.constant(id: '3cb76cc3-7297-4f96-8855-29ddd301e218', hashCode: 245631161, label: 'pal');
+
+  static const dartID =
+      ID.constant(id: 'a245a56a-629a-4ec7-90b2-57bf63cfcf53', hashCode: 308967378, label: 'dart');
+
+  static const closureID = ID.constant(
+      id: '67f7d923-a797-4a6f-b12d-44d5555fb54c', hashCode: 485558102, label: 'closure');
+
+  static const typeDefID =
+      ID.constant(id: '02f689e0-259f-4c27-875e-06a2ba099732', hashCode: 423091995, label: 'Fn');
+
   static final typeDef = TypeDef.record(
     'Fn',
     {
@@ -1639,15 +1903,30 @@ abstract class Fn {
 }
 
 abstract class FnExpr extends Expr {
-  static final argIDID = ID.mk('argID');
-  static final argNameID = ID.mk('argName');
-  static final argTypeID = ID.mk('argType');
-  static final returnTypeID = ID.mk('returnType');
-  static final bodyID = ID.mk('body');
-  static final palID = ID.mk('pal');
-  static final dartID = ID.mk('dart');
+  static const argIDID =
+      ID.constant(id: '1c4f4632-41d4-4fbe-bf6b-5b6317c66016', hashCode: 528009573, label: 'argID');
 
-  static final typeDefID = ID.mk('FnExpr');
+  static const argNameID = ID.constant(
+      id: 'c6b799cd-3240-48b8-bede-3b60fb925524', hashCode: 113566933, label: 'argName');
+
+  static const argTypeID = ID.constant(
+      id: 'fdc8f600-ca92-4681-8311-4a8512c37848', hashCode: 358506794, label: 'argType');
+
+  static const returnTypeID = ID.constant(
+      id: '189a5098-1e38-483c-b7c0-c057f6cb546a', hashCode: 459530872, label: 'returnType');
+
+  static const bodyID =
+      ID.constant(id: '3fa52748-5ec5-427d-868b-2cc7d37e869a', hashCode: 218356751, label: 'body');
+
+  static const palID =
+      ID.constant(id: '1f42b336-4d83-4852-a374-044eefb8ef88', hashCode: 37792295, label: 'pal');
+
+  static const dartID =
+      ID.constant(id: '9431f585-4d0b-4f23-86d6-5dbe43329a8a', hashCode: 337895974, label: 'dart');
+
+  static const typeDefID =
+      ID.constant(id: '2d8e9bbf-7e8d-4b0d-ad65-01298d69bd00', hashCode: 299706980, label: 'FnExpr');
+
   static final typeDef = TypeDef.record(
     'FnExpr',
     {
@@ -1664,7 +1943,8 @@ abstract class FnExpr extends Expr {
   );
   static final type = Type.mk(typeDefID);
 
-  static final exprImplID = ID.mk('FnExprImpl');
+  static const exprImplID = ID.constant(
+      id: '72f25cd4-d719-4be4-90b6-a4843ce5a357', hashCode: 382784284, label: 'FnExprImpl');
 
   static final typeFnBody = langInverseFnMap[_fnExprTypeCheck]!;
 
@@ -1690,7 +1970,7 @@ abstract class FnExpr extends Expr {
   );
 
   static Object _mk({
-    ID? argID,
+    required ID argID,
     required String argName,
     required Object argType,
     Object? returnType,
@@ -1702,13 +1982,13 @@ abstract class FnExpr extends Expr {
           argTypeID: argType,
           returnTypeID: Option.mk(returnType),
           argNameID: argName,
-          argIDID: argID ?? ID.mk(argName),
+          argIDID: argID,
           bodyID: body,
         }),
       );
 
   static Object pal({
-    ID? argID,
+    required ID argID,
     required String argName,
     required Object argType,
     required Object returnType,
@@ -1723,7 +2003,7 @@ abstract class FnExpr extends Expr {
       );
 
   static Object palInferred({
-    ID? argID,
+    required ID argID,
     required String argName,
     required Object argType,
     required Object body,
@@ -1731,7 +2011,7 @@ abstract class FnExpr extends Expr {
       _mk(argID: argID, argName: argName, argType: argType, body: UnionTag.mk(palID, body));
 
   static Object dart({
-    ID? argID,
+    required ID argID,
     required String argName,
     required Object argType,
     required Object returnType,
@@ -1746,12 +2026,12 @@ abstract class FnExpr extends Expr {
       );
 
   static Object from({
+    required ID argID,
     required String argName,
     required Object argType,
     required Object Function(Object) returnType,
     required Object Function(Object) body,
   }) {
-    final argID = ID.mk(argName);
     return FnExpr.pal(
       argID: argID,
       argName: argName,
@@ -1781,13 +2061,19 @@ abstract class FnExpr extends Expr {
 }
 
 abstract class FnApp extends Expr {
-  static final fnID = ID.mk('fn');
-  static final argID = ID.mk('arg');
+  static const fnID =
+      ID.constant(id: 'a1f3e9db-a5e3-4aa8-a1ed-edbe7f373975', hashCode: 388278076, label: 'fn');
 
-  static final typeDef = TypeDef.mk(TypeTree.record('FnApp', {
-    fnID: TypeTree.mk('fn', Type.lit(Expr.type)),
-    argID: TypeTree.mk('arg', Type.lit(Expr.type)),
-  }));
+  static const argID =
+      ID.constant(id: '23794c3f-fb84-4436-8936-cdf84cc6e75c', hashCode: 208294906, label: 'arg');
+
+  static final typeDef = TypeDef.mk(
+    TypeTree.record('FnApp', {
+      fnID: TypeTree.mk('fn', Type.lit(Expr.type)),
+      argID: TypeTree.mk('arg', Type.lit(Expr.type)),
+    }),
+    id: const ID.constant(id: '947c0aea-b58e-4034-8512-0838670fae12', hashCode: 466578475),
+  );
   static final type = TypeDef.asType(typeDef);
 
   static final _typeFnBody = langInverseFnMap[_fnAppTypeCheck]!;
@@ -1800,6 +2086,7 @@ abstract class FnApp extends Expr {
     typeCheckBody: _typeFnBody,
     reduceBody: _reduceFnBody,
     evalBody: _evalFnBody,
+    id: const ID.constant(id: '41246aa9-a53a-47ab-8013-cddb2c3373b9', hashCode: 150028507),
   );
 
   static final Object exprImpl = Expr.mkImpl(
@@ -1833,10 +2120,15 @@ class MyException implements Exception {
 }
 
 abstract class Construct extends Expr {
-  static final dataTypeID = ID.mk('dataType');
-  static final treeID = ID.mk('tree');
+  static const dataTypeID = ID.constant(
+      id: 'f2af00a9-68c6-4e63-81e5-8b1e05b1a580', hashCode: 185504088, label: 'dataType');
 
-  static final typeDefID = ID.mk('Construct');
+  static const treeID =
+      ID.constant(id: '3bbab571-41f4-4067-8c23-361717f48376', hashCode: 90096316, label: 'tree');
+
+  static const typeDefID = ID.constant(
+      id: '8f215b60-9628-44d0-a7e6-978ffb30a809', hashCode: 379539543, label: 'Construct');
+
   static final typeDef = TypeDef.record(
     'Construct',
     {
@@ -1853,7 +2145,9 @@ abstract class Construct extends Expr {
 
   static final _evalFn = langInverseFnMap[_constructEval]!;
 
-  static final exprImplID = ID.mk('ConstructExprImpl');
+  static const exprImplID = ID.constant(
+      id: 'e105db48-0324-4752-9cb8-1775a5fda623', hashCode: 362074369, label: 'ConstructExprImpl');
+
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
     argName: 'constructData',
@@ -1880,10 +2174,13 @@ abstract class Construct extends Expr {
 }
 
 abstract class RecordAccess extends Expr {
-  static final targetID = ID.mk('target');
-  static final memberID = ID.mk('member');
+  static const targetID =
+      ID.constant(id: '78d7b456-495f-4639-a804-bf02758eded5', hashCode: 134990006, label: 'target');
+  static const memberID =
+      ID.constant(id: 'b9bc2f9a-90a7-4b64-901b-f869be227f1c', hashCode: 312702729, label: 'member');
+  static const typeDefID = ID.constant(
+      id: '4d63f23f-91a6-4280-835c-da2c5e5b81fb', hashCode: 379045543, label: 'RecordAccess');
 
-  static final typeDefID = ID.mk('RecordAccess');
   static final typeDef = TypeDef.record(
     'RecordAccess',
     {
@@ -1900,7 +2197,9 @@ abstract class RecordAccess extends Expr {
 
   static final _evalFn = langInverseFnMap[_recordAccessEval]!;
 
-  static final exprImplID = ID.mk('exprImpl');
+  static const exprImplID = ID.constant(
+      id: '25be335f-6ffb-4646-a7cb-116ebc621b26', hashCode: 46621241, label: 'exprImpl');
+
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
     argName: 'recordAccessData',
@@ -1929,10 +2228,15 @@ abstract class RecordAccess extends Expr {
 }
 
 abstract class Literal extends Expr {
-  static final typeID = ID.mk('type');
-  static final valueID = ID.mk('value');
+  static const typeID =
+      ID.constant(id: '401b9a0a-a910-4ffd-af4e-3e6cc1a063f6', hashCode: 194142071, label: 'type');
 
-  static final typeDefID = ID.mk('Literal');
+  static const valueID =
+      ID.constant(id: 'c4394ba1-d3bf-411b-ad56-71a1ec7c55ec', hashCode: 307972573, label: 'value');
+
+  static const typeDefID = ID.constant(
+      id: '7e79a0e2-1e9f-4525-ad10-cdf96cc31db8', hashCode: 308912535, label: 'Literal');
+
   static final typeDef = TypeDef.record(
     'Literal',
     {
@@ -1949,7 +2253,9 @@ abstract class Literal extends Expr {
 
   static final _evalFnData = langInverseFnMap[_literalEval]!;
 
-  static final exprImplID = ID.mk('LiteralExprImpl');
+  static const exprImplID = ID.constant(
+      id: '547c97d7-6434-4fae-a6b4-cf6b4277424e', hashCode: 491904096, label: 'LiteralExprImpl');
+
   static final exprImplDef = Expr.mkImplDef(
     id: exprImplID,
     argName: 'literalData',
@@ -1976,8 +2282,12 @@ abstract class Literal extends Expr {
 }
 
 abstract class Var extends Expr {
-  static final IDID = ID.mk('ID');
-  static final typeDefID = ID.mk('Var');
+  static const IDID =
+      ID.constant(id: '05d8fb98-de4e-4c86-a452-3368c950fa3f', hashCode: 190872692, label: 'ID');
+
+  static const typeDefID =
+      ID.constant(id: 'd1a06451-22f0-4c9f-9f39-4814920519f6', hashCode: 502452118, label: 'Var');
+
   static final typeDef = TypeDef.record(
     'Var',
     {
@@ -1997,6 +2307,7 @@ abstract class Var extends Expr {
     typeCheckBody: _typeFn,
     reduceBody: _reduceFn,
     evalBody: _evalFn,
+    id: const ID.constant(id: '7aef8101-2fa8-40e7-9575-a91d2595d978', hashCode: 389287988),
   );
   static final exprImpl = Expr.mkImpl(
     dataType: type,
@@ -2032,37 +2343,52 @@ extension CtxType on Ctx {
 }
 
 abstract class Binding {
-  static final IDID = ID.mk('ID');
-  static final valueTypeID = ID.mk('type');
-  static final nameID = ID.mk('name');
-  static final reducedValueID = ID.mk('reducedValue');
-  static final valueID = ID.mk('value');
+  static const IDID =
+      ID.constant(id: 'a639d23e-3412-45d1-af06-07e67fdb2071', hashCode: 117891622, label: 'ID');
 
-  static final def = TypeDef.record('Binding', {
-    IDID: TypeTree.mk('id', Type.lit(ID.type)),
-    valueTypeID: TypeTree.mk('type', Type.lit(typeExprType)),
-    nameID: TypeTree.mk('name', Type.lit(text)),
-    reducedValueID: TypeTree.mk(
-      'reducedValue',
-      Type.lit(
-        Fn.type(
-          argID: ID.mk('_'),
-          argType: unit,
-          returnType: Type.lit(Option.type(Expr.type)),
+  static const valueTypeID =
+      ID.constant(id: 'cd6a590a-2ec6-445f-b83f-1761a8688b73', hashCode: 79187658, label: 'type');
+
+  static const nameID =
+      ID.constant(id: '9a2bce74-a540-4b04-aaea-29bd6bf0a804', hashCode: 403676171, label: 'name');
+
+  static const reducedValueID = ID.constant(
+      id: '16e6361e-f9a8-46dc-99d2-a5975e36591b', hashCode: 159780296, label: 'reducedValue');
+
+  static const valueID =
+      ID.constant(id: 'f28e3b67-77c6-495f-afd5-de9eb338c355', hashCode: 16595567, label: 'value');
+
+  static final def = TypeDef.record(
+    'Binding',
+    {
+      IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      valueTypeID: TypeTree.mk('type', Type.lit(typeExprType)),
+      nameID: TypeTree.mk('name', Type.lit(text)),
+      reducedValueID: TypeTree.mk(
+        'reducedValue',
+        Type.lit(
+          Fn.type(
+            argID: const ID.constant(
+                id: 'f165b09a-b66c-4d9c-8e1b-8123c16db64d', hashCode: 376240261, label: '_'),
+            argType: unit,
+            returnType: Type.lit(Option.type(Expr.type)),
+          ),
         ),
       ),
-    ),
-    valueID: TypeTree.mk(
-      'value',
-      Type.lit(
-        Fn.type(
-          argID: ID.mk('_'),
-          argType: unit,
-          returnType: Option.typeExpr(Var.mk(valueTypeID)),
+      valueID: TypeTree.mk(
+        'value',
+        Type.lit(
+          Fn.type(
+            argID: const ID.constant(
+                id: '5764d758-7d64-47fc-8adb-43cee7eb5e53', hashCode: 97531497, label: '_'),
+            argType: unit,
+            returnType: Option.typeExpr(Var.mk(valueTypeID)),
+          ),
         ),
       ),
-    ),
-  });
+    },
+    id: const ID.constant(id: '86b55176-3b8d-4032-a001-80dd3e2667f7', hashCode: 72800204),
+  );
   static final type = TypeDef.asType(def);
 
   static Object mk({
@@ -2131,7 +2457,8 @@ extension CtxBinding on Ctx {
 
 final coreCtx = (Option.unwrap(Module.load(Ctx.empty.withFnMap(langFnMap), coreModule)) as Ctx);
 
-final _substBindingID = ID.mk('subst');
+const _substBindingID =
+    ID.constant(id: 'a1d4fe69-012e-4b69-9ea6-ad2bdd6694c6', hashCode: 529898823, label: 'subst');
 dart.Map<ID, Object> _subst(Ctx ctx) {
   return Option.unwrap(Binding.value(ctx, Option.unwrap(ctx.getBinding(_substBindingID))))
       as dart.Map<ID, Object>;
@@ -2530,7 +2857,8 @@ Object eval(Ctx ctx, Object expr) {
   );
 }
 
-final _visitedID = ID.mk('visited');
+const _visitedID =
+    ID.constant(id: '809f3010-4527-422a-9384-560f655008e5', hashCode: 455052035, label: 'visited');
 Ctx updateVisited(Ctx ctx, ID id) {
   final prevSet = Option.cases(
     ctx.getBinding(_visitedID),
@@ -2560,7 +2888,14 @@ Object typeCheck(Ctx ctx, Object expr) => eval(
 
 Object? _toEncodable(dynamic arg) {
   if (arg is Dict) {
-    return {for (final entry in arg.entries) serialize(entry.key, ''): entry.value};
+    final keys = arg.keys.map((k) {
+      return reified.Pair(k, k is ID ? _toEncodable(k) as String : serialize(k, ''));
+    }).toList();
+    mergeSort(
+      keys,
+      compare: (k1, k2) => k1.second.compareTo(k2.second),
+    );
+    return {for (final key in keys) key.second: arg[key.first].unwrap!};
   } else if (arg is Vec) {
     return arg.toList();
   } else if (arg is ID) {
@@ -2572,10 +2907,11 @@ Object? _toEncodable(dynamic arg) {
 
 String serialize(Object arg, String indent) =>
     JsonEncoder.withIndent(indent, _toEncodable).convert(arg);
+
 dynamic _revive(final dynamic arg) {
   if (arg is dart.Map<String, dynamic>) {
-    return Dict(arg.map(
-        (key, dynamic value) => MapEntry(deserialize(key) as Object, _revive(value) as Object)));
+    return Dict(arg
+        .map((key, dynamic value) => MapEntry(_revive(key) as Object, _revive(value) as Object)));
   } else if (arg is dart.List<dynamic>) {
     return Vec([...arg.map<dynamic>(_revive).cast<Object>()]);
   } else if (arg is String) {
@@ -2615,7 +2951,9 @@ extension FnMapCtxExt on Ctx {
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
 }
 
-final coreModule = Module.mk(name: 'core', definitions: [
+const coreModuleID =
+    ID.constant(id: '24a202de-8089-42a8-b81b-de92efb34d9b', hashCode: 443982851, label: 'core');
+final coreModule = Module.mk(id: coreModuleID, name: 'core', definitions: [
   TypeDef.mkDef(ID.def),
   TypeDef.mkDef(Module.def),
   InterfaceDef.mkDef(ModuleDef.interfaceDef),

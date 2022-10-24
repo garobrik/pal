@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:core';
 import 'dart:core' as dart;
@@ -18,10 +19,13 @@ import 'package:knose/src/pal2/print.dart';
 part 'pal_editor.g.dart';
 
 abstract class PalCursor {
-  static final dataTypeID = ID.mk('dataType');
-  static final cursorID = ID.mk('cursor');
+  static const dataTypeID = ID.constant(
+      id: '2d46681f-1d00-4e9e-bd21-9a183b390ba5', hashCode: 225513056, label: 'dataType');
+  static const cursorID =
+      ID.constant(id: 'fcb8541a-28d8-4f28-8b09-61e6eaf6b41c', hashCode: 257160735, label: 'cursor');
 
-  static final defID = ID.mk('Cursor');
+  static const defID =
+      ID.constant(id: '74f778b6-fae8-43f8-b09a-ce921a390f6a', hashCode: 421951690, label: 'Cursor');
   static final def = TypeDef.record(
     'Cursor',
     {
@@ -46,30 +50,42 @@ abstract class PalCursor {
       (palCursor as Dict)[cursorID].unwrap! as Cursor<Object>;
 }
 
-final palWidgetDef = TypeDef.unit('Widget');
+final palWidgetDef = TypeDef.unit(
+  'Widget',
+  id: const ID.constant(id: 'f6665037-10f6-44be-a53a-ccd35eb50577', hashCode: 51471329),
+);
 final palWidget = TypeDef.asType(palWidgetDef);
 
 abstract class Editable {
-  static final dataTypeID = ID.mk('dataType');
-  static final editorID = ID.mk('editor');
-  static final editorArgID = ID.mk('editorArg');
-  static final interfaceDef = InterfaceDef.record('Editable', {
-    dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
-    editorID: TypeTree.mk(
-      'editor',
-      Fn.typeExpr(
-        argID: editorArgID,
-        argType: PalCursor.typeExpr(Var.mk(dataTypeID)),
-        returnType: Type.lit(palWidget),
+  static const dataTypeID = ID.constant(
+      id: '0905d2f2-2e84-4ca0-b1d7-724684e9c472', hashCode: 472978359, label: 'dataType');
+  static const editorID =
+      ID.constant(id: '0031e1a6-f48d-4957-9a62-75934f7a4f6a', hashCode: 31945668, label: 'editor');
+  static const editorArgID = ID.constant(
+      id: '426e7931-6570-48f1-ae60-4d84ce84046a', hashCode: 39320343, label: 'editorArg');
+  static final interfaceDef = InterfaceDef.record(
+    'Editable',
+    {
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+      editorID: TypeTree.mk(
+        'editor',
+        Fn.typeExpr(
+          argID: editorArgID,
+          argType: PalCursor.typeExpr(Var.mk(dataTypeID)),
+          returnType: Type.lit(palWidget),
+        ),
       ),
-    ),
-  });
+    },
+    id: const ID.constant(id: 'aa48c74f-5cf2-45bf-82e5-a0cd7d3485cf', hashCode: 117434805),
+  );
 
   static Object mkImpl({
+    required ID id,
     required Object dataType,
     required ID editor,
   }) =>
       ImplDef.mkDef(ImplDef.mk(
+        id: id,
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
           dataTypeID: Type.lit(dataType),
@@ -84,13 +100,14 @@ abstract class Editable {
       ));
 
   static Object mkParameterizedImpl({
+    required ID id,
     required String name,
     required Object argType,
     required Object Function(Object) dataType,
     required ID editor,
   }) =>
       ImplDef.mkParameterized(
-        id: ID.mk(name),
+        id: id,
         implemented: InterfaceDef.id(interfaceDef),
         argType: argType,
         definition: (arg) => Dict({
@@ -102,6 +119,8 @@ abstract class Editable {
             returnType: Type.lit(text),
             body: FnApp.mk(
               FnExpr.dart(
+                argID: const ID.constant(
+                    id: '7d05e186-7a8a-402a-b49e-bd68fbca195f', hashCode: 361501349),
                 argName: 'printArg',
                 argType: Type.lit(Any.type),
                 returnType: Type.lit(text),
@@ -114,15 +133,25 @@ abstract class Editable {
       );
 }
 
-final editorFn = Var.mk(ID.mk('editor'));
-final editorArgsDataTypeID = ID.mk('dataType');
-final editorArgsCursorID = ID.mk('cursor');
-final editorArgsDef = TypeDef.record('EditorArgs', {
-  editorArgsDataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
-  editorArgsCursorID: TypeTree.mk('cursor', PalCursor.typeExpr(Var.mk(editorArgsDataTypeID))),
-});
+final editorFn = Var.mk(const ID.constant(
+    id: '35d520d1-aebe-438b-bd47-54b2e9b616eb', hashCode: 497128495, label: 'editor'));
+const editorArgsDataTypeID =
+    ID.constant(id: 'cd8dca0e-2f10-4e2e-a0b0-e0b0d18e1f2b', hashCode: 308108711, label: 'dataType');
+const editorArgsCursorID =
+    ID.constant(id: '88058ac7-242a-4536-92e9-7a977b581714', hashCode: 14102665, label: 'cursor');
+final editorArgsDef = TypeDef.record(
+  'EditorArgs',
+  {
+    editorArgsDataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
+    editorArgsCursorID: TypeTree.mk('cursor', PalCursor.typeExpr(Var.mk(editorArgsDataTypeID))),
+  },
+  id: const ID.constant(id: '879e1f46-a82d-41d4-92cb-8f97a2fb4253', hashCode: 246565902),
+);
 
+const palUIModuleID = ID.constant(
+    id: '8ed69fc4-51c8-4853-9ecb-bb245ccf2706', hashCode: 225295658, label: 'palUIModule');
 final palUIModule = Module.mk(
+  id: palUIModuleID,
   name: 'PalUI',
   definitions: [
     TypeDef.mkDef(PalCursor.def),
@@ -137,6 +166,7 @@ final palUIModule = Module.mk(
       id: Var.id(Expr.data(editorFn)),
       name: 'editor',
       value: FnExpr.dart(
+        argID: const ID.constant(id: '91624d64-dddd-4ffe-9af9-e8b87daa4a71', hashCode: 473188254),
         argName: 'editable',
         argType: Type.lit(TypeDef.asType(editorArgsDef)),
         returnType: Type.lit(palWidget),
@@ -146,10 +176,12 @@ final palUIModule = Module.mk(
     Editable.mkImpl(
       dataType: Module.type,
       editor: palEditorInverseFnMap[_moduleEditorFn]!,
+      id: const ID.constant(id: 'b0e33881-bcbd-42c2-8160-d2bb6da0edb8', hashCode: 472844317),
     ),
     Editable.mkImpl(
       dataType: TypeTree.type,
       editor: palEditorInverseFnMap[_typeTreeEditorFn]!,
+      id: const ID.constant(id: 'c8c17350-9ba6-4312-8c2f-353cb4063416', hashCode: 30010998),
     ),
   ],
 );
@@ -260,9 +292,58 @@ Widget _testThingy(Ctx ctx) {
   final expr = useCursor(placeholder);
   final currentModule = useCursor(modules[0][1][Module.IDID].read(ctx));
 
+  final dir = Directory('pal');
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      TextButton(
+        onPressed: () {
+          for (final module in modules.read(Ctx.empty)) {
+            final name = Module.name(module[1]);
+            final file = File('${dir.path}/$name.pal');
+            file.writeAsString(serialize(module[1], '  '));
+          }
+        },
+        child: Text('save modules to ${dir.absolute.path}'),
+      ),
+      TextButton(
+        onPressed: () {
+          final files = [
+            File('lib/src/app_widgets/pal_editor.dart'),
+            File('lib/src/pal2/lang.dart'),
+            File('lib/src/pal2/print.dart'),
+          ];
+          for (final file in files) {
+            file.readAsLines().then((lines) {
+              file.writeAsString([
+                for (final line in lines)
+                  line.replaceFirstMapped(
+                    RegExp('id: \'([^\']+)\', hashCode: ([0-9]+)'),
+                    (match) {
+                      final result = "id: '${match[1]}', hashCode: ${Hash.all(match[1], null)}";
+                      return result;
+                    },
+                  ),
+              ].join('\n'));
+            }, onError: (Object e) => throw e);
+          }
+        },
+        child: const Text('check id hashcodes'),
+      ),
+      TextButton(
+        onPressed: () {
+          final idString = StringBuffer();
+          idString.writeln('const ids = [');
+          for (final _ in range(1000)) {
+            final id = ID.mk();
+            idString.writeln('ID.constant(id: \'${id.id}\', hashCode: ${id.hashCode}),');
+          }
+          idString.writeln('];');
+          Clipboard.setData(ClipboardData(text: '$idString'));
+        },
+        child: const Text('generate IDs'),
+      ),
       ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) {
@@ -920,6 +1001,8 @@ Widget _placeholderEditor(
           } else if (currentText == '\\') {
             expr.set(
               FnExpr.pal(
+                argID: const ID.constant(
+                    id: '79e56f70-1a5e-44eb-b21d-8deafc0e6185', hashCode: 189184073),
                 argName: 'arg',
                 argType: Type.lit(unit),
                 returnType: Type.lit(unit),
@@ -1252,6 +1335,7 @@ Widget _addDefinitionDropdown(
       (interface) => addDefinition(
         ImplDef.mkDef(
           ImplDef.mk(
+            id: ID.mk(),
             implemented: InterfaceDef.id(interface),
             definition: TypeTree.instantiate(InterfaceDef.tree(interface), placeholder),
           ),
@@ -1268,11 +1352,18 @@ Widget _addDefinitionDropdown(
           child: const Text('Add Value Definition'),
         ),
         MySimpleDialogOption(
-          onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit('unnamed'))),
+          onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit(
+            'unnamed',
+            id: const ID.constant(id: '81fc488e-6b16-4bea-9228-a9c17e15af9d', hashCode: 262236359),
+          ))),
           child: const Text('Add Type Definition'),
         ),
         MySimpleDialogOption(
-          onPressed: () => addDefinition(InterfaceDef.mkDef(InterfaceDef.record('unnamed', {}))),
+          onPressed: () => addDefinition(InterfaceDef.mkDef(InterfaceDef.record(
+            'unnamed',
+            {},
+            id: ID.mk(),
+          ))),
           child: const Text('Add Interface Definition'),
         ),
         MySimpleDialogOption(
@@ -1678,7 +1769,10 @@ const bracket = Surrounder('[', ']');
 const brace = Surrounder('{', '}');
 
 abstract class Placeholder extends Expr {
-  static final typeDef = TypeDef.unit('Placeholder');
+  static final typeDef = TypeDef.unit(
+    'Placeholder',
+    id: const ID.constant(id: '9832bacd-1b55-494a-8db9-f7c55cd5078b', hashCode: 108872934),
+  );
   static final type = TypeDef.asType(typeDef);
 
   static final exprImplDef = Expr.mkImplDef(
@@ -1687,6 +1781,7 @@ abstract class Placeholder extends Expr {
     typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
     reduceBody: palEditorInverseFnMap[_reduce]!,
     evalBody: palEditorInverseFnMap[_eval]!,
+    id: const ID.constant(id: '0086f89e-7113-4f6c-950a-c2d92d481681', hashCode: 312213190),
   );
 
   @DartFn('b1750fd4-b07f-490b-816f-7933361115e5')
@@ -1705,8 +1800,13 @@ final placeholder = Expr.mk(
 );
 
 abstract class DotPlaceholder extends Expr {
-  static final prefixID = ID.mk('prefix');
-  static final typeDef = TypeDef.record('DotPlaceholder', {prefixID: Expr.type});
+  static const prefixID =
+      ID.constant(id: 'a87adbe6-0356-4e54-bf86-4015e35149e2', hashCode: 514623045, label: 'prefix');
+  static final typeDef = TypeDef.record(
+    'DotPlaceholder',
+    {prefixID: Expr.type},
+    id: const ID.constant(id: '4dce3b99-74e3-4cbc-963b-1a4d2f83525a', hashCode: 457215010),
+  );
   static final type = TypeDef.asType(typeDef);
 
   static final exprImplDef = Expr.mkImplDef(
@@ -1715,6 +1815,7 @@ abstract class DotPlaceholder extends Expr {
     typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
     reduceBody: palEditorInverseFnMap[_reduce]!,
     evalBody: palEditorInverseFnMap[_eval]!,
+    id: const ID.constant(id: '928ed976-8105-4a7c-9183-ba0e8e8750ec', hashCode: 272503713),
   );
 
   static Object mk(Object expr) => Expr.mk(
