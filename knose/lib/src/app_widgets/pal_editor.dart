@@ -227,21 +227,25 @@ Object _typeTreeEditorFn(Ctx ctx, Object arg) {
     final dict = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
     return InlineInset(contents: [
       for (final key in dict.keys.read(ctx))
-        Inset(
-          prefix: Text.rich(TextSpan(children: [
-            if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                TypeTree.unionID)
-              const TextSpan(text: 'union '),
-            if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                TypeTree.recordID)
-              const TextSpan(text: 'record '),
-            _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
-            const TextSpan(text: ': '),
-          ])),
-          contents: [
-            palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
-          ],
-          suffix: const SizedBox(),
+        FocusableNode(
+          onAddBelow: () => dict[ID.mk()] = Optional(TypeTree.mk('unnamed', placeholder)),
+          onDelete: () => dict.remove(key),
+          child: Inset(
+            prefix: Text.rich(TextSpan(children: [
+              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.unionID)
+                const TextSpan(text: 'union '),
+              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                  TypeTree.recordID)
+                const TextSpan(text: 'record '),
+              _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
+              const TextSpan(text: ': '),
+            ])),
+            contents: [
+              palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
+            ],
+            suffix: const SizedBox(),
+          ),
         )
     ]);
   } else if (tag == TypeTree.leafID) {
@@ -476,13 +480,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
               name,
               const TextSpan(text: ' { '),
             ])),
-            contents: [
-              palEditor(
-                ctx,
-                TypeTree.type,
-                typeTree,
-              )
-            ],
+            contents: [palEditor(ctx, TypeTree.type, typeTree)],
             suffix: const Text('}'),
           );
         } else if (dataType == ImplDef.type) {
