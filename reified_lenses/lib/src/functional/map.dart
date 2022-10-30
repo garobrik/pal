@@ -5,13 +5,16 @@ part 'map.g.dart';
 
 @immutable
 @ReifiedLens(type: ReifiedKind.map)
-class Dict<Key extends Object, Value>
-    with _DictMixin<Key, Value>, ToStringCtx, DiagnosticableTreeMixin {
+class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, DiagnosticableTreeMixin {
   @override
   @skip
   final Map<Key, Value> _values;
 
   const Dict([this._values = const {}]);
+
+  static GetCursor<Dict<Key, Value>> cursor<Key extends Object, Value>(
+          Map<Key, GetCursor<Value>> cursors) =>
+      _MixedDictCursor(cursors);
 
   @reify
   int get length => _values.length;
@@ -96,32 +99,6 @@ class Dict<Key extends Object, Value>
 
   @override
   Iterable<MapEntry<Key, Value>> get entries => _values.entries;
-
-  @override
-  void doStringCtx(StringBuffer buffer, int leading) {
-    if (this.entries.isEmpty) {
-      buffer.write('{}');
-      return;
-    }
-    if (this.length == 1 && this.entries.first.value is! ToStringCtx) {
-      buffer.write('{${this.entries.first.key}: ${this.entries.first.value}}');
-      return;
-    }
-    buffer.write('{');
-    for (final entry in entries) {
-      buffer.write('\n');
-      buffer.write(''.padLeft(leading + 2));
-      buffer.write('${entry.key}: ');
-      if (entry.value is ToStringCtx) {
-        (entry.value as ToStringCtx).doStringCtx(buffer, leading + 2);
-      } else {
-        buffer.write('${entry.value}');
-      }
-      buffer.write(',');
-    }
-    buffer.write('\n');
-    buffer.write('}'.padLeft(leading + 1));
-  }
 
   @override
   bool operator ==(Object other) {

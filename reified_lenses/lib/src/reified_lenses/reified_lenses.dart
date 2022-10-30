@@ -16,7 +16,7 @@ PathSet atPrefixWithParent(PathSet pathSet, Path prefix) {
 
 @immutable
 @reify
-class Diff with _DiffMixin, ToStringCtx {
+class Diff with _DiffMixin {
   @override
   final PathSet changed;
   @override
@@ -57,20 +57,6 @@ class Diff with _DiffMixin, ToStringCtx {
       );
 
   PathSet allPaths() => added.union(changed).union(removed);
-
-  @override
-  void doStringCtx(StringBuffer buffer, int leading) {
-    buffer.writeln('Diff(');
-    buffer.write('  changed:'.padLeft(leading));
-    changed.doStringCtx(buffer, leading + 2);
-    buffer.writeln(',');
-    buffer.write('  added:'.padLeft(leading));
-    added.doStringCtx(buffer, leading + 2);
-    buffer.writeln(',');
-    buffer.write('  removed:'.padLeft(leading));
-    removed.doStringCtx(buffer, leading + 2);
-    buffer.writeln(')');
-  }
 }
 
 @immutable

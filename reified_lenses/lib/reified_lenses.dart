@@ -10,5 +10,4 @@ export 'src/functional/equality.dart';
 export 'src/functional/map.dart';
 export 'src/functional/cset.dart';
 export 'src/functional/optional.dart';
-export 'src/functional/string_ctx.dart';
 export 'annotations.dart';

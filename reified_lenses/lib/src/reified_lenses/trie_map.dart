@@ -1,5 +1,4 @@
 import 'package:meta/meta.dart';
-import 'package:reified_lenses/src/functional/string_ctx.dart';
 import 'package:reified_lenses/src/functional/vec.dart';
 
 @immutable
@@ -262,7 +261,7 @@ class TrieMapSet<K, V> extends Iterable<V> {
 }
 
 @immutable
-class TrieSet<K> extends Iterable<Vec<K>> with ToStringCtx {
+class TrieSet<K> extends Iterable<Vec<K>> {
   final TrieMap<K, bool> _wrapped;
 
   const TrieSet.empty() : _wrapped = const TrieMap.empty();
@@ -305,13 +304,4 @@ class TrieSet<K> extends Iterable<Vec<K>> with ToStringCtx {
 
   @override
   Iterator<Vec<K>> get iterator => values().iterator;
-
-  @override
-  void doStringCtx(StringBuffer buffer, int leading) {
-    buffer.writeln('{');
-    for (final path in this) {
-      path.doStringCtx(buffer, leading + 2);
-    }
-    buffer.write('}'.padLeft(leading + 1));
-  }
 }

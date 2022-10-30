@@ -28,8 +28,6 @@ abstract class GetCursor<S> implements DiagnosticableTree {
   void Function() listen(void Function(S old, S nu, Diff diff) f);
 
   S read(Ctx ctx);
-
-  List<String> stringify();
 }
 
 extension GetCursorHelpers<S> on GetCursor<S> {
@@ -109,7 +107,6 @@ extension CursorPartial<S> on Cursor<S> {
 abstract class ListenableState<T> {
   T get currentState;
   void Function() listen(Path path, void Function(T old, T nu, Diff diff) callback);
-  List<String> stringify();
 }
 
 abstract class MutableListenableState<T> implements ListenableState<T> {
@@ -142,11 +139,6 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
         .connectedValues(result.diff.allPaths())
         .forEach((f) => f(origState, _state, result.diff));
     return result;
-  }
-
-  @override
-  List<String> stringify() {
-    return ['ListenableStateBase($currentState)'];
   }
 }
 
@@ -200,22 +192,6 @@ abstract class StateCursorBase<T, S> implements GetCursor<S> {
 
   @override
   int get hashCode => Object.hashAll([state, ...lens.path]);
-
-  @override
-  List<String> stringify() {
-    final stateString = state.stringify();
-    if (lens.path.isEmpty) {
-      return [
-        'StateCursor:${stateString.first}',
-        ...stateString.skip(1),
-      ];
-    } else {
-      return [
-        'StateCursor:${[lens.path.join(" > ")]}:${stateString.first}',
-        ...stateString.skip(1),
-      ];
-    }
-  }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -297,11 +273,6 @@ class _ValueCursor<S> with GetCursor<S>, DiagnosticableTreeMixin {
   S read(Ctx ctx) => state;
 
   @override
-  List<String> stringify() {
-    return ['ValueCursor($state)'];
-  }
-
-  @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     if (state is! Diagnosticable) properties.add(DiagnosticsProperty('state', state));
@@ -380,11 +351,6 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
       (_) => DiffResult(newState, const Diff.allChanged()),
     );
   }
-
-  @override
-  List<String> stringify() {
-    return ['ComputedState(current: $currentState)'];
-  }
 }
 
 abstract class _FlattenStateBase<T> implements ListenableState<T> {
@@ -425,17 +391,6 @@ abstract class _FlattenStateBase<T> implements ListenableState<T> {
         disposeListener = null;
       }
     };
-  }
-
-  @override
-  List<String> stringify() {
-    final viewedString = viewed.read(Ctx.empty).stringify();
-    return [
-      'Flatten<$T>(current:',
-      '  ${currentState.runtimeType}',
-      ...viewedString.map((s) => '  $s'),
-      ')',
-    ];
   }
 
   @override
