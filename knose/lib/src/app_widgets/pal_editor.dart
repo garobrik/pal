@@ -1432,14 +1432,6 @@ Widget _mySimpleDialogOption(
   );
 }
 
-extension _PalGetCursorAccess on GetCursor<Object> {
-  GetCursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
-}
-
-extension _PalCursorAccess on Cursor<Object> {
-  Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
-}
-
 class _TrieList<T extends Object> extends Iterable<T> {
   T? element;
   dart.List<_TrieList<T>> children;

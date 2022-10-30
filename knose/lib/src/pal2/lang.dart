@@ -6,6 +6,7 @@ import 'dart:core';
 import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
+import 'package:reified_lenses/reified_lenses.dart' show GetCursor, Cursor;
 import 'package:uuid/uuid.dart';
 // ignore: unused_import
 import 'package:knose/src/pal2/print.dart';
@@ -145,6 +146,182 @@ abstract class Module {
     return Option.mk(ctx);
   }
 
+  static GetCursor<Ctx> loadReactively(Ctx ctx, GetCursor<Vec> modules) {
+    Iterable<Object> expandDef(Ctx ctx, GetCursor<Object> moduleDef) {
+      final type = moduleDef[ModuleDef.implID][ModuleDef.dataTypeID].read(ctx);
+      final data = moduleDef[ModuleDef.dataID];
+      if (type == ValueDef.type) {
+        final arg = moduleDef[ModuleDef.dataID];
+
+        GetCursor<Object>? lazyTypeCursor;
+        GetCursor<Object>? lazyValueCursor;
+
+        final bindingID = arg[ValueDef.IDID].read(ctx) as ID;
+        final expr = arg[ValueDef.valueID];
+
+        computeType(Ctx ctx) {
+          lazyTypeCursor ??= GetCursor.compute(
+            (ctx) {
+              final lazyType = Result.cases(
+                typeCheck(updateVisited(ctx, bindingID), expr.read(ctx)),
+                ok: (checkedType) => checkedType,
+                error: (msg) => throw MyException('type checking binding failed because $msg'),
+              );
+              if (Expr.dataType(lazyType) != Literal.type) throw const MyException();
+              Option.cases(arg[ValueDef.expectedTypeID].read(ctx), none: () {},
+                  some: (expectedType) {
+                if (!assignable(ctx, expectedType, lazyType)) throw const MyException();
+              });
+              return lazyType;
+            },
+            ctx: ctx,
+          );
+          return lazyTypeCursor!.read(ctx);
+        }
+
+        computeValue(Ctx ctx) {
+          lazyValueCursor ??= GetCursor.compute((ctx) {
+            computeType(ctx);
+            return eval(updateVisited(ctx, bindingID), expr.read(ctx));
+          }, ctx: ctx);
+          return lazyValueCursor!.read(ctx);
+        }
+
+        return [
+          Binding.mkLazy(
+            id: bindingID,
+            name: arg[ValueDef.nameID].read(ctx) as String,
+            type: computeType,
+            value: computeValue,
+          ),
+        ];
+      } else if (type == InterfaceDef.type) {
+        return [
+          ValueDef.mkCursor(
+            id: data[InterfaceDef.IDID],
+            name: data[InterfaceDef.treeID][TypeTree.nameID],
+            value: Literal.mkCursor(GetCursor(InterfaceDef.type), data),
+          ),
+          TypeDef.mkCursorDef(
+            tree: data[InterfaceDef.treeID],
+            id: GetCursor.computeMT(
+              (ctx) => InterfaceDef.innerTypeDefID(data[InterfaceDef.IDID].read(ctx) as ID),
+            ),
+          ),
+          ValueDef.mkCursor(
+            id: GetCursor.computeMT(
+                (ctx) => InterfaceDef.dispatchCacheID(data[InterfaceDef.IDID].read(ctx) as ID)),
+            name: GetCursor.computeMT(
+                (ctx) => '${data[InterfaceDef.treeID][TypeTree.nameID].read(ctx)} dispatch cache'),
+            value: Literal.mkCursor(
+              GetCursor.computeMT(
+                (ctx) => Map.type(
+                  Type.type,
+                  InterfaceDef.implTypeByID(data[InterfaceDef.IDID].read(ctx) as ID),
+                ),
+              ),
+              // ignore: prefer_const_constructors
+              GetCursor(<Object, Object>{}),
+            ),
+          ),
+        ].expand((element) => expandDef(ctx, element));
+      } else if (type == TypeDef.type) {
+        final comptime =
+            (data[TypeDef.comptimeID][List.itemsID].read(ctx) as Iterable<Object>).cast<ID>();
+        final typeTree = data[TypeDef.treeID];
+
+        return [
+          ValueDef.mkCursor(
+            id: data[TypeDef.IDID],
+            name: typeTree[TypeTree.nameID],
+            value: Literal.mkCursor(GetCursor(TypeDef.type), data),
+          ),
+          // TODO: make reactive?
+          if (comptime.isNotEmpty)
+            TypeDef.mkCursorRecordDef(
+              name: GetCursor.computeMT((ctx) => '${typeTree[TypeTree.nameID].read(ctx)}TypeArgs'),
+              members: {for (final id in comptime) id: TypeTree.findReactive(ctx, typeTree, id)!},
+              id: GetCursor.computeMT(
+                  (ctx) => TypeDef.typeArgsIDFor(data[TypeDef.IDID].read(ctx) as ID)),
+            ),
+          ValueDef.mkCursor(
+            id: GetCursor.computeMT(
+              (ctx) => TypeDef.typeConstructorIDFor(data[TypeDef.IDID].read(ctx) as ID),
+            ),
+            name: typeTree[TypeTree.nameID],
+            value: comptime.isEmpty
+                ? GetCursor.computeMT(
+                    (ctx) => Type.lit(Type.mk(data[TypeDef.IDID].read(ctx) as ID)))
+                : FnExpr.mkFromCursor(
+                    argID: const GetCursor(TypeDef.typeConstructorArgID),
+                    argName: const GetCursor('typeArgs'),
+                    argType: Var.mkCursor(
+                      GetCursor.computeMT(
+                        (ctx) => TypeDef.typeConstructorIDFor(
+                            TypeDef.typeArgsIDFor(data[TypeDef.IDID].read(ctx) as ID)),
+                      ),
+                    ),
+                    returnType: (_) => GetCursor(Type.lit(Type.type)),
+                    // TODO: mkexprcursor??? bleh
+                    body: (arg) => GetCursor.computeMT(
+                      (ctx) {
+                        return Type.mkExpr(data[TypeDef.IDID].read(ctx) as ID, properties: [
+                          for (final id in comptime)
+                            MemberHas.mkEqualsExpr(
+                              [id],
+                              TypeTree.findReactive(ctx, typeTree, id)![TypeTree.treeID]
+                                      [UnionTag.valueID]
+                                  .read(ctx),
+                              RecordAccess.mk(arg, id),
+                            ),
+                        ]);
+                      },
+                    ),
+                  ),
+          ),
+        ].expand((element) => expandDef(ctx, element));
+      } else if (type == ImplDef.type) {
+        return expandDef(
+          ctx,
+          ValueDef.mkCursor(
+            id: GetCursor.computeMT(
+              (ctx) => ImplDef.bindingIDForIDs(
+                  implID: data[ImplDef.IDID].read(ctx) as ID,
+                  interfaceID: data[ImplDef.implementedID].read(ctx) as ID),
+            ),
+            name: GetCursor.computeMT((ctx) {
+              final implementedID = data[ImplDef.implementedID].read(ctx) as ID;
+              return '${implementedID.label ?? implementedID.id}Impl';
+            }),
+            value: data[ImplDef.definitionID],
+          ),
+        );
+      } else {
+        throw UnimplementedError();
+      }
+    }
+
+    return GetCursor.compute(
+      (ctx) => modules
+          .values(ctx)
+          .expand(
+            (module) => module[Module.definitionsID][OrderedMap.keyOrderID][List.itemsID]
+                .cast<Vec>()
+                .read(ctx)
+                .expand(
+                  (defID) => expandDef(
+                    ctx,
+                    module[Module.definitionsID][OrderedMap.valueMapID][Map.entriesID]
+                        .cast<Dict>()[defID]
+                        .whenPresent,
+                  ),
+                ),
+          )
+          .fold(ctx, (ctx, binding) => ctx.withBinding(binding)),
+      ctx: ctx,
+    );
+  }
+
   static final bindingOrType = Union.type([ModuleDef.type, Binding.type]);
 
   static String name(Object module) => (module as Dict)[Module.nameID].unwrap! as String;
@@ -212,10 +389,10 @@ abstract class ModuleDef extends InterfaceDef {
   );
   static final type = Type.mk(typeDefID);
 
-  static Object mk({required Object implDef, required Object data}) => Dict({
-        implID: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, implDef),
-        dataID: data
-      });
+  static Object mk({required Object impl, required Object data}) =>
+      Dict({implID: impl, dataID: data});
+  static GetCursor<Object> mkCursor({required Object impl, required GetCursor<Object> data}) =>
+      Dict.cursor({dataID: data, implID: GetCursor(impl)});
 
   static Object impl(Object moduleDef) => (moduleDef as Dict)[implID].unwrap!;
   static Object dataType(Object moduleDef) => (impl(moduleDef) as Dict)[dataTypeID].unwrap!;
@@ -266,11 +443,27 @@ abstract class ValueDef {
     required Object value,
   }) =>
       ModuleDef.mk(
-        implDef: moduleDefImplDef,
+        impl: moduleDefImpl,
         data: Dict({
           IDID: id,
           nameID: name,
           expectedTypeID: Option.mk(expectedType),
+          valueID: value,
+        }),
+      );
+
+  static GetCursor<Object> mkCursor({
+    required GetCursor<Object> id,
+    required GetCursor<Object> name,
+    GetCursor<Object>? expectedType,
+    required GetCursor<Object> value,
+  }) =>
+      ModuleDef.mkCursor(
+        impl: moduleDefImpl,
+        data: Dict.cursor({
+          IDID: id,
+          nameID: name,
+          expectedTypeID: Option.mkCursor(expectedType),
           valueID: value,
         }),
       );
@@ -287,6 +480,8 @@ abstract class ValueDef {
     id: const ID.constant(
         id: '52b13cdf-4771-42e8-bdbb-93d4ccc2db37', hashCode: 443583250, label: 'ValueDefImpl'),
   );
+  static final moduleDefImpl =
+      ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, moduleDefImplDef);
 
   static ID id(Object valueDef) => (valueDef as Dict)[IDID].unwrap! as ID;
 }
@@ -319,6 +514,22 @@ abstract class TypeDef {
 
   static Object mk(Object tree, {required ID id, DartList comptime = const []}) =>
       Dict({IDID: id, comptimeID: List.mk(comptime), treeID: tree});
+  static GetCursor<Object> mkCursorDef({
+    required GetCursor<Object> tree,
+    required GetCursor<Object> id,
+    GetCursor<Vec> comptime = const GetCursor(Vec()),
+  }) =>
+      ModuleDef.mkCursor(
+        impl: moduleDefImpl,
+        data: Dict.cursor({IDID: id, treeID: tree, comptimeID: List.mkCursor(comptime)}),
+      );
+
+  static GetCursor<Object> mkCursorRecordDef({
+    required GetCursor<Object> name,
+    required dart.Map<ID, GetCursor<Object>> members,
+    required GetCursor<Object> id,
+  }) =>
+      mkCursorDef(id: id, tree: TypeTree.mkRecordCursor(name, members));
 
   static Object asType(Object typeDef, {DartList properties = const []}) => Type.mk(
         (typeDef as Dict)[IDID].unwrap! as ID,
@@ -353,12 +564,18 @@ abstract class TypeDef {
     id: const ID.constant(
         id: '9236177b-15c5-4124-ad20-4bfc443a2af5', hashCode: 402914795, label: 'TypeDefImpl'),
   );
+  static final moduleDefImpl =
+      ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, moduleDefImplDef);
 
-  static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
+  static Object mkDef(Object def) => ModuleDef.mk(impl: moduleDefImpl, data: def);
 
+  static ID typeConstructorIDFor(ID id) => id.append(_typeConstructorID);
   static const _typeConstructorID = ID.constant(
       id: 'c60a9c79-2254-4ed4-a7a1-4b6c19a90346', hashCode: 362484140, label: 'TypeConstructor');
+  static const typeConstructorArgID =
+      ID.constant(id: '2f034e10-516f-4a90-b252-757e863a394c', hashCode: 141926094);
 
+  static ID typeArgsIDFor(ID id) => id.append(typeArgsID);
   static const typeArgsID = ID.constant(
       id: '04443546-52ad-4236-832f-c68b178b3856', hashCode: 207883027, label: 'TypeArgs');
 
@@ -396,8 +613,7 @@ abstract class TypeDef {
           value: comptime.isEmpty
               ? Type.lit(TypeDef.asType(typeDef))
               : FnExpr.from(
-                  argID: const ID.constant(
-                      id: '2f034e10-516f-4a90-b252-757e863a394c', hashCode: 141926094),
+                  argID: typeConstructorArgID,
                   argName: 'typeArgs',
                   argType: Var.mk(
                     TypeDef.id(typeDef).append(typeArgsID).append(TypeDef._typeConstructorID),
@@ -699,7 +915,7 @@ abstract class MemberHas extends TypeProperty {
   static Object property(Object memberHas) => (memberHas as Dict)[propertyID].unwrap!;
 }
 
-abstract class UnionTag {
+class UnionTag extends Dict {
   static const tagID =
       ID.constant(id: 'ebc689d7-167b-49c9-9d96-c06228da1bab', hashCode: 508643769, label: 'tag');
 
@@ -718,6 +934,8 @@ abstract class UnionTag {
   static final type = TypeDef.asType(def);
 
   static Dict mk(ID tag, Object value) => Dict({tagID: tag, valueID: value});
+  static GetCursor<Object> mkCursor(ID tag, GetCursor<Object> value) =>
+      Dict.cursor({valueID: value, tagID: GetCursor(tag)});
 
   static ID tag(Object unionTag) => (unionTag as Dict)[tagID].unwrap! as ID;
   static Object value(Object unionTag) => (unionTag as Dict)[valueID].unwrap!;
@@ -762,6 +980,10 @@ abstract class TypeTree {
   static Dict mk(String name, Object type) =>
       Dict({nameID: name, treeID: UnionTag.mk(leafID, type)});
   static Dict unit(String name) => TypeTree.record(name, const {});
+
+  static GetCursor<Object> mkRecordCursor(
+          GetCursor<Object> name, dart.Map<ID, GetCursor<Object>> members) =>
+      Dict.cursor({nameID: name, treeID: UnionTag.mkCursor(leafID, Map.mkCursor(members))});
 
   static String name(Object typeTree) => (typeTree as Dict)[nameID].unwrap! as String;
   static Object tree(Object typeTree) => (typeTree as Dict)[treeID].unwrap!;
@@ -970,6 +1192,24 @@ abstract class TypeTree {
     }
     return null;
   }
+
+  static GetCursor<Object>? findReactive(Ctx ctx, GetCursor<Object> typeTree, ID id) {
+    final treeCase = typeTree[treeID][UnionTag.tagID].read(ctx);
+    var dict = const GetCursor(Dict());
+    if (treeCase == recordID || treeCase == unionID) {
+      dict = typeTree[treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+    }
+    for (final key in dict.keys.read(ctx)) {
+      if (id == key) {
+        return dict[key].whenPresent;
+      }
+      final subFind = findReactive(ctx, dict[key].whenPresent, id);
+      if (subFind != null) {
+        return subFind;
+      }
+    }
+    return null;
+  }
 }
 
 abstract class InterfaceDef {
@@ -1019,7 +1259,10 @@ abstract class InterfaceDef {
         id: '970807fb-7618-49c3-b657-c136ed4ba1e0', hashCode: 240586499, label: 'InterfaceDefImpl'),
   );
 
-  static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
+  static final moduleDefImpl =
+      ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, moduleDefImplDef);
+
+  static Object mkDef(Object def) => ModuleDef.mk(impl: moduleDefImpl, data: def);
   static Object implType(Object interfaceDef, [DartList properties = const []]) =>
       implTypeByID(InterfaceDef.id(interfaceDef), properties);
   static Object implTypeByID(ID interfaceID, [DartList properties = const []]) =>
@@ -1088,8 +1331,10 @@ abstract class ImplDef {
       id: '3dc81333-74ed-48bb-a3a6-7d1cf97319c8', hashCode: 362710046, label: 'BindingIDPrefix');
 
   static ID bindingIDPrefixForID(ID interfaceID) => _bindingIDPrefixID.append(interfaceID);
-  static ID bindingIDPrefix(Object implDef) => bindingIDPrefixForID(ImplDef.implemented(implDef));
-  static ID bindingID(Object implDef) => bindingIDPrefix(implDef).append(ImplDef.id(implDef));
+  static ID bindingID(Object implDef) =>
+      bindingIDForIDs(interfaceID: ImplDef.implemented(implDef), implID: ImplDef.id(implDef));
+  static ID bindingIDForIDs({required ID implID, required ID interfaceID}) =>
+      bindingIDPrefixForID(interfaceID).append(implID);
   static final moduleDefImplDef = ModuleDef.mkImpl(
     dataType: type,
     bindings: FnExpr.dart(
@@ -1102,8 +1347,10 @@ abstract class ImplDef {
     id: const ID.constant(
         id: 'd3a12fbe-f4b6-4129-8183-cce33ce42b05', hashCode: 3876398, label: 'ImplDefImpl'),
   );
+  static final moduleDefImpl =
+      ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, moduleDefImplDef);
 
-  static Object mkDef(Object def) => ModuleDef.mk(implDef: moduleDefImplDef, data: def);
+  static Object mkDef(Object def) => ModuleDef.mk(impl: moduleDefImpl, data: def);
 
   static Object asImpl(Ctx ctx, Object interfaceDef, Object implDef) {
     return TypeTree.mapData(
@@ -1266,10 +1513,16 @@ abstract class Option {
   static bool isPresent(Object option) =>
       Option.cases(option, some: (_) => true, none: () => false);
 
-  static final _noneUnionTag = UnionTag.mk(noneID, const Dict());
-  static Object mk([Object? value]) => Dict({
-        valueID: value == null ? _noneUnionTag : UnionTag.mk(someID, value),
-      });
+  static final _noneValue = Dict({valueID: UnionTag.mk(noneID, const Dict())});
+  static Object mk([Object? value]) => value == null
+      ? _noneValue
+      : Dict({
+          valueID: UnionTag.mk(someID, value),
+        });
+
+  static GetCursor<Object> mkCursor([GetCursor<Object>? value]) => value == null
+      ? GetCursor(_noneValue)
+      : Dict.cursor({valueID: UnionTag.mkCursor(someID, value)});
 
   static Object someExpr(Object dataType, Object value) => Construct.mk(
         Option.type(dataType),
@@ -1510,6 +1763,8 @@ abstract class Expr {
 
   static Object mk({required Object data, required Object impl}) =>
       Dict({dataID: data, implID: impl});
+  static GetCursor<Object> mkCursor({required GetCursor<Object> data, required Object impl}) =>
+      Dict.cursor({dataID: data, implID: GetCursor(impl)});
 
   static Object mkExpr({required Object data, required Object impl}) =>
       Construct.mk(Expr.type, Dict({dataID: data, implID: impl}));
@@ -1610,6 +1865,7 @@ abstract class List {
       ]);
 
   static Object mk(DartList values) => Dict({itemsID: Vec(values)});
+  static GetCursor<Object> mkCursor(GetCursor<Vec> values) => Dict.cursor({itemsID: values});
 
   static Object mkExpr(Object type, DartList values) => Expr.mk(
         impl: mkExprImpl,
@@ -1698,6 +1954,8 @@ abstract class Map {
       ]);
 
   static Object mk(dart.Map<Object, Object> values) => Dict({entriesID: Dict(values)});
+  static GetCursor<Object> mkCursor(dart.Map<Object, GetCursor<Object>> values) =>
+      Dict.cursor({entriesID: Dict.cursor(values)});
 
   static const mkExprID =
       ID.constant(id: '3ae0055e-6dd0-4b05-99bc-59d1c84e80ea', hashCode: 468893412, label: 'mkExpr');
@@ -1987,6 +2245,24 @@ abstract class FnExpr extends Expr {
         }),
       );
 
+  static GetCursor<Object> _mkCursor({
+    required GetCursor<Object> argID,
+    required GetCursor<Object> argName,
+    required GetCursor<Object> argType,
+    GetCursor<Object>? returnType,
+    required GetCursor<Object> body,
+  }) =>
+      Expr.mkCursor(
+        impl: exprImpl,
+        data: Dict.cursor({
+          argTypeID: argType,
+          returnTypeID: Option.mkCursor(returnType),
+          argNameID: argName,
+          argIDID: argID,
+          bodyID: body,
+        }),
+      );
+
   static Object pal({
     required ID argID,
     required String argName,
@@ -2000,6 +2276,21 @@ abstract class FnExpr extends Expr {
         argType: argType,
         returnType: returnType,
         body: UnionTag.mk(palID, body),
+      );
+
+  static GetCursor<Object> mkPalCursor({
+    required GetCursor<Object> argID,
+    required GetCursor<Object> argName,
+    required GetCursor<Object> argType,
+    required GetCursor<Object> returnType,
+    required GetCursor<Object> body,
+  }) =>
+      _mkCursor(
+        argID: argID,
+        argName: argName,
+        argType: argType,
+        returnType: returnType,
+        body: UnionTag.mkCursor(palID, body),
       );
 
   static Object palInferred({
@@ -2038,6 +2329,22 @@ abstract class FnExpr extends Expr {
       argType: argType,
       returnType: returnType(Var.mk(argID)),
       body: body(Var.mk(argID)),
+    );
+  }
+
+  static GetCursor<Object> mkFromCursor({
+    required GetCursor<Object> argID,
+    required GetCursor<Object> argName,
+    required GetCursor<Object> argType,
+    required GetCursor<Object> Function(GetCursor<Object>) returnType,
+    required GetCursor<Object> Function(GetCursor<Object>) body,
+  }) {
+    return FnExpr.mkPalCursor(
+      argID: argID,
+      argName: argName,
+      argType: argType,
+      returnType: returnType(Var.mkCursor(argID)),
+      body: body(Var.mkCursor(argID)),
     );
   }
 
@@ -2276,6 +2583,11 @@ abstract class Literal extends Expr {
         impl: exprImpl,
         data: Dict({typeID: type, valueID: value}),
       );
+  static GetCursor<Object> mkCursor(GetCursor<Object> type, GetCursor<Object> value) =>
+      Expr.mkCursor(
+        impl: exprImpl,
+        data: Dict.cursor({typeID: type, valueID: value}),
+      );
 
   static Object getType(Object literal) => (literal as Dict)[typeID].unwrap!;
   static Object getValue(Object literal) => (literal as Dict)[valueID].unwrap!;
@@ -2320,6 +2632,10 @@ abstract class Var extends Expr {
   static Object mk(ID varID) => Expr.mk(
         impl: exprImpl,
         data: Dict({IDID: varID}),
+      );
+  static GetCursor<Object> mkCursor(GetCursor<Object> varID) => Expr.mkCursor(
+        impl: exprImpl,
+        data: Dict.cursor({IDID: varID}),
       );
 
   static ID id(Object varAccess) => (varAccess as Dict)[IDID].unwrap! as ID;
@@ -3689,4 +4005,12 @@ Object _valueDefBindings(Ctx ctx, Object arg) {
 extension Indent on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => s.padLeft(2));
   String wrap(String ctx) => ctx.isEmpty ? this : '$ctx:\n$indent';
+}
+
+extension PalGetCursorAccess on GetCursor<Object> {
+  GetCursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
+}
+
+extension PalCursorAccess on Cursor<Object> {
+  Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
 }
