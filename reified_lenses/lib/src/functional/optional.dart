@@ -1,4 +1,5 @@
 import 'package:ctx/ctx.dart';
+import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
 class Optional<Value> extends Iterable<Value> {
@@ -43,6 +44,37 @@ class Optional<Value> extends Iterable<Value> {
   }
 }
 
+class WrapOptionalCursor<Value> with GetCursor<Optional<Value>>, DiagnosticableTreeMixin {
+  final GetCursor<Value> _value;
+
+  WrapOptionalCursor(this._value);
+
+  @override
+  void Function() listen(void Function(Optional<Value> old, Optional<Value> nu, Diff diff) f) {
+    return _value.listen((old, nu, diff) {
+      f(Optional(old), Optional(nu), diff.prepend(Vec(['value'])));
+    });
+  }
+
+  @override
+  Optional<Value> read(Ctx ctx) {
+    return Optional(_value.read(ctx));
+  }
+
+  @override
+  GetCursor<S1> thenGet<S1>(Getter<Optional<Value>, S1> getter) {
+    // TODO: implement thenGet
+    throw UnimplementedError();
+  }
+
+  @override
+  GetCursor<S1> thenOptGet<S1>(OptGetter<Optional<Value>, S1> getter,
+      {String Function()? errorMsg}) {
+    // TODO: implement thenOptGet
+    throw UnimplementedError();
+  }
+}
+
 extension GetCursorOptional<T> on GetCursor<Optional<T>> {
   GetCursor<bool> get isEmpty => GetCursor.compute(
         (ctx) => this.read(ctx).isEmpty,
@@ -50,10 +82,14 @@ extension GetCursorOptional<T> on GetCursor<Optional<T>> {
         compare: true,
       );
 
-  GetCursor<T> get whenPresent => thenOpt(
-        OptLens(const Vec(['value']), (t) => t, (t, f) => t.map(f)),
-        errorMsg: () => 'Tried to unwrap optional value which is not present.',
-      );
+  GetCursor<T> get whenPresent {
+    final thisCursor = this;
+    if (thisCursor is WrapOptionalCursor<T>) return thisCursor._value;
+    return thenOpt(
+      OptLens(const Vec(['value']), (t) => t, (t, f) => t.map(f)),
+      errorMsg: () => 'Tried to unwrap optional value which is not present.',
+    );
+  }
 
   GetCursor<bool> get isPresent =>
       GetCursor.compute((ctx) => this.read(ctx).isPresent, ctx: Ctx.empty, compare: true);

@@ -1,3 +1,4 @@
+import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart';
 
@@ -24,7 +25,6 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, Diagnosticabl
 
   Iterable<Value> get values => _values.values;
 
-  @reify
   Optional<Value> operator [](Key key) => Optional.fromNullable(_values[key]);
   Dict<Key, Value> mut_array_op(Key key, Optional<Value> update) => update.cases(
         some: (update) => Dict(Map.of(_values)).._values[key] = update,
@@ -155,5 +155,86 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, Diagnosticabl
         if (entry.value is Diagnosticable)
           (entry.value as Diagnosticable).toDiagnosticsNode(name: entry.key.toString())
     ];
+  }
+}
+
+extension ManualDictCursorExtension<Key extends Object, Value> on Cursor<Dict<Key, Value>> {
+  Cursor<Optional<Value>> operator [](Key key) => then(
+        Lens(
+          Vec([
+            Vec<dynamic>(<dynamic>['[]', key])
+          ]),
+          (t) => t[key],
+          (t, s) => t.mut_array_op(key, s(t[key])),
+        ),
+      );
+
+  void operator []=(Key key, Optional<Value> update) {
+    mutResult(
+      (obj) => DiffResult(
+        obj.mut_array_op(key, update),
+        obj._mut_array_op_mutated(key, update),
+      ),
+    );
+  }
+}
+
+extension ManualDictGetCursorExtension<Key extends Object, Value> on GetCursor<Dict<Key, Value>> {
+  GetCursor<Optional<Value>> operator [](Key key) {
+    final thisCursor = this;
+    if (thisCursor is _MixedDictCursor<Key, Value>) {
+      final value = thisCursor.values[key];
+      return value == null ? GetCursor(Optional.none()) : WrapOptionalCursor(value);
+    }
+    return then(
+      Lens(
+        Vec([
+          Vec<dynamic>(<dynamic>['[]', key])
+        ]),
+        (t) => t[key],
+        (t, s) => t.mut_array_op(key, s(t[key])),
+      ),
+    );
+  }
+}
+
+class _MixedDictCursor<Key extends Object, Value>
+    with GetCursor<Dict<Key, Value>>, DiagnosticableTreeMixin {
+  final Map<Key, GetCursor<Value>> values;
+
+  _MixedDictCursor(this.values);
+
+  @override
+  void Function() listen(void Function(Dict<Key, Value> old, Dict<Key, Value> nu, Diff diff) f) {
+    final disposals = [
+      for (final value in values.values)
+        // TODO: incorrect
+        value.listen((old, nu, diff) => f(read(Ctx.empty), read(Ctx.empty), Diff.allChanged()))
+    ];
+    return () {
+      for (final disposal in disposals) {
+        disposal();
+      }
+    };
+  }
+
+  @override
+  Dict<Key, Value> read(Ctx ctx) {
+    return Dict({for (final entry in values.entries) entry.key: entry.value.read(ctx)});
+  }
+
+  @override
+  GetCursor<S1> thenGet<S1>(Getter<Dict<Key, Value>, S1> getter) {
+    return GetCursor(getter.get(read(Ctx.empty)));
+  }
+
+  @override
+  GetCursor<S1> thenOptGet<S1>(
+    OptGetter<Dict<Key, Value>, S1> getter, {
+    String Function()? errorMsg,
+  }) {
+    final result = getter.getOpt(read(Ctx.empty));
+    assert(result.isPresent, errorMsg);
+    return GetCursor(result.first);
   }
 }

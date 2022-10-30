@@ -13,6 +13,12 @@ abstract class GetCursor<S> implements DiagnosticableTree {
   }) =>
       StateCursor(_ComputedState(computation, ctx: ctx, compare: compare), Getter.identity());
 
+  factory GetCursor.computeMT(
+    S Function(Ctx) computation, {
+    bool compare = false,
+  }) =>
+      StateCursor(_ComputedState(computation, ctx: Ctx.empty, compare: compare), Getter.identity());
+
   GetCursor<S1> then<S1>(Lens<S, S1> lens) => thenGet(lens);
 
   GetCursor<S1> thenGet<S1>(Getter<S, S1> getter);
