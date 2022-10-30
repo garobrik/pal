@@ -180,7 +180,7 @@ final palUIModule = Module.mk(
     ),
     Editable.mkImpl(
       dataType: TypeTree.type,
-      editor: palEditorInverseFnMap[_typeTreeEditorFn]!,
+      editor: palEditorInverseFnMap[_typeTreeEditor]!,
       id: const ID.constant(id: 'c8c17350-9ba6-4312-8c2f-353cb4063416', hashCode: 30010998),
     ),
   ],
@@ -220,7 +220,8 @@ Object _editorFn(Ctx ctx, Object arg) {
 }
 
 @DartFn('ba3db78e-e181-4ff7-b94e-ecdc01b22e0e')
-Object _typeTreeEditorFn(Ctx ctx, Object arg) {
+@reader
+Widget _typeTreeEditor(Ctx ctx, Object arg) {
   final typeTree = PalCursor.cursor(arg);
   final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
   if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
@@ -242,7 +243,8 @@ Object _typeTreeEditorFn(Ctx ctx, Object arg) {
               const TextSpan(text: ': '),
             ])),
             contents: [
-              palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
+              TypeTreeEditor(ctx.withoutBinding(key as ID), PalCursor.mk(dict[key].whenPresent))
+              // palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
             ],
             suffix: const SizedBox(),
           ),
@@ -254,12 +256,6 @@ Object _typeTreeEditorFn(Ctx ctx, Object arg) {
     throw Exception('unknown type tree union case');
   }
 }
-
-final uiCtx = [
-  coreModule,
-  Printable.module,
-  palUIModule,
-].fold(_allFnMap, (ctx, module) => Option.unwrap(Module.load(ctx, module)) as Ctx);
 
 Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   return eval(
@@ -277,14 +273,18 @@ Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
   ) as Widget;
 }
 
-final _allFnMap =
-    Ctx.empty.withFnMap(langFnMap).withFnMap(Printable.fnMap).withFnMap(palEditorFnMap);
-
 @reader
 Widget _testThingy(Ctx ctx) {
   final saveDir = Directory('pal');
 
   final modules = useCursor(const Vec());
+  final moduleCtx = useMemoized(
+    () => Module.loadReactively(
+      ctx.withFnMap(langFnMap).withFnMap(Printable.fnMap).withFnMap(palEditorFnMap),
+      modules,
+    ),
+    [],
+  );
 
   Future<void> loadFiles() async {
     final files = await saveDir.list().toList();
@@ -301,14 +301,6 @@ Widget _testThingy(Ctx ctx) {
     return null;
   }, []);
 
-  final stale = useCursor(true);
-  final moduleCtx = useCursor(Option.mk());
-  useEffect(
-    () => modules.listen((old, nu, diff) {
-      if (!stale.read(Ctx.empty)) stale.set(true);
-    }),
-  );
-  final expr = useCursor(placeholder);
   final currentModule = useCursor(Option.mk());
 
   return Column(
@@ -378,29 +370,6 @@ Widget _testThingy(Ctx ctx) {
           );
         },
       ),
-      if (stale.read(ctx))
-        TextButton(
-          onPressed: () {
-            stale.set(false);
-            moduleCtx.set(modules.read(ctx).fold<Object>(
-                  Option.mk(_allFnMap),
-                  (ctx, module) => Option.cases(
-                    ctx,
-                    some: (ctx) => Module.load(ctx as Ctx, module),
-                    none: () => Option.mk(),
-                  ),
-                ));
-          },
-          child: const Text('Load Modules'),
-        ),
-      ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) => Option.cases(
-          moduleCtx.read(ctx),
-          some: (moduleCtx) => ExprEditor(moduleCtx as Ctx, expr),
-          none: () => const Text('module load error!'),
-        ),
-      ),
       DropdownMenu(
         items: modules
             .values(ctx)
@@ -438,7 +407,7 @@ Widget _testThingy(Ctx ctx) {
         if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
             key: ValueKey(module[Module.IDID].read(ctx)),
-            child: palEditor(uiCtx, Module.type, module),
+            child: ModuleEditor(moduleCtx.read(ctx), module),
           ),
     ],
   );
@@ -480,7 +449,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
               name,
               const TextSpan(text: ' { '),
             ])),
-            contents: [palEditor(ctx, TypeTree.type, typeTree)],
+            contents: [TypeTreeEditor(ctx, PalCursor.mk(typeTree))],
             suffix: const Text('}'),
           );
         } else if (dataType == ImplDef.type) {

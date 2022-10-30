@@ -152,6 +152,7 @@ abstract class Module {
       final data = moduleDef[ModuleDef.dataID];
       if (type == ValueDef.type) {
         final arg = moduleDef[ModuleDef.dataID];
+        final name = arg[ValueDef.nameID].cast<String>();
 
         GetCursor<Object>? lazyTypeCursor;
         GetCursor<Object>? lazyValueCursor;
@@ -162,21 +163,30 @@ abstract class Module {
         computeType(Ctx ctx) {
           lazyTypeCursor ??= GetCursor.compute(
             (ctx) {
-              final lazyType = Result.cases(
+              return Result.flatMap(
                 typeCheck(updateVisited(ctx, bindingID), expr.read(ctx)),
-                ok: (checkedType) => checkedType,
-                error: (msg) => throw MyException('type checking binding failed because $msg'),
+                (lazyType) {
+                  if (Expr.dataType(lazyType) != Literal.type) {
+                    return Result.mkErr('binding ${name.read(ctx)} does not have a concrete type');
+                  }
+                  return Option.cases(
+                    arg[ValueDef.expectedTypeID].read(ctx),
+                    none: () => Result.mkOk(lazyType),
+                    some: (expectedType) => assignableErr(
+                      ctx,
+                      expectedType,
+                      lazyType,
+                      'binding ${name.read(ctx)} expression type does not match expected',
+                      () => lazyType,
+                    ),
+                  );
+                },
+                'type checking binding ${name.read(ctx)} failed',
               );
-              if (Expr.dataType(lazyType) != Literal.type) throw const MyException();
-              Option.cases(arg[ValueDef.expectedTypeID].read(ctx), none: () {},
-                  some: (expectedType) {
-                if (!assignable(ctx, expectedType, lazyType)) throw const MyException();
-              });
-              return lazyType;
             },
             ctx: ctx,
           );
-          return lazyTypeCursor!.read(ctx);
+          return Result.unwrap(lazyTypeCursor!.read(ctx), MyException.throwFn);
         }
 
         computeValue(Ctx ctx) {
@@ -190,7 +200,7 @@ abstract class Module {
         return [
           Binding.mkLazy(
             id: bindingID,
-            name: arg[ValueDef.nameID].read(ctx) as String,
+            name: name.read(ctx),
             type: computeType,
             value: computeValue,
           ),
@@ -272,7 +282,7 @@ abstract class Module {
                               TypeTree.findReactive(ctx, typeTree, id)![TypeTree.treeID]
                                       [UnionTag.valueID]
                                   .read(ctx),
-                              RecordAccess.mk(arg, id),
+                              RecordAccess.mk(arg.read(ctx), id),
                             ),
                         ]);
                       },
@@ -983,7 +993,7 @@ abstract class TypeTree {
 
   static GetCursor<Object> mkRecordCursor(
           GetCursor<Object> name, dart.Map<ID, GetCursor<Object>> members) =>
-      Dict.cursor({nameID: name, treeID: UnionTag.mkCursor(leafID, Map.mkCursor(members))});
+      Dict.cursor({nameID: name, treeID: UnionTag.mkCursor(recordID, Map.mkCursor(members))});
 
   static String name(Object typeTree) => (typeTree as Dict)[nameID].unwrap! as String;
   static Object tree(Object typeTree) => (typeTree as Dict)[treeID].unwrap!;
@@ -2338,15 +2348,14 @@ abstract class FnExpr extends Expr {
     required GetCursor<Object> argType,
     required GetCursor<Object> Function(GetCursor<Object>) returnType,
     required GetCursor<Object> Function(GetCursor<Object>) body,
-  }) {
-    return FnExpr.mkPalCursor(
-      argID: argID,
-      argName: argName,
-      argType: argType,
-      returnType: returnType(Var.mkCursor(argID)),
-      body: body(Var.mkCursor(argID)),
-    );
-  }
+  }) =>
+      FnExpr.mkPalCursor(
+        argID: argID,
+        argName: argName,
+        argType: argType,
+        returnType: returnType(Var.mkCursor(argID)),
+        body: body(Var.mkCursor(argID)),
+      );
 
   static ID argID(Object fnExpr) => (fnExpr as Dict)[argIDID].unwrap! as ID;
   static String argName(Object fnExpr) => (fnExpr as Dict)[argNameID].unwrap! as String;
@@ -3425,7 +3434,9 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
         final treeAt = TypeTree.treeAt(TypeDef.tree(targetTypeDef), List.iterate(path));
         return TypeTree.treeCases(
           treeAt,
-          leaf: (_) => Result.mkErr('record access on leaf node!'),
+          leaf: (_) => Result.mkErr(
+            'tried to access member ${RecordAccess.member(arg)} on leaf node of type ${TypeTree.name(TypeDef.tree(targetTypeDef))}!',
+          ),
           union: (_) => Result.mkErr('record access on union!'),
           record: (recordNode) {
             final member = RecordAccess.member(arg);
