@@ -86,6 +86,8 @@ class ID implements Comparable<ID> {
     if (tail == null) return false;
     return tail!.contains(other);
   }
+
+  static final fake = ID.from(id: '00000000-0000-0000-0000-000000000000', label: 'kablooie');
 }
 
 abstract class Module {
@@ -113,38 +115,8 @@ abstract class Module {
         definitionsID: OrderedMap.mk([...definitions.map(ModuleDef.idFor)], definitions)
       });
 
-  static Object load(Ctx ctx, Object module) {
-    Iterable<Object> expandDef(Object moduleDef) {
-      final list = eval(
-        ctx,
-        FnApp.mk(
-          RecordAccess.mk(
-            RecordAccess.mk(Literal.mk(ModuleDef.type, moduleDef), ModuleDef.implID),
-            ModuleDef.bindingsID,
-          ),
-          RecordAccess.mk(Literal.mk(ModuleDef.type, moduleDef), ModuleDef.dataID),
-        ),
-      );
-      return List.iterate(list).expand(
-        (union) => Union.cases(union, {
-          ModuleDef.type: expandDef,
-          Binding.type: (binding) => [binding],
-        }),
-      );
-    }
-
-    final definitions = (module as Dict)[definitionsID].unwrap!;
-    final bindings = Map.entries(OrderedMap.valueMap(definitions)).values.expand(expandDef);
-    ctx = bindings.fold<Ctx>(ctx, (ctx, binding) => ctx.withBinding(binding));
-    // try {
-    for (final binding in bindings) {
-      Binding.valueType(ctx, binding);
-    }
-    // } on MyException {
-    //   return Option.mk();
-    // }
-    return Option.mk(ctx);
-  }
+  static Ctx load(Ctx ctx, Object module) =>
+      loadReactively(ctx, GetCursor(Vec([module]))).read(Ctx.empty);
 
   static GetCursor<Ctx> loadReactively(Ctx ctx, GetCursor<Vec> modules) {
     Iterable<Object> expandDef(Ctx ctx, GetCursor<Object> moduleDef) {
@@ -186,7 +158,7 @@ abstract class Module {
             },
             ctx: ctx,
           );
-          return Result.unwrap(lazyTypeCursor!.read(ctx), MyException.throwFn);
+          return lazyTypeCursor!.read(ctx);
         }
 
         computeValue(Ctx ctx) {
@@ -485,7 +457,7 @@ abstract class ValueDef {
       argName: 'valueDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: langInverseFnMap[_valueDefBindings]!,
+      body: ID.fake,
     ),
     id: const ID.constant(
         id: '52b13cdf-4771-42e8-bdbb-93d4ccc2db37', hashCode: 443583250, label: 'ValueDefImpl'),
@@ -569,7 +541,7 @@ abstract class TypeDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: langInverseFnMap[_typeDefBindings]!,
+      body: ID.fake,
     ),
     id: const ID.constant(
         id: '9236177b-15c5-4124-ad20-4bfc443a2af5', hashCode: 402914795, label: 'TypeDefImpl'),
@@ -590,63 +562,6 @@ abstract class TypeDef {
       id: '04443546-52ad-4236-832f-c68b178b3856', hashCode: 207883027, label: 'TypeArgs');
 
   static bool isTypeConstructorID(ID id) => id.contains(_typeConstructorID);
-  @DartFn('01415159-a7a9-42ce-a749-0c6428775166')
-  static Object _typeDefBindings(Ctx ctx, Object typeDef) {
-    final comptime = TypeDef.comptime(typeDef);
-    final typeTree = TypeDef.tree(typeDef);
-
-    return List.mk([
-      Union.mk(
-        ModuleDef.type,
-        ValueDef.mk(
-          id: TypeDef.id(typeDef),
-          name: TypeTree.name(typeTree),
-          value: Literal.mk(TypeDef.type, typeDef),
-        ),
-      ),
-      if (comptime.isNotEmpty)
-        Union.mk(
-          ModuleDef.type,
-          TypeDef.mkDef(
-            TypeDef.record(
-              '${TypeTree.name(typeTree)}TypeArgs',
-              {for (final id in comptime) id: TypeTree.find(typeTree, id)!},
-              id: TypeDef.id(typeDef).append(typeArgsID),
-            ),
-          ),
-        ),
-      Union.mk(
-        ModuleDef.type,
-        ValueDef.mk(
-          id: TypeDef.id(typeDef).append(TypeDef._typeConstructorID),
-          name: TypeTree.name(typeTree),
-          value: comptime.isEmpty
-              ? Type.lit(TypeDef.asType(typeDef))
-              : FnExpr.from(
-                  argID: typeConstructorArgID,
-                  argName: 'typeArgs',
-                  argType: Var.mk(
-                    TypeDef.id(typeDef).append(typeArgsID).append(TypeDef._typeConstructorID),
-                  ),
-                  returnType: (_) => Type.lit(Type.type),
-                  body: (arg) => Type.mkExpr(TypeDef.id(typeDef), properties: [
-                    for (final id in comptime)
-                      MemberHas.mkEqualsExpr(
-                        [id],
-                        TypeTree.treeCases(
-                          TypeTree.find(typeTree, id)!,
-                          record: (_) => null,
-                          union: (_) => null,
-                          leaf: (leaf) => leaf,
-                        )!,
-                        RecordAccess.mk(arg, id),
-                      ),
-                  ]),
-                ),
-        ),
-      ),
-    ]);
-  }
 }
 
 abstract class Type {
@@ -1061,7 +976,7 @@ abstract class TypeTree {
         return ctx.withBinding(Binding.mkLazy(
           id: id,
           name: TypeTree.name(typeTree),
-          type: (ctx) => reduce(ctx, leaf),
+          type: (ctx) => Result.mkOk(reduce(ctx, leaf)),
         ));
       },
     );
@@ -1077,7 +992,7 @@ abstract class TypeTree {
         Binding.mkLazy(
           id: path.last as ID,
           name: (path.last as ID).label ?? '${path.last}',
-          type: (ctx) => reduce(ctx, typeLeaf),
+          type: (ctx) => Result.mkOk(reduce(ctx, typeLeaf)),
           value: (ctx) => dataLeaf,
         ),
       ],
@@ -1263,7 +1178,7 @@ abstract class InterfaceDef {
       argName: 'interfaceDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: langInverseFnMap[_ifaceDefBindings]!,
+      body: ID.fake,
     ),
     id: const ID.constant(
         id: '970807fb-7618-49c3-b657-c136ed4ba1e0', hashCode: 240586499, label: 'InterfaceDefImpl'),
@@ -1352,7 +1267,7 @@ abstract class ImplDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: langInverseFnMap[_implDefBindings]!,
+      body: ID.fake,
     ),
     id: const ID.constant(
         id: 'd3a12fbe-f4b6-4129-8183-cce33ce42b05', hashCode: 3876398, label: 'ImplDefImpl'),
@@ -1593,11 +1508,13 @@ abstract class Result {
         : error(UnionTag.value(value) as String);
   }
 
-  static Object map(Object result, Object Function(Object) f) =>
-      cases(result, ok: (val) => Result.mkOk(f(val)), error: (err) => Result.mkErr(err));
-
   static Object flatMap(Object result, Object Function(Object) f, [String errCtx = '']) =>
       cases(result, ok: (val) => f(val), error: (err) => Result.mkErr(err.wrap(errCtx)));
+
+  static Object map(Object result, Object Function(Object) f, [String errCtx = '']) =>
+      flatMap(result, (v) => Result.mkOk(f(v)), errCtx);
+
+  static Object wrapErr(Object result, String errCtx) => map(result, (_) => _, errCtx);
 
   static Object flatten(Object result, [String errCtx = '']) =>
       cases(result, ok: (result) => result, error: (err) => Result.mkErr(err.wrap(errCtx)));
@@ -2780,7 +2697,7 @@ extension CtxBinding on Ctx {
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
-final coreCtx = (Option.unwrap(Module.load(Ctx.empty.withFnMap(langFnMap), coreModule)) as Ctx);
+final coreCtx = Module.load(Ctx.empty.withFnMap(langFnMap), coreModule);
 
 const _substBindingID =
     ID.constant(id: 'a1d4fe69-012e-4b69-9ea6-ad2bdd6694c6', hashCode: 529898823, label: 'subst');
@@ -3083,17 +3000,22 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
   Object? bestType;
   for (final binding in ctx.getBindings) {
     if (!ImplDef.bindingIDPrefixForID(interfaceID).isPrefixOf(Binding.id(binding))) continue;
+    final bindingRawType = Binding.valueType(ctx, binding);
+    if (!Result.isOk(bindingRawType)) continue;
+    final bindingFnType = Result.unwrap(bindingRawType);
     final bindingType = Literal.getValue(
       Expr.data(
-        Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.returnTypeID]),
+        Type.exprMemberEquals(ctx, bindingFnType, [Fn.returnTypeID]),
       ),
     );
     final argType = Literal.getValue(
-      Expr.data(Type.exprMemberEquals(ctx, Binding.valueType(ctx, binding), [Fn.argTypeID])),
+      Expr.data(Type.exprMemberEquals(ctx, bindingFnType, [Fn.argTypeID])),
     );
-    ctx = ctx.withBinding(
-      Binding.mk(id: ImplDef.definitionArgID, type: Type.lit(argType), name: 'definitionArg'),
-    );
+    ctx = ctx.withBinding(Binding.mk(
+      id: ImplDef.definitionArgID,
+      type: Result.mkOk(Type.lit(argType)),
+      name: 'definitionArg',
+    ));
     final subst = assignableSubst(ctx, bindingType, Type.lit(type));
     if (subst == null) continue;
     if (bestType != null) {
@@ -3169,7 +3091,7 @@ Object eval(Ctx ctx, Object expr) {
         ctx.withBinding(Binding.mk(
           id: Fn.argID(evalExprData),
           // TODO: this is wronggg?
-          type: Type.lit(dataType),
+          type: Result.mkOk(Type.lit(dataType)),
           name: Fn.argName(evalExprData),
           value: data,
         )),
@@ -3195,7 +3117,7 @@ Ctx updateVisited(Ctx ctx, ID id) {
     Binding.mk(
       id: _visitedID,
       name: 'visited',
-      type: Type.lit(unit),
+      type: null,
       value: prevSet.add(id),
     ),
   );
@@ -3274,7 +3196,8 @@ extension FnMapCtxExt on Ctx {
       withElement(FnMapCtx({if (get<FnMapCtx>() != null) ...get<FnMapCtx>()!.fnMap, ...map}));
 
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
-  String getFnName(ID id) => get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id).label!;
+  String getFnName(ID id) =>
+      get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id, orElse: () => ID.fake).label!;
 }
 
 const coreModuleID =
@@ -3363,7 +3286,7 @@ Object _varReduce(Ctx ctx, Object arg) {
         binding,
       ),
       some: (val) => Literal.mk(
-        Literal.getValue(Expr.data(Binding.valueType(ctx, binding))),
+        Literal.getValue(Expr.data(Result.unwrap(Binding.valueType(ctx, binding)))),
         val,
       ),
       none: () => Option.cases(
@@ -3379,7 +3302,11 @@ Object _varReduce(Ctx ctx, Object arg) {
 Object _varTypeCheck(Ctx ctx, Object arg) {
   return Option.cases(
     ctx.getBinding(Var.id(arg)),
-    some: (binding) => Result.mkOk(Binding.valueType(ctx, binding)),
+    some: (binding) => Result.map(
+      Binding.valueType(ctx, binding),
+      (_) => _,
+      'var ${Binding.name(binding)} doesn\'t type check',
+    ),
     none: () => Result.mkErr('unknown var ${Var.id(arg)}'),
   );
 }
@@ -3462,7 +3389,7 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                       eachEquals[List.mk(path)].cases(
                         some: (value) => Binding.mk(
                           id: path.last as ID,
-                          type: Type.lit(Equals.dataType(value)),
+                          type: Result.mkOk(Type.lit(Equals.dataType(value))),
                           name: TypeTree.name(typeTree),
                           value: Equals.equalTo(value),
                         ),
@@ -3470,7 +3397,7 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                           return Binding.mkLazy(
                             id: path.last as ID,
                             name: TypeTree.name(typeTree),
-                            type: (ctx) => reduce(ctx, leaf),
+                            type: (ctx) => Result.mkOk(reduce(ctx, leaf)),
                             reducedValue: (ctx) =>
                                 RecordAccess.chain(reduce(ctx, RecordAccess.target(arg)), path),
                           );
@@ -3571,34 +3498,30 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
         Object? lazyValue;
         computeType(Ctx ctx) {
           if (lazyType == null) {
-            Result.unwrap(
-              Result.flatMap(
-                typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
-                (checkedType) => assignableErr(
-                  ctx,
-                  Type.lit(Type.type),
-                  checkedType,
-                  'type tree leaf expr is not a type',
-                  () => unit,
-                ),
-                'type tree leaf expr doesn\'t type check',
+            final typeCheckTypeDef = Result.flatMap(
+              typeCheck(updateVisited(ctx, List.iterate(path).last as ID), leaf),
+              (checkedType) => assignableErr(
+                ctx,
+                Type.lit(Type.type),
+                checkedType,
+                'type tree leaf expr is not a type',
+                () => unit,
               ),
-              MyException.throwFn,
+              'type tree leaf expr doesn\'t type check',
             );
-            final defType = reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf);
-            lazyType = Result.unwrap(
-              Result.flatMap(
+            lazyType = Result.flatMap(
+              typeCheckTypeDef,
+              (_) => Result.flatMap(
                 typeCheck(origCtx, dataTree),
                 (dataType) => assignableErr(
                   ctx,
-                  defType,
+                  reduce(updateVisited(ctx, List.iterate(path).last as ID), leaf),
                   dataType,
                   'construct data doesn\'t match',
                   () => dataType,
                 ),
                 'construct data doesn\'t type check',
               ),
-              MyException.throwFn,
             );
           }
           return lazyType!;
@@ -3606,7 +3529,7 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
 
         computeValue(Ctx ctx) {
           if (lazyValue == null) {
-            final dataType = computeType(ctx);
+            final dataType = Result.unwrap(computeType(ctx));
             lazyValue = reduce(origCtx, dataTree);
             computedProps.add(
               MemberHas.mkEqualsExpr([...List.iterate(path)], dataType, lazyValue!),
@@ -3631,7 +3554,10 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
   final typeCtx = bindings.fold<Ctx>(origCtx, (ctx, binding) => ctx.withBinding(binding));
   try {
     for (final binding in bindings) {
-      Binding.valueType(typeCtx, binding);
+      final typeResult = Binding.valueType(typeCtx, binding);
+      if (!Result.isOk(typeResult)) {
+        return Result.wrapErr(typeResult, 'construct failed');
+      }
     }
   } on MyException catch (e) {
     return Result.mkErr(e.msg ?? '');
@@ -3676,10 +3602,10 @@ Object _fnAppReduce(Ctx ctx, Object fnApp) {
             ctx.withBinding(Binding.mk(
               id: Fn.argID(fnValue),
               name: Fn.argName(fnValue),
-              type: Literal.mk(
+              type: Result.mkOk(Literal.mk(
                 Type.type,
                 Type.memberEquals(Literal.getType(Expr.data(reducedFn)), [Fn.argTypeID]),
-              ),
+              )),
               reducedValue: reduce(ctx, FnApp.arg(fnApp)),
             )),
             bodyExpr,
@@ -3696,7 +3622,7 @@ Object _fnAppReduce(Ctx ctx, Object fnApp) {
             ctx.withBinding(Binding.mk(
               id: FnExpr.argID(fnExpr),
               name: FnExpr.argName(fnExpr),
-              type: reduce(ctx, FnExpr.argType(fnExpr)),
+              type: Result.mkOk(reduce(ctx, FnExpr.argType(fnExpr))),
               reducedValue: reduce(ctx, FnApp.arg(fnApp)),
             )),
             bodyExpr,
@@ -3731,7 +3657,7 @@ Object _fnAppTypeCheck(Ctx ctx, Object fnApp) {
               ctx = ctx.withBinding(
                 Binding.mk(
                   id: argID,
-                  type: argType,
+                  type: Result.mkOk(argType),
                   name: argID.label ?? '$argID',
                   reducedValue: reduce(ctx, FnApp.arg(fnApp)),
                 ),
@@ -3784,7 +3710,7 @@ Object _fnExprTypeCheck(Ctx ctx, Object fn) {
       ctx = ctx.withBinding(
         Binding.mk(
           id: FnExpr.argID(fn),
-          type: argType,
+          type: Result.mkOk(argType),
           name: FnExpr.argName(fn),
         ),
       );
@@ -3926,91 +3852,6 @@ Object _mkListTypeCheck(Ctx ctx, Object arg) {
     if (!Result.isOk(mapError)) return mapError;
   }
   return Result.mkOk(Type.lit(List.type(listValueType)));
-}
-
-@DartFn('85c45fc9-c594-43b9-b126-739713a1c5e8')
-Object _implDefBindings(Ctx ctx, Object implDef) => List.mk([
-      Union.mk(
-        ModuleDef.type,
-        ValueDef.mk(
-          id: ImplDef.bindingID(implDef),
-          name: '${ImplDef.implemented(implDef).label ?? ImplDef.implemented(implDef).id}Impl',
-          value: ImplDef.definition(implDef),
-        ),
-      ),
-    ]);
-
-@DartFn('524fbec2-aa08-43bd-b8b3-ffe89d89d7aa')
-Object _ifaceDefBindings(Ctx ctx, Object ifaceDef) {
-  return List.mk([
-    Union.mk(
-      ModuleDef.type,
-      ValueDef.mk(
-        id: InterfaceDef.id(ifaceDef),
-        name: TypeTree.name(InterfaceDef.tree(ifaceDef)),
-        value: Literal.mk(InterfaceDef.type, ifaceDef),
-      ),
-    ),
-    Union.mk(
-      ModuleDef.type,
-      TypeDef.mkDef(
-        TypeDef.mk(
-          InterfaceDef.tree(ifaceDef),
-          id: InterfaceDef.innerTypeDefID(InterfaceDef.id(ifaceDef)),
-        ),
-      ),
-    ),
-    Union.mk(
-      ModuleDef.type,
-      ValueDef.mk(
-        id: InterfaceDef.dispatchCacheID(InterfaceDef.id(ifaceDef)),
-        name: '${TypeTree.name(InterfaceDef.tree(ifaceDef))} dispatch cache',
-        value: Literal.mk(
-          Map.type(Type.type, InterfaceDef.implType(ifaceDef)),
-          <Object, Object>{},
-        ),
-      ),
-    ),
-  ]);
-}
-
-@DartFn('4a5ff699-216d-49c3-8fea-7687cb90a35b')
-Object _valueDefBindings(Ctx ctx, Object arg) {
-  Object? lazyType;
-  Object? lazyValue;
-
-  final bindingID = (arg as Dict)[ValueDef.IDID].unwrap! as ID;
-  final expr = arg[ValueDef.valueID].unwrap!;
-  computeType(Ctx ctx) {
-    lazyType ??= Result.cases(
-      typeCheck(updateVisited(ctx, bindingID), expr),
-      ok: (checkedType) => checkedType,
-      error: (msg) => throw MyException('type checking binding failed because $msg'),
-    );
-    if (Expr.dataType(lazyType!) != Literal.type) throw const MyException();
-    Option.cases(arg[ValueDef.expectedTypeID].unwrap!, none: () {}, some: (expectedType) {
-      if (!assignable(ctx, expectedType, lazyType!)) throw const MyException();
-    });
-    return lazyType!;
-  }
-
-  computeValue(Ctx ctx) {
-    computeType(ctx);
-    lazyValue ??= eval(updateVisited(ctx, bindingID), expr);
-    return lazyValue!;
-  }
-
-  return List.mk([
-    Union.mk(
-      Binding.type,
-      Binding.mkLazy(
-        id: bindingID,
-        name: arg[ValueDef.nameID].unwrap! as String,
-        type: computeType,
-        value: computeValue,
-      ),
-    ),
-  ]);
 }
 
 extension Indent on String {

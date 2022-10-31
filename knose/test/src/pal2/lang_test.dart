@@ -23,10 +23,10 @@ void main() async {
     id: ID.mk(),
   );
 
-  late final testCtx = Option.unwrap(Module.load(
+  late final testCtx = Module.load(
     coreCtx,
     Module.mk(id: ID.mk(), name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
-  )) as Ctx;
+  );
 
   test('TypeCheckFn', () {
     final varFn = FnExpr.from(
@@ -147,14 +147,14 @@ void main() async {
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
-    final thisCtx = Option.unwrap(Module.load(
+    final thisCtx = Module.load(
       coreCtx,
       Module.mk(
         id: ID.mk(),
         name: 'testIface',
         definitions: [InterfaceDef.mkDef(interfaceDef), ImplDef.mkDef(implDef)],
       ),
-    )) as Ctx;
+    );
 
     final expr = RecordAccess.mk(
       Literal.mk(

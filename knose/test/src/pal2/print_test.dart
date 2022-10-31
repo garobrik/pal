@@ -1,11 +1,9 @@
-import 'package:ctx/ctx.dart';
 import 'package:knose/src/pal2/lang.dart';
 import 'package:knose/src/pal2/print.dart';
 import 'package:test/test.dart';
 
 void main() {
-  late final ctx =
-      (Option.unwrap(Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module)) as Ctx);
+  late final ctx = Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module);
 
   test('print option', () {
     final basicExpr = FnApp.mk(

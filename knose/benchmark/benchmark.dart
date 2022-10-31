@@ -11,8 +11,7 @@ late final List<String> benchmarks;
 
 void main(List<String> args) {
   benchmarks = args;
-  final ctx =
-      (Option.unwrap(Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module)) as Ctx);
+  final ctx = Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module);
 
   final basicExpr = FnApp.mk(
     Var.mk(Printable.printFnID),

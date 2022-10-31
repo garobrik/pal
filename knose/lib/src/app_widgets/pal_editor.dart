@@ -695,7 +695,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
           return ExprEditor(
             ctx.withBinding(Binding.mk(
               id: exprData[FnExpr.argIDID].read(ctx) as ID,
-              type: Result.unwrap(argType, (err) => Type.lit(unit)),
+              type: argType,
               name: exprData[FnExpr.argNameID].read(ctx) as String,
             )),
             exprData[FnExpr.bodyID][UnionTag.valueID],
@@ -922,11 +922,14 @@ Widget _placeholderEditor(
           ctx,
           (ctx) => reified.Vec(
             ctx.getBindings.expand((binding) {
-              final bindingType = Binding.valueType(ctx, binding);
-              final bindingTypeLit = Expr.dataType(bindingType) == Literal.type
-                  ? Literal.getValue(Expr.data(bindingType))
-                  : null;
-              if (bindingType == Type.lit(TypeDef.type)) {
+              final bindingTypeLit = Result.cases(
+                Binding.valueType(ctx, binding),
+                error: (_) => null,
+                ok: (bindingType) => Expr.dataType(bindingType) == Literal.type
+                    ? Literal.getValue(Expr.data(bindingType))
+                    : null,
+              );
+              if (bindingTypeLit != null && bindingTypeLit == TypeDef.type) {
                 return Option.cases(
                   Binding.value(ctx, binding),
                   none: () => <PlaceholderEntry>[],
@@ -964,8 +967,14 @@ Widget _placeholderEditor(
                 return [
                   PlaceholderEntry(
                     name: Binding.name(binding),
-                    detailedName: (ctx) =>
-                        '${Binding.name(binding)}: ${palPrint(ctx, Expr.type, Binding.valueType(ctx, binding))}',
+                    detailedName: (ctx) {
+                      final typeString = Result.cases(
+                        Binding.valueType(ctx, binding),
+                        ok: (typeExpr) => palPrint(ctx, Expr.type, typeExpr),
+                        error: (_) => '???',
+                      );
+                      return '${Binding.name(binding)}: $typeString';
+                    },
                     onPressed: () => expr.set(Var.mk(Binding.id(binding))),
                   ),
                 ];
@@ -1177,7 +1186,8 @@ Widget _focusableNode({
     manager: NonTextEditingShortcutManager(
       shortcuts: {
         if (onDelete != null)
-          const SingleActivator(LogicalKeyboardKey.backspace): VoidCallbackIntent(onDelete),
+          for (final key in const [LogicalKeyboardKey.backspace, LogicalKeyboardKey.delete])
+            SingleActivator(key): VoidCallbackIntent(onDelete),
         if (onAddBelow != null)
           const SingleActivator(LogicalKeyboardKey.add, shift: true):
               VoidCallbackIntent(onAddBelow),
@@ -1364,7 +1374,7 @@ Widget _addDefinitionDropdown(
 @reader
 Widget _selectInterfaceDropdown(Ctx ctx, void Function(Object) selectedInterface) {
   final interfaces = ctx.getBindings.expand((b) => [
-        if (Binding.valueType(ctx, b) == Type.lit(InterfaceDef.type))
+        if (Binding.valueType(ctx, b) == Result.mkOk(Type.lit(InterfaceDef.type)))
           Option.unwrap(Binding.value(ctx, b))
       ]);
 
