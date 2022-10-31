@@ -611,7 +611,7 @@ abstract class Type {
         Dict({
           IDID: Literal.mk(ID.type, id),
           pathID: path ?? Literal.mk(List.type(ID.type), List.mk(const [])),
-          propertiesID: List.mkExpr(TypeProperty.type, properties),
+          propertiesID: List.mkExpr(Type.lit(TypeProperty.type), properties),
         }),
       );
 
@@ -1754,7 +1754,7 @@ abstract class List {
   static final exprTypeDef = TypeDef.record(
     'MkList',
     {
-      mkTypeID: TypeTree.mk('type', Type.lit(Type.type)),
+      mkTypeID: TypeTree.mk('type', Type.lit(Expr.type)),
       mkValuesID: TypeTree.mk('mkValues', Type.lit(List.type(Expr.type))),
     },
     id: mkExprTypeDefID,
@@ -2979,7 +2979,7 @@ Object varSubst(Ctx ctx, ID fromID, ID toID, Object expr) {
     );
   } else if (exprType == List.mkExprType) {
     return List.mkExpr(
-      List.mkExprDataType(exprData),
+      varSubst(ctx, fromID, toID, List.mkExprDataType(exprData)),
       [...List.iterate(List.mkExprValues(exprData)).map((e) => varSubst(ctx, fromID, toID, e))],
     );
   } else {
@@ -3821,28 +3821,43 @@ Object _mkListEval(Ctx ctx, Object arg) => List.mk(
 Object _mkListReduce(Ctx ctx, Object arg) {
   bool nonLit = false;
   final reducedSubExprs = <Object>[];
-  for (final subExpr in List.iterate((arg as Dict)[List.mkValuesID].unwrap!)) {
+  for (final subExpr in [
+    List.mkExprDataType(arg),
+    ...List.iterate((arg as Dict)[List.mkValuesID].unwrap!)
+  ]) {
     final reduced = reduce(ctx, subExpr);
     if (Expr.dataType(reduced) != Literal.type) nonLit = true;
     reducedSubExprs.add(reduced);
   }
-  if (nonLit) return List.mkExpr(arg[List.mkTypeID].unwrap!, reducedSubExprs);
+  if (nonLit) return List.mkExpr(reducedSubExprs.first, [...reducedSubExprs.skip(1)]);
+  final lits = reducedSubExprs.map(Expr.data).map(Literal.getValue);
   return Literal.mk(
-    List.type(arg[List.mkTypeID].unwrap!),
-    List.mk([...reducedSubExprs.map(Expr.data).map(Literal.getValue)]),
+    List.type(lits.first),
+    List.mk([...lits.skip(1)]),
   );
 }
 
 @DartFn('6c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1')
 Object _mkListTypeCheck(Ctx ctx, Object arg) {
-  final listValueType = (arg as Dict)[List.mkTypeID].unwrap!;
+  final maybeListValueType = Result.flatMap(
+    typeCheck(ctx, List.mkExprDataType(arg)),
+    (type) => assignableErr(
+      ctx,
+      Type.lit(Type.type),
+      type,
+      'list expression element type isn\'t a type',
+      () => reduce(ctx, List.mkExprDataType(arg)),
+    ),
+  );
+  if (!Result.isOk(maybeListValueType)) return maybeListValueType;
+  final listValueType = Result.unwrap(maybeListValueType);
   for (final value in List.iterate(List.mkExprValues(arg))) {
     final valueType = typeCheck(ctx, value);
     final mapError = Result.cases(
       valueType,
       error: (msg) => Result.mkErr('list value doesn\' type check because $msg'),
       ok: (type) {
-        if (!assignable(ctx, Type.lit(listValueType), type)) {
+        if (!assignable(ctx, listValueType, type)) {
           return Result.mkErr('list value not assignable to list type');
         } else {
           return Result.mkOk(type);
@@ -3851,7 +3866,11 @@ Object _mkListTypeCheck(Ctx ctx, Object arg) {
     );
     if (!Result.isOk(mapError)) return mapError;
   }
-  return Result.mkOk(Type.lit(List.type(listValueType)));
+  if (Expr.dataType(listValueType) == Literal.type) {
+    return Result.mkOk(Type.lit(List.type(Literal.getValue(Expr.data(listValueType)))));
+  } else {
+    return Result.mkOk(List.typeExpr(listValueType));
+  }
 }
 
 extension Indent on String {

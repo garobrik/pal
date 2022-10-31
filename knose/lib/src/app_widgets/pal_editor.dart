@@ -812,13 +812,17 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   } else if (exprType == DotPlaceholder.type) {
     child = DotPlaceholderEditor(ctx, expr: expr, suffix: suffix);
   } else if (exprType == List.mkExprType) {
-    return Inset(
-      prefix: const Text('['),
-      suffix: Text(']$suffix'),
+    child = Inset(
+      prefix: Text.rich(TextSpan(children: [
+        const TextSpan(text: '<'),
+        AlignedWidgetSpan(ExprEditor(ctx, exprData[List.mkTypeID])),
+        const TextSpan(text: '>['),
+      ])),
       contents: [
         for (final child in exprData[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx))
           ExprEditor(ctx, child, suffix: ', '),
       ],
+      suffix: Text(']$suffix'),
     );
   } else {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
@@ -932,102 +936,102 @@ Widget _placeholderEditor(
   required FocusNode focusNode,
   String suffix = '',
 }) {
-  return RichText(
-    text: TextSpan(children: [
-      AlignedWidgetSpan(GenericPlaceholder(
+  return Text.rich(TextSpan(children: [
+    AlignedWidgetSpan(GenericPlaceholder(
+      ctx,
+      focusNode: focusNode,
+      entries: useComputed(
         ctx,
-        focusNode: focusNode,
-        entries: useComputed(
-          ctx,
-          (ctx) => reified.Vec(
-            ctx.getBindings.expand((binding) {
-              final bindingTypeLit = Result.cases(
-                Binding.valueType(ctx, binding),
-                error: (_) => null,
-                ok: (bindingType) => Expr.dataType(bindingType) == Literal.type
-                    ? Literal.getValue(Expr.data(bindingType))
-                    : null,
-              );
-              if (bindingTypeLit != null && bindingTypeLit == TypeDef.type) {
-                return Option.cases(
-                  Binding.value(ctx, binding),
-                  none: () => <PlaceholderEntry>[],
-                  some: (value) => [
-                    PlaceholderEntry(
-                      name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
-                      onPressed: () => expr.set(Construct.mk(
-                        TypeDef.asType(value),
-                        TypeTree.instantiate(TypeDef.tree(value), placeholder),
-                      )),
-                    ),
-                  ],
-                );
-              } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
-                final isTypeConstructor = TypeDef.isTypeConstructorID(Binding.id(binding));
-                final surround = isTypeConstructor ? angle : paren;
-                return [
-                  PlaceholderEntry(
-                    name: '${Binding.name(binding)}${surround.apply("...")}',
-                    onPressed: () {
-                      Object innerExpr = placeholder;
-                      if (isTypeConstructor) {
-                        final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
-                        final argTypeDef = ctx.getType(Type.id(argType));
-                        innerExpr = Construct.mk(
-                          argType,
-                          TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
-                        );
-                      }
-                      expr.set(FnApp.mk(Var.mk(Binding.id(binding)), innerExpr));
-                    },
-                  ),
-                ];
-              } else {
-                return [
-                  PlaceholderEntry(
-                    name: Binding.name(binding),
-                    detailedName: (ctx) {
-                      final typeString = Result.cases(
-                        Binding.valueType(ctx, binding),
-                        ok: (typeExpr) => palPrint(ctx, Expr.type, typeExpr),
-                        error: (_) => '???',
-                      );
-                      return '${Binding.name(binding)}: $typeString';
-                    },
-                    onPressed: () => expr.set(Var.mk(Binding.id(binding))),
-                  ),
-                ];
-              }
-            }).toList(),
-          ),
-          keys: [],
-        ),
-        onSubmitted: (currentText) {
-          final tryNum = num.tryParse(currentText);
-          if (tryNum != null) {
-            expr.set(Literal.mk(number, tryNum));
-          } else if (currentText.startsWith("'") && currentText.endsWith("'")) {
-            final tryString = currentText.substring(1, currentText.length - 1);
-            if (!tryString.contains("'")) {
-              expr.set(Literal.mk(text, tryString));
-            }
-          } else if (currentText == '\\') {
-            expr.set(
-              FnExpr.pal(
-                argID: const ID.constant(
-                    id: '79e56f70-1a5e-44eb-b21d-8deafc0e6185', hashCode: 189184073),
-                argName: 'arg',
-                argType: Type.lit(unit),
-                returnType: Type.lit(unit),
-                body: unitExpr,
-              ),
+        (ctx) => reified.Vec(
+          ctx.getBindings.expand((binding) {
+            final bindingTypeLit = Result.cases(
+              Binding.valueType(ctx, binding),
+              error: (_) => null,
+              ok: (bindingType) => Expr.dataType(bindingType) == Literal.type
+                  ? Literal.getValue(Expr.data(bindingType))
+                  : null,
             );
+            if (bindingTypeLit != null && bindingTypeLit == TypeDef.type) {
+              return Option.cases(
+                Binding.value(ctx, binding),
+                none: () => <PlaceholderEntry>[],
+                some: (value) => [
+                  PlaceholderEntry(
+                    name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
+                    onPressed: () => expr.set(Construct.mk(
+                      TypeDef.asType(value),
+                      TypeTree.instantiate(TypeDef.tree(value), placeholder),
+                    )),
+                  ),
+                ],
+              );
+            } else if (bindingTypeLit != null && Type.id(bindingTypeLit) == Fn.typeDefID) {
+              final isTypeConstructor = TypeDef.isTypeConstructorID(Binding.id(binding));
+              final surround = isTypeConstructor ? angle : paren;
+              return [
+                PlaceholderEntry(
+                  name: '${Binding.name(binding)}${surround.apply("...")}',
+                  onPressed: () {
+                    Object innerExpr = placeholder;
+                    if (isTypeConstructor) {
+                      final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
+                      final argTypeDef = ctx.getType(Type.id(argType));
+                      innerExpr = Construct.mk(
+                        argType,
+                        TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
+                      );
+                    }
+                    expr.set(FnApp.mk(Var.mk(Binding.id(binding)), innerExpr));
+                  },
+                ),
+              ];
+            } else {
+              return [
+                PlaceholderEntry(
+                  name: Binding.name(binding),
+                  detailedName: (ctx) {
+                    final typeString = Result.cases(
+                      Binding.valueType(ctx, binding),
+                      ok: (typeExpr) => palPrint(ctx, Expr.type, typeExpr),
+                      error: (_) => '???',
+                    );
+                    return '${Binding.name(binding)}: $typeString';
+                  },
+                  onPressed: () => expr.set(Var.mk(Binding.id(binding))),
+                ),
+              ];
+            }
+          }).toList(),
+        ),
+        keys: [],
+      ),
+      onSubmitted: (currentText) {
+        final tryNum = num.tryParse(currentText);
+        if (tryNum != null) {
+          expr.set(Literal.mk(number, tryNum));
+        } else if (currentText.startsWith("'") && currentText.endsWith("'")) {
+          final tryString = currentText.substring(1, currentText.length - 1);
+          if (!tryString.contains("'")) {
+            expr.set(Literal.mk(text, tryString));
           }
-        },
-      )),
-      TextSpan(text: suffix),
-    ]),
-  );
+        } else if (currentText == '\\') {
+          expr.set(
+            FnExpr.pal(
+              argID: const ID.constant(
+                  id: '79e56f70-1a5e-44eb-b21d-8deafc0e6185', hashCode: 189184073),
+              argName: 'arg',
+              argType: Type.lit(unit),
+              returnType: Type.lit(unit),
+              body: unitExpr,
+            ),
+          );
+        } else if (currentText == '[') {
+          expr.set(List.mkExpr(placeholder, const []));
+        }
+      },
+    )),
+    TextSpan(text: suffix),
+  ]));
 }
 
 @reader
@@ -1154,26 +1158,24 @@ Widget _genericPlaceholder(
         },
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 200),
-          child: RichText(
-            text: TextSpan(children: [
-              AlignedWidgetSpan(
-                IntrinsicWidth(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 40),
-                    child: BoundTextFormField(
-                      inputText,
-                      ctx: ctx,
-                      style: Theme.of(context).textTheme.bodyText2,
-                      focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.only(left: 2, top: 4, bottom: 4),
-                      ),
+          child: Text.rich(TextSpan(children: [
+            AlignedWidgetSpan(
+              IntrinsicWidth(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 40),
+                  child: BoundTextFormField(
+                    inputText,
+                    ctx: ctx,
+                    style: Theme.of(context).textTheme.bodyText2,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.only(left: 2, top: 4, bottom: 4),
                     ),
                   ),
                 ),
               ),
-            ]),
-          ),
+            ),
+          ])),
         ),
       ),
     ),
