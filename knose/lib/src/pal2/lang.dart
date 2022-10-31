@@ -3550,9 +3550,9 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
     );
   }
 
-  final bindings = lazyBindings(TypeDef.tree(typeDef), Construct.tree(arg), List.mk(const []));
-  final typeCtx = bindings.fold<Ctx>(origCtx, (ctx, binding) => ctx.withBinding(binding));
   try {
+    final bindings = lazyBindings(TypeDef.tree(typeDef), Construct.tree(arg), List.mk(const []));
+    final typeCtx = bindings.fold<Ctx>(origCtx, (ctx, binding) => ctx.withBinding(binding));
     for (final binding in bindings) {
       final typeResult = Binding.valueType(typeCtx, binding);
       if (!Result.isOk(typeResult)) {
