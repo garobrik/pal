@@ -228,25 +228,32 @@ Widget _typeTreeEditor(Ctx ctx, Object arg) {
     final dict = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
     return InlineInset(contents: [
       for (final key in dict.keys.read(ctx))
-        FocusableNode(
-          onAddBelow: () => dict[ID.mk()] = Optional(TypeTree.mk('unnamed', placeholder)),
-          onDelete: () => dict.remove(key),
-          child: Inset(
-            prefix: Text.rich(TextSpan(children: [
-              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.unionID)
-                const TextSpan(text: 'union '),
-              if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                  TypeTree.recordID)
-                const TextSpan(text: 'record '),
-              _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
-              const TextSpan(text: ': '),
-            ])),
-            contents: [
-              TypeTreeEditor(ctx.withoutBinding(key as ID), PalCursor.mk(dict[key].whenPresent))
-              // palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
-            ],
-            suffix: const SizedBox(),
+        Actions(
+          key: ValueKey(key),
+          actions: {
+            AddBelowIntent: CallbackAction(
+              onInvoke: (_) => dict[ID.mk()] = Optional(TypeTree.mk('unnamed', placeholder)),
+            ),
+          },
+          child: FocusableNode(
+            onDelete: () => dict.remove(key),
+            child: Inset(
+              prefix: Text.rich(TextSpan(children: [
+                if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                    TypeTree.unionID)
+                  const TextSpan(text: 'union '),
+                if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
+                    TypeTree.recordID)
+                  const TextSpan(text: 'record '),
+                _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
+                const TextSpan(text: ': '),
+              ])),
+              contents: [
+                TypeTreeEditor(ctx.withoutBinding(key as ID), PalCursor.mk(dict[key].whenPresent))
+                // palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
+              ],
+              suffix: const SizedBox(),
+            ),
           ),
         )
     ]);
@@ -426,7 +433,7 @@ Widget _testThingy(Ctx ctx) {
         if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
             key: ValueKey(module[Module.IDID].read(ctx)),
-            child: ModuleEditor(moduleCtx.read(ctx), module),
+            child: PalScaffold(ModuleEditor(moduleCtx.read(ctx), module)),
           ),
     ],
   );
@@ -434,6 +441,14 @@ Widget _testThingy(Ctx ctx) {
 
 @DartFn('72213f44-7f10-4758-8a02-6451d8a8e961')
 Object _moduleEditorFn(Ctx ctx, Object arg) => ModuleEditor(ctx, PalCursor.cursor(arg));
+
+@reader
+Widget _palScaffold(Widget child) {
+  return Shortcuts.manager(
+    manager: NonTextEditingShortcutManager(shortcuts: palShortcuts),
+    child: FocusTraversalGroup(policy: HierarchicalOrderTraversalPolicy(), child: child),
+  );
+}
 
 @reader
 Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
@@ -534,28 +549,32 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
               isOpen.set(false);
             },
           ),
-          child: FocusableNode(
-            onDelete: () {
-              final id = definitionIDs[index].read(Ctx.empty);
-              definitionIDs.remove(index);
-              definitionMap.remove(id);
+          child: Actions(
+            actions: {
+              AddBelowIntent: CallbackAction(onInvoke: (_) => isOpen.set(true)),
             },
-            onAddBelow: () => isOpen.set(true),
-            onShiftNodeUp: () {
-              if (index > 0) {
-                definitionIDs[index] = definitionIDs[index - 1].read(Ctx.empty);
-                definitionIDs[index - 1] = id;
-              }
-            },
-            onShiftNodeDown: () {
-              if (index < definitionIDs.length.read(Ctx.empty) - 1) {
-                definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
-                definitionIDs[index + 1] = id;
-              }
-            },
-            child: childForDef(
-              ctx,
-              id,
+            child: FocusableNode(
+              onDelete: () {
+                final id = definitionIDs[index].read(Ctx.empty);
+                definitionIDs.remove(index);
+                definitionMap.remove(id);
+              },
+              onShiftNodeUp: () {
+                if (index > 0) {
+                  definitionIDs[index] = definitionIDs[index - 1].read(Ctx.empty);
+                  definitionIDs[index - 1] = id;
+                }
+              },
+              onShiftNodeDown: () {
+                if (index < definitionIDs.length.read(Ctx.empty) - 1) {
+                  definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
+                  definitionIDs[index + 1] = id;
+                }
+              },
+              child: childForDef(
+                ctx,
+                id,
+              ),
             ),
           ),
         );
@@ -563,24 +582,21 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
     );
   }
 
-  return FocusTraversalGroup(
-    policy: HierarchicalOrderTraversalPolicy(),
-    child: SingleChildScrollView(
-      child: Inset(
-        repaintBoundaries: true,
-        prefix: Text.rich(
-          TextSpan(children: [
-            const TextSpan(text: 'module '),
-            _inlineTextSpan(ctx, module[Module.nameID].cast<String>()),
-            const TextSpan(text: ' {'),
-          ]),
-        ),
-        contents: [
-          for (final indexedID in definitionIDs.indexedValues(ctx))
-            childForIndexedID(ctx, indexedID.index, indexedID.value.read(ctx) as ID)
-        ],
-        suffix: const Text('} '),
+  return SingleChildScrollView(
+    child: Inset(
+      repaintBoundaries: true,
+      prefix: Text.rich(
+        TextSpan(children: [
+          const TextSpan(text: 'module '),
+          _inlineTextSpan(ctx, module[Module.nameID].cast<String>()),
+          const TextSpan(text: ' {'),
+        ]),
       ),
+      contents: [
+        for (final indexedID in definitionIDs.indexedValues(ctx))
+          childForIndexedID(ctx, indexedID.index, indexedID.value.read(ctx) as ID)
+      ],
+      suffix: const Text('} '),
     ),
   );
 }
@@ -667,27 +683,6 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   final wrapperFocusNode = useFocusNode();
   final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
   final exprData = expr[Expr.dataID];
-  final typeError = useMemoized(
-    () => GetCursor.compute(
-      (ctx) => Result.cases(
-        typeCheck(ctx, expr.read(ctx)),
-        ok: (_) => Option.mk(),
-        error: (err) => Option.mk(err),
-      ),
-      ctx: ctx,
-      compare: true,
-    ),
-    [expr],
-  );
-  final isHovered = useCursor(false);
-  final showHover = useMemoized(
-    () => GetCursor.compute(
-      (ctx) => Option.isPresent(typeError.read(ctx)) && isHovered.read(ctx),
-      ctx: ctx,
-      compare: true,
-    ),
-    [expr],
-  );
 
   late final Widget child;
   if (exprType == FnExpr.type) {
@@ -812,6 +807,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
   } else if (exprType == DotPlaceholder.type) {
     child = DotPlaceholderEditor(ctx, expr: expr, suffix: suffix);
   } else if (exprType == List.mkExprType) {
+    final children = exprData[List.mkValuesID][List.itemsID].cast<Vec>();
     child = Inset(
       prefix: Text.rich(TextSpan(children: [
         const TextSpan(text: '<'),
@@ -819,14 +815,54 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
         const TextSpan(text: '>['),
       ])),
       contents: [
-        for (final child in exprData[List.mkValuesID][List.itemsID].cast<Vec>().values(ctx))
-          ExprEditor(ctx, child, suffix: ', '),
+        for (final child in children.indexedValues(ctx))
+          Actions(
+            actions: {
+              AddBelowIntent: CallbackAction(
+                onInvoke: (_) => children.insert(child.index + 1, placeholder),
+              ),
+            },
+            child: ExprEditor(ctx, child.value, suffix: ', '),
+          ),
       ],
       suffix: Text(']$suffix'),
     );
   } else {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
+
+  return ExprFocusableNode(ctx, expr: expr, focusNode: wrapperFocusNode, child: child);
+}
+
+@reader
+Widget _exprFocusableNode(
+  BuildContext context,
+  Ctx ctx, {
+  required Cursor<Object> expr,
+  required Widget child,
+  required FocusNode focusNode,
+}) {
+  final typeError = useMemoized(
+    () => GetCursor.compute(
+      (ctx) => Result.cases(
+        typeCheck(ctx, expr.read(ctx)),
+        ok: (_) => Option.mk(),
+        error: (err) => Option.mk(err),
+      ),
+      ctx: ctx,
+      compare: true,
+    ),
+    [expr],
+  );
+  final isHovered = useCursor(false);
+  final showHover = useMemoized(
+    () => GetCursor.compute(
+      (ctx) => Option.isPresent(typeError.read(ctx)) && isHovered.read(ctx),
+      ctx: ctx,
+      compare: true,
+    ),
+    [expr],
+  );
 
   return FollowingDeferredPainter(
     ctx: ctx,
@@ -852,7 +888,7 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
       onHover: isHovered.set,
       onDelete: () => expr.set(placeholder),
       onAddDot: () => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
-      focusNode: wrapperFocusNode,
+      focusNode: focusNode,
       child: ReaderWidget(
         ctx: ctx,
         builder: (_, ctx) => Container(
@@ -1194,7 +1230,6 @@ class PlaceholderEntry {
 Widget _focusableNode({
   FocusNode? focusNode,
   void Function()? onDelete,
-  void Function()? onAddBelow,
   void Function()? onShiftNodeDown,
   void Function()? onShiftNodeUp,
   void Function()? onAddDot,
@@ -1209,9 +1244,6 @@ Widget _focusableNode({
         if (onDelete != null)
           for (final key in const [LogicalKeyboardKey.backspace, LogicalKeyboardKey.delete])
             SingleActivator(key): VoidCallbackIntent(onDelete),
-        if (onAddBelow != null)
-          const SingleActivator(LogicalKeyboardKey.add, shift: true):
-              VoidCallbackIntent(onAddBelow),
         if (onShiftNodeUp != null)
           const SingleActivator(LogicalKeyboardKey.keyK, shift: true):
               VoidCallbackIntent(onShiftNodeUp),
@@ -1287,6 +1319,14 @@ Widget _focusableNode({
       ),
     ),
   );
+}
+
+final palShortcuts = {
+  const SingleActivator(LogicalKeyboardKey.add, shift: true): const AddBelowIntent(),
+};
+
+class AddBelowIntent extends Intent {
+  const AddBelowIntent();
 }
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
