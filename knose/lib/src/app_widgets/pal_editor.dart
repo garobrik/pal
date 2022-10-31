@@ -320,6 +320,25 @@ Widget _testThingy(Ctx ctx) {
         onPressed: loadFiles,
         child: Text('load modules from ${saveDir.absolute.path}'),
       ),
+      TextButtonDropdown(
+        dropdown: Column(
+          children: [
+            for (final migration in migrations)
+              Row(children: [
+                Text('$migration:'),
+                TextButton(
+                  onPressed: () => modules.mut(migration.migrate),
+                  child: const Text('do'),
+                ),
+                TextButton(
+                  onPressed: () => modules.mut(migration.unmigrate),
+                  child: const Text('undo'),
+                ),
+              ])
+          ],
+        ),
+        child: const Text('run migration...'),
+      ),
       TextButton(
         onPressed: () {
           final files = [
@@ -1819,4 +1838,68 @@ abstract class DotPlaceholder extends Expr {
 
   @DartFn('d695423c-c03a-4f9f-beb6-0d615eb938d9')
   static Object _eval(Ctx _, Object __) => throw Exception("don't evaluate a placeholder u fool!");
+}
+
+abstract class Migration {
+  const Migration();
+
+  T doMigrate<T>(T obj);
+  T doUnmigrate<T>(T obj);
+
+  T migrate<T>(T obj) => _recursiveMigrate(obj, doMigrate);
+  T unmigrate<T>(T obj) => _recursiveMigrate(obj, doUnmigrate);
+  T _recursiveMigrate<T>(T object, T1 Function<T1>(T1 obj) migrator) {
+    if (object is Dict) {
+      return migrator(object.mapValues((k, v) => _recursiveMigrate(v, migrator)) as T);
+    } else if (object is Vec) {
+      return migrator(object.map((v) => _recursiveMigrate(v, migrator)) as T);
+    } else {
+      return migrator(object);
+    }
+  }
+
+  @override
+  String toString() => runtimeType.toString();
+}
+
+final migrations = [WrapListMkExprTypes()];
+
+class WrapListMkExprTypes extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is Dict) {
+      final atMkTypeID = obj[List.mkTypeID].unwrap as Dict?;
+      if (atMkTypeID != null) {
+        if (atMkTypeID.containsKey(Type.IDID)) {
+          return obj.put(List.mkTypeID, Type.lit(atMkTypeID)) as T;
+        } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
+          final cursor = Cursor<Object>(obj);
+          cursor[TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Expr.type));
+          return cursor.read(Ctx.empty) as T;
+        } else {
+          throw UnimplementedError();
+        }
+      }
+    }
+    return obj;
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    if (obj is Dict) {
+      final atMkTypeID = obj[List.mkTypeID].unwrap as Dict?;
+      if (atMkTypeID != null) {
+        if (atMkTypeID.containsKey(Expr.implID)) {
+          return obj.put(List.mkTypeID, Literal.getValue(atMkTypeID)) as T;
+        } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
+          final cursor = Cursor<Object>(obj);
+          cursor[TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Type.type));
+          return cursor.read(Ctx.empty) as T;
+        } else {
+          throw UnimplementedError();
+        }
+      }
+    }
+    return obj;
+  }
 }
