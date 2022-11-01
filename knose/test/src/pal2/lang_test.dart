@@ -1,16 +1,10 @@
-import 'dart:io';
-
 import 'package:ctx/ctx.dart';
-import 'package:reified_lenses/reified_lenses.dart' show GetCursor;
 import 'package:test/test.dart';
 import 'package:knose/src/pal2/lang.dart';
 
 void main() async {
-  final coreModule =
-      await File('pal/core.pal').readAsString().then((str) => deserialize(str) as Object);
-  late final coreCtx =
-      Module.loadReactively(Ctx.empty.withFnMap(langFnMap), GetCursor(Vec([coreModule])))
-          .read(Ctx.empty);
+  final coreModule = await Module.loadFromFile('core');
+  late final coreCtx = Module.load(Ctx.empty.withFnMap(langFnMap), [coreModule]);
 
   test('load core module', () {
     expect(coreCtx, isNotNull);
@@ -25,7 +19,9 @@ void main() async {
 
   late final testCtx = Module.load(
     coreCtx,
-    Module.mk(id: ID.mk(), name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)]),
+    [
+      Module.mk(id: ID.mk(), name: 'Silly', definitions: [TypeDef.mkDef(sillyRecordDef)])
+    ],
   );
 
   test('TypeCheckFn', () {
@@ -147,14 +143,13 @@ void main() async {
     );
 
     final impl = ImplDef.asImpl(coreCtx, interfaceDef, implDef);
-    final thisCtx = Module.load(
-      coreCtx,
+    final thisCtx = Module.load(coreCtx, [
       Module.mk(
         id: ID.mk(),
         name: 'testIface',
         definitions: [InterfaceDef.mkDef(interfaceDef), ImplDef.mkDef(implDef)],
       ),
-    );
+    ]);
 
     final expr = RecordAccess.mk(
       Literal.mk(

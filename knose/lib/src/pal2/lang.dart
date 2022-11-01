@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:core' as dart;
 import 'dart:core';
+import 'dart:io';
 import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
@@ -115,8 +116,8 @@ abstract class Module {
         definitionsID: OrderedMap.mk([...definitions.map(ModuleDef.idFor)], definitions)
       });
 
-  static Ctx load(Ctx ctx, Object module) =>
-      loadReactively(ctx, GetCursor(Vec([module]))).read(Ctx.empty);
+  static Ctx load(Ctx ctx, DartList modules) =>
+      loadReactively(ctx, GetCursor(Vec(modules))).read(Ctx.empty);
 
   static GetCursor<Ctx> loadReactively(Ctx ctx, GetCursor<Vec> modules) {
     Iterable<Object> expandDef(Ctx ctx, GetCursor<Object> moduleDef) {
@@ -303,6 +304,9 @@ abstract class Module {
       ctx: ctx,
     );
   }
+
+  static Future<Object> loadFromFile(String name) =>
+      File('pal/$name.pal').readAsString().then((str) => deserialize(str) as Object);
 
   static final bindingOrType = Union.type([ModuleDef.type, Binding.type]);
 
@@ -2697,8 +2701,6 @@ extension CtxBinding on Ctx {
   Iterable<Object> get getBindings => (get<BindingCtx>() ?? const BindingCtx()).bindings.values;
 }
 
-final coreCtx = Module.load(Ctx.empty.withFnMap(langFnMap), coreModule);
-
 const _substBindingID =
     ID.constant(id: 'a1d4fe69-012e-4b69-9ea6-ad2bdd6694c6', hashCode: 529898823, label: 'subst');
 dart.Map<ID, Object> _subst(Ctx ctx) {
@@ -3194,6 +3196,12 @@ class FnMapCtx extends CtxElement {
 extension FnMapCtxExt on Ctx {
   Ctx withFnMap(FnMap map) =>
       withElement(FnMapCtx({if (get<FnMapCtx>() != null) ...get<FnMapCtx>()!.fnMap, ...map}));
+  Ctx withFnMaps(dart.List<FnMap> maps) => withElement(
+        FnMapCtx({
+          if (get<FnMapCtx>() != null) ...get<FnMapCtx>()!.fnMap,
+          for (final map in maps) ...map
+        }),
+      );
 
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
   String getFnName(ID id) =>
@@ -3202,62 +3210,6 @@ extension FnMapCtxExt on Ctx {
 
 const coreModuleID =
     ID.constant(id: '24a202de-8089-42a8-b81b-de92efb34d9b', hashCode: 443982851, label: 'core');
-final coreModule = Module.mk(id: coreModuleID, name: 'core', definitions: [
-  TypeDef.mkDef(ID.def),
-  TypeDef.mkDef(Module.def),
-  InterfaceDef.mkDef(ModuleDef.interfaceDef),
-  TypeDef.mkDef(ModuleDef.typeDef),
-  TypeDef.mkDef(ValueDef.typeDef),
-  ImplDef.mkDef(ValueDef.moduleDefImplDef),
-  TypeDef.mkDef(TypeDef.def),
-  ImplDef.mkDef(TypeDef.moduleDefImplDef),
-  TypeDef.mkDef(Type.def),
-  InterfaceDef.mkDef(TypeProperty.interfaceDef),
-  TypeDef.mkDef(TypeProperty.typeDef),
-  TypeDef.mkDef(Equals.typeDef),
-  ImplDef.mkDef(Equals.propImplDef),
-  TypeDef.mkDef(MemberHas.typeDef),
-  ImplDef.mkDef(MemberHas.propImplDef),
-  TypeDef.mkDef(UnionTag.def),
-  TypeDef.mkDef(Union.def),
-  TypeDef.mkDef(Pair.def),
-  TypeDef.mkDef(TypeTree.def),
-  TypeDef.mkDef(InterfaceDef.def),
-  ImplDef.mkDef(InterfaceDef.moduleDefImplDef),
-  TypeDef.mkDef(ImplDef.def),
-  ImplDef.mkDef(ImplDef.moduleDefImplDef),
-  TypeDef.mkDef(Option.def),
-  TypeDef.mkDef(Result.def),
-  TypeDef.mkDef(Expr.def),
-  InterfaceDef.mkDef(Expr.interfaceDef),
-  TypeDef.mkDef(List.def),
-  TypeDef.mkDef(List.exprTypeDef),
-  ImplDef.mkDef(List.mkExprImplDef),
-  TypeDef.mkDef(Map.def),
-  // TypeDef.mkDef(Map.exprDataDef),
-  // ImplDef.mkDef(Map.mkExprImplDef),
-  TypeDef.mkDef(OrderedMap.def),
-  TypeDef.mkDef(Any.def),
-  TypeDef.mkDef(textDef),
-  TypeDef.mkDef(numberDef),
-  TypeDef.mkDef(booleanDef),
-  TypeDef.mkDef(unitDef),
-  TypeDef.mkDef(bottomDef),
-  TypeDef.mkDef(Fn.typeDef),
-  TypeDef.mkDef(FnExpr.typeDef),
-  ImplDef.mkDef(FnExpr.exprImplDef),
-  TypeDef.mkDef(FnApp.typeDef),
-  ImplDef.mkDef(FnApp.exprImplDef),
-  TypeDef.mkDef(Construct.typeDef),
-  ImplDef.mkDef(Construct.exprImplDef),
-  TypeDef.mkDef(RecordAccess.typeDef),
-  ImplDef.mkDef(RecordAccess.exprImplDef),
-  TypeDef.mkDef(Literal.typeDef),
-  ImplDef.mkDef(Literal.exprImplDef),
-  TypeDef.mkDef(Var.typeDef),
-  ImplDef.mkDef(Var.exprImplDef),
-  TypeDef.mkDef(Binding.def),
-]);
 
 @DartFn('71220800-2abd-40c3-b97a-5b8b1b743e6f')
 Object _varEval(Ctx ctx, Object arg) {

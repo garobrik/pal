@@ -11,7 +11,12 @@ late final List<String> benchmarks;
 
 void main(List<String> args) {
   benchmarks = args;
-  final ctx = Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module);
+  final coreModule = Module.loadFromFile('core');
+  final printModule = Module.loadFromFile('Print');
+  final ctx = Module.load(
+    Ctx.empty.withFnMaps([langFnMap, Printable.fnMap]),
+    [coreModule, printModule],
+  );
 
   final basicExpr = FnApp.mk(
     Var.mk(Printable.printFnID),

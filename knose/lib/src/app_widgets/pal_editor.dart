@@ -150,41 +150,6 @@ final editorArgsDef = TypeDef.record(
 
 const palUIModuleID = ID.constant(
     id: '8ed69fc4-51c8-4853-9ecb-bb245ccf2706', hashCode: 225295658, label: 'palUIModule');
-final palUIModule = Module.mk(
-  id: palUIModuleID,
-  name: 'PalUI',
-  definitions: [
-    TypeDef.mkDef(PalCursor.def),
-    TypeDef.mkDef(palWidgetDef),
-    InterfaceDef.mkDef(Editable.interfaceDef),
-    TypeDef.mkDef(editorArgsDef),
-    TypeDef.mkDef(Placeholder.typeDef),
-    ImplDef.mkDef(Placeholder.exprImplDef),
-    TypeDef.mkDef(DotPlaceholder.typeDef),
-    ImplDef.mkDef(DotPlaceholder.exprImplDef),
-    ValueDef.mk(
-      id: Var.id(Expr.data(editorFn)),
-      name: 'editor',
-      value: FnExpr.dart(
-        argID: const ID.constant(id: '91624d64-dddd-4ffe-9af9-e8b87daa4a71', hashCode: 473188254),
-        argName: 'editable',
-        argType: Type.lit(TypeDef.asType(editorArgsDef)),
-        returnType: Type.lit(palWidget),
-        body: palEditorInverseFnMap[_editorFn]!,
-      ),
-    ),
-    Editable.mkImpl(
-      dataType: Module.type,
-      editor: palEditorInverseFnMap[_moduleEditorFn]!,
-      id: const ID.constant(id: 'b0e33881-bcbd-42c2-8160-d2bb6da0edb8', hashCode: 472844317),
-    ),
-    Editable.mkImpl(
-      dataType: TypeTree.type,
-      editor: palEditorInverseFnMap[_typeTreeEditor]!,
-      id: const ID.constant(id: 'c8c17350-9ba6-4312-8c2f-353cb4063416', hashCode: 30010998),
-    ),
-  ],
-);
 
 @DartFn('1be6008b-3a4c-4901-be16-58760b31ff3f')
 Object _editorFn(Ctx ctx, Object arg) {

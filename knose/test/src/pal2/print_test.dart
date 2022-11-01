@@ -1,9 +1,15 @@
+import 'package:ctx/ctx.dart';
 import 'package:knose/src/pal2/lang.dart';
 import 'package:knose/src/pal2/print.dart';
 import 'package:test/test.dart';
 
-void main() {
-  late final ctx = Module.load(coreCtx.withFnMap(Printable.fnMap), Printable.module);
+void main() async {
+  final coreModule = await Module.loadFromFile('core');
+  final printModule = await Module.loadFromFile('Print');
+  late final ctx = Module.load(
+    Ctx.empty.withFnMap(langFnMap).withFnMap(Printable.fnMap),
+    [coreModule, printModule],
+  );
 
   test('print option', () {
     final basicExpr = FnApp.mk(
@@ -17,7 +23,7 @@ void main() {
     expect(
       eval(ctx, basicExpr),
       equals(
-        'Option(dataType: Number, value: some(5))',
+        'Option(value: some(5), dataType: Number)',
       ),
     );
   });
@@ -82,7 +88,7 @@ void main() {
         InterfaceDef.tree(ModuleDef.interfaceDef),
       ),
       equals(
-        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Type.mk(id: ID(Fn), path: [], properties: [argID = ID(bindingsArg), TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: MemberHas.mk(path: [ID(argType)], property: TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: Equals.mk(dataType: Type, equalTo: dataType)))), TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: MemberHas.mk(path: [ID(returnType)], property: TypeProperty.mk(impl: TypePropertyImpl(Unit()), data: Equals.mk(dataType: Expr, equalTo: List<type = Union<dataType = [ModuleDef, Binding]>>))))])))}))',
+        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Type.mk(id: ID(Fn), path: [], properties: [argID = ID(bindingsArg), TypeProperty.mk(data: MemberHas.mk(path: [ID(argType)], property: TypeProperty.mk(data: Equals.mk(dataType: Type, equalTo: dataType), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit())), TypeProperty.mk(data: MemberHas.mk(path: [ID(returnType)], property: TypeProperty.mk(data: Equals.mk(dataType: Expr, equalTo: List<type = Union<dataType = [ModuleDef, Binding]>>), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))])))}))',
       ),
     );
   });
