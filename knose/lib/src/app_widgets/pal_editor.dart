@@ -679,7 +679,13 @@ Widget _dataTreeEditor(
 }
 
 @reader
-Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String suffix = ''}) {
+Widget _exprEditor(
+  BuildContext context,
+  Ctx ctx,
+  Cursor<Object> expr, {
+  String suffix = '',
+  void Function()? onDelete,
+}) {
   final wrapperFocusNode = useFocusNode();
   final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
   final exprData = expr[Expr.dataID];
@@ -808,30 +814,52 @@ Widget _exprEditor(BuildContext context, Ctx ctx, Cursor<Object> expr, {String s
     child = DotPlaceholderEditor(ctx, expr: expr, suffix: suffix);
   } else if (exprType == List.mkExprType) {
     final children = exprData[List.mkValuesID][List.itemsID].cast<Vec>();
-    child = Inset(
-      prefix: Text.rich(TextSpan(children: [
-        const TextSpan(text: '<'),
-        AlignedWidgetSpan(ExprEditor(ctx, exprData[List.mkTypeID])),
-        const TextSpan(text: '>['),
-      ])),
-      contents: [
-        for (final child in children.indexedValues(ctx))
-          Actions(
-            actions: {
-              AddBelowIntent: CallbackAction(
-                onInvoke: (_) => children.insert(child.index + 1, placeholder),
+    return Actions(
+      actions: {
+        AddWithinIntent: CallbackAction(onInvoke: (_) => children.insert(0, placeholder)),
+      },
+      child: ExprFocusableNode(
+        ctx,
+        expr: expr,
+        focusNode: wrapperFocusNode,
+        onDelete: onDelete,
+        child: Inset(
+          prefix: Text.rich(TextSpan(children: [
+            const TextSpan(text: '<'),
+            AlignedWidgetSpan(ExprEditor(ctx, exprData[List.mkTypeID])),
+            const TextSpan(text: '>['),
+          ])),
+          contents: [
+            for (final child in children.indexedValues(ctx))
+              Actions(
+                actions: {
+                  AddBelowIntent: CallbackAction(
+                    onInvoke: (_) => children.insert(child.index + 1, placeholder),
+                  ),
+                },
+                child: ExprEditor(
+                  ctx,
+                  child.value,
+                  suffix: ', ',
+                  onDelete: () => children.remove(child.index),
+                ),
               ),
-            },
-            child: ExprEditor(ctx, child.value, suffix: ', '),
-          ),
-      ],
-      suffix: Text(']$suffix'),
+          ],
+          suffix: Text(']$suffix'),
+        ),
+      ),
     );
   } else {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
 
-  return ExprFocusableNode(ctx, expr: expr, focusNode: wrapperFocusNode, child: child);
+  return ExprFocusableNode(
+    ctx,
+    expr: expr,
+    focusNode: wrapperFocusNode,
+    onDelete: onDelete,
+    child: child,
+  );
 }
 
 @reader
@@ -839,8 +867,9 @@ Widget _exprFocusableNode(
   BuildContext context,
   Ctx ctx, {
   required Cursor<Object> expr,
-  required Widget child,
   required FocusNode focusNode,
+  void Function()? onDelete,
+  required Widget child,
 }) {
   final typeError = useMemoized(
     () => GetCursor.compute(
@@ -886,7 +915,7 @@ Widget _exprFocusableNode(
     ),
     child: FocusableNode(
       onHover: isHovered.set,
-      onDelete: () => expr.set(placeholder),
+      onDelete: onDelete ?? () => expr.set(placeholder),
       onAddDot: () => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
       focusNode: focusNode,
       child: ReaderWidget(
@@ -1321,12 +1350,17 @@ Widget _focusableNode({
   );
 }
 
-final palShortcuts = {
-  const SingleActivator(LogicalKeyboardKey.add, shift: true): const AddBelowIntent(),
+const palShortcuts = {
+  SingleActivator(LogicalKeyboardKey.add, shift: true): AddBelowIntent(),
+  SingleActivator(LogicalKeyboardKey.keyO): AddWithinIntent(),
 };
 
 class AddBelowIntent extends Intent {
   const AddBelowIntent();
+}
+
+class AddWithinIntent extends Intent {
+  const AddWithinIntent();
 }
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
