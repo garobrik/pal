@@ -200,7 +200,7 @@ abstract class Printable {
   @DartFn('57d1377c-16ea-4bce-8e91-e34742321815')
   static Object _varFn(Ctx ctx, Object varData) => Option.cases(
         ctx.getBinding(Var.id(varData)),
-        some: (binding) => Binding.name(binding),
+        some: (binding) => Binding.name(ctx, binding),
         none: () => Var.id(varData).label ?? 'Var(${palPrint(ctx, ID.type, Var.id(varData))}',
       );
   @DartFn('05dfa958-82fb-48b6-9a93-66f9882af5fb')

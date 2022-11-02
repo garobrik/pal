@@ -125,10 +125,9 @@ abstract class Module {
       final data = moduleDef[ModuleDef.dataID];
       if (type == ValueDef.type) {
         final arg = moduleDef[ModuleDef.dataID];
-        final name = arg[ValueDef.nameID].cast<String>();
+        final name = arg[ValueDef.nameID];
 
         GetCursor<Object>? lazyTypeCursor;
-        GetCursor<Object>? lazyValueCursor;
 
         final bindingID = arg[ValueDef.IDID].read(ctx) as ID;
         final expr = arg[ValueDef.valueID];
@@ -162,6 +161,7 @@ abstract class Module {
           return lazyTypeCursor!.read(ctx);
         }
 
+        GetCursor<Object>? lazyValueCursor;
         computeValue(Ctx ctx) {
           lazyValueCursor ??= GetCursor.compute((ctx) {
             computeType(ctx);
@@ -170,10 +170,28 @@ abstract class Module {
           return lazyValueCursor!.read(ctx);
         }
 
+        GetCursor<String>? lazyNameCursor;
+        computeName(Ctx ctx) {
+          lazyNameCursor ??= GetCursor.compute((ctx) {
+            computeType(ctx);
+            return eval(
+              ctx,
+              FnApp.mk(
+                Literal.mk(
+                  Fn.type(argID: ValueDef.nameArgID, argType: unit, returnType: Type.lit(text)),
+                  name.read(ctx),
+                ),
+                unitExpr,
+              ),
+            ) as String;
+          }, ctx: ctx);
+          return lazyNameCursor!.read(ctx);
+        }
+
         return [
           Binding.mkLazy(
             id: bindingID,
-            name: name.read(ctx),
+            name: computeName,
             type: computeType,
             value: computeValue,
           ),
@@ -266,16 +284,24 @@ abstract class Module {
       } else if (type == ImplDef.type) {
         return expandDef(
           ctx,
-          ValueDef.mkCursor(
+          ValueDef.mkCursorWithNameFn(
             id: GetCursor.computeMT(
               (ctx) => ImplDef.bindingIDForIDs(
                   implID: data[ImplDef.IDID].read(ctx) as ID,
                   interfaceID: data[ImplDef.implementedID].read(ctx) as ID),
             ),
-            name: GetCursor.computeMT((ctx) {
-              final implementedID = data[ImplDef.implementedID].read(ctx) as ID;
-              return '${implementedID.label ?? implementedID.id}Impl';
-            }),
+            name: GetCursor.computeMT(
+              (ctx) => FnApp.mk(
+                textAppendFnExpr,
+                List.mkExpr(text, [
+                  RecordAccess.chain(
+                    Var.mk(data[ImplDef.implementedID].read(ctx) as ID),
+                    [InterfaceDef.treeID, TypeTree.nameID],
+                  ),
+                  Literal.mk(text, 'Impl')
+                ]),
+              ),
+            ),
             value: data[ImplDef.definitionID],
           ),
         );
@@ -405,6 +431,8 @@ abstract class ValueDef {
       ID.constant(id: 'c441c1b1-cb2f-4f62-b794-985b6bea8f36', hashCode: 326891059, label: 'ID');
   static const nameID =
       ID.constant(id: 'c1e49d93-30b4-4588-8877-98c43d5f8606', hashCode: 435572148, label: 'name');
+  static const nameArgID =
+      ID.constant(id: 'c1e49d93-30b4-4588-8877-98c43d5f8606', hashCode: 435572148, label: 'name');
   static const expectedTypeID = ID.constant(
       id: '750bfe41-a85d-4895-874b-38f17c2067f6', hashCode: 329201515, label: 'expectedType');
   static const valueID =
@@ -414,7 +442,10 @@ abstract class ValueDef {
     'ValueDef',
     {
       IDID: TypeTree.mk('id', Type.lit(ID.type)),
-      nameID: TypeTree.mk('name', Type.lit(text)),
+      nameID: TypeTree.mk(
+        'name',
+        Type.lit(Fn.type(argID: nameArgID, argType: unit, returnType: Type.lit(text))),
+      ),
       expectedTypeID: TypeTree.mk('expectedType', Type.lit(Option.type(Type.type))),
       valueID: TypeTree.mk('value', Type.lit(Expr.type)),
     },
@@ -432,7 +463,7 @@ abstract class ValueDef {
         impl: moduleDefImpl,
         data: Dict({
           IDID: id,
-          nameID: name,
+          nameID: Fn.mk(argID: nameArgID, argName: '_', body: Fn.mkPalBody(Literal.mk(text, name))),
           expectedTypeID: Option.mk(expectedType),
           valueID: value,
         }),
@@ -448,7 +479,31 @@ abstract class ValueDef {
         impl: moduleDefImpl,
         data: Dict.cursor({
           IDID: id,
-          nameID: name,
+          nameID: Fn.mkCursor(
+            argID: const GetCursor(nameArgID),
+            argName: const GetCursor('_'),
+            body: Fn.mkPalBodyCursor(Literal.mkCursor(GetCursor(text), name)),
+          ),
+          expectedTypeID: Option.mkCursor(expectedType),
+          valueID: value,
+        }),
+      );
+
+  static GetCursor<Object> mkCursorWithNameFn({
+    required GetCursor<Object> id,
+    required GetCursor<Object> name,
+    GetCursor<Object>? expectedType,
+    required GetCursor<Object> value,
+  }) =>
+      ModuleDef.mkCursor(
+        impl: moduleDefImpl,
+        data: Dict.cursor({
+          IDID: id,
+          nameID: Fn.mkCursor(
+            argID: const GetCursor(nameArgID),
+            argName: const GetCursor('_'),
+            body: Fn.mkPalBodyCursor(name),
+          ),
           expectedTypeID: Option.mkCursor(expectedType),
           valueID: value,
         }),
@@ -979,7 +1034,7 @@ abstract class TypeTree {
         if (id == null) return ctx;
         return ctx.withBinding(Binding.mkLazy(
           id: id,
-          name: TypeTree.name(typeTree),
+          name: (_) => TypeTree.name(typeTree),
           type: (ctx) => Result.mkOk(reduce(ctx, leaf)),
         ));
       },
@@ -995,7 +1050,7 @@ abstract class TypeTree {
         ...prev,
         Binding.mkLazy(
           id: path.last as ID,
-          name: (path.last as ID).label ?? '${path.last}',
+          name: (_) => (path.last as ID).label ?? '${path.last}',
           type: (ctx) => Result.mkOk(reduce(ctx, typeLeaf)),
           value: (ctx) => dataLeaf,
         ),
@@ -2070,7 +2125,23 @@ abstract class Fn {
         closureID: closure ?? List.mk(const []),
       });
 
+  static GetCursor<Object> mkCursor({
+    required GetCursor<Object> argID,
+    required GetCursor<Object> argName,
+    required GetCursor<Object> body,
+    GetCursor<Object>? closure,
+  }) =>
+      Dict.cursor({
+        argIDID: argID,
+        argNameID: argName,
+        bodyID: body,
+        closureID: closure ?? GetCursor(List.mk(const [])),
+      });
+
   static Object mkDartBody(ID body) => UnionTag.mk(dartID, body);
+  static Object mkPalBody(Object expr) => UnionTag.mk(palID, expr);
+  static GetCursor<Object> mkPalBodyCursor(GetCursor<Object> expr) =>
+      UnionTag.mkCursor(palID, expr);
 
   static ID argID(Object fn) => (fn as Dict)[argIDID].unwrap! as ID;
   static String argName(Object fn) => (fn as Dict)[argNameID].unwrap! as String;
@@ -2648,7 +2719,7 @@ abstract class Binding {
         IDID: id,
         valueTypeID: (Ctx _) =>
             type ?? (throw Exception('shouldn\'t be trying to access this binding\'s type!!!')),
-        nameID: name,
+        nameID: (Ctx _) => name,
         reducedValueID: (Ctx _) => Option.mk(reducedValue),
         valueID: (Ctx _) => Option.mk(value),
       });
@@ -2656,7 +2727,7 @@ abstract class Binding {
   static Object mkLazy({
     required ID id,
     required Object Function(Ctx)? type,
-    required String name,
+    required String Function(Ctx) name,
     Object? Function(Ctx)? reducedValue,
     Object? Function(Ctx)? value,
   }) =>
@@ -2672,7 +2743,8 @@ abstract class Binding {
   static ID id(Object binding) => (binding as Dict)[IDID].unwrap! as ID;
   static Object valueType(Ctx ctx, Object binding) =>
       ((binding as Dict)[valueTypeID].unwrap! as Object Function(Ctx))(ctx);
-  static String name(Object binding) => (binding as Dict)[nameID].unwrap! as String;
+  static String name(Ctx ctx, Object binding) =>
+      ((binding as Dict)[nameID].unwrap! as String Function(Ctx))(ctx);
   static Object reducedValue(Ctx ctx, Object binding) =>
       ((binding as Dict)[reducedValueID].unwrap! as Object Function(Ctx))(ctx);
   static Object value(Ctx ctx, Object binding) =>
@@ -3257,7 +3329,7 @@ Object _varTypeCheck(Ctx ctx, Object arg) {
     some: (binding) => Result.map(
       Binding.valueType(ctx, binding),
       (_) => _,
-      'var ${Binding.name(binding)} doesn\'t type check',
+      'var ${Binding.name(ctx, binding)} doesn\'t type check',
     ),
     none: () => Result.mkErr('unknown var ${Var.id(arg)}'),
   );
@@ -3348,7 +3420,7 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                         none: () {
                           return Binding.mkLazy(
                             id: path.last as ID,
-                            name: TypeTree.name(typeTree),
+                            name: (_) => TypeTree.name(typeTree),
                             type: (ctx) => Result.mkOk(reduce(ctx, leaf)),
                             reducedValue: (ctx) =>
                                 RecordAccess.chain(reduce(ctx, RecordAccess.target(arg)), path),
@@ -3493,7 +3565,7 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
         return [
           Binding.mkLazy(
             id: List.iterate(path).last as ID,
-            name: TypeTree.name(typeTree),
+            name: (_) => TypeTree.name(typeTree),
             type: computeType,
             reducedValue: computeValue,
           ),
@@ -3823,6 +3895,18 @@ Object _mkListTypeCheck(Ctx ctx, Object arg) {
   } else {
     return Result.mkOk(List.typeExpr(listValueType));
   }
+}
+
+final textAppendFnExpr = FnExpr.dart(
+  argID: ID.mk(),
+  argName: '_',
+  argType: Type.lit(List.type(text)),
+  returnType: Type.lit(text),
+  body: langInverseFnMap[_textAppend]!,
+);
+@DartFn('4c67f06e-cbe0-4a46-a7e4-c04ee77eb3e1')
+Object _textAppend(Ctx ctx, Object arg) {
+  return List.iterate(arg).join();
 }
 
 extension Indent on String {

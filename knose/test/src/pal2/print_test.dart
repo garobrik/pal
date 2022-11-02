@@ -88,7 +88,7 @@ void main() async {
         InterfaceDef.tree(ModuleDef.interfaceDef),
       ),
       equals(
-        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Type.mk(id: ID(Fn), path: [], properties: [argID = ID(bindingsArg), TypeProperty.mk(data: MemberHas.mk(path: [ID(argType)], property: TypeProperty.mk(data: Equals.mk(dataType: Type, equalTo: dataType), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit())), TypeProperty.mk(data: MemberHas.mk(path: [ID(returnType)], property: TypeProperty.mk(data: Equals.mk(dataType: Expr, equalTo: List<type = Union<dataType = [ModuleDef, Binding]>>), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))), impl: a4dbc0f9-adfe-45b6-b65d-56c471b897a2Impl(Unit()))])))}))',
+        'TypeTree(name: "ModuleDef", tree: record({ID(dataType): TypeTree(name: "dataType", tree: leaf(Type)), ID(bindings): TypeTree(name: "bindings", tree: leaf(Type.mk(id: ID(Fn), path: [], properties: [argID = ID(bindingsArg), TypeProperty.mk(data: MemberHas.mk(path: [ID(argType)], property: TypeProperty.mk(data: Equals.mk(dataType: Type, equalTo: dataType), impl: TypePropertyImplImpl(Unit()))), impl: TypePropertyImplImpl(Unit())), TypeProperty.mk(data: MemberHas.mk(path: [ID(returnType)], property: TypeProperty.mk(data: Equals.mk(dataType: Expr, equalTo: List<type = Union<dataType = [ModuleDef, Binding]>>), impl: TypePropertyImplImpl(Unit()))), impl: TypePropertyImplImpl(Unit()))])))}))',
       ),
     );
   });

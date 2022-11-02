@@ -479,7 +479,9 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
               const TextSpan(text: 'let '),
               _inlineTextSpan(
                 ctx,
-                moduleDef[ModuleDef.dataID][ValueDef.nameID].cast<String>(),
+                moduleDef[ModuleDef.dataID][ValueDef.nameID][Fn.bodyID][UnionTag.valueID]
+                        [Expr.dataID][Literal.valueID]
+                    .cast<String>(),
               ),
               const TextSpan(text: ' = '),
             ])),
@@ -758,7 +760,7 @@ Widget _exprEditor(
     final varID = exprData[Var.IDID].read(ctx);
     child = Option.cases(
       ctx.getBinding(varID as ID),
-      some: (binding) => Text(Binding.name(binding) + suffix),
+      some: (binding) => Text(Binding.name(ctx, binding) + suffix),
       none: () => Text(
         'unknown var $varID$suffix',
         style: const TextStyle(fontStyle: FontStyle.italic),
@@ -1000,7 +1002,7 @@ Widget _placeholderEditor(
               final surround = isTypeConstructor ? angle : paren;
               return [
                 PlaceholderEntry(
-                  name: '${Binding.name(binding)}${surround.apply("...")}',
+                  name: '${Binding.name(ctx, binding)}${surround.apply("...")}',
                   onPressed: () {
                     Object innerExpr = placeholder;
                     if (isTypeConstructor) {
@@ -1018,14 +1020,14 @@ Widget _placeholderEditor(
             } else {
               return [
                 PlaceholderEntry(
-                  name: Binding.name(binding),
+                  name: Binding.name(ctx, binding),
                   detailedName: (ctx) {
                     final typeString = Result.cases(
                       Binding.valueType(ctx, binding),
                       ok: (typeExpr) => palPrint(ctx, Expr.type, typeExpr),
                       error: (_) => '???',
                     );
-                    return '${Binding.name(binding)}: $typeString';
+                    return '${Binding.name(ctx, binding)}: $typeString';
                   },
                   onPressed: () => expr.set(Var.mk(Binding.id(binding))),
                 ),
@@ -1407,10 +1409,7 @@ Widget _addDefinitionDropdown(
           child: const Text('Add Value Definition'),
         ),
         MySimpleDialogOption(
-          onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit(
-            'unnamed',
-            id: const ID.constant(id: '81fc488e-6b16-4bea-9228-a9c17e15af9d', hashCode: 262236359),
-          ))),
+          onPressed: () => addDefinition(TypeDef.mkDef(TypeDef.unit('unnamed', id: ID.mk()))),
           child: const Text('Add Type Definition'),
         ),
         MySimpleDialogOption(
@@ -1903,7 +1902,59 @@ abstract class Migration {
   String toString() => runtimeType.toString();
 }
 
-final migrations = [WrapListMkExprTypes()];
+final migrations = [ValueDefNameToFn(), WrapListMkExprTypes()];
+
+class ValueDefNameToFn extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(ValueDef.nameID)) return obj;
+    final nameValue = obj[ValueDef.nameID].unwrap!;
+    if (nameValue is String) {
+      return obj.put(
+        ValueDef.nameID,
+        Fn.mk(
+          argID: ValueDef.nameArgID,
+          argName: '_',
+          body: Fn.mkPalBody(Literal.mk(text, nameValue)),
+        ),
+      ) as T;
+    } else if (nameValue is Dict && nameValue.containsKey(TypeTree.treeID)) {
+      final cursor = Cursor<Object>(obj);
+      cursor[ValueDef.nameID][TypeTree.treeID][UnionTag.valueID].mut(
+        (_) => Type.lit(Fn.type(
+          argID: ValueDef.nameArgID,
+          argType: unit,
+          returnType: Type.lit(text),
+        )),
+      );
+      return cursor.read(Ctx.empty) as T;
+    } else {
+      throw UnimplementedError();
+    }
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(ValueDef.nameID)) return obj;
+    final nameValue = obj[ValueDef.nameID].unwrap!;
+    if (nameValue is! Dict) throw UnimplementedError();
+    if (nameValue.containsKey(Fn.bodyID)) {
+      return obj.put(
+        ValueDef.nameID,
+        GetCursor<Object>(nameValue)[Fn.bodyID][UnionTag.valueID][Expr.dataID][Literal.valueID]
+            .read(Ctx.empty) as String,
+      ) as T;
+    } else if (nameValue.containsKey(TypeTree.treeID)) {
+      final cursor = Cursor<Object>(obj);
+      cursor[ValueDef.nameID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(text));
+      return cursor.read(Ctx.empty) as T;
+    } else {
+      throw UnimplementedError();
+    }
+  }
+}
 
 class WrapListMkExprTypes extends Migration {
   @override
@@ -1915,7 +1966,7 @@ class WrapListMkExprTypes extends Migration {
           return obj.put(List.mkTypeID, Type.lit(atMkTypeID)) as T;
         } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
           final cursor = Cursor<Object>(obj);
-          cursor[TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Expr.type));
+          cursor[List.mkTypeID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Expr.type));
           return cursor.read(Ctx.empty) as T;
         } else {
           throw UnimplementedError();
@@ -1934,7 +1985,7 @@ class WrapListMkExprTypes extends Migration {
           return obj.put(List.mkTypeID, Literal.getValue(atMkTypeID)) as T;
         } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
           final cursor = Cursor<Object>(obj);
-          cursor[TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Type.type));
+          cursor[List.mkTypeID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Type.type));
           return cursor.read(Ctx.empty) as T;
         } else {
           throw UnimplementedError();
