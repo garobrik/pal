@@ -230,17 +230,18 @@ abstract class Module {
         final comptime =
             (data[TypeDef.comptimeID][List.itemsID].read(ctx) as Iterable<Object>).cast<ID>();
         final typeTree = data[TypeDef.treeID];
+        final typeName = typeTree[TypeTree.nameID];
 
         return [
           ValueDef.mkCursor(
             id: data[TypeDef.IDID],
-            name: typeTree[TypeTree.nameID],
+            name: typeName,
             value: Literal.mkCursor(GetCursor(TypeDef.type), data),
           ),
           // TODO: make reactive?
           if (comptime.isNotEmpty)
             TypeDef.mkCursorRecordDef(
-              name: GetCursor.computeMT((ctx) => '${typeTree[TypeTree.nameID].read(ctx)}TypeArgs'),
+              name: GetCursor.computeMT((ctx) => '${typeName.read(ctx)}TypeArgs'),
               members: {for (final id in comptime) id: TypeTree.findReactive(ctx, typeTree, id)!},
               id: GetCursor.computeMT(
                   (ctx) => TypeDef.typeArgsIDFor(data[TypeDef.IDID].read(ctx) as ID)),
@@ -280,6 +281,14 @@ abstract class Module {
                     ),
                   ),
           ),
+          for (final entry in TypeTree.allTrees(ctx, typeTree).entries)
+            ValueDef.mkCursor(
+              id: GetCursor(entry.key),
+              name: GetCursor.computeMT(
+                (ctx) => '${typeName.read(ctx)}.${entry.value[TypeTree.nameID].read(ctx)}',
+              ),
+              value: GetCursor(Literal.mk(ID.type, entry.key)),
+            )
         ].expand((element) => expandDef(ctx, element));
       } else if (type == ImplDef.type) {
         return expandDef(
@@ -287,8 +296,9 @@ abstract class Module {
           ValueDef.mkCursorWithNameFn(
             id: GetCursor.computeMT(
               (ctx) => ImplDef.bindingIDForIDs(
-                  implID: data[ImplDef.IDID].read(ctx) as ID,
-                  interfaceID: data[ImplDef.implementedID].read(ctx) as ID),
+                implID: data[ImplDef.IDID].read(ctx) as ID,
+                interfaceID: data[ImplDef.implementedID].read(ctx) as ID,
+              ),
             ),
             name: GetCursor.computeMT(
               (ctx) => FnApp.mk(
@@ -1164,6 +1174,21 @@ abstract class TypeTree {
       ),
       leaf: (leaf) => data,
     );
+  }
+
+  static dart.Map<ID, GetCursor<Object>> allTrees(Ctx ctx, GetCursor<Object> typeTree) {
+    final treeCase = typeTree[treeID][UnionTag.tagID].read(ctx);
+    var dict = const GetCursor(Dict());
+    if (treeCase == recordID || treeCase == unionID) {
+      dict = typeTree[treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+    }
+    final keys = dict.keys.read(ctx).cast<ID>();
+    return {
+      for (final key in keys) ...{
+        key: dict[key].whenPresent,
+        ...allTrees(ctx, dict[key].whenPresent)
+      },
+    };
   }
 
   static Object? find(Object typeTree, ID id) {
