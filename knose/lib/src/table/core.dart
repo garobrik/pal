@@ -91,7 +91,7 @@ extension TableMutations on Cursor<Table> {
     atomically((table) {
       final column = Column(dataImpl: columnImpl);
 
-      table.columns[column.id] = Optional(column);
+      table.columns[column.id] = column;
       table.columnIDs.insert(index ?? table.columnIDs.length.read(Ctx.empty), column.id);
 
       columnID = column.id;

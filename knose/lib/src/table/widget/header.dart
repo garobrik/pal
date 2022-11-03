@@ -228,7 +228,7 @@ Widget _newColumnButton({
     onPressed: () {
       final columnID = table?.addColumn(textTableData);
       if (columnID != null) {
-        openColumns?[columnID] = const Optional(true);
+        openColumns?[columnID] = true;
       }
     },
     child: Row(

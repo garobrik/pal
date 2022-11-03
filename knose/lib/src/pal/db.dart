@@ -57,7 +57,7 @@ extension DBCursor on Cursor<DB> {
   }
 
   void update<T extends Object>(ID<T> id, T object) {
-    cache[id._namespace].orElse(const Dict())[id._key] = Optional(object);
+    cache[id._namespace].orElse(const Dict())[id._key] = object;
   }
 }
 

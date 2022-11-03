@@ -169,11 +169,11 @@ extension ManualDictCursorExtension<Key extends Object, Value> on Cursor<Dict<Ke
         ),
       );
 
-  void operator []=(Key key, Optional<Value> update) {
+  void operator []=(Key key, Value update) {
     mutResult(
       (obj) => DiffResult(
-        obj.mut_array_op(key, update),
-        obj._mut_array_op_mutated(key, update),
+        obj.mut_array_op(key, Optional(update)),
+        obj._mut_array_op_mutated(key, Optional(update)),
       ),
     );
   }
