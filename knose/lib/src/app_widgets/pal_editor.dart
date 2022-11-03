@@ -465,7 +465,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
     );
   }
 
-  Widget childForIndexedID(Ctx ctx, int index, ID id) {
+  Widget childForID(Ctx ctx, ID id) {
     return ReaderWidget(
       ctx: ctx,
       key: ValueKey(id),
@@ -480,9 +480,11 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             ctx,
             dropdownFocus: dropdownFocus,
             addDefinition: (def) {
-              final id = ModuleDef.idFor(def);
-              definitionMap[id] = def;
-              definitionIDs.insert(index + 1, id);
+              final index = definitionIDs.read(Ctx.empty).indexOf(id);
+              if (index == null) return;
+              final newID = ModuleDef.idFor(def);
+              definitionMap[newID] = def;
+              definitionIDs.insert(index + 1, newID);
               isOpen.set(false);
             },
           ),
@@ -490,18 +492,21 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             actions: {
               AddBelowIntent: CallbackAction(onInvoke: (_) => isOpen.set(true)),
               DeleteIntent: CallbackAction(onInvoke: (_) {
-                final id = definitionIDs[index].read(Ctx.empty);
+                final index = definitionIDs.read(Ctx.empty).indexOf(id);
+                if (index == null) return;
                 definitionIDs.remove(index);
                 definitionMap.remove(id);
               }),
               ShiftUpIntent: CallbackAction(onInvoke: (_) {
-                if (index > 0) {
+                final index = definitionIDs.read(Ctx.empty).indexOf(id);
+                if (index != null && index > 0) {
                   definitionIDs[index] = definitionIDs[index - 1].read(Ctx.empty);
                   definitionIDs[index - 1] = id;
                 }
               }),
               ShiftDownIntent: CallbackAction(onInvoke: (_) {
-                if (index < definitionIDs.length.read(Ctx.empty) - 1) {
+                final index = definitionIDs.read(Ctx.empty).indexOf(id);
+                if (index != null && index < definitionIDs.length.read(Ctx.empty) - 1) {
                   definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
                   definitionIDs[index + 1] = id;
                 }
@@ -524,10 +529,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
           const TextSpan(text: ' {'),
         ]),
       ),
-      contents: [
-        for (final indexedID in definitionIDs.indexedValues(ctx))
-          childForIndexedID(ctx, indexedID.index, indexedID.value.read(ctx) as ID)
-      ],
+      contents: [for (final id in definitionIDs.read(ctx)) childForID(ctx, id as ID)],
       suffix: const Text('} '),
     ),
   );

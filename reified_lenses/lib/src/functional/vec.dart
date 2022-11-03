@@ -89,6 +89,8 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, DiagnosticableTr
 }
 
 extension IterableExtension<V> on Iterable<V> {
+  int? indexOf(V value) => indexWhere((elem) => elem == value);
+
   int? indexWhere(bool Function(V) predicate) {
     var index = 0;
     for (final value in this) {
