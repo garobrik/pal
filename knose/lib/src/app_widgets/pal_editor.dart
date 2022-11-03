@@ -1448,10 +1448,6 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
     with DirectionalFocusTraversalPolicyMixin {
   @override
   Iterable<FocusNode> sortDescendants(Iterable<FocusNode> descendants, FocusNode currentNode) {
-    return sortDescendantsStatic(descendants);
-  }
-
-  static Iterable<FocusNode> sortDescendantsStatic(Iterable<FocusNode> descendants) {
     final sorted = _TrieList<FocusNode>(null);
     for (final descendant in descendants) {
       _place(sorted, descendant);
@@ -1484,12 +1480,30 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
   }
 
   static void _sortSiblings(_TrieList<FocusNode> sorted) {
+    _doSortSiblings(
+      (sorted.first.context!.getElementForInheritedWidgetOfExactType<Directionality>()!.widget
+              as Directionality)
+          .textDirection,
+      sorted,
+    );
+  }
+
+  static void _doSortSiblings(TextDirection directionality, _TrieList<FocusNode> sorted) {
     mergeSort<_TrieList<FocusNode>>(sorted.children, compare: (t1, t2) {
-      final heightDifference = t1.element!.offset.dy - t2.element!.offset.dy;
-      if (heightDifference.round() != 0) return heightDifference.round();
-      return t2.element!.offset.dx < t1.element!.offset.dx ? 1 : -1;
+      return _comparePositions(directionality, t1.element!, t2.element!);
     });
-    sorted.children.forEach(_sortSiblings);
+    for (final child in sorted.children) {
+      _doSortSiblings(directionality, child);
+    }
+  }
+
+  static int _comparePositions(TextDirection directionality, FocusNode a, FocusNode b) {
+    if (a.offset.dy + (3 * a.size.height / 4) < b.offset.dy) return -1;
+    if (b.offset.dy + (3 * b.size.height / 4) < a.offset.dy) return 1;
+    final ltr = directionality == TextDirection.ltr;
+    final aStart = ltr ? a.offset.dx : a.offset.dx + a.size.width;
+    final bStart = ltr ? b.offset.dx : b.offset.dx + b.size.width;
+    return aStart < bStart ? -1 : 1;
   }
 }
 
