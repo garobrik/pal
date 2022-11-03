@@ -390,53 +390,73 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
           }
           final name = _inlineTextSpan(ctx, typeTree[TypeTree.nameID].cast<String>());
           ctx = TypeTree.typeBindings(ctx, typeTree.read(ctx));
-          return Inset(
-            prefix: Text.rich(TextSpan(children: [
-              TextSpan(text: '$kind '),
-              name,
-              const TextSpan(text: ' { '),
-            ])),
-            contents: [TypeTreeEditor(ctx, PalCursor.mk(typeTree))],
-            suffix: const Text('}'),
+          return Actions(
+            actions: {
+              AddWithinIntent: CallbackAction(
+                onInvoke: (_) {
+                  if (typeTree[TypeTree.treeID][UnionTag.tagID].read(Ctx.empty) ==
+                      TypeTree.recordID) {
+                    typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID]
+                        .cast<Dict>()[ID.mk()] = TypeTree.mk('fieldName', Type.lit(unit));
+                  }
+                },
+              ),
+            },
+            child: FocusableNode(
+              child: Inset(
+                prefix: Text.rich(TextSpan(children: [
+                  TextSpan(text: '$kind '),
+                  name,
+                  const TextSpan(text: ' { '),
+                ])),
+                contents: [TypeTreeEditor(ctx, PalCursor.mk(typeTree))],
+                suffix: const Text('}'),
+              ),
+            ),
           );
         } else if (dataType == ImplDef.type) {
           final interfaceDef = ctx.getInterface(
             moduleDef[ModuleDef.dataID][ImplDef.implementedID].read(ctx) as ID,
           );
-          return Option.cases(
-            Option.mk(interfaceDef),
-            none: () => const Text('unknown interface'),
-            some: (interfaceDef) {
-              return Inset(
-                prefix: Text.rich(TextSpan(children: [
-                  const TextSpan(text: 'impl '),
-                  _inlineTextSpan(ctx, moduleDef[ModuleDef.dataID][ImplDef.nameID].cast<String>()),
-                  TextSpan(text: ' of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { '),
-                ])),
-                contents: [
-                  ExprEditor(
-                    ctx,
-                    moduleDef[ModuleDef.dataID][ImplDef.definitionID],
-                  )
-                ],
-                suffix: const Text('}'),
-              );
-            },
+          return FocusableNode(
+            child: Option.cases(
+              Option.mk(interfaceDef),
+              none: () => const Text('unknown interface'),
+              some: (interfaceDef) {
+                return Inset(
+                  prefix: Text.rich(TextSpan(children: [
+                    const TextSpan(text: 'impl '),
+                    _inlineTextSpan(
+                        ctx, moduleDef[ModuleDef.dataID][ImplDef.nameID].cast<String>()),
+                    TextSpan(text: ' of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { '),
+                  ])),
+                  contents: [
+                    ExprEditor(
+                      ctx,
+                      moduleDef[ModuleDef.dataID][ImplDef.definitionID],
+                    )
+                  ],
+                  suffix: const Text('}'),
+                );
+              },
+            ),
           );
         } else if (dataType == ValueDef.type) {
-          return Inset(
-            prefix: Text.rich(TextSpan(children: [
-              const TextSpan(text: 'let '),
-              _inlineTextSpan(
-                ctx,
-                moduleDef[ModuleDef.dataID][ValueDef.nameID][Fn.bodyID][UnionTag.valueID]
-                        [Expr.dataID][Literal.valueID]
-                    .cast<String>(),
-              ),
-              const TextSpan(text: ' = '),
-            ])),
-            contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
-            suffix: const SizedBox(),
+          return FocusableNode(
+            child: Inset(
+              prefix: Text.rich(TextSpan(children: [
+                const TextSpan(text: 'let '),
+                _inlineTextSpan(
+                  ctx,
+                  moduleDef[ModuleDef.dataID][ValueDef.nameID][Fn.bodyID][UnionTag.valueID]
+                          [Expr.dataID][Literal.valueID]
+                      .cast<String>(),
+                ),
+                const TextSpan(text: ' = '),
+              ])),
+              contents: [ExprEditor(ctx, moduleDef[ModuleDef.dataID][ValueDef.valueID])],
+              suffix: const SizedBox(),
+            ),
           );
         } else {
           throw Exception('unknown ModuleDef type $dataType');
