@@ -1244,8 +1244,9 @@ Widget _focusableNode({
           }
         }),
         const SingleActivator(LogicalKeyboardKey.keyL): VoidCallbackIntent(() {
-          if (wrapperFocusNode.traversalDescendants.isNotEmpty) {
-            wrapperFocusNode.traversalDescendants.first.requestFocus();
+          final descendants = wrapperFocusNode.hierarchicalTraversableDescendants;
+          if (descendants.isNotEmpty) {
+            descendants.first.requestFocus();
           }
         }),
       },
