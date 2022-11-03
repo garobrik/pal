@@ -27,54 +27,6 @@ abstract class Printable {
     id: const ID.constant(id: 'fd7cb66a-b70d-4165-b675-51133faed6ba', hashCode: 19279715),
   );
 
-  static Object mkImpl({required ID id, required Object dataType, required ID print}) => ImplDef.mk(
-        id: id,
-        implemented: InterfaceDef.id(interfaceDef),
-        definition: Dict({
-          dataTypeID: Type.lit(dataType),
-          printID: FnExpr.dart(
-            argID: printArgID,
-            argName: 'printArg',
-            argType: Type.lit(dataType),
-            returnType: Type.lit(text),
-            body: print,
-          ),
-        }),
-      );
-
-  static Object mkParameterizedImpl({
-    required ID id,
-    required String name,
-    required Object argType,
-    required Object Function(Object) dataType,
-    required ID print,
-  }) =>
-      ImplDef.mkParameterized(
-        id: id,
-        implemented: InterfaceDef.id(interfaceDef),
-        argType: argType,
-        definition: (arg) => Dict({
-          dataTypeID: dataType(arg),
-          printID: FnExpr.pal(
-            argID: printArgID,
-            argName: 'printArg',
-            argType: dataType(arg),
-            returnType: Type.lit(text),
-            body: FnApp.mk(
-              FnExpr.dart(
-                argID: const ID.constant(
-                    id: '733cfd40-e86d-45de-8639-b1e82570e945', hashCode: 344043086),
-                argName: 'printArg',
-                argType: Type.lit(Any.type),
-                returnType: Type.lit(text),
-                body: print,
-              ),
-              Any.mkExpr(dataType(arg), Var.mk(printArgID)),
-            ),
-          )
-        }),
-      );
-
   static const printFnID =
       ID.constant(id: '0043f7c5-fcc8-466e-b575-25eb6a1a4fd1', hashCode: 25799240, label: 'print');
   static const moduleID =

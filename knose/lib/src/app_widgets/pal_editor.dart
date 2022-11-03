@@ -78,59 +78,6 @@ abstract class Editable {
     },
     id: const ID.constant(id: 'aa48c74f-5cf2-45bf-82e5-a0cd7d3485cf', hashCode: 117434805),
   );
-
-  static Object mkImpl({
-    required ID id,
-    required Object dataType,
-    required ID editor,
-  }) =>
-      ImplDef.mkDef(ImplDef.mk(
-        id: id,
-        implemented: InterfaceDef.id(interfaceDef),
-        definition: Dict({
-          dataTypeID: Type.lit(dataType),
-          editorID: FnExpr.dart(
-            argID: editorArgID,
-            argName: 'editorArg',
-            argType: Type.lit(PalCursor.type(dataType)),
-            returnType: Type.lit(palWidget),
-            body: editor,
-          ),
-        }),
-      ));
-
-  static Object mkParameterizedImpl({
-    required ID id,
-    required String name,
-    required Object argType,
-    required Object Function(Object) dataType,
-    required ID editor,
-  }) =>
-      ImplDef.mkParameterized(
-        id: id,
-        implemented: InterfaceDef.id(interfaceDef),
-        argType: argType,
-        definition: (arg) => Dict({
-          dataTypeID: dataType(arg),
-          editorID: FnExpr.pal(
-            argID: editorArgID,
-            argName: 'printArg',
-            argType: dataType(arg),
-            returnType: Type.lit(text),
-            body: FnApp.mk(
-              FnExpr.dart(
-                argID: const ID.constant(
-                    id: '7d05e186-7a8a-402a-b49e-bd68fbca195f', hashCode: 361501349),
-                argName: 'printArg',
-                argType: Type.lit(Any.type),
-                returnType: Type.lit(text),
-                body: editor,
-              ),
-              Any.mkExpr(dataType(arg), Var.mk(editorArgID)),
-            ),
-          )
-        }),
-      );
 }
 
 final editorFn = Var.mk(const ID.constant(
@@ -460,9 +407,11 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             none: () => const Text('unknown interface'),
             some: (interfaceDef) {
               return Inset(
-                prefix: Text(
-                  'impl of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { ',
-                ),
+                prefix: Text.rich(TextSpan(children: [
+                  const TextSpan(text: 'impl '),
+                  _inlineTextSpan(ctx, moduleDef[ModuleDef.dataID][ImplDef.nameID].cast<String>()),
+                  TextSpan(text: ' of ${TypeTree.name(InterfaceDef.tree(interfaceDef))} { '),
+                ])),
                 contents: [
                   ExprEditor(
                     ctx,
@@ -1393,6 +1342,7 @@ Widget _addDefinitionDropdown(
         ImplDef.mkDef(
           ImplDef.mk(
             id: ID.mk(),
+            name: 'unnamed',
             implemented: InterfaceDef.id(interface),
             definition: TypeTree.instantiate(InterfaceDef.tree(interface), placeholder),
           ),
@@ -1821,13 +1771,14 @@ abstract class Placeholder extends Expr {
   );
   static final type = TypeDef.asType(typeDef);
 
-  static final exprImplDef = Expr.mkImplDef(
+  static const exprImplID =
+      ID.constant(id: '0086f89e-7113-4f6c-950a-c2d92d481681', hashCode: 312213190);
+  static final exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'placeholderData',
     typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
     reduceBody: palEditorInverseFnMap[_reduce]!,
     evalBody: palEditorInverseFnMap[_eval]!,
-    id: const ID.constant(id: '0086f89e-7113-4f6c-950a-c2d92d481681', hashCode: 312213190),
   );
 
   @DartFn('b1750fd4-b07f-490b-816f-7933361115e5')
@@ -1842,7 +1793,7 @@ abstract class Placeholder extends Expr {
 
 final placeholder = Expr.mk(
   data: const Dict(),
-  impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, Placeholder.exprImplDef),
+  impl: Placeholder.exprImpl,
 );
 
 abstract class DotPlaceholder extends Expr {
@@ -1855,19 +1806,17 @@ abstract class DotPlaceholder extends Expr {
   );
   static final type = TypeDef.asType(typeDef);
 
-  static final exprImplDef = Expr.mkImplDef(
+  static const exprImplID =
+      ID.constant(id: '928ed976-8105-4a7c-9183-ba0e8e8750ec', hashCode: 272503713);
+  static final exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'placeholderData',
     typeCheckBody: palEditorInverseFnMap[_typeCheck]!,
     reduceBody: palEditorInverseFnMap[_reduce]!,
     evalBody: palEditorInverseFnMap[_eval]!,
-    id: const ID.constant(id: '928ed976-8105-4a7c-9183-ba0e8e8750ec', hashCode: 272503713),
   );
 
-  static Object mk(Object expr) => Expr.mk(
-        impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, exprImplDef),
-        data: Dict({prefixID: expr}),
-      );
+  static Object mk(Object expr) => Expr.mk(impl: exprImpl, data: Dict({prefixID: expr}));
 
   @DartFn('b1750fd4-b07e-490b-816f-7933361115e5')
   static Object _typeCheck(Ctx _, Object __) =>
@@ -1902,7 +1851,33 @@ abstract class Migration {
   String toString() => runtimeType.toString();
 }
 
-final migrations = [ValueDefNameToFn(), WrapListMkExprTypes()];
+final migrations = [ImplNames(), ValueDefNameToFn(), WrapListMkExprTypes()];
+
+class ImplNames extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(ImplDef.IDID)) return obj;
+    if (obj[ImplDef.IDID].unwrap! is ID) {
+      return obj.put(
+        ImplDef.nameID,
+        'unnamed',
+      ) as T;
+    } else {
+      return obj.put(
+        ImplDef.nameID,
+        TypeTree.mk('name', Type.lit(text)),
+      ) as T;
+    }
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(ImplDef.nameID)) return obj;
+    return obj.remove(ImplDef.nameID) as T;
+  }
+}
 
 class ValueDefNameToFn extends Migration {
   @override

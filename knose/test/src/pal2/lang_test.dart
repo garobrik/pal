@@ -138,6 +138,7 @@ void main() async {
     final implID = ID.mk();
     final implDef = ImplDef.mk(
       id: implID,
+      name: 'testImpl',
       implemented: ifaceID,
       definition: Dict({dataTypeID: Type.lit(number), valueID: Literal.mk(number, 0)}),
     );

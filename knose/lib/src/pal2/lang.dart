@@ -298,7 +298,7 @@ abstract class Module {
                     Var.mk(data[ImplDef.implementedID].read(ctx) as ID),
                     [InterfaceDef.treeID, TypeTree.nameID],
                   ),
-                  Literal.mk(text, 'Impl')
+                  Literal.mk(text, '.${data[ImplDef.nameID].read(ctx)}')
                 ]),
               ),
             ),
@@ -369,9 +369,11 @@ abstract class ModuleDef extends InterfaceDef {
     required Object dataType,
     required Object bindings,
     required ID id,
+    required String name,
   }) =>
       ImplDef.mk(
         id: id,
+        name: name,
         implemented: InterfaceDef.id(interfaceDef),
         definition: Dict({
           dataTypeID: Type.lit(dataType),
@@ -510,6 +512,7 @@ abstract class ValueDef {
       );
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
+    name: 'ValueDef',
     dataType: type,
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
@@ -594,6 +597,7 @@ abstract class TypeDef {
   static final type = asType(def);
 
   static final moduleDefImplDef = ModuleDef.mkImpl(
+    name: 'TypeDef',
     dataType: type,
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
@@ -751,8 +755,10 @@ abstract class TypeProperty {
   static Object mkImpl({
     required ID id,
     required Object dataType,
+    required String name,
   }) =>
       ImplDef.mk(
+        name: name,
         id: id,
         implemented: interfaceID,
         definition: Dict({dataTypeID: Type.lit(dataType)}),
@@ -819,6 +825,7 @@ abstract class Equals extends TypeProperty {
   static final propImplDef = TypeProperty.mkImpl(
     id: const ID.constant(
         id: 'e754cfb6-d4fa-4884-ac4c-40cecfa1d851', hashCode: 335104296, label: 'EqualsImpl'),
+    name: 'Equals',
     dataType: type,
   );
   static final impl = Dict({TypeProperty.dataTypeID: type});
@@ -862,6 +869,7 @@ abstract class MemberHas extends TypeProperty {
   static final type = Type.mk(typeDefID);
 
   static final propImplDef = TypeProperty.mkImpl(
+    name: 'MemberHas',
     id: const ID.constant(
         id: 'b876dad4-949d-4b3c-bcb6-257166644158', hashCode: 470405332, label: 'MemberHasImpl'),
     dataType: type,
@@ -1231,6 +1239,7 @@ abstract class InterfaceDef {
   static ID innerTypeDefID(ID id) => id.append(_innerTypeDefID);
   static ID dispatchCacheID(ID id) => id.append(_dispatchCacheID);
   static final moduleDefImplDef = ModuleDef.mkImpl(
+    name: 'InterfaceDef',
     dataType: type,
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
@@ -1261,6 +1270,9 @@ abstract class ImplDef {
   static const IDID =
       ID.constant(id: '672645db-27d7-475e-b318-64f5d3f2d82d', hashCode: 528256935, label: 'ID');
 
+  static const nameID =
+      ID.constant(id: '551230e0-16fb-49c1-b273-0c4fa7c599a2', hashCode: 160150517, label: 'name');
+
   static const implementedID = ID.constant(
       id: '551230e0-66fb-49c1-b273-0c4fa7c599a2', hashCode: 295780074, label: 'implemented');
 
@@ -1274,6 +1286,7 @@ abstract class ImplDef {
     'ImplDef',
     {
       IDID: TypeTree.mk('id', Type.lit(ID.type)),
+      nameID: TypeTree.mk('name', Type.lit(text)),
       implementedID: TypeTree.mk('implemented', Type.lit(ID.type)),
       definitionID: TypeTree.mk('definition', Type.lit(Expr.type)),
     },
@@ -1281,9 +1294,15 @@ abstract class ImplDef {
   );
   static final type = TypeDef.asType(def);
 
-  static Object mk({required ID id, required ID implemented, required Object definition}) =>
+  static Object mk({
+    required ID id,
+    required String name,
+    required ID implemented,
+    required Object definition,
+  }) =>
       mkParameterized(
         id: id,
+        name: name,
         implemented: implemented,
         argType: unit,
         definition: (_) => definition,
@@ -1291,12 +1310,14 @@ abstract class ImplDef {
 
   static Dict mkParameterized({
     required ID id,
+    required String name,
     required ID implemented,
     required Object argType,
     required Object Function(Object) definition,
   }) =>
       Dict({
         IDID: id,
+        nameID: name,
         implementedID: implemented,
         definitionID: FnExpr.palInferred(
           argID: definitionArgID,
@@ -1320,10 +1341,11 @@ abstract class ImplDef {
   static ID bindingIDForIDs({required ID implID, required ID interfaceID}) =>
       bindingIDPrefixForID(interfaceID).append(implID);
   static final moduleDefImplDef = ModuleDef.mkImpl(
+    name: 'ImplDef',
     dataType: type,
     bindings: FnExpr.dart(
       argID: ModuleDef.bindingsArgID,
-      argName: 'typeDef',
+      argName: 'implDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
       body: ID.fake,
@@ -1661,43 +1683,6 @@ abstract class Expr {
   );
   static final implType = InterfaceDef.implTypeByID(interfaceID);
 
-  static Object mkImplDef({
-    required Object dataType,
-    required String argName,
-    required ID typeCheckBody,
-    required ID reduceBody,
-    required ID evalBody,
-    required ID id,
-  }) =>
-      ImplDef.mk(
-        id: id,
-        implemented: interfaceID,
-        definition: Dict({
-          dataTypeID: Type.lit(dataType),
-          typeCheckID: FnExpr.dart(
-            argType: Type.lit(dataType),
-            returnType: Type.lit(Result.type(typeExprType)),
-            argID: typeCheckArgID,
-            argName: argName,
-            body: typeCheckBody,
-          ),
-          reduceID: FnExpr.dart(
-            argType: Type.lit(dataType),
-            returnType: Type.lit(Expr.type),
-            argID: reduceArgID,
-            argName: argName,
-            body: reduceBody,
-          ),
-          evalExprID: FnExpr.dart(
-            argType: Type.lit(dataType),
-            returnType: Type.lit(Any.type),
-            argID: evalExprArgID,
-            argName: argName,
-            body: evalBody,
-          ),
-        }),
-      );
-
   static Object mkImpl({
     required Object dataType,
     required String argName,
@@ -1826,14 +1811,8 @@ abstract class List {
 
   static final _evalFn = langInverseFnMap[_mkListEval]!;
 
-  static final mkExprImplDef = Expr.mkImplDef(
-    dataType: mkExprType,
-    argName: 'mkListData',
-    typeCheckBody: _typeFn,
-    reduceBody: _reduceFn,
-    evalBody: _evalFn,
-    id: const ID.constant(id: 'd2d4e3e8-7eb0-4580-bd86-fa7e958c7d40', hashCode: 365836427),
-  );
+  static const implDefID =
+      ID.constant(id: 'd2d4e3e8-7eb0-4580-bd86-fa7e958c7d40', hashCode: 365836427);
   static final mkExprImpl = Expr.mkImpl(
     dataType: mkExprType,
     argName: 'mkListData',
@@ -1966,16 +1945,17 @@ abstract class Map {
   );
   static final mkType = Type.mk(mkExprID);
 
-  static final mkExprImplDef = Expr.mkImplDef(
+  static const mkExprImplDefID =
+      ID.constant(id: '670cb618-686f-48f9-85a5-731ddf72d405', hashCode: 93616803);
+  static final mkExprImpl = Expr.mkImpl(
     dataType: mkType,
     argName: 'mkMapData',
     typeCheckBody: langInverseFnMap[_mkMapTypeCheck]!,
     reduceBody: langInverseFnMap[_mkMapReduce]!,
     evalBody: langInverseFnMap[_mkMapEval]!,
-    id: const ID.constant(id: '670cb618-686f-48f9-85a5-731ddf72d405', hashCode: 93616803),
   );
   static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
-        impl: ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), Expr.interfaceDef, mkExprImplDef),
+        impl: mkExprImpl,
         data: Dict({mkKeyID: key, mkValueID: value, mkEntriesID: entries}),
       );
 
@@ -2212,15 +2192,6 @@ abstract class FnExpr extends Expr {
 
   static final evalFnBody = langInverseFnMap[_fnExprEval]!;
 
-  static final exprImplDef = Expr.mkImplDef(
-    id: exprImplID,
-    argName: 'fnData',
-    dataType: type,
-    typeCheckBody: typeFnBody,
-    reduceBody: reduceFnBody,
-    evalBody: evalFnBody,
-  );
-
   static final Object exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'fnData',
@@ -2388,14 +2359,8 @@ abstract class FnApp extends Expr {
   static final _reduceFnBody = langInverseFnMap[_fnAppReduce]!;
   static final _evalFnBody = langInverseFnMap[_fnAppEval]!;
 
-  static final exprImplDef = Expr.mkImplDef(
-    argName: 'fnAppData',
-    dataType: type,
-    typeCheckBody: _typeFnBody,
-    reduceBody: _reduceFnBody,
-    evalBody: _evalFnBody,
-    id: const ID.constant(id: '41246aa9-a53a-47ab-8013-cddb2c3373b9', hashCode: 150028507),
-  );
+  static const exprImplDefID =
+      ID.constant(id: '41246aa9-a53a-47ab-8013-cddb2c3373b9', hashCode: 150028507);
 
   static final Object exprImpl = Expr.mkImpl(
     argName: 'fnAppData',
@@ -2456,14 +2421,6 @@ abstract class Construct extends Expr {
   static const exprImplID = ID.constant(
       id: 'e105db48-0324-4752-9cb8-1775a5fda623', hashCode: 362074369, label: 'ConstructExprImpl');
 
-  static final exprImplDef = Expr.mkImplDef(
-    id: exprImplID,
-    argName: 'constructData',
-    dataType: type,
-    typeCheckBody: _typeFn,
-    reduceBody: _reduceFn,
-    evalBody: _evalFn,
-  );
   static final Object exprImpl = Expr.mkImpl(
     argName: 'constructData',
     dataType: type,
@@ -2508,14 +2465,6 @@ abstract class RecordAccess extends Expr {
   static const exprImplID = ID.constant(
       id: '25be335f-6ffb-4646-a7cb-116ebc621b26', hashCode: 46621241, label: 'exprImpl');
 
-  static final exprImplDef = Expr.mkImplDef(
-    id: exprImplID,
-    argName: 'recordAccessData',
-    dataType: TypeDef.asType(typeDef),
-    typeCheckBody: _typeFn,
-    reduceBody: _reduceFn,
-    evalBody: _evalFn,
-  );
   static final Object exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'recordAccessData',
@@ -2564,14 +2513,6 @@ abstract class Literal extends Expr {
   static const exprImplID = ID.constant(
       id: '547c97d7-6434-4fae-a6b4-cf6b4277424e', hashCode: 491904096, label: 'LiteralExprImpl');
 
-  static final exprImplDef = Expr.mkImplDef(
-    id: exprImplID,
-    argName: 'literalData',
-    dataType: type,
-    typeCheckBody: _typeFnData,
-    reduceBody: _reduceFnData,
-    evalBody: _evalFnData,
-  );
   static final Object exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'literalData',
@@ -2614,14 +2555,8 @@ abstract class Var extends Expr {
   static final _reduceFn = langInverseFnMap[_varReduce]!;
   static final _evalFn = langInverseFnMap[_varEval]!;
 
-  static final exprImplDef = Expr.mkImplDef(
-    dataType: type,
-    argName: 'varData',
-    typeCheckBody: _typeFn,
-    reduceBody: _reduceFn,
-    evalBody: _evalFn,
-    id: const ID.constant(id: '7aef8101-2fa8-40e7-9575-a91d2595d978', hashCode: 389287988),
-  );
+  static const exprImplDefID =
+      ID.constant(id: '7aef8101-2fa8-40e7-9575-a91d2595d978', hashCode: 389287988);
   static final exprImpl = Expr.mkImpl(
     dataType: type,
     argName: 'varData',
