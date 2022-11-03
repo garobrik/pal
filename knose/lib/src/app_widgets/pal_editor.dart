@@ -1814,10 +1814,8 @@ abstract class DotPlaceholder extends Expr {
   static const prefixID =
       ID.constant(id: 'a87adbe6-0356-4e54-bf86-4015e35149e2', hashCode: 514623045, label: 'prefix');
   static final typeDef = TypeDef.record(
-    'DotPlaceholder',
-    {prefixID: Expr.type},
-    id: const ID.constant(id: '4dce3b99-74e3-4cbc-963b-1a4d2f83525a', hashCode: 457215010),
-  );
+      'DotPlaceholder', {prefixID: TypeTree.mk('prefix', Expr.type)},
+      id: const ID.constant(id: '4dce3b99-74e3-4cbc-963b-1a4d2f83525a', hashCode: 457215010));
   static final type = TypeDef.asType(typeDef);
 
   static const exprImplID =
@@ -1865,7 +1863,24 @@ abstract class Migration {
   String toString() => runtimeType.toString();
 }
 
-final migrations = [ImplNames(), ValueDefNameToFn(), WrapListMkExprTypes()];
+final migrations = [FixDotPlaceholder(), ImplNames(), ValueDefNameToFn(), WrapListMkExprTypes()];
+
+class FixDotPlaceholder extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(DotPlaceholder.prefixID)) return obj;
+    return obj.put(
+      DotPlaceholder.prefixID,
+      TypeTree.mk('prefix', Type.lit(Expr.type)),
+    ) as T;
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    throw UnimplementedError();
+  }
+}
 
 class ImplNames extends Migration {
   @override
