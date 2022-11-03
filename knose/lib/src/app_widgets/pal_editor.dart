@@ -1,3 +1,5 @@
+// ignore_for_file: body_might_complete_normally_nullable
+
 import 'dart:io';
 import 'dart:math';
 import 'dart:core';
@@ -217,7 +219,6 @@ Widget _testThingy(Ctx ctx) {
 
   useEffect(() {
     loadFiles();
-    return null;
   }, []);
 
   final currentModule = useCursor(Option.mk());
