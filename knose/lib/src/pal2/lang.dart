@@ -3146,7 +3146,7 @@ Ctx updateVisited(Ctx ctx, ID id) {
     some: (visitedBinding) => Option.unwrap(Binding.value(ctx, visitedBinding)) as Set,
     none: () => const Set(),
   );
-  if (prevSet.contains(id)) throw const MyException();
+  if (prevSet.contains(id)) throw const MyException('ahhh cycle!');
   return ctx.withBinding(
     Binding.mk(
       id: _visitedID,
