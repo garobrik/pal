@@ -146,11 +146,11 @@ Widget _typeTreeEditor(Ctx ctx, Object arg) {
           key: ValueKey(key),
           actions: {
             AddBelowIntent: CallbackAction(
-              onInvoke: (_) => dict[ID.mk()] = Optional(TypeTree.mk('unnamed', placeholder)),
+              onInvoke: (_) => dict[ID.mk()] = TypeTree.mk('unnamed', placeholder),
             ),
+            DeleteIntent: CallbackAction(onInvoke: (_) => dict.remove(key))
           },
           child: FocusableNode(
-            onDelete: () => dict.remove(key),
             child: Inset(
               prefix: Text.rich(TextSpan(children: [
                 if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
@@ -461,7 +461,7 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             dropdownFocus: dropdownFocus,
             addDefinition: (def) {
               final id = ModuleDef.idFor(def);
-              definitionMap[id] = Optional(def);
+              definitionMap[id] = def;
               definitionIDs.insert(index + 1, id);
               isOpen.set(false);
             },
@@ -469,30 +469,25 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
           child: Actions(
             actions: {
               AddBelowIntent: CallbackAction(onInvoke: (_) => isOpen.set(true)),
-            },
-            child: FocusableNode(
-              onDelete: () {
+              DeleteIntent: CallbackAction(onInvoke: (_) {
                 final id = definitionIDs[index].read(Ctx.empty);
                 definitionIDs.remove(index);
                 definitionMap.remove(id);
-              },
-              onShiftNodeUp: () {
+              }),
+              ShiftUpIntent: CallbackAction(onInvoke: (_) {
                 if (index > 0) {
                   definitionIDs[index] = definitionIDs[index - 1].read(Ctx.empty);
                   definitionIDs[index - 1] = id;
                 }
-              },
-              onShiftNodeDown: () {
+              }),
+              ShiftDownIntent: CallbackAction(onInvoke: (_) {
                 if (index < definitionIDs.length.read(Ctx.empty) - 1) {
                   definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
                   definitionIDs[index + 1] = id;
                 }
-              },
-              child: childForDef(
-                ctx,
-                id,
-              ),
-            ),
+              }),
+            },
+            child: childForDef(ctx, id),
           ),
         );
       },
@@ -830,19 +825,27 @@ Widget _exprFocusableNode(
         child: Text(Option.unwrap(typeError.read(ctx)) as String),
       ),
     ),
-    child: FocusableNode(
-      onHover: isHovered.set,
-      onDelete: onDelete ?? () => expr.set(placeholder),
-      onAddDot: () => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
-      focusNode: focusNode,
-      child: ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) => Container(
-          decoration: BoxDecoration(
-            border: Option.isPresent(typeError.read(ctx)) ? Border.all(color: Colors.red) : null,
-            borderRadius: const BorderRadius.all(Radius.circular(3)),
+    child: Actions(
+      actions: {
+        DeleteIntent: CallbackAction(
+          onInvoke: (_) => onDelete == null ? expr.set(placeholder) : onDelete(),
+        ),
+        AddDotIntent: CallbackAction(
+          onInvoke: (_) => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
+        ),
+      },
+      child: FocusableNode(
+        onHover: isHovered.set,
+        focusNode: focusNode,
+        child: ReaderWidget(
+          ctx: ctx,
+          builder: (_, ctx) => Container(
+            decoration: BoxDecoration(
+              border: Option.isPresent(typeError.read(ctx)) ? Border.all(color: Colors.red) : null,
+              borderRadius: const BorderRadius.all(Radius.circular(3)),
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     ),
@@ -1175,10 +1178,6 @@ class PlaceholderEntry {
 @reader
 Widget _focusableNode({
   FocusNode? focusNode,
-  void Function()? onDelete,
-  void Function()? onShiftNodeDown,
-  void Function()? onShiftNodeUp,
-  void Function()? onAddDot,
   void Function(bool)? onHover,
   required Widget child,
 }) {
@@ -1187,17 +1186,6 @@ Widget _focusableNode({
   return Shortcuts.manager(
     manager: NonTextEditingShortcutManager(
       shortcuts: {
-        if (onDelete != null)
-          for (final key in const [LogicalKeyboardKey.backspace, LogicalKeyboardKey.delete])
-            SingleActivator(key): VoidCallbackIntent(onDelete),
-        if (onShiftNodeUp != null)
-          const SingleActivator(LogicalKeyboardKey.keyK, shift: true):
-              VoidCallbackIntent(onShiftNodeUp),
-        if (onShiftNodeDown != null)
-          const SingleActivator(LogicalKeyboardKey.keyJ, shift: true):
-              VoidCallbackIntent(onShiftNodeDown),
-        if (onAddDot != null)
-          const SingleActivator(LogicalKeyboardKey.period): VoidCallbackIntent(onAddDot),
         const SingleActivator(LogicalKeyboardKey.keyJ): VoidCallbackIntent(() {
           var child = wrapperFocusNode;
           for (final parent in wrapperFocusNode.ancestors) {
@@ -1271,6 +1259,11 @@ Widget _focusableNode({
 const palShortcuts = {
   SingleActivator(LogicalKeyboardKey.add, shift: true): AddBelowIntent(),
   SingleActivator(LogicalKeyboardKey.keyO): AddWithinIntent(),
+  SingleActivator(LogicalKeyboardKey.delete): DeleteIntent(),
+  SingleActivator(LogicalKeyboardKey.backspace): DeleteIntent(),
+  SingleActivator(LogicalKeyboardKey.keyK, shift: true): ShiftUpIntent(),
+  SingleActivator(LogicalKeyboardKey.keyJ, shift: true): ShiftDownIntent(),
+  SingleActivator(LogicalKeyboardKey.period): AddDotIntent(),
 };
 
 class AddBelowIntent extends Intent {
@@ -1279,6 +1272,22 @@ class AddBelowIntent extends Intent {
 
 class AddWithinIntent extends Intent {
   const AddWithinIntent();
+}
+
+class DeleteIntent extends Intent {
+  const DeleteIntent();
+}
+
+class ShiftUpIntent extends Intent {
+  const ShiftUpIntent();
+}
+
+class ShiftDownIntent extends Intent {
+  const ShiftDownIntent();
+}
+
+class AddDotIntent extends Intent {
+  const AddDotIntent();
 }
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
