@@ -137,45 +137,96 @@ Object _editorFn(Ctx ctx, Object arg) {
 @reader
 Widget _typeTreeEditor(Ctx ctx, Object arg) {
   final typeTree = PalCursor.cursor(arg);
-  final tag = typeTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
-  if (tag == TypeTree.recordID || tag == TypeTree.unionID) {
-    final dict = typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
+
+  Widget treeForMap(Cursor<Object> map) {
+    final dict = map[Map.entriesID].cast<Dict>();
     return InlineInset(contents: [
       for (final key in dict.keys.read(ctx))
-        Actions(
+        ReaderWidget(
+          ctx: ctx,
           key: ValueKey(key),
-          actions: {
-            AddBelowIntent: CallbackAction(
-              onInvoke: (_) => dict[ID.mk()] = TypeTree.mk('unnamed', placeholder),
-            ),
-            DeleteIntent: CallbackAction(onInvoke: (_) => dict.remove(key))
+          builder: (_, ctx) {
+            final isOpen = useCursor(false);
+            final childTree = dict[key].whenPresent;
+            final childTag = childTree[TypeTree.treeID][UnionTag.tagID].read(ctx);
+            final focusNodes = {
+              for (final tag in {TypeTree.recordID, TypeTree.unionID, TypeTree.leafID})
+                tag: useFocusNode(),
+            };
+            return Actions(
+              actions: {
+                AddBelowIntent: CallbackAction(
+                  onInvoke: (_) => dict[ID.mk()] = TypeTree.mk('unnamed', placeholder),
+                ),
+                DeleteIntent: CallbackAction(onInvoke: (_) => dict.remove(key)),
+                ChangeKindIntent: CallbackAction(onInvoke: (_) => isOpen.set(true)),
+              },
+              child: DeferredDropdown(
+                isOpen: isOpen,
+                dropdownFocus: focusNodes[childTag]!,
+                dropdown: Column(children: [
+                  TextButton(
+                    focusNode: focusNodes[TypeTree.recordID]!,
+                    onPressed: () => childTree.set(
+                      TypeTree.record('fieldName', {key as ID: childTree.read(Ctx.empty)}),
+                    ),
+                    child: const Text('record'),
+                  ),
+                  TextButton(
+                    focusNode: focusNodes[TypeTree.unionID]!,
+                    onPressed: () => childTree.set(
+                      TypeTree.union('fieldName', {key as ID: childTree.read(Ctx.empty)}),
+                    ),
+                    child: const Text('union'),
+                  ),
+                  TextButton(
+                    focusNode: focusNodes[TypeTree.leafID]!,
+                    onPressed: () {
+                      void setForMap(GetCursor<Object> map) {
+                        childTree.set(
+                          map[Map.entriesID].cast<Dict>().read(Ctx.empty).values.firstOr(
+                                () => TypeTree.mk('fieldName', placeholder),
+                              ),
+                        );
+                      }
+
+                      childTree[TypeTree.treeID].unionCases(ctx, {
+                        TypeTree.leafID: (_) {},
+                        TypeTree.recordID: setForMap,
+                        TypeTree.unionID: setForMap,
+                      });
+                    },
+                    child: const Text('leaf'),
+                  ),
+                ]),
+                child: FocusableNode(
+                  child: Inset(
+                    prefix: Text.rich(TextSpan(children: [
+                      if (childTag == TypeTree.unionID) const TextSpan(text: 'union '),
+                      if (childTag == TypeTree.recordID) const TextSpan(text: 'record '),
+                      _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
+                      const TextSpan(text: ': '),
+                    ])),
+                    contents: [
+                      TypeTreeEditor(
+                          ctx.withoutBinding(key as ID), PalCursor.mk(dict[key].whenPresent))
+                      // palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
+                    ],
+                    suffix: const SizedBox(),
+                  ),
+                ),
+              ),
+            );
           },
-          child: FocusableNode(
-            child: Inset(
-              prefix: Text.rich(TextSpan(children: [
-                if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                    TypeTree.unionID)
-                  const TextSpan(text: 'union '),
-                if (dict[key].whenPresent[TypeTree.treeID][UnionTag.tagID].read(ctx) ==
-                    TypeTree.recordID)
-                  const TextSpan(text: 'record '),
-                _inlineTextSpan(ctx, dict[key].whenPresent[TypeTree.nameID].cast<String>()),
-                const TextSpan(text: ': '),
-              ])),
-              contents: [
-                TypeTreeEditor(ctx.withoutBinding(key as ID), PalCursor.mk(dict[key].whenPresent))
-                // palEditor(ctx.withoutBinding(key as ID), TypeTree.type, dict[key].whenPresent)
-              ],
-              suffix: const SizedBox(),
-            ),
-          ),
         )
     ]);
-  } else if (tag == TypeTree.leafID) {
-    return ExprEditor(ctx, typeTree[TypeTree.treeID][UnionTag.valueID], suffix: ', ');
-  } else {
-    throw Exception('unknown type tree union case');
   }
+
+  return typeTree[TypeTree.treeID].unionCases(ctx, {
+    TypeTree.recordID: treeForMap,
+    TypeTree.unionID: treeForMap,
+    TypeTree.leafID: (expr) => ExprEditor(ctx, expr, suffix: ', ')
+  });
 }
 
 Widget palEditor(Ctx ctx, Object type, Cursor<Object> cursor) {
@@ -394,11 +445,12 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
             actions: {
               AddWithinIntent: CallbackAction(
                 onInvoke: (_) {
-                  if (typeTree[TypeTree.treeID][UnionTag.tagID].read(Ctx.empty) ==
-                      TypeTree.recordID) {
-                    typeTree[TypeTree.treeID][UnionTag.valueID][Map.entriesID]
-                        .cast<Dict>()[ID.mk()] = TypeTree.mk('fieldName', Type.lit(unit));
-                  }
+                  typeTree[TypeTree.treeID].unionCases(Ctx.empty, {
+                    TypeTree.recordID: (map) => map[Map.entriesID].cast<Dict>()[ID.mk()] =
+                        TypeTree.mk('fieldName', Type.lit(unit)),
+                    TypeTree.unionID: (_) {},
+                    TypeTree.leafID: (_) {},
+                  });
                 },
               ),
             },
@@ -1286,6 +1338,7 @@ const palShortcuts = {
   SingleActivator(LogicalKeyboardKey.keyK, shift: true): ShiftUpIntent(),
   SingleActivator(LogicalKeyboardKey.keyJ, shift: true): ShiftDownIntent(),
   SingleActivator(LogicalKeyboardKey.period): AddDotIntent(),
+  SingleActivator(LogicalKeyboardKey.keyC): ChangeKindIntent(),
 };
 
 class AddBelowIntent extends Intent {
@@ -1310,6 +1363,10 @@ class ShiftDownIntent extends Intent {
 
 class AddDotIntent extends Intent {
   const AddDotIntent();
+}
+
+class ChangeKindIntent extends Intent {
+  const ChangeKindIntent();
 }
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);

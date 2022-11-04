@@ -272,9 +272,10 @@ abstract class Module {
                           for (final id in comptime)
                             MemberHas.mkEqualsExpr(
                               [id],
-                              TypeTree.findReactive(ctx, typeTree, id)![TypeTree.treeID]
-                                      [UnionTag.valueID]
-                                  .read(ctx),
+                              TypeTree.findReactive(ctx, typeTree, id)![TypeTree.treeID].unionCases(
+                                ctx,
+                                {TypeTree.leafID: (val) => val.read(ctx)},
+                              ),
                               RecordAccess.mk(arg.read(ctx), id),
                             ),
                         ]);
@@ -1178,11 +1179,11 @@ abstract class TypeTree {
   }
 
   static dart.Map<ID, GetCursor<Object>> allTrees(Ctx ctx, GetCursor<Object> typeTree) {
-    final treeCase = typeTree[treeID][UnionTag.tagID].read(ctx);
-    var dict = const GetCursor(Dict());
-    if (treeCase == recordID || treeCase == unionID) {
-      dict = typeTree[treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-    }
+    final dict = typeTree[treeID].unionCases(ctx, {
+      leafID: (_) => const GetCursor(Dict()),
+      unionID: (val) => val[Map.entriesID].cast<Dict>(),
+      recordID: (val) => val[Map.entriesID].cast<Dict>()
+    });
     final keys = dict.keys.read(ctx).cast<ID>();
     return {
       for (final key in keys) ...{
@@ -1212,11 +1213,11 @@ abstract class TypeTree {
   }
 
   static GetCursor<Object>? findReactive(Ctx ctx, GetCursor<Object> typeTree, ID id) {
-    final treeCase = typeTree[treeID][UnionTag.tagID].read(ctx);
-    var dict = const GetCursor(Dict());
-    if (treeCase == recordID || treeCase == unionID) {
-      dict = typeTree[treeID][UnionTag.valueID][Map.entriesID].cast<Dict>();
-    }
+    final dict = typeTree[treeID].unionCases(ctx, {
+      leafID: (_) => const GetCursor(Dict()),
+      unionID: (val) => val[Map.entriesID].cast<Dict>(),
+      recordID: (val) => val[Map.entriesID].cast<Dict>()
+    });
     for (final key in dict.keys.read(ctx)) {
       if (id == key) {
         return dict[key].whenPresent;
