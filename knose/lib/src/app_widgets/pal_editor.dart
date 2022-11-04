@@ -644,7 +644,7 @@ Widget _dataTreeEditor(
             );
           },
           child: Row(children: [
-            Text(TypeTree.name(union[currentTag].unwrap!)),
+            Text(union[currentTag].cases(some: TypeTree.name, none: () => 'unknown case!')),
             // const Icon(Icons.arrow_drop_down)
           ]),
         ),
@@ -654,12 +654,13 @@ Widget _dataTreeEditor(
           TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
         ),
         contents: [
-          DataTreeEditor(
-            ctx,
-            union[currentTag].unwrap!,
-            dataTree[UnionTag.valueID],
-            renderLeaf,
-          )
+          if (union[currentTag].isPresent)
+            DataTreeEditor(
+              ctx,
+              union[currentTag].unwrap!,
+              dataTree[UnionTag.valueID],
+              renderLeaf,
+            )
         ],
         suffix: Text(')$suffix'),
       );
