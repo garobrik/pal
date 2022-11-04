@@ -631,10 +631,7 @@ Widget _dataTreeEditor(
       final currentTag = dataTree[UnionTag.tagID].read(ctx);
       final dropdown = IntrinsicWidth(
         child: DropdownMenu<Object>(
-          style: ButtonStyle(
-            padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
-            minimumSize: MaterialStateProperty.all(Size.zero),
-          ),
+          style: smallButtonStyle,
           items: [...union.keys],
           currentItem: currentTag,
           buildItem: (tag) => Text(TypeTree.name(union[tag].unwrap!).toString()),
@@ -643,10 +640,7 @@ Widget _dataTreeEditor(
               UnionTag.mk(newTag as ID, TypeTree.instantiate(union[newTag].unwrap!, placeholder)),
             );
           },
-          child: Row(children: [
-            Text(union[currentTag].cases(some: TypeTree.name, none: () => 'unknown case!')),
-            // const Icon(Icons.arrow_drop_down)
-          ]),
+          child: Text(union[currentTag].cases(some: TypeTree.name, none: () => 'unknown case!')),
         ),
       );
       return Inset(
@@ -684,8 +678,22 @@ Widget _exprEditor(
   late final Widget child;
   if (exprType == FnExpr.type) {
     final body = exprData[FnExpr.bodyID].unionCases(ctx, {
-      FnExpr.dartID: (id) => Text(
-            'dart(${ctx.getFnName(id.read(ctx) as ID)})',
+      FnExpr.dartID: (id) => Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'dart('),
+              AlignedWidgetSpan(TextButtonDropdown(
+                style: smallButtonStyle,
+                dropdown: GenericPlaceholder(
+                  ctx,
+                  entries: GetCursor(reified.Vec([
+                    for (final fnID in ctx.allDartFns)
+                      PlaceholderEntry(name: fnID.label!, onPressed: () => id.set(fnID))
+                  ])),
+                ),
+                child: Text(ctx.getFnName(id.read(ctx) as ID)),
+              )),
+              const TextSpan(text: ')'),
+            ]),
             style: const TextStyle(fontStyle: FontStyle.italic),
           ),
       FnExpr.palID: (expr) => ReaderWidget(
@@ -1424,6 +1432,11 @@ Widget _insetChild(Widget child) {
 InlineSpan _inlineTextSpan(Ctx ctx, Cursor<String> text) {
   return AlignedWidgetSpan(InlineTextField(ctx, text));
 }
+
+final ButtonStyle smallButtonStyle = ButtonStyle(
+  padding: MaterialStateProperty.all(EdgeInsetsDirectional.zero),
+  minimumSize: MaterialStateProperty.all(Size.zero),
+);
 
 @reader
 Widget _inlineTextField(Ctx ctx, Cursor<String> text) {

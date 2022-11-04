@@ -826,6 +826,13 @@ abstract class Equals extends TypeProperty {
   static const fnArgsBID =
       ID.constant(id: '33496d94-558f-41fc-b0a9-db32e57f0ed3', hashCode: 264671886, label: 'b');
 
+  @DartFn('7ae4dc57-8162-4cc8-ab40-9ab552ca22e9')
+  static Object equals(Ctx ctx, Object obj) {
+    return (obj as Dict)[fnArgsAID].unwrap! == obj[fnArgsBID].unwrap!
+        ? Boolean.True
+        : Boolean.False;
+  }
+
   static const dataTypeID = ID.constant(
       id: '0b574b87-30b8-4727-a0c1-4cc306503bb5', hashCode: 338351793, label: 'dataType');
 
@@ -2048,6 +2055,9 @@ abstract class Boolean {
       ID.constant(id: 'ffa35728-f671-419a-ab17-124a6d199a3f', hashCode: 221209016);
   static const valueID =
       ID.constant(id: 'b49c179a-a265-446e-a894-105b297abd75', hashCode: 165014793);
+
+  static final True = Dict({valueID: UnionTag.mk(trueID, const Dict())});
+  static final False = Dict({valueID: UnionTag.mk(trueID, const Dict())});
 }
 
 final unitDef = TypeDef.unit(
@@ -3262,6 +3272,7 @@ extension FnMapCtxExt on Ctx {
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
   String getFnName(ID id) =>
       get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id, orElse: () => ID.fake).label!;
+  Iterable<ID> get allDartFns => get<FnMapCtx>()!.fnMap.keys;
 }
 
 const coreModuleID =
