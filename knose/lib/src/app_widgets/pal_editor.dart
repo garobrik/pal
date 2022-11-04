@@ -169,14 +169,14 @@ Widget _typeTreeEditor(Ctx ctx, Object arg) {
                   TextButton(
                     focusNode: focusNodes[TypeTree.recordID]!,
                     onPressed: () => childTree.set(
-                      TypeTree.record('fieldName', {key as ID: childTree.read(Ctx.empty)}),
+                      TypeTree.record('fieldName', {ID.mk(): childTree.read(Ctx.empty)}),
                     ),
                     child: const Text('record'),
                   ),
                   TextButton(
                     focusNode: focusNodes[TypeTree.unionID]!,
                     onPressed: () => childTree.set(
-                      TypeTree.union('fieldName', {key as ID: childTree.read(Ctx.empty)}),
+                      TypeTree.union('fieldName', {ID.mk(): childTree.read(Ctx.empty)}),
                     ),
                     child: const Text('union'),
                   ),
