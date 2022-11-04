@@ -7,7 +7,8 @@ import 'dart:io';
 import 'package:ctx/ctx.dart';
 import 'package:flutter/foundation.dart';
 import 'package:reified_lenses/reified_lenses.dart' as reified;
-import 'package:reified_lenses/reified_lenses.dart' show GetCursor, Cursor;
+import 'package:reified_lenses/reified_lenses.dart'
+    show GetCursor, Cursor, OptLens, OptGetter, Optional;
 import 'package:uuid/uuid.dart';
 // ignore: unused_import
 import 'package:knose/src/pal2/print.dart';
@@ -975,13 +976,13 @@ abstract class TypeTree {
   );
   static final type = Type.mk(id);
 
-  static Dict record(String name, dart.Map<ID, Object> members) =>
+  static Object record(String name, dart.Map<ID, Object> members) =>
       Dict({nameID: name, treeID: UnionTag.mk(recordID, Map.mk(members))});
-  static Dict union(String name, dart.Map<ID, Dict> cases) =>
+  static Object union(String name, dart.Map<ID, Object> cases) =>
       Dict({nameID: name, treeID: UnionTag.mk(unionID, Map.mk(cases))});
-  static Dict mk(String name, Object type) =>
+  static Object mk(String name, Object type) =>
       Dict({nameID: name, treeID: UnionTag.mk(leafID, type)});
-  static Dict unit(String name) => TypeTree.record(name, const {});
+  static Object unit(String name) => TypeTree.record(name, const {});
 
   static GetCursor<Object> mkRecordCursor(
           GetCursor<Object> name, dart.Map<ID, GetCursor<Object>> members) =>
@@ -1246,10 +1247,10 @@ abstract class InterfaceDef {
   );
   static final type = TypeDef.asType(def);
 
-  static Dict mk(Dict tree, {required ID id}) => Dict({IDID: id, treeID: tree});
-  static Object record(String name, dart.Map<ID, Dict> members, {required ID id}) =>
+  static Object mk(Object tree, {required ID id}) => Dict({IDID: id, treeID: tree});
+  static Object record(String name, dart.Map<ID, Object> members, {required ID id}) =>
       InterfaceDef.mk(TypeTree.record(name, members), id: id);
-  static Dict union(String name, dart.Map<ID, Dict> cases, {required ID id}) =>
+  static Object union(String name, dart.Map<ID, Object> cases, {required ID id}) =>
       InterfaceDef.mk(TypeTree.union(name, cases), id: id);
 
   static ID id(Object ifaceDef) => (ifaceDef as Dict)[IDID].unwrap! as ID;
@@ -3876,8 +3877,43 @@ extension Indent on String {
 
 extension PalGetCursorAccess on GetCursor<Object> {
   GetCursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
+
+  T unionCases<T>(Ctx ctx, dart.Map<ID, T Function(GetCursor<Object>)> cases) {
+    final tag = this[UnionTag.tagID].read(ctx);
+    final caseFn = cases[tag];
+    if (caseFn == null) {
+      throw Exception('unknown case');
+    }
+    return caseFn(
+      this.cast<Dict>().thenOptGet(
+            OptGetter(
+              Vec([tag]),
+              (obj) =>
+                  UnionTag.tag(obj) == tag ? Optional(UnionTag.value(obj)) : const Optional.none(),
+            ),
+          ),
+    );
+  }
 }
 
 extension PalCursorAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
+
+  T unionCases<T>(Ctx ctx, dart.Map<ID, T Function(Cursor<Object>)> cases) {
+    final tag = this[UnionTag.tagID].read(ctx);
+    final caseFn = cases[tag];
+    if (caseFn == null) {
+      throw Exception('unknown case');
+    }
+    return caseFn(
+      this.cast<Dict>().thenOpt(
+            OptLens(
+              Vec([tag]),
+              (obj) =>
+                  UnionTag.tag(obj) == tag ? Optional(UnionTag.value(obj)) : const Optional.none(),
+              (obj, f) => UnionTag.mk(UnionTag.tag(obj), f(UnionTag.value(obj))),
+            ),
+          ),
+    );
+  }
 }

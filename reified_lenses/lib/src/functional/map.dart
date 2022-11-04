@@ -13,8 +13,7 @@ class Dict<Key extends Object, Value> with _DictMixin<Key, Value>, Diagnosticabl
 
   const Dict([this._values = const {}]);
 
-  static GetCursor<Dict<Key, Value>> cursor<Key extends Object, Value>(
-          Map<Key, GetCursor<Value>> cursors) =>
+  static GetCursor<Dict<Object, Object>> cursor(Map<Object, GetCursor<Object>> cursors) =>
       _MixedDictCursor(cursors);
 
   @reify
