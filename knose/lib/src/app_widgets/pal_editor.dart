@@ -278,89 +278,86 @@ Widget _testThingy(Ctx ctx) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      TextButton(
-        onPressed: () {
-          for (final module in modules.read(Ctx.empty)) {
-            final name = Module.name(module);
-            final file = File('${saveDir.path}/$name.pal');
-            file.writeAsString(serialize(module, '  '));
-          }
-        },
-        child: Text('save modules to ${saveDir.absolute.path}'),
-      ),
-      TextButton(
-        onPressed: loadFiles,
-        child: Text('load modules from ${saveDir.absolute.path}'),
-      ),
-      TextButtonDropdown(
-        dropdown: Column(
-          children: [
-            for (final migration in migrations)
-              Row(children: [
-                Text('$migration:'),
-                TextButton(
-                  onPressed: () => modules.mut(migration.migrate),
-                  child: const Text('do'),
-                ),
-                TextButton(
-                  onPressed: () => modules.mut(migration.unmigrate),
-                  child: const Text('undo'),
-                ),
-              ])
-          ],
+      Wrap(children: [
+        TextButton(
+          onPressed: () {
+            for (final module in modules.read(Ctx.empty)) {
+              final name = Module.name(module);
+              final file = File('${saveDir.path}/$name.pal');
+              file.writeAsString(serialize(module, '  '));
+            }
+          },
+          child: const Text('save modules'),
         ),
-        child: const Text('run migration...'),
-      ),
-      TextButton(
-        onPressed: () {
-          final files = [
-            File('lib/src/app_widgets/pal_editor.dart'),
-            File('lib/src/pal2/lang.dart'),
-            File('lib/src/pal2/print.dart'),
-          ];
-          for (final file in files) {
-            file.readAsLines().then((lines) {
-              file.writeAsString([
-                for (final line in lines)
-                  line.replaceFirstMapped(
-                    RegExp('id: \'([^\']+)\', hashCode: ([0-9]+)'),
-                    (match) {
-                      final result = "id: '${match[1]}', hashCode: ${Hash.all(match[1], null)}";
-                      return result;
-                    },
+        TextButton(onPressed: loadFiles, child: const Text('load modules')),
+        TextButtonDropdown(
+          dropdown: Column(
+            children: [
+              for (final migration in migrations)
+                Row(children: [
+                  Text('$migration:'),
+                  TextButton(
+                    onPressed: () => modules.mut(migration.migrate),
+                    child: const Text('do'),
                   ),
-              ].join('\n'));
-            }, onError: (Object e) => throw e);
-          }
-        },
-        child: const Text('check id hashcodes'),
-      ),
-      TextButton(
-        onPressed: () {
-          final idString = StringBuffer();
-          idString.writeln('const ids = [');
-          for (final _ in range(1000)) {
-            final id = ID.mk();
-            idString.writeln('ID.constant(id: \'${id.id}\', hashCode: ${id.hashCode}),');
-          }
-          idString.writeln('];');
-          Clipboard.setData(ClipboardData(text: '$idString'));
-        },
-        child: const Text('generate IDs'),
-      ),
-      ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final id = useCursor(ID.mk());
-          return TextButton(
+                  TextButton(
+                    onPressed: () => modules.mut(migration.unmigrate),
+                    child: const Text('undo'),
+                  ),
+                ])
+            ],
+          ),
+          child: const Text('run migration...'),
+        ),
+        TextButton(
+          onPressed: () {
+            final files = [
+              File('lib/src/app_widgets/pal_editor.dart'),
+              File('lib/src/pal2/lang.dart'),
+              File('lib/src/pal2/print.dart'),
+            ];
+            for (final file in files) {
+              file.readAsLines().then((lines) {
+                file.writeAsString([
+                  for (final line in lines)
+                    line.replaceFirstMapped(
+                      RegExp('id: \'([^\']+)\', hashCode: ([0-9]+)'),
+                      (match) {
+                        final result = "id: '${match[1]}', hashCode: ${Hash.all(match[1], null)}";
+                        return result;
+                      },
+                    ),
+                ].join('\n'));
+              }, onError: (Object e) => throw e);
+            }
+          },
+          child: const Text('check id hashcodes'),
+        ),
+        if (false)
+          // ignore: dead_code
+          TextButton(
             onPressed: () {
-              Clipboard.setData(ClipboardData(text: "@DartFn('${id.read(Ctx.empty).id}')"));
-              id.set(ID.mk());
+              final idString = StringBuffer();
+              idString.writeln('const ids = [');
+              for (final _ in range(1000)) {
+                final id = ID.mk();
+                idString.writeln('ID.constant(id: \'${id.id}\', hashCode: ${id.hashCode}),');
+              }
+              idString.writeln('];');
+              Clipboard.setData(ClipboardData(text: '$idString'));
             },
-            child: Text(id.read(ctx).id),
-          );
-        },
-      ),
+            child: const Text('generate IDs'),
+          ),
+        Shortcuts(
+          shortcuts: {
+            const SingleActivator(LogicalKeyboardKey.keyC):
+                VoidCallbackIntent(() => copyID(ID.mk())),
+            const SingleActivator(LogicalKeyboardKey.keyD):
+                VoidCallbackIntent(() => copyDartFn(ID.mk())),
+          },
+          child: TextButton(onPressed: () {}, child: const Text('generate ID')),
+        ),
+      ]),
       DropdownMenu(
         items: modules
             .values(ctx)
@@ -1431,6 +1428,7 @@ class CopyIDIntent extends Intent {
 
 void copyID(ID id) =>
     Clipboard.setData(ClipboardData(text: "ID.constant(id: '${id.id}', hashCode: ${id.hashCode})"));
+void copyDartFn(ID id) => Clipboard.setData(ClipboardData(text: "@DartFn('${id.id}')"));
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
 
