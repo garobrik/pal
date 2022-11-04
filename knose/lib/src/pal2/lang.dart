@@ -815,6 +815,17 @@ abstract class TypeProperty {
 }
 
 abstract class Equals extends TypeProperty {
+  static const fnID =
+      ID.constant(id: 'a3734ec4-e4ce-4953-811b-18857985239e', hashCode: 430329531, label: '==');
+  static const fnArgsID =
+      ID.constant(id: '2e100978-df05-4865-8ee9-f0c6999d6e88', hashCode: 360393626, label: 'EqArgs');
+  static const fnArgsTypeID =
+      ID.constant(id: '4e98da23-524a-4cce-9765-4334bbcb83d4', hashCode: 55210842, label: 'type');
+  static const fnArgsAID =
+      ID.constant(id: '0b57ee7e-4e14-4da9-81c5-715d33dca2c2', hashCode: 137568012, label: 'a');
+  static const fnArgsBID =
+      ID.constant(id: '33496d94-558f-41fc-b0a9-db32e57f0ed3', hashCode: 264671886, label: 'b');
+
   static const dataTypeID = ID.constant(
       id: '0b574b87-30b8-4727-a0c1-4cc306503bb5', hashCode: 338351793, label: 'dataType');
 
@@ -2027,11 +2038,18 @@ final numberDef = TypeDef.unit(
   id: const ID.constant(id: '7fa75f16-9300-4c40-a278-7542888ed46e', hashCode: 461660923),
 );
 final number = TypeDef.asType(numberDef);
-final booleanDef = TypeDef.unit(
-  'Boolean',
-  id: const ID.constant(id: 'e6e9e479-4d47-4877-905f-c40550db497b', hashCode: 14476584),
-);
-final boolean = TypeDef.asType(booleanDef);
+
+abstract class Boolean {
+  static const typeID = ID.constant(id: 'e6e9e479-4d47-4877-905f-c40550db497b', hashCode: 14476584);
+  static final type = Type.mk(typeID);
+  static const trueID =
+      ID.constant(id: '7806d390-93cc-46d5-bc65-6b6e968b162e', hashCode: 303326727);
+  static const falseID =
+      ID.constant(id: 'ffa35728-f671-419a-ab17-124a6d199a3f', hashCode: 221209016);
+  static const valueID =
+      ID.constant(id: 'b49c179a-a265-446e-a894-105b297abd75', hashCode: 165014793);
+}
+
 final unitDef = TypeDef.unit(
   'Unit',
   id: const ID.constant(id: 'd6560fde-7408-457c-87e9-972dece2a19b', hashCode: 240639897),
