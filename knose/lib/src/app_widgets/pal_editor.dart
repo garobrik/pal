@@ -160,6 +160,7 @@ Widget _typeTreeEditor(Ctx ctx, Object arg) {
                 ),
                 DeleteIntent: CallbackAction(onInvoke: (_) => dict.remove(key)),
                 ChangeKindIntent: CallbackAction(onInvoke: (_) => isOpen.set(true)),
+                CopyIDIntent: CallbackAction(onInvoke: (_) => copyID(key as ID)),
               },
               child: DeferredDropdown(
                 isOpen: isOpen,
@@ -562,6 +563,9 @@ Widget _moduleEditor(BuildContext context, Ctx ctx, Cursor<Object> module) {
                   definitionIDs[index] = definitionIDs[index + 1].read(Ctx.empty);
                   definitionIDs[index + 1] = id;
                 }
+              }),
+              CopyIDIntent: CallbackAction(onInvoke: (_) {
+                copyID(id);
               }),
             },
             child: childForDef(ctx, id),
@@ -1339,6 +1343,7 @@ const palShortcuts = {
   SingleActivator(LogicalKeyboardKey.keyJ, shift: true): ShiftDownIntent(),
   SingleActivator(LogicalKeyboardKey.period): AddDotIntent(),
   SingleActivator(LogicalKeyboardKey.keyC): ChangeKindIntent(),
+  SingleActivator(LogicalKeyboardKey.keyI): CopyIDIntent(),
 };
 
 class AddBelowIntent extends Intent {
@@ -1368,6 +1373,13 @@ class AddDotIntent extends Intent {
 class ChangeKindIntent extends Intent {
   const ChangeKindIntent();
 }
+
+class CopyIDIntent extends Intent {
+  const CopyIDIntent();
+}
+
+void copyID(ID id) =>
+    Clipboard.setData(ClipboardData(text: "ID.constant(id: '${id.id}', hashCode: ${id.hashCode})"));
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
 
