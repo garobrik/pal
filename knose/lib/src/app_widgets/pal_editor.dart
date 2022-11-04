@@ -683,66 +683,80 @@ Widget _exprEditor(
 
   late final Widget child;
   if (exprType == FnExpr.type) {
-    late final Widget body;
-    if (exprData[FnExpr.bodyID][UnionTag.tagID].read(ctx) == FnExpr.dartID) {
-      body = Text(
-        'dart(${ctx.getFnName(exprData[FnExpr.bodyID][UnionTag.valueID].read(ctx) as ID)})',
-        style: const TextStyle(fontStyle: FontStyle.italic),
-      );
-    } else {
-      body = ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final argType = Result.flatMap(
-            typeCheck(ctx, exprData[FnExpr.argTypeID].read(ctx)),
-            (typeExpr) => assignableErr(
-              ctx,
-              Type.lit(Type.type),
-              typeExpr,
-              '',
-              () => reduce(ctx, exprData[FnExpr.argTypeID].read(ctx)),
-            ),
-          );
-          return ExprEditor(
-            ctx.withBinding(Binding.mk(
-              id: exprData[FnExpr.argIDID].read(ctx) as ID,
-              type: argType,
-              name: exprData[FnExpr.argNameID].read(ctx) as String,
-            )),
-            exprData[FnExpr.bodyID][UnionTag.valueID],
-          );
-        },
-      );
-    }
-
-    child = Inset(
-      prefix: Text.rich(
-        TextSpan(children: [
-          const TextSpan(text: '('),
-          _inlineTextSpan(ctx, exprData[FnExpr.argNameID].cast<String>()),
-          const TextSpan(text: ': '),
-          AlignedWidgetSpan(ExprEditor(ctx, exprData[FnExpr.argTypeID])),
-          const TextSpan(text: ')'),
-          const WidgetSpan(
-            alignment: PlaceholderAlignment.bottom,
-            baseline: TextBaseline.ideographic,
-            child: Icon(
-              Icons.arrow_right_alt,
-              size: 16,
-            ),
+    final body = exprData[FnExpr.bodyID].unionCases(ctx, {
+      FnExpr.dartID: (id) => Text(
+            'dart(${ctx.getFnName(id.read(ctx) as ID)})',
+            style: const TextStyle(fontStyle: FontStyle.italic),
           ),
-          if (exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.tagID].read(ctx) ==
-              Option.someID)
-            AlignedWidgetSpan(
-              ExprEditor(ctx, exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.valueID]),
-            )
-          else
-            const TextSpan(text: '_'),
-          const TextSpan(text: ' {'),
-        ]),
+      FnExpr.palID: (expr) => ReaderWidget(
+            ctx: ctx,
+            builder: (_, ctx) {
+              final argType = Result.flatMap(
+                typeCheck(ctx, exprData[FnExpr.argTypeID].read(ctx)),
+                (typeExpr) => assignableErr(
+                  ctx,
+                  Type.lit(Type.type),
+                  typeExpr,
+                  '',
+                  () => reduce(ctx, exprData[FnExpr.argTypeID].read(ctx)),
+                ),
+              );
+              return ExprEditor(
+                ctx.withBinding(Binding.mk(
+                  id: exprData[FnExpr.argIDID].read(ctx) as ID,
+                  type: argType,
+                  name: exprData[FnExpr.argNameID].read(ctx) as String,
+                )),
+                expr,
+              );
+            },
+          ),
+    });
+
+    return Actions(
+      actions: {
+        ChangeKindIntent: CallbackAction(onInvoke: (_) {
+          exprData[FnExpr.bodyID].unionCases(Ctx.empty, {
+            FnExpr.dartID: (_) => exprData[FnExpr.bodyID].set(FnExpr.palBody(placeholder)),
+            FnExpr.palID: (_) => exprData[FnExpr.bodyID].set(FnExpr.dartBody(ID.fake)),
+          });
+        }),
+      },
+      child: ExprFocusableNode(
+        ctx,
+        expr: expr,
+        focusNode: wrapperFocusNode,
+        onDelete: onDelete,
+        child: Inset(
+          prefix: Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: '('),
+              _inlineTextSpan(ctx, exprData[FnExpr.argNameID].cast<String>()),
+              const TextSpan(text: ': '),
+              AlignedWidgetSpan(ExprEditor(ctx, exprData[FnExpr.argTypeID])),
+              const TextSpan(text: ')'),
+              const WidgetSpan(
+                alignment: PlaceholderAlignment.bottom,
+                baseline: TextBaseline.ideographic,
+                child: Icon(
+                  Icons.arrow_right_alt,
+                  size: 16,
+                ),
+              ),
+              if (exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.tagID].read(ctx) ==
+                  Option.someID)
+                AlignedWidgetSpan(
+                  ExprEditor(ctx, exprData[FnExpr.returnTypeID][Option.valueID][UnionTag.valueID]),
+                )
+              else
+                const TextSpan(text: '_'),
+              const TextSpan(text: ' {'),
+            ]),
+          ),
+          contents: [body],
+          suffix: Text('}$suffix'),
+        ),
       ),
-      contents: [body],
-      suffix: Text('}$suffix'),
     );
   } else if (exprType == FnApp.type) {
     child = FnAppEditor(ctx, fnApp: exprData, suffix: suffix);

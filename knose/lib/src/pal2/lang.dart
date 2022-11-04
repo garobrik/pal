@@ -2281,6 +2281,8 @@ abstract class FnExpr extends Expr {
         }),
       );
 
+  static Object palBody(Object expr) => UnionTag.mk(palID, expr);
+
   static Object pal({
     required ID argID,
     required String argName,
@@ -2293,7 +2295,7 @@ abstract class FnExpr extends Expr {
         argName: argName,
         argType: argType,
         returnType: returnType,
-        body: UnionTag.mk(palID, body),
+        body: palBody(body),
       );
 
   static GetCursor<Object> mkPalCursor({
@@ -2317,7 +2319,9 @@ abstract class FnExpr extends Expr {
     required Object argType,
     required Object body,
   }) =>
-      _mk(argID: argID, argName: argName, argType: argType, body: UnionTag.mk(palID, body));
+      _mk(argID: argID, argName: argName, argType: argType, body: palBody(body));
+
+  static Object dartBody(ID bodyID) => UnionTag.mk(dartID, bodyID);
 
   static Object dart({
     required ID argID,
@@ -2331,7 +2335,7 @@ abstract class FnExpr extends Expr {
         argName: argName,
         argType: argType,
         returnType: returnType,
-        body: UnionTag.mk(dartID, body),
+        body: dartBody(body),
       );
 
   static Object from({
