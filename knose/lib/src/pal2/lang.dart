@@ -89,7 +89,8 @@ class ID implements Comparable<ID> {
     return tail!.contains(other);
   }
 
-  static final fake = ID.from(id: '00000000-0000-0000-0000-000000000000', label: 'kablooie');
+  static final placeholder =
+      ID.from(id: '00000000-0000-0000-0000-000000000000', label: 'placeholder');
 }
 
 abstract class Module {
@@ -531,7 +532,7 @@ abstract class ValueDef {
       argName: 'valueDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: ID.fake,
+      body: ID.placeholder,
     ),
     id: const ID.constant(
         id: '52b13cdf-4771-42e8-bdbb-93d4ccc2db37', hashCode: 443583250, label: 'ValueDefImpl'),
@@ -616,7 +617,7 @@ abstract class TypeDef {
       argName: 'typeDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: ID.fake,
+      body: ID.placeholder,
     ),
     id: const ID.constant(
         id: '9236177b-15c5-4124-ad20-4bfc443a2af5', hashCode: 402914795, label: 'TypeDefImpl'),
@@ -1291,7 +1292,7 @@ abstract class InterfaceDef {
       argName: 'interfaceDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: ID.fake,
+      body: ID.placeholder,
     ),
     id: const ID.constant(
         id: '970807fb-7618-49c3-b657-c136ed4ba1e0', hashCode: 240586499, label: 'InterfaceDefImpl'),
@@ -1393,7 +1394,7 @@ abstract class ImplDef {
       argName: 'implDef',
       argType: Type.lit(type),
       returnType: Type.lit(List.type(Module.bindingOrType)),
-      body: ID.fake,
+      body: ID.placeholder,
     ),
     id: const ID.constant(
         id: 'd3a12fbe-f4b6-4129-8183-cce33ce42b05', hashCode: 3876398, label: 'ImplDefImpl'),
@@ -3271,7 +3272,7 @@ extension FnMapCtxExt on Ctx {
 
   Object Function(Ctx, Object) getFn(ID id) => get<FnMapCtx>()!.fnMap[id]!;
   String getFnName(ID id) =>
-      get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id, orElse: () => ID.fake).label!;
+      get<FnMapCtx>()!.fnMap.keys.firstWhere((k) => k == id, orElse: () => ID.placeholder).label!;
   Iterable<ID> get allDartFns => get<FnMapCtx>()!.fnMap.keys;
 }
 
