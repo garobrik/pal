@@ -2058,7 +2058,7 @@ abstract class Boolean {
       ID.constant(id: 'b49c179a-a265-446e-a894-105b297abd75', hashCode: 165014793);
 
   static final True = Dict({valueID: UnionTag.mk(trueID, const Dict())});
-  static final False = Dict({valueID: UnionTag.mk(trueID, const Dict())});
+  static final False = Dict({valueID: UnionTag.mk(falseID, const Dict())});
 }
 
 final unitDef = TypeDef.unit(
@@ -3934,10 +3934,15 @@ extension PalGetCursorAccess on GetCursor<Object> {
 extension PalCursorAccess on Cursor<Object> {
   Cursor<Object> operator [](Object id) => this.cast<Dict>()[id].whenPresent;
 
-  T unionCases<T>(Ctx ctx, dart.Map<ID, T Function(Cursor<Object>)> cases) {
+  T unionCases<T>(
+    Ctx ctx,
+    dart.Map<ID, T Function(Cursor<Object>)> cases, {
+    T Function()? unknown,
+  }) {
     final tag = this[UnionTag.tagID].read(ctx);
     final caseFn = cases[tag];
     if (caseFn == null) {
+      if (unknown != null) return unknown();
       throw Exception('unknown case');
     }
     return caseFn(

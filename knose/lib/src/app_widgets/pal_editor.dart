@@ -394,6 +394,33 @@ Widget _testThingy(Ctx ctx) {
         )),
         child: const Text('select module'),
       ),
+      ReaderWidget(
+        ctx: ctx,
+        builder: (_, ctx) {
+          final expr = useCursor(placeholder);
+          final typeResult = typeCheck(moduleCtx.read(ctx), expr.read(ctx));
+
+          return Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(border: Border.all()),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('playground'),
+                PalScaffold(ExprEditor(moduleCtx.read(ctx), expr)),
+                Result.cases(
+                  typeResult,
+                  error: (msg) => Text(msg),
+                  ok: (type) => Text(
+                    'result: ${palPrint(moduleCtx.read(ctx), Literal.getValue(Expr.data(type)), eval(moduleCtx.read(ctx), expr.read(ctx)))}',
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
       for (final module in modules.values(ctx))
         if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
@@ -648,13 +675,14 @@ Widget _dataTreeEditor(
           TextSpan(children: [AlignedWidgetSpan(dropdown), const TextSpan(text: '(')]),
         ),
         contents: [
-          if (union[currentTag].isPresent)
-            DataTreeEditor(
-              ctx,
-              union[currentTag].unwrap!,
-              dataTree[UnionTag.valueID],
-              renderLeaf,
-            )
+          dataTree.unionCases(
+            ctx,
+            {
+              for (final entry in union.entries)
+                entry.key as ID: (value) => DataTreeEditor(ctx, entry.value, value, renderLeaf),
+            },
+            unknown: () => Container(),
+          ),
         ],
         suffix: Text(')$suffix'),
       );
@@ -726,7 +754,7 @@ Widget _exprEditor(
         ChangeKindIntent: CallbackAction(onInvoke: (_) {
           exprData[FnExpr.bodyID].unionCases(Ctx.empty, {
             FnExpr.dartID: (_) => exprData[FnExpr.bodyID].set(FnExpr.palBody(placeholder)),
-            FnExpr.palID: (_) => exprData[FnExpr.bodyID].set(FnExpr.dartBody(ID.fake)),
+            FnExpr.palID: (_) => exprData[FnExpr.bodyID].set(FnExpr.dartBody(ID.placeholder)),
           });
         }),
       },
@@ -1089,7 +1117,7 @@ Widget _placeholderEditor(
             }
           }).toList(),
         ),
-        keys: [],
+        keys: [ctx],
       ),
       onSubmitted: (currentText) {
         final tryNum = num.tryParse(currentText);
