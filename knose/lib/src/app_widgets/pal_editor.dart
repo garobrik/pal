@@ -391,33 +391,33 @@ Widget _testThingy(Ctx ctx) {
         )),
         child: const Text('select module'),
       ),
-      ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final expr = useCursor(placeholder);
-          final typeResult = typeCheck(moduleCtx.read(ctx), expr.read(ctx));
+      // ReaderWidget(
+      //   ctx: ctx,
+      //   builder: (_, ctx) {
+      //     final expr = useCursor(placeholder);
+      //     final typeResult = typeCheck(moduleCtx.read(ctx), expr.read(ctx));
 
-          return Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(border: Border.all()),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('playground'),
-                PalScaffold(ExprEditor(moduleCtx.read(ctx), expr)),
-                Result.cases(
-                  typeResult,
-                  error: (msg) => Text(msg),
-                  ok: (type) => Text(
-                    'result: ${palPrint(moduleCtx.read(ctx), Literal.getValue(Expr.data(type)), eval(moduleCtx.read(ctx), expr.read(ctx)))}',
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      //     return Container(
+      //       padding: const EdgeInsets.all(10),
+      //       decoration: BoxDecoration(border: Border.all()),
+      //       child: Column(
+      //         mainAxisSize: MainAxisSize.min,
+      //         crossAxisAlignment: CrossAxisAlignment.start,
+      //         children: [
+      //           const Text('playground'),
+      //           PalScaffold(ExprEditor(moduleCtx.read(ctx), expr)),
+      //           Result.cases(
+      //             typeResult,
+      //             error: (msg) => Text(msg),
+      //             ok: (type) => Text(
+      //               'result: ${palPrint(moduleCtx.read(ctx), Literal.getValue(Expr.data(type)), eval(moduleCtx.read(ctx), expr.read(ctx)))}',
+      //             ),
+      //           ),
+      //         ],
+      //       ),
+      //     );
+      //   },
+      // ),
       for (final module in modules.values(ctx))
         if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
@@ -980,7 +980,7 @@ Widget _exprFocusableNode(
 
 @reader
 Widget _constructEditor(Ctx ctx, {required Cursor<Object> exprData, String suffix = ''}) {
-  final typeDef = ctx.getType(exprData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
+  final typeDef = ctx.getType(exprData[Construct.dataTypeID].read(ctx) as ID);
 
   return Inset(
     prefix: Text('${TypeTree.name(TypeDef.tree(typeDef))}('),
@@ -1008,7 +1008,7 @@ Widget _fnAppEditor(
     var surrounder = paren;
     if (fnApp[FnApp.argID][Expr.implID][Expr.dataTypeID].read(ctx) == Construct.type) {
       final constructData = fnApp[FnApp.argID][Expr.dataID];
-      final typeDef = ctx.getType(constructData[Construct.dataTypeID][Type.IDID].read(ctx) as ID);
+      final typeDef = ctx.getType(constructData[Construct.dataTypeID].read(ctx) as ID);
       if (TypeDef.id(typeDef).contains(TypeDef.typeArgsID)) {
         argEditor = DataTreeEditor(
           ctx,
@@ -1070,7 +1070,7 @@ Widget _placeholderEditor(
                   PlaceholderEntry(
                     name: '${TypeTree.name(TypeDef.tree(value))}.mk(...)',
                     onPressed: () => expr.set(Construct.mk(
-                      TypeDef.asType(value),
+                      TypeDef.id(value),
                       TypeTree.instantiate(TypeDef.tree(value), placeholder),
                     )),
                   ),
@@ -1088,7 +1088,7 @@ Widget _placeholderEditor(
                       final argType = Type.memberEquals(bindingTypeLit, [Fn.argTypeID]);
                       final argTypeDef = ctx.getType(Type.id(argType));
                       innerExpr = Construct.mk(
-                        argType,
+                        Type.id(argType),
                         TypeTree.instantiate(TypeDef.tree(argTypeDef), placeholder),
                       );
                     }
@@ -2019,138 +2019,28 @@ abstract class Migration {
   String toString() => runtimeType.toString();
 }
 
-final migrations = [FixDotPlaceholder(), ImplNames(), ValueDefNameToFn(), WrapListMkExprTypes()];
+final migrations = [ConstructTypesToData()];
 
-class FixDotPlaceholder extends Migration {
+class ConstructTypesToData extends Migration {
   @override
   T doMigrate<T>(T obj) {
     if (obj is! Dict) return obj;
-    if (!obj.containsKey(DotPlaceholder.prefixID)) return obj;
-    return obj.put(
-      DotPlaceholder.prefixID,
-      TypeTree.mk('prefix', Type.lit(Expr.type)),
-    ) as T;
-  }
-
-  @override
-  T doUnmigrate<T>(T obj) {
-    throw UnimplementedError();
-  }
-}
-
-class ImplNames extends Migration {
-  @override
-  T doMigrate<T>(T obj) {
-    if (obj is! Dict) return obj;
-    if (!obj.containsKey(ImplDef.IDID)) return obj;
-    if (obj[ImplDef.IDID].unwrap! is ID) {
-      return obj.put(
-        ImplDef.nameID,
-        'unnamed',
-      ) as T;
-    } else {
-      return obj.put(
-        ImplDef.nameID,
-        TypeTree.mk('name', Type.lit(text)),
-      ) as T;
-    }
-  }
-
-  @override
-  T doUnmigrate<T>(T obj) {
-    if (obj is! Dict) return obj;
-    if (!obj.containsKey(ImplDef.nameID)) return obj;
-    return obj.remove(ImplDef.nameID) as T;
-  }
-}
-
-class ValueDefNameToFn extends Migration {
-  @override
-  T doMigrate<T>(T obj) {
-    if (obj is! Dict) return obj;
-    if (!obj.containsKey(ValueDef.nameID)) return obj;
-    final nameValue = obj[ValueDef.nameID].unwrap!;
-    if (nameValue is String) {
-      return obj.put(
-        ValueDef.nameID,
-        Fn.mk(
-          argID: ValueDef.nameArgID,
-          argName: '_',
-          body: Fn.mkPalBody(Literal.mk(text, nameValue)),
-        ),
-      ) as T;
-    } else if (nameValue is Dict && nameValue.containsKey(TypeTree.treeID)) {
-      final cursor = Cursor<Object>(obj);
-      cursor[ValueDef.nameID][TypeTree.treeID][UnionTag.valueID].mut(
-        (_) => Type.lit(Fn.type(
-          argID: ValueDef.nameArgID,
-          argType: unit,
-          returnType: Type.lit(text),
-        )),
-      );
-      return cursor.read(Ctx.empty) as T;
-    } else {
-      throw UnimplementedError();
-    }
-  }
-
-  @override
-  T doUnmigrate<T>(T obj) {
-    if (obj is! Dict) return obj;
-    if (!obj.containsKey(ValueDef.nameID)) return obj;
-    final nameValue = obj[ValueDef.nameID].unwrap!;
-    if (nameValue is! Dict) throw UnimplementedError();
-    if (nameValue.containsKey(Fn.bodyID)) {
-      return obj.put(
-        ValueDef.nameID,
-        GetCursor<Object>(nameValue)[Fn.bodyID][UnionTag.valueID][Expr.dataID][Literal.valueID]
-            .read(Ctx.empty) as String,
-      ) as T;
-    } else if (nameValue.containsKey(TypeTree.treeID)) {
-      final cursor = Cursor<Object>(obj);
-      cursor[ValueDef.nameID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(text));
-      return cursor.read(Ctx.empty) as T;
-    } else {
-      throw UnimplementedError();
-    }
-  }
-}
-
-class WrapListMkExprTypes extends Migration {
-  @override
-  T doMigrate<T>(T obj) {
-    if (obj is Dict) {
-      final atMkTypeID = obj[List.mkTypeID].unwrap as Dict?;
-      if (atMkTypeID != null) {
-        if (atMkTypeID.containsKey(Type.IDID)) {
-          return obj.put(List.mkTypeID, Type.lit(atMkTypeID)) as T;
-        } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
-          final cursor = Cursor<Object>(obj);
-          cursor[List.mkTypeID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Expr.type));
-          return cursor.read(Ctx.empty) as T;
-        } else {
-          throw UnimplementedError();
-        }
-      }
+    if (!obj.containsKey(Construct.dataTypeID)) return obj;
+    final dataType = obj[Construct.dataTypeID].unwrap! as Dict;
+    if (dataType.containsKey(Type.IDID)) {
+      return obj.put(Construct.dataTypeID, Type.id(dataType)).put(Construct.asTypeID, Boolean.False)
+          as T;
     }
     return obj;
   }
 
   @override
   T doUnmigrate<T>(T obj) {
-    if (obj is Dict) {
-      final atMkTypeID = obj[List.mkTypeID].unwrap as Dict?;
-      if (atMkTypeID != null) {
-        if (atMkTypeID.containsKey(Expr.implID)) {
-          return obj.put(List.mkTypeID, Literal.getValue(atMkTypeID)) as T;
-        } else if (atMkTypeID.containsKey(TypeTree.treeID)) {
-          final cursor = Cursor<Object>(obj);
-          cursor[List.mkTypeID][TypeTree.treeID][UnionTag.valueID].mut((_) => Type.lit(Type.type));
-          return cursor.read(Ctx.empty) as T;
-        } else {
-          throw UnimplementedError();
-        }
-      }
+    if (obj is! Dict) return obj;
+    if (!obj.containsKey(Construct.dataTypeID)) return obj;
+    final dataType = obj[Construct.dataTypeID].unwrap!;
+    if (dataType is ID) {
+      return obj.put(Construct.dataTypeID, Type.mk(dataType)).remove(Construct.asTypeID) as T;
     }
     return obj;
   }
