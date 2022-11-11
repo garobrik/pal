@@ -164,7 +164,7 @@ abstract class Printable {
 
   @DartFn('13c11c7f-b549-45e5-8625-dc87846d000a')
   static Object _constructFn(Ctx ctx, Object construct) {
-    final typeDef = ctx.getType(Construct.dataType(construct));
+    final typeDef = ctx.getType(Type.id(Construct.dataType(construct)));
 
     String recurse(Ctx ctx, Object typeTree, Object dataTree) {
       return TypeTree.treeCases(

@@ -683,7 +683,7 @@ abstract class Type {
     DartList properties = const [],
   }) =>
       Construct.mk(
-        _typeID,
+        Type.type,
         Dict({
           IDID: Literal.mk(ID.type, id),
           pathID: path ?? Literal.mk(List.type(ID.type), List.mk(const [])),
@@ -739,6 +739,14 @@ abstract class Type {
       ];
     }).first;
   }
+
+  static Object withProperty(Object type, Object property) {
+    return Type.mk(
+      Type.id(type),
+      path: [...List.iterate(Type.path(type))],
+      properties: [...List.iterate(Type.properties(type)), property],
+    );
+  }
 }
 
 abstract class TypeProperty {
@@ -791,7 +799,7 @@ abstract class TypeProperty {
   static Dict mk(Object impl, Object data) => Dict({implID: impl, dataID: data});
 
   static Object mkExpr(Object implDef, Object data) => Construct.mk(
-        Type.id(type),
+        type,
         Dict({implID: FnApp.mk(Var.mk(ImplDef.bindingID(implDef)), unitExpr), dataID: data}),
       );
 
@@ -859,7 +867,7 @@ abstract class Equals extends TypeProperty {
   static Object mkExpr(Object dataType, Object equalTo) => TypeProperty.mkExpr(
         propImplDef,
         Construct.mk(
-          Type.id(type),
+          type,
           Dict({
             dataTypeID: dataType,
             equalToID: equalTo,
@@ -906,7 +914,7 @@ abstract class MemberHas extends TypeProperty {
 
   static Object mkExpr({required Object path, required Object property}) => TypeProperty.mkExpr(
         propImplDef,
-        Construct.mk(TypeDef.id(typeDef), Dict({pathID: path, propertyID: property})),
+        Construct.mk(TypeDef.asType(typeDef), Dict({pathID: path, propertyID: property})),
       );
 
   static Object mkEquals(DartList path, Object type, Object equalTo) =>
@@ -1362,7 +1370,7 @@ abstract class ImplDef {
           argName: 'definitionArg',
           argType: Type.lit(argType),
           body: Construct.mk(
-            InterfaceDef.innerTypeDefID(implemented),
+            InterfaceDef.implTypeByID(implemented),
             definition(Var.mk(definitionArgID)),
           ),
         ),
@@ -1489,7 +1497,7 @@ abstract class Pair {
   static Object mk(Object first, Object second) => Dict({firstID: first, secondID: second});
   static Object mkExpr(Object firstType, Object secondType, Object first, Object second) =>
       Construct.mk(
-        TypeDef.id(def),
+        TypeDef.asType(def),
         Dict({
           firstTypeID: firstType,
           secondTypeID: secondType,
@@ -1569,7 +1577,7 @@ abstract class Option {
       : Dict.cursor({valueID: UnionTag.mkCursor(someID, value)});
 
   static Object someExpr(Object dataType, Object value) => Construct.mk(
-        typeDefID,
+        Option.type(dataType),
         Dict({
           dataTypeID: Type.lit(dataType),
           valueID: UnionTag.mk(someID, value),
@@ -1652,7 +1660,7 @@ abstract class Result {
       });
 
   static Object okExpr(Object dataType, Object value) => Construct.mk(
-        typeDefID,
+        Option.type(dataType),
         Dict({
           dataTypeID: Type.lit(dataType),
           valueID: UnionTag.mk(okID, value),
@@ -1776,7 +1784,7 @@ abstract class Expr {
       Dict.cursor({dataID: data, implID: GetCursor(impl)});
 
   static Object mkExpr({required Object data, required Object impl}) =>
-      Construct.mk(_defID, Dict({dataID: data, implID: impl}));
+      Construct.mk(Expr.type, Dict({dataID: data, implID: impl}));
 
   static Object data(Object expr) => (expr as Dict)[dataID].unwrap!;
   static Object impl(Object expr) => (expr as Dict)[implID].unwrap!;
@@ -2025,7 +2033,7 @@ abstract class Any {
 
   static Object mk(Object type, Object value) => Dict({typeID: type, valueID: value});
   static Object mkExpr(Object type, Object value) =>
-      Construct.mk(anyTypeID, Dict({typeID: type, valueID: value}));
+      Construct.mk(Any.type, Dict({typeID: type, valueID: value}));
 }
 
 final textDef = TypeDef.unit(
@@ -2448,9 +2456,6 @@ abstract class Construct extends Expr {
   static const dataTypeID = ID.constant(
       id: 'f2af00a9-68c6-4e63-81e5-8b1e05b1a580', hashCode: 185504088, label: 'dataType');
 
-  static const asTypeID =
-      ID.constant(id: 'a29db506-711f-4beb-9cb2-844c04acb549', hashCode: 346764382, label: 'asType');
-
   static const treeID =
       ID.constant(id: '3bbab571-41f4-4067-8c23-361717f48376', hashCode: 90096316, label: 'tree');
 
@@ -2460,8 +2465,7 @@ abstract class Construct extends Expr {
   static final typeDef = TypeDef.record(
     'Construct',
     {
-      dataTypeID: TypeTree.mk('dataType', Type.lit(ID.type)),
-      asTypeID: TypeTree.mk('asType', Type.lit(Boolean.type)),
+      dataTypeID: TypeTree.mk('dataType', Type.lit(Type.type)),
       treeID: TypeTree.mk('tree', Type.lit(unit)),
     },
     id: typeDefID,
@@ -2485,18 +2489,12 @@ abstract class Construct extends Expr {
     evalBody: _evalFn,
   );
 
-  static ID dataType(Object construct) => (construct as Dict)[dataTypeID].unwrap! as ID;
-  static Object asType(Object construct) => (construct as Dict)[asTypeID].unwrap!;
+  static Object dataType(Object construct) => (construct as Dict)[dataTypeID].unwrap!;
   static Object tree(Object construct) => (construct as Dict)[treeID].unwrap!;
-  static Object withTree(Object construct, Object tree) => (construct as Dict).put(treeID, tree);
 
-  static Object mk(ID dataType, Object tree) => Expr.mk(
+  static Object mk(Object dataType, Object tree) => Expr.mk(
         impl: exprImpl,
-        data: Dict({
-          dataTypeID: dataType,
-          asTypeID: Boolean.False,
-          treeID: tree,
-        }),
+        data: Dict({dataTypeID: dataType, treeID: tree}),
       );
 }
 
@@ -2946,8 +2944,7 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
 
 Object _litOrConsType(Object litOrCons) {
   if (Expr.dataType(litOrCons) == Construct.type) {
-    final cons = Expr.data(litOrCons);
-    return Construct.asType(cons) == Boolean.True ? Type.type : Type.mk(Construct.dataType(cons));
+    return Construct.dataType(Expr.data(litOrCons));
   } else if (Expr.dataType(litOrCons) == Literal.type) {
     return Literal.getType(Expr.data(litOrCons));
   } else {
@@ -2970,7 +2967,7 @@ bool occurs(Ctx ctx, ID a, Object b) {
   if (Expr.dataType(b) == Literal.type) return false;
   if ({RecordAccess.type, Var.type}.contains(Expr.dataType(b))) return _exprToBindingID(b) == a;
   if (Expr.dataType(b) == Construct.type) {
-    final typeDef = ctx.getType(Construct.dataType(Expr.data(b)));
+    final typeDef = ctx.getType(Type.id(Construct.dataType(Expr.data(b))));
     return TypeTree.foldData(
       false,
       TypeDef.tree(typeDef),
@@ -2991,7 +2988,7 @@ dart.Set<ID> freeVars(Ctx ctx, Object expr) {
   }
   if (Expr.dataType(expr) == Var.type) return {Var.id(Expr.data(expr))};
   if (Expr.dataType(expr) == Construct.type) {
-    final typeDef = ctx.getType(Construct.dataType(Expr.data(expr)));
+    final typeDef = ctx.getType(Type.id(Construct.dataType(Expr.data(expr))));
 
     final consVars = <ID>{};
     return TypeTree.foldData<dart.Set<ID>>(
@@ -3044,7 +3041,7 @@ Object varSubst(Ctx ctx, ID fromID, ID toID, Object expr) {
     return Construct.mk(
       Construct.dataType(exprData),
       TypeTree.mapData(
-        TypeDef.tree(ctx.getType(Construct.dataType(exprData))),
+        TypeDef.tree(ctx.getType(Type.id(Construct.dataType(exprData)))),
         Construct.tree(exprData),
         (_, data, __) => varSubst(ctx, fromID, toID, data),
       ),
@@ -3145,7 +3142,7 @@ Object _extractSubstArg(Ctx ctx, Object type, dart.Map<ID, Object> subst) {
   }
 
   final constructExpr = Construct.mk(
-    Type.id(type),
+    type,
     TypeTree.augmentTree(type, recurse(ImplDef.definitionArgID, TypeDef.tree(typeDef))),
   );
   if (notFound) return unitExpr;
@@ -3450,32 +3447,19 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
 
 @DartFn('ff147616-dbb9-4759-9184-5aa800572852')
 Object _constructEval(Ctx ctx, Object arg) {
-  final typeDef = ctx.getType(Construct.dataType(arg));
-  final asType = Construct.asType(arg) == Boolean.True;
-  if (asType) {
-    return Type.mk(Construct.dataType(arg), properties: [
-      ...(TypeTree.mapData(
-              TypeDef.tree(typeDef),
-              Construct.tree(arg),
-              (typeLeaf, dataLeaf, path) =>
-                  MemberHas.mkEquals(path, eval(ctx, typeLeaf), eval(ctx, dataLeaf))) as Dict)
-          .values
-    ]);
-  } else {
-    final comptimeIDs = TypeDef.comptime(typeDef);
-    return TypeTree.maybeMapData(
-      TypeDef.tree(typeDef),
-      Construct.tree(arg),
-      (_, dataLeaf, path) =>
-          Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
-    );
-  }
+  final typeDef = ctx.getType(Type.id(Construct.dataType(arg)));
+  final comptimeIDs = TypeDef.comptime(typeDef);
+  return TypeTree.maybeMapData(
+    TypeDef.tree(typeDef),
+    Construct.tree(arg),
+    (_, dataLeaf, path) => Option.mk(comptimeIDs.contains(path.last) ? null : eval(ctx, dataLeaf)),
+  );
 }
 
 @DartFn('7a0fc27e-4511-463e-bc56-1445de7d65a8')
 Object _constructReduce(Ctx ctx, Object arg) {
   bool nonLit = false;
-  final typeTree = TypeDef.tree(ctx.getType(Construct.dataType(arg)));
+  final typeTree = TypeDef.tree(ctx.getType(Type.id(Construct.dataType(arg))));
   final exprTree = TypeTree.mapData(
     typeTree,
     Construct.tree(arg),
@@ -3486,29 +3470,20 @@ Object _constructReduce(Ctx ctx, Object arg) {
     },
   );
 
-  if (nonLit) {
-    if (Construct.asType(arg) == Boolean.True) {
-      return Type.mkExpr(Construct.dataType(arg), properties: [
-        ...(TypeTree.mapData(
-                typeTree,
-                exprTree,
-                (typeLeaf, dataLeaf, path) =>
-                    MemberHas.mkEqualsExpr(path, reduce(ctx, typeLeaf), dataLeaf)) as Dict)
-            .values
-      ]);
-    } else {
-      return Expr.mk(impl: Construct.exprImpl, data: Construct.withTree(arg, exprTree));
-    }
-  }
+  if (nonLit) return Construct.mk(Construct.dataType(arg), exprTree);
   return Literal.mk(
-    Construct.asType(arg) == Boolean.True ? Type.type : Type.mk(Construct.dataType(arg)),
-    _constructEval(ctx, Construct.withTree(arg, exprTree)),
+    Construct.dataType(arg),
+    TypeTree.mapData(
+      typeTree,
+      exprTree,
+      (_, expr, __) => Literal.getValue(Expr.data(expr)),
+    ),
   );
 }
 
 @DartFn('3b12dfa7-b5d6-4bf3-bc0f-47efdb9e46ce')
 Object _constructTypeCheck(Ctx origCtx, Object arg) {
-  final typeDef = origCtx.getType(Construct.dataType(arg));
+  final typeDef = origCtx.getType(Type.id(Construct.dataType(arg)));
 
   final computedProps = <Object>[];
   DartList lazyBindings(Object typeTree, Object dataTree, Object path) {
@@ -3609,9 +3584,7 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
   }
 
   return Result.mkOk(
-    Construct.asType(arg) == Boolean.True
-        ? Type.lit(Type.type)
-        : reduce(origCtx, Type.mkExpr(Construct.dataType(arg), properties: computedProps)),
+    reduce(origCtx, Type.mkExpr(Type.id(Construct.dataType(arg)), properties: computedProps)),
   );
 }
 

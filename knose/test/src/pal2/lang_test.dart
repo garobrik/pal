@@ -93,7 +93,7 @@ void main() async {
 
   test('Construct', () {
     final expr = Construct.mk(
-      TypeDef.id(sillyRecordDef),
+      TypeDef.asType(sillyRecordDef),
       Dict({sillyID: Literal.mk(number, 0)}),
     );
 
