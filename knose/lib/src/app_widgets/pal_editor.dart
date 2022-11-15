@@ -2015,85 +2015,11 @@ abstract class Migration {
 }
 
 final migrations = [
-  TypeProperties(),
   FixDotPlaceholder(),
   ImplNames(),
   ValueDefNameToFn(),
   WrapListMkExprTypes(),
 ];
-
-class TypeProperties extends Migration {
-  @override
-  T doMigrate<T>(T obj) {
-    if (obj is! Dict || !obj.containsKey(Type.propertiesID)) return obj;
-
-    final properties = obj[Type.propertiesID].unwrap! as Dict;
-    if (properties.containsKey(TypeTree.treeID)) {
-      return obj.put(
-        Type.propertiesID,
-        TypeTree.mk('properties', Type.lit(Map.type(ID.type, unit))),
-      ) as T;
-    } else if (properties.containsKey(List.itemsID)) {
-      return obj.put(
-        Type.propertiesID,
-        Map.mk({
-          for (final prop in List.iterate(properties))
-            List.iterate(MemberHas.path(TypeProperty.data(prop))).first:
-                Equals.equalTo(TypeProperty.data(MemberHas.property(TypeProperty.data(prop))))
-        }),
-      ) as T;
-    } else if (properties.containsKey(Expr.dataID)) {
-      late final Object newProperties;
-      if (Expr.dataType(properties) == Literal.type) {
-        newProperties = Literal.mk(
-          Type.lit(Map.type(ID.type, unit)),
-          Map.mk({
-            for (final prop in List.iterate(Literal.getValue(Expr.data(properties))))
-              List.iterate(MemberHas.path(TypeProperty.data(prop))).first:
-                  Equals.equalTo(TypeProperty.data(MemberHas.property(TypeProperty.data(prop))))
-          }),
-        );
-      } else if (Expr.dataType(properties) == List.mkExprType) {
-        final propExprs = List.iterate(List.mkExprValues(Expr.data(properties)));
-
-        newProperties = Map.mkExpr(Type.lit(ID.type), Type.lit(unit), [
-          ...propExprs.map((propExpr) {
-            if (Expr.dataType(propExpr) == Literal.type) {
-              final prop = Literal.getValue(Expr.data(propExpr));
-              final equals = TypeProperty.data(MemberHas.property(TypeProperty.data(prop)));
-              return Pair.mk(
-                Literal.mk(ID.type, List.iterate(MemberHas.path(TypeProperty.data(prop))).first),
-                Literal.mk(Equals.dataType(equals), Equals.equalTo(equals)),
-              );
-            } else if (Expr.dataType(propExpr) == Construct.type) {
-              final memberHasExpr = TypeProperty.data(Construct.tree(Expr.data(propExpr)));
-              final pathExpr = MemberHas.path(Construct.tree(Expr.data(memberHasExpr)));
-              final equalsPropExpr = MemberHas.property(Construct.tree(Expr.data(memberHasExpr)));
-              final equalsExpr = TypeProperty.data(Construct.tree(Expr.data(equalsPropExpr)));
-              return Pair.mk(
-                Literal.mk(ID.type, List.iterate(Literal.getValue(Expr.data(pathExpr))).first),
-                Equals.equalTo(Construct.tree(Expr.data(equalsExpr))),
-              );
-            } else {
-              throw UnimplementedError();
-            }
-          })
-        ]);
-      } else {
-        throw UnimplementedError('unknown properties expr:\n${properties.toStringDeep()}');
-      }
-
-      return obj.put(Type.propertiesID, newProperties) as T;
-    } else {
-      throw UnimplementedError();
-    }
-  }
-
-  @override
-  T doUnmigrate<T>(T obj) {
-    throw UnimplementedError();
-  }
-}
 
 class FixDotPlaceholder extends Migration {
   @override
