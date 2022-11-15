@@ -784,6 +784,27 @@ Widget _exprEditor(
         ),
       ),
     );
+  } else if (exprType == FnTypeExpr.type) {
+    child = Inset(
+      prefix: Text.rich(
+        TextSpan(children: [
+          const TextSpan(text: '('),
+          _inlineTextSpan(ctx, exprData[FnTypeExpr.argNameID].cast<String>()),
+          const TextSpan(text: ': '),
+          AlignedWidgetSpan(ExprEditor(ctx, exprData[FnTypeExpr.argTypeID])),
+          const TextSpan(text: ')'),
+          const WidgetSpan(
+            alignment: PlaceholderAlignment.bottom,
+            baseline: TextBaseline.ideographic,
+            child: Icon(
+              Icons.arrow_right_alt,
+              size: 16,
+            ),
+          ),
+        ]),
+      ),
+      contents: [ExprEditor(ctx, exprData[FnTypeExpr.returnTypeID], suffix: suffix)],
+    );
   } else if (exprType == FnApp.type) {
     child = FnAppEditor(ctx, fnApp: exprData, suffix: suffix);
   } else if (exprType == RecordAccess.type) {
@@ -999,26 +1020,33 @@ Widget _exprFocusableNode(
         child: Text(Option.unwrap(typeError.read(ctx)) as String),
       ),
     ),
-    child: Actions(
-      actions: {
-        DeleteIntent: CallbackAction(
-          onInvoke: (_) => onDelete == null ? expr.set(placeholder) : onDelete(),
-        ),
-        AddDotIntent: CallbackAction(
-          onInvoke: (_) => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty))),
-        ),
+    child: Shortcuts(
+      shortcuts: {
+        const SingleActivator(LogicalKeyboardKey.keyR, shift: true):
+            ReplaceParentIntent(() => expr.read(Ctx.empty))
       },
-      child: FocusableNode(
-        onHover: isHovered.set,
-        focusNode: focusNode,
-        child: ReaderWidget(
-          ctx: ctx,
-          builder: (_, ctx) => Container(
-            decoration: BoxDecoration(
-              border: Option.isPresent(typeError.read(ctx)) ? Border.all(color: Colors.red) : null,
-              borderRadius: const BorderRadius.all(Radius.circular(3)),
+      child: CallbackActions(
+        actions: [
+          ActOn<DeleteIntent>((_) => onDelete == null ? expr.set(placeholder) : onDelete()),
+          ActOn<AddDotIntent>((_) => expr.set(DotPlaceholder.mk(expr.read(Ctx.empty)))),
+          ActOn<AddFnAppIntent>((_) => expr.set(FnApp.mk(expr.read(Ctx.empty), placeholder))),
+        ],
+        child: FocusableNode(
+          onHover: isHovered.set,
+          focusNode: focusNode,
+          child: CallbackActions(
+            actions: [ActOn<ReplaceParentIntent>((intent) => expr.set(intent.expr()))],
+            child: ReaderWidget(
+              ctx: ctx,
+              builder: (_, ctx) => Container(
+                decoration: BoxDecoration(
+                  border:
+                      Option.isPresent(typeError.read(ctx)) ? Border.all(color: Colors.red) : null,
+                  borderRadius: const BorderRadius.all(Radius.circular(3)),
+                ),
+                child: child,
+              ),
             ),
-            child: child,
           ),
         ),
       ),
@@ -1051,7 +1079,14 @@ Widget _fnAppEditor(
   required Cursor<Object> fnApp,
   String suffix = '',
 }) {
-  if (fnApp[FnApp.fnID][Expr.implID][Expr.dataTypeID].read(ctx) == Var.type) {
+  bool isWords(GetCursor<Object> expr) {
+    final exprType = expr[Expr.implID][Expr.dataTypeID].read(ctx);
+    if (exprType == Var.type) return true;
+    if (exprType != RecordAccess.type) return false;
+    return isWords(expr[Expr.dataID][RecordAccess.targetID]);
+  }
+
+  if (isWords(fnApp[FnApp.fnID])) {
     Widget argEditor = ExprEditor(ctx, fnApp[FnApp.argID]);
     var surrounder = paren;
     if (fnApp[FnApp.argID][Expr.implID][Expr.dataTypeID].read(ctx) == Construct.type) {
@@ -1176,12 +1211,20 @@ Widget _placeholderEditor(
         } else if (currentText == '\\') {
           expr.set(
             FnExpr.pal(
-              argID: const ID.constant(
-                  id: '79e56f70-1a5e-44eb-b21d-8deafc0e6185', hashCode: 189184073),
+              argID: ID.mk(),
               argName: 'arg',
-              argType: Type.lit(unit),
-              returnType: Type.lit(unit),
-              body: unitExpr,
+              argType: placeholder,
+              returnType: placeholder,
+              body: placeholder,
+            ),
+          );
+        } else if (currentText == '\\t') {
+          expr.set(
+            FnTypeExpr.mk(
+              argID: ID.mk(),
+              argName: 'arg',
+              argType: placeholder,
+              returnType: placeholder,
             ),
           );
         } else if (currentText == '[') {
@@ -1223,7 +1266,7 @@ Widget _dotPlaceholderEditor(
                     PlaceholderEntry(
                       name: TypeTree.name(e.value),
                       onPressed: () => expr.set(
-                        RecordAccess.mk(exprData[DotPlaceholder.prefixID].read(ctx), e.key),
+                        RecordAccess.mk(exprData[DotPlaceholder.prefixID].read(Ctx.empty), e.key),
                       ),
                     )
                 ],
@@ -1440,6 +1483,7 @@ const palShortcuts = {
   SingleActivator(LogicalKeyboardKey.keyK, shift: true): ShiftUpIntent(),
   SingleActivator(LogicalKeyboardKey.keyJ, shift: true): ShiftDownIntent(),
   SingleActivator(LogicalKeyboardKey.period): AddDotIntent(),
+  SingleActivator(LogicalKeyboardKey.digit9, shift: true): AddFnAppIntent(),
   SingleActivator(LogicalKeyboardKey.keyC): ChangeKindIntent(),
   SingleActivator(LogicalKeyboardKey.keyI): CopyIDIntent(),
 };
@@ -1468,6 +1512,10 @@ class AddDotIntent extends Intent {
   const AddDotIntent();
 }
 
+class AddFnAppIntent extends Intent {
+  const AddFnAppIntent();
+}
+
 class ChangeKindIntent extends Intent {
   const ChangeKindIntent();
 }
@@ -1476,11 +1524,37 @@ class CopyIDIntent extends Intent {
   const CopyIDIntent();
 }
 
+class ReplaceParentIntent extends Intent {
+  final Object Function() expr;
+
+  const ReplaceParentIntent(this.expr);
+}
+
 void copyID(ID id) =>
     Clipboard.setData(ClipboardData(text: "ID.constant(id: '${id.id}', hashCode: ${id.hashCode})"));
 void copyDartFn(ID id) => Clipboard.setData(ClipboardData(text: "@DartFn('${id.id}')"));
 
 const _myBoxShadow = BoxShadow(blurRadius: 8, color: Colors.grey, blurStyle: BlurStyle.outer);
+
+class CallbackActions extends StatelessWidget {
+  final dart.List<ActOn> actions;
+  final Widget child;
+
+  const CallbackActions({super.key, required this.actions, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Actions(actions: dart.Map.fromEntries(actions.map((a) => a.asAction)), child: child);
+  }
+}
+
+class ActOn<T extends Intent> {
+  final void Function(T) callback;
+
+  const ActOn(this.callback);
+
+  MapEntry<dart.Type, Action> get asAction => MapEntry(T, CallbackAction<T>(onInvoke: callback));
+}
 
 class NonTextEditingShortcutManager extends ShortcutManager {
   NonTextEditingShortcutManager({required super.shortcuts});
@@ -1686,6 +1760,7 @@ class HierarchicalOrderTraversalPolicy extends FocusTraversalPolicy
   }
 
   static void _sortSiblings(_TrieList<FocusNode> sorted) {
+    if (sorted.isEmpty) return;
     _doSortSiblings(
       (sorted.first.context!.getElementForInheritedWidgetOfExactType<Directionality>()!.widget
               as Directionality)

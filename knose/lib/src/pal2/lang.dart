@@ -2201,6 +2201,70 @@ abstract class FnExpr extends Expr {
   }
 }
 
+abstract class FnTypeExpr extends Expr {
+  static const argIDID =
+      ID.constant(id: 'bf8e069f-0c77-4dbb-8752-3fdaa2b12d67', hashCode: 438822881, label: 'argID');
+
+  static const argNameID =
+      ID.constant(id: '5c3f2152-a22e-4731-9c38-246c101e9e3b', hashCode: 37213677, label: 'argName');
+
+  static const argTypeID =
+      ID.constant(id: '6f325124-2103-4422-b9c2-4d680ee066f0', hashCode: 48354684, label: 'argType');
+
+  static const returnTypeID = ID.constant(
+      id: '262d465b-3554-4e00-b201-d7832901400a', hashCode: 215239397, label: 'returnType');
+
+  static const typeDefID =
+      ID.constant(id: '6276ccd4-5c8a-476b-8de5-f0f047330514', hashCode: 398154425, label: 'FnExpr');
+
+  static final typeDef = TypeDef.record(
+    'FnTypeExpr',
+    {
+      argTypeID: TypeTree.mk('argType', Type.lit(Expr.type)),
+      returnTypeID: TypeTree.mk('returnType', Type.lit(Expr.type)),
+      argIDID: TypeTree.mk('argID', Type.lit(ID.type)),
+      argNameID: TypeTree.mk('argName', Type.lit(text)),
+    },
+    id: typeDefID,
+  );
+  static final type = Type.mk(typeDefID);
+
+  static final typeFnBody = langInverseFnMap[_fnTypeExprTypeCheck]!;
+
+  static final reduceFnBody = langInverseFnMap[_fnTypeExprReduce]!;
+
+  static final evalFnBody = langInverseFnMap[_fnTypeExprEval]!;
+
+  static final Object exprImpl = Expr.mkImpl(
+    dataType: type,
+    argName: 'fnData',
+    typeCheckBody: typeFnBody,
+    reduceBody: reduceFnBody,
+    evalBody: evalFnBody,
+  );
+
+  static Object mk({
+    required ID argID,
+    required String argName,
+    required Object argType,
+    required Object returnType,
+  }) =>
+      Expr.mk(
+        impl: exprImpl,
+        data: Dict({
+          argTypeID: argType,
+          returnTypeID: returnType,
+          argNameID: argName,
+          argIDID: argID,
+        }),
+      );
+
+  static ID argID(Object fnExpr) => (fnExpr as Dict)[argIDID].unwrap! as ID;
+  static String argName(Object fnExpr) => (fnExpr as Dict)[argNameID].unwrap! as String;
+  static Object argType(Object fn) => (fn as Dict)[argTypeID].unwrap!;
+  static Object returnType(Object fn) => (fn as Dict)[returnTypeID].unwrap!;
+}
+
 abstract class FnApp extends Expr {
   static const fnID =
       ID.constant(id: 'a1f3e9db-a5e3-4aa8-a1ed-edbe7f373975', hashCode: 388278076, label: 'fn');
@@ -3189,10 +3253,9 @@ Object _recordAccessReduce(Ctx ctx, Object data) {
         .unwrap!;
   } else if (Expr.dataType(targetExpr) == Construct.type) {
     return (Construct.tree(Expr.data(targetExpr)) as Dict)[RecordAccess.member(data)].unwrap!;
-  } else if (Expr.dataType(targetExpr) == Var.type) {
+  } else {
     return RecordAccess.mk(targetExpr, RecordAccess.member(data));
   }
-  throw Exception('reduce record access not implemented for record access!');
 }
 
 @DartFn('82bf53a9-470a-4a7c-9326-e367397c56d4')
@@ -3632,6 +3695,33 @@ Object _fnExprTypeCheck(Ctx ctx, Object fn) {
       );
     },
   );
+}
+
+@DartFn('738cb317-4b48-4bf2-907b-e06e1e42a49a')
+Object _fnTypeExprEval(Ctx ctx, Object arg) => Fn.type(
+      argID: FnTypeExpr.argID(arg),
+      argType: eval(ctx, FnTypeExpr.argType(arg)),
+      returnType: eval(ctx, FnTypeExpr.returnType(arg)),
+    );
+
+@DartFn('a814d42c-2b9b-49a0-afc2-9c6c25e47468')
+Object _fnTypeExprReduce(Ctx ctx, Object fnData) =>
+    Expr.mk(impl: FnTypeExpr.exprImpl, data: fnData);
+
+@DartFn('916ccd37-75de-4c37-b728-a318b101aff7')
+Object _fnTypeExprTypeCheck(Ctx ctx, Object fn) {
+  return checkReduceType(ctx, FnTypeExpr.argType(fn), 'FnTypeExpr arg type', (argType) {
+    ctx = ctx.withBinding(
+      Binding.mk(
+        id: FnTypeExpr.argID(fn),
+        type: Result.mkOk(argType),
+        name: FnTypeExpr.argName(fn),
+      ),
+    );
+    return checkReduceType(ctx, FnTypeExpr.returnType(fn), 'FnTypeExpr ret type', (returnType) {
+      return Result.mkOk(Type.lit(Type.type));
+    });
+  });
 }
 
 @DartFn('19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a')
