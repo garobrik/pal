@@ -881,7 +881,60 @@ Widget _exprEditor(
       ),
     );
   } else if (exprType == Map.mkType) {
-    return const Text('mapExpr');
+    final children = exprData[Map.mkEntriesID][List.itemsID].cast<Vec>();
+    return Actions(
+      actions: {
+        AddWithinIntent: CallbackAction(
+          onInvoke: (_) => children.insert(0, Pair.mk(placeholder, placeholder)),
+        ),
+      },
+      child: ExprFocusableNode(
+        ctx,
+        expr: expr,
+        focusNode: wrapperFocusNode,
+        onDelete: onDelete,
+        child: Inset(
+          prefix: Text.rich(TextSpan(children: [
+            const TextSpan(text: '<'),
+            AlignedWidgetSpan(ExprEditor(ctx, exprData[Map.mkKeyID])),
+            const TextSpan(text: ', '),
+            AlignedWidgetSpan(ExprEditor(ctx, exprData[Map.mkValueID])),
+            const TextSpan(text: '>{'),
+          ])),
+          contents: [
+            for (final child in children.indexedValues(ctx))
+              Actions(
+                actions: {
+                  AddBelowIntent: CallbackAction(
+                    onInvoke: (_) => children.insert(
+                      child.index + 1,
+                      Pair.mk(placeholder, placeholder),
+                    ),
+                  ),
+                  DeleteIntent: CallbackAction(onInvoke: (_) => children.remove(child.index)),
+                },
+                child: FocusableNode(
+                  child: Inset(
+                    prefix: ExprEditor(
+                      ctx,
+                      child.value[Pair.firstID],
+                      suffix: ': ',
+                    ),
+                    contents: [
+                      ExprEditor(
+                        ctx,
+                        child.value[Pair.secondID],
+                        suffix: ', ',
+                      )
+                    ],
+                  ),
+                ),
+              ),
+          ],
+          suffix: Text('}$suffix'),
+        ),
+      ),
+    );
   } else {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
@@ -1133,6 +1186,8 @@ Widget _placeholderEditor(
           );
         } else if (currentText == '[') {
           expr.set(List.mkExpr(placeholder, const []));
+        } else if (currentText == '{') {
+          expr.set(Map.mkExpr(placeholder, placeholder, const []));
         }
       },
     )),
@@ -1693,7 +1748,7 @@ class Inset extends MultiChildRenderObjectWidget {
   Inset({
     required Widget prefix,
     required dart.List<Widget> contents,
-    required Widget suffix,
+    Widget suffix = const SizedBox(),
     this.inset = const EdgeInsetsDirectional.only(start: 10, end: 2),
     this.drawGuideLine = true,
     bool repaintBoundaries = false,
