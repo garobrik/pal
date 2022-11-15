@@ -38,9 +38,7 @@ abstract class Printable {
       dispatch(
         ctx,
         InterfaceDef.id(interfaceDef),
-        InterfaceDef.implType(interfaceDef, [
-          MemberHas.mkEquals([dataTypeID], Type.type, Any.getType(arg))
-        ]),
+        InterfaceDef.implType(interfaceDef, {dataTypeID: Any.getType(arg)}),
       ),
     );
 
@@ -124,9 +122,30 @@ abstract class Printable {
   static Object _typeFn(Ctx ctx, Object type) {
     final tree = TypeDef.tree(ctx.getType(Type.id(type)));
     final name = TypeTree.name(tree);
-    final props =
-        List.iterate(Type.properties(type)).map((prop) => palPrint(ctx, TypeProperty.type, prop));
-    final suffix = props.isEmpty ? '' : '<${props.join(", ")}>';
+    final props = Type.properties(type).entries.map((prop) {
+      final typeTree = TypeTree.find(tree, prop.key as ID);
+      String name = prop.key.toString();
+      String value = prop.value.toString();
+      if (typeTree != null) {
+        name = TypeTree.name(typeTree);
+        final leaf = TypeTree.treeCases(
+          typeTree,
+          record: (_) => throw Error(),
+          union: (_) => throw Error(),
+          leaf: (_) => _,
+        );
+        if (Expr.dataType(leaf) == Literal.type) {
+          value = palPrint(ctx, Literal.getValue(Expr.data(leaf)), prop.value);
+        }
+      }
+      return Pair.mk(name, value);
+    });
+    final suffix = props.isEmpty
+        ? ''
+        : props.length == 1
+            ? '<${Pair.second(props.first)}>'
+            : '<${props.map((p) => "${Pair.first(p)}: ${Pair.second(p)}").join(", ")}>';
+
     return '$name$suffix';
   }
 
@@ -134,16 +153,6 @@ abstract class Printable {
   static Object _numberFn(Ctx _, Object number) => '$number';
   @DartFn('969a93c8-3470-4908-9a98-d8dd9881a274')
   static Object _textFn(Ctx _, Object text) => '"$text"';
-  @DartFn('b1b4d796-cd0a-4b8b-8ca2-1cf0363d47d4')
-  static Object _typePropFn(Ctx ctx, Object prop) =>
-      palPrint(ctx, TypeProperty.dataType(prop), TypeProperty.data(prop));
-  @DartFn('4d779f78-c8e9-4144-a69f-9696f71647e1')
-  static Object _memberHasFn(Ctx ctx, Object memberHas) =>
-      List.iterate(MemberHas.path(memberHas)).map((id) => (id as ID).label ?? id.id).join('.') +
-      palPrint(ctx, TypeProperty.type, MemberHas.property(memberHas));
-  @DartFn('e0eb9e74-d730-4f8d-9de5-5305c435d715')
-  static Object _equalsFn(Ctx ctx, Object equals) =>
-      ' = ${palPrint(ctx, Equals.dataType(equals), Equals.equalTo(equals))}';
   @DartFn('8917399b-78d9-4d2d-9e8e-3c420aef3b54')
   static Object _exprFn(Ctx ctx, Object expr) =>
       palPrint(ctx, Expr.dataType(expr), Expr.data(expr));

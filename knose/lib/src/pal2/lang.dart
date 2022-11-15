@@ -20,6 +20,7 @@ typedef FnMap = dart.Map<ID, Object Function(Ctx, Object)>;
 typedef InverseFnMap = dart.Map<Object Function(Ctx, Object), ID>;
 typedef Dict = reified.Dict<Object, Object>;
 typedef DartList = dart.List<Object>;
+typedef DartMap = dart.Map<Object, Object>;
 typedef Vec = reified.Vec<Object>;
 typedef Set = reified.CSet<Object>;
 
@@ -271,14 +272,7 @@ abstract class Module {
                       (ctx) {
                         return Type.mkExpr(data[TypeDef.IDID].read(ctx) as ID, properties: [
                           for (final id in comptime)
-                            MemberHas.mkEqualsExpr(
-                              [id],
-                              TypeTree.findReactive(ctx, typeTree, id)![TypeTree.treeID].unionCases(
-                                ctx,
-                                {TypeTree.leafID: (val) => val.read(ctx)},
-                              ),
-                              RecordAccess.mk(arg.read(ctx), id),
-                            ),
+                            Pair.mk(id, RecordAccess.mk(arg.read(ctx), id)),
                         ]);
                       },
                     ),
@@ -588,7 +582,7 @@ abstract class TypeDef {
   }) =>
       mkCursorDef(id: id, tree: TypeTree.mkRecordCursor(name, members));
 
-  static Object asType(Object typeDef, {DartList properties = const []}) => Type.mk(
+  static Object asType(Object typeDef, {DartMap properties = const {}}) => Type.mk(
         (typeDef as Dict)[IDID].unwrap! as ID,
         properties: properties,
       );
@@ -658,7 +652,7 @@ abstract class Type {
     {
       IDID: TypeTree.mk('id', Type.lit(ID.type)),
       pathID: TypeTree.mk('path', Type.lit(List.type(ID.type))),
-      propertiesID: TypeTree.mk('properties', Type.lit(List.type(TypeProperty.type))),
+      propertiesID: TypeTree.mk('properties', Type.lit(Map.type(ID.type, unit))),
     },
     id: _typeID,
   );
@@ -669,12 +663,12 @@ abstract class Type {
   static Object mk(
     ID id, {
     DartList path = const [],
-    DartList properties = const [],
+    DartMap properties = const {},
   }) =>
       Dict({
         IDID: id,
         pathID: List.mk(path),
-        propertiesID: List.mk(properties),
+        propertiesID: Map.mk(properties),
       });
 
   static Object mkExpr(
@@ -687,31 +681,42 @@ abstract class Type {
         Dict({
           IDID: Literal.mk(ID.type, id),
           pathID: path ?? Literal.mk(List.type(ID.type), List.mk(const [])),
-          propertiesID: List.mkExpr(Type.lit(TypeProperty.type), properties),
+          propertiesID: Map.mkExpr(
+            Type.lit(ID.type),
+            Type.lit(unit),
+            [...properties.map((e) => Pair.mk(Literal.mk(ID.type, Pair.first(e)), Pair.second(e)))],
+          ),
         }),
       );
 
   static ID id(Object type) => (type as Dict)[IDID].unwrap! as ID;
   static Object path(Object type) => (type as Dict)[pathID].unwrap!;
-  static Object properties(Object type) => (type as Dict)[propertiesID].unwrap!;
+
+  static Dict properties(Object type) => Map.entries((type as Dict)[propertiesID].unwrap!);
+
   static Object memberEquals(Object type, dart.List<ID> path) {
-    return List.iterate(properties(type)).expand<Object>((property) {
-      if (TypeProperty.dataType(property) != MemberHas.type) return [];
-      final memberHas = TypeProperty.data(property);
-      if (MemberHas.path(memberHas) != List.mk(path)) return [];
-      final memberHasProp = MemberHas.property(memberHas);
-      if (TypeProperty.dataType(memberHasProp) != Equals.type) return [];
-      return [Equals.equalTo(TypeProperty.data(memberHasProp))];
-    }).first;
+    assert(path.length == 1);
+    return properties(type)[path.first].unwrap!;
   }
 
   static Iterable<Object> exprIterateProperties(Ctx ctx, Object typeExpr) {
     final properties = reduce(ctx, RecordAccess.mk(typeExpr, Type.propertiesID));
     if (Expr.dataType(properties) == Literal.type) {
-      return List.iterate(Literal.getValue(Expr.data(properties)))
-          .map((e) => Literal.mk(TypeProperty.type, e));
-    } else if (Expr.dataType(properties) == Type.mk(List.mkExprTypeDefID)) {
-      return List.iterate(List.mkExprValues(Expr.data(properties)));
+      final id = Literal.getValue(Expr.data(reduce(ctx, RecordAccess.mk(typeExpr, Type.IDID))));
+      final typeTree = TypeDef.tree(ctx.getType(id as ID));
+      return Map.entries(Literal.getValue(Expr.data(properties))).entries.map(
+            (e) => Pair.mk(
+              Literal.mk(ID.type, e.key),
+              Literal.mk(
+                Literal.getValue(
+                  Expr.data(TypeTree.unwrapLeaf(TypeTree.find(typeTree, e.key as ID)!)),
+                ),
+                e.value,
+              ),
+            ),
+          );
+    } else if (Expr.dataType(properties) == Map.mkType) {
+      return Map.mkExprEntries(Expr.data(properties));
     } else {
       throw UnimplementedError(
         "Type.exprIterateProperties on non literal or construct: ${Type.id(Expr.dataType(typeExpr))}",
@@ -720,31 +725,11 @@ abstract class Type {
   }
 
   static Object exprMemberEquals(Ctx ctx, Object typeExpr, dart.List<ID> path) {
-    return exprIterateProperties(ctx, typeExpr).expand<Object>((property) {
-      if (TypeProperty.exprDataType(ctx, property) != MemberHas.type) {
-        return [];
-      }
-      final memberHas = reduce(ctx, RecordAccess.mk(property, TypeProperty.dataID));
-      if (reduce(ctx, RecordAccess.mk(memberHas, MemberHas.pathID)) !=
-          Literal.mk(List.type(ID.type), List.mk(path))) return [];
-      final memberHasProp = reduce(ctx, RecordAccess.mk(memberHas, MemberHas.propertyID));
-      if (TypeProperty.exprDataType(ctx, memberHasProp) != Equals.type) {
-        return [];
-      }
-      return [
-        reduce(
-          ctx,
-          RecordAccess.mk(RecordAccess.mk(memberHasProp, TypeProperty.dataID), Equals.equalToID),
-        )
-      ];
-    }).first;
-  }
-
-  static Object withProperty(Object type, Object property) {
-    return Type.mk(
-      Type.id(type),
-      path: [...List.iterate(Type.path(type))],
-      properties: [...List.iterate(Type.properties(type)), property],
+    assert(path.length == 1);
+    return Pair.second(
+      exprIterateProperties(ctx, typeExpr).firstWhere(
+        (property) => (Literal.getValue(Expr.data(Pair.first(property))) == path.first),
+      ),
     );
   }
 }
@@ -1011,6 +996,15 @@ abstract class TypeTree {
   static String name(Object typeTree) => (typeTree as Dict)[nameID].unwrap! as String;
   static Object tree(Object typeTree) => (typeTree as Dict)[treeID].unwrap!;
 
+  static Object unwrapLeaf(Object typeTree) {
+    return treeCases(
+      typeTree,
+      record: (_) => throw Error(),
+      union: (_) => throw Error(),
+      leaf: (_) => _,
+    );
+  }
+
   static T treeCases<T>(
     Object typeTree, {
     required T Function(Dict) record,
@@ -1044,24 +1038,10 @@ abstract class TypeTree {
     }
   }
 
-  static Object augmentTree(Object type, Object dataTree) {
-    Object augmentImpl(Dict dataTree, Iterable<Object> path, Object value) {
-      if (path.length == 1) {
-        return dataTree.put(path.single, value);
-      } else {
-        return dataTree.put(
-          path.first,
-          augmentImpl(dataTree[path.first].unwrap! as Dict, path.skip(1), value),
-        );
-      }
-    }
-
-    return MemberHas.eachEquals(type).entries.fold(
-          dataTree,
-          (dataTree, entry) =>
-              augmentImpl(dataTree as Dict, List.iterate(entry.key), Equals.equalTo(entry.value)),
-        );
-  }
+  static Object augmentTree(Object type, Object dataTree) => Type.properties(type).entries.fold(
+        dataTree,
+        (dataTree, entry) => (dataTree as Dict).put(entry.key, entry.value),
+      );
 
   static Ctx typeBindings(Ctx ctx, Object typeTree, [ID? id]) {
     return treeCases(
@@ -1302,9 +1282,9 @@ abstract class InterfaceDef {
       ImplDef.asImpl(Ctx.empty.withFnMap(langFnMap), ModuleDef.interfaceDef, moduleDefImplDef);
 
   static Object mkDef(Object def) => ModuleDef.mk(impl: moduleDefImpl, data: def);
-  static Object implType(Object interfaceDef, [DartList properties = const []]) =>
+  static Object implType(Object interfaceDef, [DartMap properties = const {}]) =>
       implTypeByID(InterfaceDef.id(interfaceDef), properties);
-  static Object implTypeByID(ID interfaceID, [DartList properties = const []]) =>
+  static Object implTypeByID(ID interfaceID, [DartMap properties = const {}]) =>
       Type.mk(innerTypeDefID(interfaceID), properties: properties);
   static Object implTypeExpr(Object interfaceDef, [DartList properties = const []]) =>
       implTypeExprByID(InterfaceDef.id(interfaceDef), properties);
@@ -1445,12 +1425,9 @@ abstract class Union {
         valueID: value,
       });
 
-  static Object type(DartList possibleTypes) => TypeDef.asType(def, properties: [
-        MemberHas.mk(
-          path: [possibleTypesID],
-          property: Equals.mk(List.type(Type.type), List.mk(possibleTypes)),
-        )
-      ]);
+  static Object type(DartList possibleTypes) => TypeDef.asType(def, properties: {
+        possibleTypesID: List.mk(possibleTypes),
+      });
 
   static T cases<T>(Object union, dart.Map<Object, T Function(Object)> types) {
     return types[(union as Dict)[thisTypeID].unwrap!]!(union[valueID].unwrap!);
@@ -1482,14 +1459,14 @@ abstract class Pair {
     id: const ID.constant(id: '25ccfe71-9c35-4ac8-9d4f-d169f6cef165', hashCode: 59087433),
   );
 
-  static Object type(Object first, Object second) => TypeDef.asType(def, properties: [
-        MemberHas.mkEquals([firstTypeID], Type.type, first),
-        MemberHas.mkEquals([secondTypeID], Type.type, second),
-      ]);
+  static Object type(Object first, Object second) => TypeDef.asType(def, properties: {
+        firstTypeID: first,
+        secondTypeID: second,
+      });
 
   static Object typeExpr(Object first, Object second) => Type.mkExpr(TypeDef.id(def), properties: [
-        MemberHas.mkEqualsExpr([firstTypeID], Type.lit(Type.type), first),
-        MemberHas.mkEqualsExpr([secondTypeID], Type.lit(Type.type), second),
+        Pair.mk(firstTypeID, first),
+        Pair.mk(secondTypeID, second),
       ]);
 
   static Object first(Object pair) => (pair as Dict)[firstID].unwrap!;
@@ -1536,12 +1513,10 @@ abstract class Option {
     comptime: [dataTypeID],
   );
 
-  static Object type(Object dataType) => Type.mk(typeDefID, properties: [
-        MemberHas.mk(path: [dataTypeID], property: Equals.mk(Type.type, dataType)),
-      ]);
+  static Object type(Object dataType) => Type.mk(typeDefID, properties: {dataTypeID: dataType});
 
   static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)), properties: [
-        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), dataType),
+        Pair.mk(dataTypeID, dataType),
       ]);
 
   static T cases<T>(
@@ -1616,12 +1591,10 @@ abstract class Result {
     comptime: [dataTypeID],
   );
 
-  static Object type(Object dataType) => Type.mk(typeDefID, properties: [
-        MemberHas.mk(path: [dataTypeID], property: Equals.mk(Type.type, dataType)),
-      ]);
+  static Object type(Object dataType) => Type.mk(typeDefID, properties: {dataTypeID: dataType});
 
   static Object typeExpr(Object dataType) => Type.mkExpr(Type.id(type(unit)), properties: [
-        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), dataType),
+        Pair.mk(dataTypeID, dataType),
       ]);
 
   static T cases<T>(
@@ -1635,8 +1608,12 @@ abstract class Result {
         : error(UnionTag.value(value) as String);
   }
 
-  static Object flatMap(Object result, Object Function(Object) f, [String errCtx = '']) =>
-      cases(result, ok: (val) => f(val), error: (err) => Result.mkErr(err.wrap(errCtx)));
+  static Object flatMap(Object result, Object Function(Object) f, [String errCtx = '']) {
+    final value = (result as Dict)[valueID].unwrap!;
+    return UnionTag.tag(value) == okID
+        ? f(UnionTag.value(value))
+        : Result.mkErr((UnionTag.value(value) as String).wrap(errCtx));
+  }
 
   static Object map(Object result, Object Function(Object) f, [String errCtx = '']) =>
       flatMap(result, (v) => Result.mkOk(f(v)), errCtx);
@@ -1867,12 +1844,10 @@ abstract class List {
     evalBody: _evalFn,
   );
 
-  static Object type(Object type) => Type.mk(typeDefID, properties: [
-        MemberHas.mk(path: [typeID], property: Equals.mk(Type.type, type)),
-      ]);
+  static Object type(Object type) => Type.mk(typeDefID, properties: {typeID: type});
 
   static Object typeExpr(Object type) => Type.mkExpr(typeDefID, properties: [
-        MemberHas.mkEqualsExpr([typeID], Type.lit(Type.type), type),
+        Pair.mk(typeID, type),
       ]);
 
   static Object mk(DartList values) => Dict({itemsID: Vec(values)});
@@ -1918,13 +1893,13 @@ abstract class OrderedMap {
     id: const ID.constant(id: '953d00a7-2287-458b-8ae4-ea7a39a60df7', hashCode: 323861333),
   );
 
-  static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
-        MemberHas.mkEquals([keyID], Type.type, key),
-        MemberHas.mkEquals([valueID], Type.type, value),
-      ]);
+  static Object type(Object key, Object value) => TypeDef.asType(def, properties: {
+        keyID: key,
+        valueID: value,
+      });
   static Object typeExpr(Object key, Object value) => Type.mkExpr(TypeDef.id(def), properties: [
-        MemberHas.mkEqualsExpr([keyID], Type.lit(Type.type), key),
-        MemberHas.mkEqualsExpr([valueID], Type.lit(Type.type), value),
+        Pair.mk(keyID, key),
+        Pair.mk(valueID, value),
       ]);
 
   static Object mk(dart.List<Object> keys, dart.List<Object> values) =>
@@ -1955,44 +1930,42 @@ abstract class Map {
     id: const ID.constant(id: '376258e5-bf48-4ced-b71d-cbdd91778f73', hashCode: 310697086),
   );
 
-  static Object type(Object key, Object value) => TypeDef.asType(def, properties: [
-        MemberHas.mkEquals([keyID], Type.type, key),
-        MemberHas.mkEquals([valueID], Type.type, value),
-      ]);
+  static Object type(Object key, Object value) => TypeDef.asType(def, properties: {
+        keyID: key,
+        valueID: value,
+      });
   static Object typeExpr(Object key, Object value) => Type.mkExpr(TypeDef.id(def), properties: [
-        MemberHas.mkEqualsExpr([keyID], Type.lit(Type.type), key),
-        MemberHas.mkEqualsExpr([valueID], Type.lit(Type.type), value),
+        Pair.mk(keyID, key),
+        Pair.mk(valueID, value),
       ]);
 
-  static Object mk(dart.Map<Object, Object> values) => Dict({entriesID: Dict(values)});
+  static Object mk(DartMap values) => Dict({entriesID: Dict(values)});
   static GetCursor<Object> mkCursor(dart.Map<Object, GetCursor<Object>> values) =>
       Dict.cursor({entriesID: Dict.cursor(values)});
 
   static const mkExprID =
-      ID.constant(id: '3ae0055e-6dd0-4b05-99bc-59d1c84e80ea', hashCode: 468893412, label: 'mkExpr');
+      ID.constant(id: '3e3c5f86-ff79-444a-9ca7-05477cd30dfe', hashCode: 523174215, label: 'MkMap');
 
-  static const mkKeyID =
-      ID.constant(id: '9d915b46-613e-4dac-8506-c8441ef1c749', hashCode: 410566295, label: 'mkKey');
+  static const mkKeyID = ID.constant(
+      id: 'c148ad39-1160-4b1a-a4d4-7af51045a311', hashCode: 167761593, label: 'keyType');
 
   static const mkValueID = ID.constant(
-      id: '5b914784-cc28-49e5-bf9d-20c51b732003', hashCode: 356481698, label: 'mkValue');
+      id: '2009febc-ee4b-4e26-a154-d5b0cbda03d4', hashCode: 302636205, label: 'valueType');
 
   static const mkEntriesID = ID.constant(
-      id: '34ba3fa8-c05b-4065-8574-60ff1af8a690', hashCode: 360165744, label: 'mkValues');
+      id: '70fff9ad-a27c-469b-87a1-21c8c6f2bd3f', hashCode: 117539178, label: 'entries');
 
   static final exprDataDef = TypeDef.record(
     'MkMap',
     {
-      mkKeyID: TypeTree.mk('key', Type.lit(Type.type)),
-      mkValueID: TypeTree.mk('value', Type.lit(Type.type)),
-      mkEntriesID: TypeTree.mk('entries', Type.lit(List.type(List.type(Expr.type)))),
+      mkKeyID: TypeTree.mk('key', Type.lit(Expr.type)),
+      mkValueID: TypeTree.mk('value', Type.lit(Expr.type)),
+      mkEntriesID: TypeTree.mk('entries', Type.lit(List.type(Pair.type(Expr.type, Expr.type)))),
     },
     id: mkExprID,
   );
   static final mkType = Type.mk(mkExprID);
 
-  static const mkExprImplDefID =
-      ID.constant(id: '670cb618-686f-48f9-85a5-731ddf72d405', hashCode: 93616803);
   static final mkExprImpl = Expr.mkImpl(
     dataType: mkType,
     argName: 'mkMapData',
@@ -2000,12 +1973,17 @@ abstract class Map {
     reduceBody: langInverseFnMap[_mkMapReduce]!,
     evalBody: langInverseFnMap[_mkMapEval]!,
   );
-  static Object mkExpr(Type key, Type value, Object entries) => Expr.mk(
+  static Object mkExpr(Object key, Object value, DartList entries) => Expr.mk(
         impl: mkExprImpl,
-        data: Dict({mkKeyID: key, mkValueID: value, mkEntriesID: entries}),
+        data: Dict({mkKeyID: key, mkValueID: value, mkEntriesID: List.mk(entries)}),
       );
 
   static Dict entries(Object map) => (map as Dict)[entriesID].unwrap! as Dict;
+
+  static Iterable<Object> mkExprEntries(Object mapExpr) =>
+      List.iterate((mapExpr as Dict)[mkEntriesID].unwrap!);
+  static Object mkKeyType(Object mapExpr) => (mapExpr as Dict)[mkKeyID].unwrap!;
+  static Object mkValueType(Object mapExpr) => (mapExpr as Dict)[mkValueID].unwrap!;
 }
 
 abstract class Any {
@@ -2124,11 +2102,11 @@ abstract class Fn {
     required Object argType,
     required Object returnType,
   }) =>
-      Type.mk(typeDefID, properties: [
-        MemberHas.mkEquals([argIDID], ID.type, argID),
-        MemberHas.mkEquals([argTypeID], Type.type, argType),
-        MemberHas.mkEquals([returnTypeID], typeExprType, returnType),
-      ]);
+      Type.mk(typeDefID, properties: {
+        argIDID: argID,
+        argTypeID: argType,
+        returnTypeID: returnType,
+      });
 
   static Object typeExpr({
     required ID argID,
@@ -2136,16 +2114,9 @@ abstract class Fn {
     required Object returnType,
   }) =>
       Type.mkExpr(typeDefID, properties: [
-        Literal.mk(
-          TypeProperty.type,
-          MemberHas.mkEquals([argIDID], ID.type, argID),
-        ),
-        MemberHas.mkEqualsExpr([argTypeID], Type.lit(Type.type), argType),
-        MemberHas.mkEqualsExpr(
-          [returnTypeID],
-          Type.lit(typeExprType),
-          Literal.mk(typeExprType, returnType),
-        ),
+        Pair.mk(argIDID, Literal.mk(ID.type, argID)),
+        Pair.mk(argTypeID, argType),
+        Pair.mk(returnTypeID, Literal.mk(typeExprType, returnType)),
       ]);
 
   static Object mk({
@@ -2806,17 +2777,15 @@ Object assignableErrFlat(
   Ctx ctx,
   Object a,
   Object b,
-  String errContext,
+  String errCtx,
   Object Function() ifAssignable,
 ) {
   if (assignableImpl(_initSubst(ctx), a, b)) {
     return ifAssignable();
   } else {
     final msg =
-        'expected:\n  ${palPrint(ctx, Expr.type, a)}\nactual:\n  ${palPrint(ctx, Expr.type, b)}';
-    return Result.mkErr(
-      errContext.isEmpty ? msg : '$errContext:\n${msg.indent}',
-    );
+        'expected:\n  ${(a as Dict).toStringDeep()}\nactual:\n  ${(b as Dict).toStringDeep()}';
+    return Result.mkErr(msg.wrap(errCtx));
   }
 }
 
@@ -2845,44 +2814,21 @@ bool assignableImpl(Ctx ctx, Object a, Object b) {
       return false;
     }
     if (Type.id(typeA) == Type.id(Type.type)) {
+      final aIDReduce = reduce(ctx, RecordAccess.mk(a, Type.IDID));
+      if (aIDReduce == Literal.mk(ID.type, Type.id(unit))) return true;
       if (reduce(ctx, RecordAccess.mk(a, Type.IDID)) !=
           reduce(ctx, RecordAccess.mk(b, Type.IDID))) {
         return false;
       }
       for (final propertyA in Type.exprIterateProperties(ctx, a)) {
-        if (TypeProperty.exprDataType(ctx, propertyA) == MemberHas.type) {
-          final memberHasA = reduce(ctx, RecordAccess.mk(propertyA, TypeProperty.dataID));
-          final pathA = Literal.getValue(Expr.data(
-            reduce(ctx, RecordAccess.mk(memberHasA, MemberHas.pathID)),
-          ));
-          // TODO: temporary hack til subtyping can be configured properly
-          if (List.iterate(pathA).last == Fn.argIDID) continue;
-          for (final propertyB in Type.exprIterateProperties(ctx, b)) {
-            if (TypeProperty.exprDataType(ctx, propertyB) == MemberHas.type) {
-              final memberHasB = reduce(ctx, RecordAccess.mk(propertyB, TypeProperty.dataID));
-              final pathB = Literal.getValue(Expr.data(
-                reduce(ctx, RecordAccess.mk(memberHasB, MemberHas.pathID)),
-              ));
-              if (pathA != pathB) continue;
-              final equalsA = reduce(
-                ctx,
-                RecordAccess.chain(memberHasA, [MemberHas.propertyID, TypeProperty.dataID]),
-              );
-              final equalsB = reduce(
-                ctx,
-                RecordAccess.chain(memberHasB, [MemberHas.propertyID, TypeProperty.dataID]),
-              );
-              if (!assignableImpl(ctx, equalsA, equalsB)) return false;
-            } else {
-              throw UnimplementedError(
-                'assignableImpl for type property ${TypeProperty.exprDataType(ctx, propertyA)}',
-              );
-            }
+        // TODO: temporary hack til subtyping can be configured properly
+        if (Literal.getValue(Expr.data(Pair.first(propertyA))) == Fn.argIDID) continue;
+        for (final propertyB in Type.exprIterateProperties(ctx, b)) {
+          if (Literal.getValue(Expr.data(Pair.first(propertyA))) !=
+              Literal.getValue(Expr.data(Pair.first(propertyB)))) {
+            continue;
           }
-        } else {
-          throw UnimplementedError(
-            'assignableImpl for type property ${TypeProperty.exprDataType(ctx, propertyA)}',
-          );
+          if (!assignableImpl(ctx, Pair.second(propertyA), Pair.second(propertyB))) return false;
         }
       }
       return true;
@@ -2975,7 +2921,17 @@ bool occurs(Ctx ctx, ID a, Object b) {
       (prev, _, dataLeaf, __) => prev || occurs(ctx, a, dataLeaf),
     );
   } else if (Expr.dataType(b) == List.mkExprType) {
-    return List.iterate(List.mkExprValues(Expr.data(b))).any((subExpr) => occurs(ctx, a, subExpr));
+    return [List.mkExprDataType(Expr.data(b)), ...List.iterate(List.mkExprValues(Expr.data(b)))]
+        .any((subExpr) => occurs(ctx, a, subExpr));
+  } else if (Expr.dataType(b) == Map.mkType) {
+    return [
+      Map.mkKeyType(Expr.data(b)),
+      Map.mkValueType(Expr.data(b)),
+      for (final entry in Map.mkExprEntries(Expr.data(b))) ...[
+        Pair.first(entry),
+        Pair.second(entry)
+      ]
+    ].any((subExpr) => occurs(ctx, a, subExpr));
   } else {
     throw Exception('occurs not implemented for expr ${Expr.dataType(b)}');
   }
@@ -3001,7 +2957,8 @@ dart.Set<ID> freeVars(Ctx ctx, Object expr) {
       },
     );
   } else if (Expr.dataType(expr) == List.mkExprType) {
-    return List.iterate(List.mkExprValues(Expr.data(expr)))
+    final listExpr = Expr.data(expr);
+    return [List.mkExprDataType(listExpr), ...List.iterate(List.mkExprValues(listExpr))]
         .fold(const {}, (prev, subExpr) => prev.union(freeVars(ctx, subExpr)));
   } else if (Expr.dataType(expr) == FnApp.type) {
     return freeVars(ctx, FnApp.fn(Expr.data(expr)))
@@ -3020,6 +2977,13 @@ dart.Set<ID> freeVars(Ctx ctx, Object expr) {
     final argVar = {FnExpr.argID(Expr.data(expr))};
     final argTypeVars = freeVars(ctx, FnExpr.argType(Expr.data(expr)));
     return bodyVars.union(returnTypeVars).difference(argVar).union(argTypeVars);
+  } else if (Expr.dataType(expr) == Map.mkType) {
+    final mapExpr = Expr.data(expr);
+    return [
+      Map.mkKeyType(mapExpr),
+      Map.mkValueType(mapExpr),
+      for (final entry in Map.mkExprEntries(mapExpr)) ...[Pair.first(entry), Pair.second(entry)]
+    ].fold(const {}, (prev, subExpr) => prev.union(freeVars(ctx, subExpr)));
   } else {
     throw Exception('freeVars not implemented for expr ${Expr.dataType(expr)}');
   }
@@ -3051,6 +3015,14 @@ Object varSubst(Ctx ctx, ID fromID, ID toID, Object expr) {
       varSubst(ctx, fromID, toID, List.mkExprDataType(exprData)),
       [...List.iterate(List.mkExprValues(exprData)).map((e) => varSubst(ctx, fromID, toID, e))],
     );
+  } else if (exprType == Map.mkType) {
+    return Map.mkExpr(varSubst(ctx, fromID, toID, Map.mkKeyType(exprData)),
+        varSubst(ctx, fromID, toID, Map.mkValueType(exprData)), [
+      ...Map.mkExprEntries(exprData).map(
+        (e) => Pair.mk(varSubst(ctx, fromID, toID, Pair.first(e)),
+            varSubst(ctx, fromID, toID, Pair.second(e))),
+      ),
+    ]);
   } else {
     throw UnimplementedError('subst on expr type $exprType');
   }
@@ -3153,24 +3125,23 @@ Object eval(Ctx ctx, Object expr) {
   final data = Expr.data(expr);
   final dataType = Expr.dataType(expr);
   final evalExprData = Expr.evalExpr(expr);
-  return Fn.bodyCases(
-    evalExprData,
-    pal: (bodyExpr) {
-      return eval(
-        ctx.withBinding(Binding.mk(
-          id: Fn.argID(evalExprData),
-          // TODO: this is wronggg?
-          type: Result.mkOk(Type.lit(dataType)),
-          name: Fn.argName(evalExprData),
-          value: data,
-        )),
-        bodyExpr,
-      );
-    },
-    dart: (bodyFn) {
-      return ctx.getFn(bodyFn)(ctx, data);
-    },
-  );
+  final body = (evalExprData as Dict)[Fn.bodyID].unwrap!;
+  if (UnionTag.tag(body) == Fn.palID) {
+    return eval(
+      ctx.withBinding(Binding.mk(
+        id: Fn.argID(evalExprData),
+        // TODO: this is wronggg?
+        type: Result.mkOk(Type.lit(dataType)),
+        name: Fn.argName(evalExprData),
+        value: data,
+      )),
+      UnionTag.value(body),
+    );
+  } else if (UnionTag.tag(body) == Fn.dartID) {
+    return ctx.getFn(UnionTag.value(body) as ID)(ctx, data);
+  } else {
+    throw Exception('unknown FnValue body tag ${UnionTag.tag(body)}');
+  }
 }
 
 const _visitedID =
@@ -3201,6 +3172,30 @@ Object typeCheck(Ctx ctx, Object expr) => eval(
       ctx,
       FnApp.mk(Expr.typeCheckFn, Literal.mk(Expr.type, expr)),
     );
+
+Object typeCheckExpect(
+  Ctx ctx,
+  Object expr,
+  Object expected,
+  String errCtx,
+  Object Function() ifAssignable,
+) {
+  return Result.flatMap(
+    typeCheck(ctx, expr),
+    (typeExpr) => assignableErrFlat(ctx, expected, typeExpr, errCtx, ifAssignable),
+    errCtx,
+  );
+}
+
+Object checkReduceType(Ctx ctx, Object typeExpr, String errCtx, Object Function(Object) f) {
+  return typeCheckExpect(
+    ctx,
+    typeExpr,
+    Type.lit(Type.type),
+    errCtx,
+    () => f(reduce(ctx, typeExpr)),
+  );
+}
 
 Object? _toEncodable(dynamic arg) {
   if (arg is Dict) {
@@ -3397,7 +3392,7 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                 Type.lit((targetType as Dict).put(Type.pathID, List.add(path, member))),
               ),
               leaf: (leafNode) {
-                final eachEquals = MemberHas.eachEquals(targetType);
+                final eachEquals = Type.properties(targetType);
                 Iterable<Object> bindings(DartList path, Object typeTree) {
                   return TypeTree.treeCases(
                     typeTree,
@@ -3406,12 +3401,12 @@ Object _recordAccessTypeCheck(Ctx ctx, Object arg) {
                     ),
                     union: (union) => [],
                     leaf: (leaf) => [
-                      eachEquals[List.mk(path)].cases(
+                      eachEquals[path.last].cases(
                         some: (value) => Binding.mk(
                           id: path.last as ID,
-                          type: Result.mkOk(Type.lit(Equals.dataType(value))),
+                          type: Result.mkOk(reduce(ctx, leaf)),
                           name: TypeTree.name(typeTree),
-                          value: Equals.equalTo(value),
+                          value: value,
                         ),
                         none: () {
                           return Binding.mkLazy(
@@ -3485,7 +3480,7 @@ Object _constructReduce(Ctx ctx, Object arg) {
 Object _constructTypeCheck(Ctx origCtx, Object arg) {
   final typeDef = origCtx.getType(Type.id(Construct.dataType(arg)));
 
-  final computedProps = <Object>[];
+  final DartList computedProps = [];
   DartList lazyBindings(Object typeTree, Object dataTree, Object path) {
     return TypeTree.treeCases(
       typeTree,
@@ -3549,10 +3544,10 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
 
         computeValue(Ctx ctx) {
           if (lazyValue == null) {
-            final dataType = Result.unwrap(computeType(ctx));
+            Result.unwrap(computeType(ctx), MyException.throwFn);
             lazyValue = reduce(origCtx, dataTree);
             computedProps.add(
-              MemberHas.mkEqualsExpr([...List.iterate(path)], dataType, lazyValue!),
+              Pair.mk(List.iterate(path).last as ID, lazyValue!),
             );
           }
           return lazyValue!;
@@ -3592,9 +3587,9 @@ Object _constructTypeCheck(Ctx origCtx, Object arg) {
 Object _fnAppEval(Ctx ctx, Object data) {
   final fn = eval(ctx, FnApp.fn(data));
   final arg = eval(ctx, FnApp.arg(data));
-  return Fn.bodyCases(
-    fn,
-    pal: (body) => eval(
+  final body = (fn as Dict)[Fn.bodyID].unwrap!;
+  if (UnionTag.tag(body) == Fn.palID) {
+    return eval(
       Fn.closure(fn).followedBy([
         Binding.mk(
           id: Fn.argID(fn),
@@ -3603,10 +3598,13 @@ Object _fnAppEval(Ctx ctx, Object data) {
           value: arg,
         )
       ]).fold(ctx, (ctx, binding) => ctx.withBinding(binding)),
-      body,
-    ),
-    dart: (body) => ctx.getFn(body)(ctx, arg),
-  );
+      UnionTag.value(body),
+    );
+  } else if (UnionTag.tag(body) == Fn.dartID) {
+    return ctx.getFn(UnionTag.value(body) as ID)(ctx, arg);
+  } else {
+    throw Exception('unknown FnValue body tag ${UnionTag.tag(body)}');
+  }
 }
 
 @DartFn('64923943-f567-44dd-afb9-bf8a28ea7719')
@@ -3806,30 +3804,57 @@ Object _fnExprTypeCheck(Ctx ctx, Object fn) {
 }
 
 @DartFn('19e1d36f-81f1-4c8e-bfc5-69cbde60bd8a')
-Object _mkMapEval(Ctx ctx, Object arg) => Dict({
-      for (final entry in List.iterate((arg as Dict)[Map.mkEntriesID].unwrap!))
-        eval(ctx, List.iterate(entry).first): eval(ctx, List.iterate(entry).skip(1).first)
+Object _mkMapEval(Ctx ctx, Object arg) => Map.mk({
+      for (final entry in Map.mkExprEntries(arg))
+        eval(ctx, Pair.first(entry)): eval(ctx, Pair.second(entry))
     });
 
 @DartFn('7fa732c0-a61d-4e43-94e4-c4fafe04d254')
 Object _mkMapReduce(Ctx ctx, Object arg) {
-  throw Exception('reduce map expr not yet implemented!');
+  final reducedKey = reduce(ctx, Map.mkKeyType(arg));
+  final reducedValue = reduce(ctx, Map.mkValueType(arg));
+  final reducedEntries = [
+    for (final entry in Map.mkExprEntries(arg))
+      Pair.mk(reduce(ctx, Pair.first(entry)), reduce(ctx, Pair.second(entry)))
+  ];
+  final nonLit = [
+    reducedKey,
+    reducedValue,
+    for (final entry in reducedEntries) ...[
+      Pair.first(entry),
+      Pair.second(entry),
+    ],
+  ].any((expr) => Expr.dataType(expr) != Literal.type);
+  if (nonLit) return Map.mkExpr(reducedKey, reducedValue, reducedEntries);
+
+  return Literal.mk(
+    Map.type(Literal.getValue(Expr.data(reducedKey)), Literal.getValue(Expr.data(reducedValue))),
+    Map.mk({
+      for (final entry in reducedEntries)
+        Literal.getValue(Expr.data(Pair.first(entry))):
+            Literal.getValue(Expr.data(Pair.second(entry)))
+    }),
+  );
 }
 
 @DartFn('7f2c7445-867b-4d44-afae-040ee700bff6')
 Object _mkMapTypeCheck(Ctx ctx, Object arg) {
-  final keyType = (arg as Dict)[Map.mkKeyID].unwrap!;
-  final valueType = arg[Map.mkValueID].unwrap!;
-
-  for (final entry in List.iterate(arg[Map.mkEntriesID].unwrap!)) {
-    if (typeCheck(ctx, List.iterate(entry).first) != Result.mkOk(keyType)) {
-      return Result.mkErr('map key does not match key type');
-    }
-    if (typeCheck(ctx, List.iterate(entry).skip(1).first) != Result.mkOk(valueType)) {
-      return Result.mkErr('map value does not match value type');
-    }
-  }
-  return Result.mkOk(Map.type(keyType, valueType));
+  return checkReduceType(ctx, Map.mkKeyType(arg), 'map expr key type', (keyType) {
+    return checkReduceType(ctx, Map.mkValueType(arg), 'map expr value type', (valueType) {
+      final init =
+          {Expr.dataType(keyType), Expr.dataType(valueType)}.difference({Literal.type}).isEmpty
+              ? Type.lit(Map.type(
+                  Literal.getValue(Expr.data(keyType)),
+                  Literal.getValue(Expr.data(valueType)),
+                ))
+              : Map.typeExpr(keyType, valueType);
+      return Map.mkExprEntries(arg).fold(Result.mkOk(init), (result, pair) {
+        return typeCheckExpect(ctx, Pair.first(pair), keyType, 'map key', () {
+          return typeCheckExpect(ctx, Pair.second(pair), valueType, 'map value', () => result);
+        });
+      });
+    });
+  });
 }
 
 @DartFn('d755250f-c583-4d96-84da-f4c0a6bdd823')
@@ -3906,7 +3931,7 @@ Object _textAppend(Ctx ctx, Object arg) {
 }
 
 extension Indent on String {
-  String get indent => splitMapJoin('\n', onNonMatch: (s) => s.padLeft(2));
+  String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String wrap(String ctx) => ctx.isEmpty ? this : '$ctx:\n$indent';
 }
 

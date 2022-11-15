@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Placeholder;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec;
+import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec, Pair;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' as reified;
 import 'package:knose/annotations.dart';
 import 'package:knose/infra_widgets.dart';
@@ -38,13 +38,10 @@ abstract class PalCursor {
     comptime: [dataTypeID],
   );
 
-  static Object type(Object type) => Type.mk(defID, properties: [
-        MemberHas.mkEquals([dataTypeID], Type.type, type)
-      ]);
+  static Object type(Object type) => Type.mk(defID, properties: {dataTypeID: type});
 
-  static Object typeExpr(Object type) => Type.mkExpr(defID, properties: [
-        MemberHas.mkEqualsExpr([dataTypeID], Type.lit(Type.type), type)
-      ]);
+  static Object typeExpr(Object type) =>
+      Type.mkExpr(defID, properties: [reified.Pair(dataTypeID, type)]);
 
   static Object mk(Cursor<Object> cursor) => Dict({cursorID: cursor});
 
@@ -106,13 +103,9 @@ Object _editorFn(Ctx ctx, Object arg) {
     dispatch(
       ctx,
       InterfaceDef.id(Editable.interfaceDef),
-      InterfaceDef.implType(Editable.interfaceDef, [
-        MemberHas.mkEquals(
-          [Editable.dataTypeID],
-          Type.type,
-          (arg as Dict)[editorArgsDataTypeID].unwrap!,
-        )
-      ]),
+      InterfaceDef.implType(Editable.interfaceDef, {
+        Editable.dataTypeID: (arg as Dict)[editorArgsDataTypeID].unwrap!,
+      }),
     ),
   );
 
@@ -391,33 +384,33 @@ Widget _testThingy(Ctx ctx) {
         )),
         child: const Text('select module'),
       ),
-      ReaderWidget(
-        ctx: ctx,
-        builder: (_, ctx) {
-          final expr = useCursor(placeholder);
-          final typeResult = typeCheck(moduleCtx.read(ctx), expr.read(ctx));
+      // ReaderWidget(
+      //   ctx: ctx,
+      //   builder: (_, ctx) {
+      //     final expr = useCursor(placeholder);
+      //     final typeResult = typeCheck(moduleCtx.read(ctx), expr.read(ctx));
 
-          return Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(border: Border.all()),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('playground'),
-                PalScaffold(ExprEditor(moduleCtx.read(ctx), expr)),
-                Result.cases(
-                  typeResult,
-                  error: (msg) => Text(msg),
-                  ok: (type) => Text(
-                    'result: ${palPrint(moduleCtx.read(ctx), Literal.getValue(Expr.data(type)), eval(moduleCtx.read(ctx), expr.read(ctx)))}',
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      //     return Container(
+      //       padding: const EdgeInsets.all(10),
+      //       decoration: BoxDecoration(border: Border.all()),
+      //       child: Column(
+      //         mainAxisSize: MainAxisSize.min,
+      //         crossAxisAlignment: CrossAxisAlignment.start,
+      //         children: [
+      //           const Text('playground'),
+      //           PalScaffold(ExprEditor(moduleCtx.read(ctx), expr)),
+      //           Result.cases(
+      //             typeResult,
+      //             error: (msg) => Text(msg),
+      //             ok: (type) => Text(
+      //               'result: ${palPrint(moduleCtx.read(ctx), Literal.getValue(Expr.data(type)), eval(moduleCtx.read(ctx), expr.read(ctx)))}',
+      //             ),
+      //           ),
+      //         ],
+      //       ),
+      //     );
+      //   },
+      // ),
       for (final module in modules.values(ctx))
         if (Option.mk(module[Module.IDID].read(ctx)) == currentModule.read(ctx))
           Expanded(
@@ -887,6 +880,8 @@ Widget _exprEditor(
         ),
       ),
     );
+  } else if (exprType == Map.mkType) {
+    return const Text('mapExpr');
   } else {
     throw Exception('unknown expr!! ${expr.read(ctx)}');
   }
@@ -2019,7 +2014,86 @@ abstract class Migration {
   String toString() => runtimeType.toString();
 }
 
-final migrations = [FixDotPlaceholder(), ImplNames(), ValueDefNameToFn(), WrapListMkExprTypes()];
+final migrations = [
+  TypeProperties(),
+  FixDotPlaceholder(),
+  ImplNames(),
+  ValueDefNameToFn(),
+  WrapListMkExprTypes(),
+];
+
+class TypeProperties extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is! Dict || !obj.containsKey(Type.propertiesID)) return obj;
+
+    final properties = obj[Type.propertiesID].unwrap! as Dict;
+    if (properties.containsKey(TypeTree.treeID)) {
+      return obj.put(
+        Type.propertiesID,
+        TypeTree.mk('properties', Type.lit(Map.type(ID.type, unit))),
+      ) as T;
+    } else if (properties.containsKey(List.itemsID)) {
+      return obj.put(
+        Type.propertiesID,
+        Map.mk({
+          for (final prop in List.iterate(properties))
+            List.iterate(MemberHas.path(TypeProperty.data(prop))).first:
+                Equals.equalTo(TypeProperty.data(MemberHas.property(TypeProperty.data(prop))))
+        }),
+      ) as T;
+    } else if (properties.containsKey(Expr.dataID)) {
+      late final Object newProperties;
+      if (Expr.dataType(properties) == Literal.type) {
+        newProperties = Literal.mk(
+          Type.lit(Map.type(ID.type, unit)),
+          Map.mk({
+            for (final prop in List.iterate(Literal.getValue(Expr.data(properties))))
+              List.iterate(MemberHas.path(TypeProperty.data(prop))).first:
+                  Equals.equalTo(TypeProperty.data(MemberHas.property(TypeProperty.data(prop))))
+          }),
+        );
+      } else if (Expr.dataType(properties) == List.mkExprType) {
+        final propExprs = List.iterate(List.mkExprValues(Expr.data(properties)));
+
+        newProperties = Map.mkExpr(Type.lit(ID.type), Type.lit(unit), [
+          ...propExprs.map((propExpr) {
+            if (Expr.dataType(propExpr) == Literal.type) {
+              final prop = Literal.getValue(Expr.data(propExpr));
+              final equals = TypeProperty.data(MemberHas.property(TypeProperty.data(prop)));
+              return Pair.mk(
+                Literal.mk(ID.type, List.iterate(MemberHas.path(TypeProperty.data(prop))).first),
+                Literal.mk(Equals.dataType(equals), Equals.equalTo(equals)),
+              );
+            } else if (Expr.dataType(propExpr) == Construct.type) {
+              final memberHasExpr = TypeProperty.data(Construct.tree(Expr.data(propExpr)));
+              final pathExpr = MemberHas.path(Construct.tree(Expr.data(memberHasExpr)));
+              final equalsPropExpr = MemberHas.property(Construct.tree(Expr.data(memberHasExpr)));
+              final equalsExpr = TypeProperty.data(Construct.tree(Expr.data(equalsPropExpr)));
+              return Pair.mk(
+                Literal.mk(ID.type, List.iterate(Literal.getValue(Expr.data(pathExpr))).first),
+                Equals.equalTo(Construct.tree(Expr.data(equalsExpr))),
+              );
+            } else {
+              throw UnimplementedError();
+            }
+          })
+        ]);
+      } else {
+        throw UnimplementedError('unknown properties expr:\n${properties.toStringDeep()}');
+      }
+
+      return obj.put(Type.propertiesID, newProperties) as T;
+    } else {
+      throw UnimplementedError();
+    }
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    throw UnimplementedError();
+  }
+}
 
 class FixDotPlaceholder extends Migration {
   @override

@@ -1,10 +1,15 @@
 import 'package:ctx/ctx.dart';
+import 'package:knose/src/pal2/print.dart';
 import 'package:test/test.dart';
 import 'package:knose/src/pal2/lang.dart';
 
 void main() async {
   final coreModule = await Module.loadFromFile('core');
-  late final coreCtx = Module.load(Ctx.empty.withFnMap(langFnMap), [coreModule]);
+  final printModule = await Module.loadFromFile('Print');
+  late final coreCtx = Module.load(
+    Ctx.empty.withFnMap(langFnMap).withFnMap(Printable.fnMap),
+    [coreModule, printModule],
+  );
 
   test('load core module', () {
     expect(coreCtx, isNotNull);
@@ -154,9 +159,7 @@ void main() async {
 
     final expr = RecordAccess.mk(
       Literal.mk(
-        InterfaceDef.implType(interfaceDef, [
-          MemberHas.mkEquals([dataTypeID], Type.type, number)
-        ]),
+        InterfaceDef.implType(interfaceDef, {dataTypeID: number}),
         impl,
       ),
       valueID,
@@ -204,9 +207,7 @@ void main() async {
     final maybeLiteral = dispatch(
       coreCtx,
       Expr.interfaceID,
-      InterfaceDef.implType(Expr.interfaceDef, [
-        MemberHas.mkEquals([Expr.dataTypeID], Type.type, Literal.type),
-      ]),
+      InterfaceDef.implType(Expr.interfaceDef, {Expr.dataTypeID: Literal.type}),
     );
 
     expect(Option.isPresent(maybeLiteral), isTrue);
