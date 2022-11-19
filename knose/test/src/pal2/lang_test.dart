@@ -80,7 +80,7 @@ void main() async {
     final result5 =
         eval(testCtx, FnApp.mk(typeCheckFn, Literal.mk(Expr.type, Literal.mk(number, 0))));
     expect(Result.isOk(result5), isTrue);
-    expect(assignable(testCtx, Type.lit(number), Result.unwrap(result5)), isTrue);
+    expect(Result.isOk(assignable(testCtx, Type.lit(number), Result.unwrap(result5))), isTrue);
   });
 
   test('RecordAccess + Literal', () {

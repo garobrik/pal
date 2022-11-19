@@ -2214,8 +2214,8 @@ abstract class FnTypeExpr extends Expr {
   static const returnTypeID = ID.constant(
       id: '262d465b-3554-4e00-b201-d7832901400a', hashCode: 215239397, label: 'returnType');
 
-  static const typeDefID =
-      ID.constant(id: '6276ccd4-5c8a-476b-8de5-f0f047330514', hashCode: 398154425, label: 'FnExpr');
+  static const typeDefID = ID.constant(
+      id: '6276ccd4-5c8a-476b-8de5-f0f047330514', hashCode: 398154425, label: 'FnTypeExpr');
 
   static final typeDef = TypeDef.record(
     'FnTypeExpr',
@@ -2653,11 +2653,12 @@ Ctx _initSubst(Ctx ctx) {
 
 dart.Map<ID, Object>? assignableSubst(Ctx ctx, Object a, Object b) {
   ctx = _initSubst(ctx);
-  if (assignableImpl(ctx, a, b)) return _subst(ctx);
+  if (Result.isOk(assignableImpl(ctx, a, b, false))) return _subst(ctx);
   return null;
 }
 
-bool assignable(Ctx ctx, Object a, Object b) => assignableImpl(_initSubst(ctx), a, b);
+Object assignable(Ctx ctx, Object a, Object b, [bool detailed = true]) =>
+    assignableImpl(_initSubst(ctx), a, b, detailed);
 
 Object assignableErr(
   Ctx ctx,
@@ -2675,109 +2676,144 @@ Object assignableErrFlat(
   String errCtx,
   Object Function() ifAssignable,
 ) {
-  if (assignableImpl(_initSubst(ctx), a, b)) {
-    return ifAssignable();
-  } else {
-    final msg =
-        'expected:\n  ${(a as Dict).toStringDeep()}\nactual:\n  ${(b as Dict).toStringDeep()}';
-    return Result.mkErr(msg.wrap(errCtx));
-  }
+  return Result.flatMap(assignable(_initSubst(ctx), a, b), (_) => ifAssignable(), errCtx);
 }
 
-bool assignableImpl(Ctx ctx, Object a, Object b) {
+Object assignableImpl(Ctx ctx, Object a, Object b, bool detailed) {
   if (a == b) {
-    return true;
+    return Result.mkOk(unitValue);
   } else if ({RecordAccess.type, Var.type}.contains(Expr.dataType(a))) {
     if (_subst(ctx).containsKey(_exprToBindingID(a))) {
-      return assignableImpl(ctx, _subst(ctx)[a]!, b);
+      return assignableImpl(ctx, _subst(ctx)[_exprToBindingID(a)]!, b, detailed);
     }
     if ({RecordAccess.type, Var.type}.contains(Expr.dataType(b))) {
       if (_subst(ctx).containsKey(_exprToBindingID(b))) {
-        return assignableImpl(ctx, a, _subst(ctx)[b]!);
+        return assignableImpl(ctx, a, _subst(ctx)[_exprToBindingID(b)]!, detailed);
       }
     }
-    if (occurs(ctx, _exprToBindingID(a), b)) return false;
+    if (occurs(ctx, _exprToBindingID(a), b)) return Result.mkErr('a occurs in b');
     _subst(ctx)[_exprToBindingID(a)] = b;
-    return true;
+    return Result.mkOk(unitValue);
   } else if ({RecordAccess.type, Var.type}.contains(Expr.dataType(b))) {
-    return false;
+    return Result.mkErr('b cannot contain vars');
   } else if ({Literal.type, Construct.type}.contains(Expr.dataType(a))) {
-    if (!{Literal.type, Construct.type}.contains(Expr.dataType(b))) return false;
+    if (!{Literal.type, Construct.type}.contains(Expr.dataType(b))) {
+      return Result.mkErr('cannot compute non-lit/const assignability to lit/constr');
+    }
     final typeA = _litOrConsType(a);
     final typeB = _litOrConsType(a);
-    if (!assignableImpl(ctx, Type.lit(typeA), Type.lit(typeB))) {
-      return false;
-    }
-    if (Type.id(typeA) == Type.id(Type.type)) {
-      final aIDReduce = reduce(ctx, RecordAccess.mk(a, Type.IDID));
-      if (aIDReduce == Literal.mk(ID.type, Type.id(unit))) return true;
-      if (reduce(ctx, RecordAccess.mk(a, Type.IDID)) !=
-          reduce(ctx, RecordAccess.mk(b, Type.IDID))) {
-        return false;
-      }
-      for (final propertyA in Type.exprIterateProperties(ctx, a)) {
-        // TODO: temporary hack til subtyping can be configured properly
-        if (Literal.getValue(Expr.data(Pair.first(propertyA))) == Fn.argIDID) continue;
-        for (final propertyB in Type.exprIterateProperties(ctx, b)) {
-          if (Literal.getValue(Expr.data(Pair.first(propertyA))) !=
-              Literal.getValue(Expr.data(Pair.first(propertyB)))) {
-            continue;
-          }
-          if (!assignableImpl(ctx, Pair.second(propertyA), Pair.second(propertyB))) return false;
-        }
-      }
-      return true;
-    } else {
-      final typeDef = ctx.getType(Type.id(typeA));
-      Object wrapTree(Ctx ctx, Object expr) {
-        if (Expr.dataType(expr) == Construct.type) return Construct.tree(Expr.data(expr));
-        ctx = TypeTree.foldData<DartList>(
-          [],
-          TypeDef.tree(typeDef),
-          Literal.getValue(Expr.data(expr)),
-          (bindings, typeLeaf, dataLeaf, path) => [
-            ...bindings,
-            Binding.mk(id: (path.last as ID), type: null, name: '', value: dataLeaf)
-          ],
-        ).fold(ctx, (ctx, binding) => ctx.withBinding(binding));
-
-        return TypeTree.mapData(
-          TypeDef.tree(typeDef),
-          Literal.getValue(Expr.data(expr)),
-          (typeLeaf, dataLeaf, path) => Literal.mk(eval(ctx, typeLeaf), dataLeaf),
-        );
-      }
-
-      bool recurse(Object typeTree, Object aData, Object bData) {
-        return TypeTree.treeCases(
-          typeTree,
-          record: (record) => record.entries.every(
-            (entry) => recurse(
-              entry.value,
-              (aData as Dict)[entry.key].unwrap!,
-              (bData as Dict)[entry.key].unwrap!,
-            ),
-          ),
-          union: (union) {
-            if (UnionTag.tag(aData) != UnionTag.tag(bData)) return false;
-            return recurse(
-              union[UnionTag.tag(aData)].unwrap!,
-              UnionTag.value(aData),
-              UnionTag.value(bData),
+    return Result.flatMap(
+      assignableImpl(ctx, Type.lit(typeA), Type.lit(typeB), detailed),
+      (_) {
+        if (Type.id(typeA) == Type.id(Type.type)) {
+          final aIDReduce = reduce(ctx, RecordAccess.mk(a, Type.IDID));
+          if (aIDReduce == Literal.mk(ID.type, Type.id(unit))) return Result.mkOk(unitValue);
+          if (reduce(ctx, RecordAccess.mk(a, Type.IDID)) !=
+              reduce(ctx, RecordAccess.mk(b, Type.IDID))) {
+            return Result.mkErr(
+              detailed
+                  ? 'expected:\n  ${palPrint(ctx, Expr.type, a)}\nactual:\n  ${palPrint(ctx, Expr.type, b)}'
+                  : 'expected:\n  ${(a as Dict).toStringDeep()}\nactual:\n  ${(b as Dict).toStringDeep()}',
             );
-          },
-          leaf: (leaf) {
-            return assignableImpl(ctx, aData, bData);
-          },
-        );
-      }
+          }
+          for (final propertyA in Type.exprIterateProperties(ctx, a)) {
+            // TODO: temporary hack til subtyping can be configured properly
+            if (Literal.getValue(Expr.data(Pair.first(propertyA))) == Fn.argIDID) continue;
+            for (final propertyB in Type.exprIterateProperties(ctx, b)) {
+              if (Literal.getValue(Expr.data(Pair.first(propertyA))) !=
+                  Literal.getValue(Expr.data(Pair.first(propertyB)))) {
+                continue;
+              }
+              final propCompare = Result.wrapErr(
+                assignableImpl(ctx, Pair.second(propertyA), Pair.second(propertyB), detailed),
+                'at property ${Literal.getValue(Expr.data(Pair.first(propertyA)))}',
+              );
+              if (!Result.isOk(propCompare)) return propCompare;
+            }
+          }
+          return Result.mkOk(unitValue);
+        } else {
+          if (Expr.dataType(a) == Literal.type && Expr.dataType(b) == Literal.type) {
+            if (Literal.getValue(Expr.data(a)) == Literal.getValue(Expr.data(b))) {
+              return Result.mkOk(unitValue);
+            } else {
+              return Result.mkErr(
+                detailed
+                    ? 'expected:\n  ${palPrint(ctx, typeA, Literal.getValue(Expr.data(a)))}\nactual:\n  ${palPrint(ctx, typeB, Literal.getValue(Expr.data(b)))}'
+                    : 'expected:\n  ${(Literal.getValue(Expr.data(a)) as Dict).toStringDeep()}\nactual:\n  ${(Literal.getValue(Expr.data(b)))}',
+              );
+            }
+          }
+          final typeDef = ctx.getType(Type.id(typeA));
+          Object wrapTree(Ctx ctx, Object expr) {
+            if (Expr.dataType(expr) == Construct.type) return Construct.tree(Expr.data(expr));
 
-      return recurse(
-        TypeDef.tree(typeDef),
-        wrapTree(ctx, a),
-        wrapTree(ctx, b),
-      );
-    }
+            final augmentedTree = TypeTree.augmentTree(
+              Literal.getType(Expr.data(expr)),
+              Literal.getValue(Expr.data(expr)),
+            );
+            ctx = TypeTree.foldData<DartList>(
+              [],
+              TypeDef.tree(typeDef),
+              augmentedTree,
+              (bindings, typeLeaf, dataLeaf, path) => [
+                ...bindings,
+                Binding.mk(id: (path.last as ID), type: null, name: '', value: dataLeaf)
+              ],
+            ).fold(ctx, (ctx, binding) => ctx.withBinding(binding));
+
+            return TypeTree.mapData(
+              TypeDef.tree(typeDef),
+              augmentedTree,
+              (typeLeaf, dataLeaf, path) => Literal.mk(eval(ctx, typeLeaf), dataLeaf),
+            );
+          }
+
+          Object recurse(Object typeTree, Object aData, Object bData) {
+            return TypeTree.treeCases(
+              typeTree,
+              record: (record) => record.entries.fold(
+                Result.mkOk(unitValue),
+                (prev, entry) => Result.flatMap(
+                  prev,
+                  (_) => Result.wrapErr(
+                    recurse(
+                      entry.value,
+                      (aData as Dict)[entry.key].unwrap!,
+                      (bData as Dict)[entry.key].unwrap!,
+                    ),
+                    'at ${entry.key}',
+                  ),
+                ),
+              ),
+              union: (union) {
+                if (UnionTag.tag(aData) != UnionTag.tag(bData)) {
+                  return Result.mkErr('different union case');
+                }
+                return Result.wrapErr(
+                  recurse(
+                    union[UnionTag.tag(aData)].unwrap!,
+                    UnionTag.value(aData),
+                    UnionTag.value(bData),
+                  ),
+                  'case ${UnionTag.tag(aData)}',
+                );
+              },
+              leaf: (leaf) {
+                return assignableImpl(ctx, aData, bData, detailed);
+              },
+            );
+          }
+
+          return recurse(
+            TypeDef.tree(typeDef),
+            wrapTree(ctx, a),
+            wrapTree(ctx, b),
+          );
+        }
+      },
+      'actual type not assignable to expected type',
+    );
   } else {
     throw UnimplementedError('assignableImpl for expr type ${Expr.dataType(a)}');
   }
@@ -2955,18 +2991,24 @@ Object dispatch(Ctx ctx, ID interfaceID, Object type) {
     final subst = assignableSubst(ctx, bindingType, Type.lit(type));
     if (subst == null) continue;
     if (bestType != null) {
-      if (assignable(
+      if (Result.isOk(assignable(
         ctx,
         bindingType,
         varSubst(ctx, ImplDef.definitionArgID, ID.mk().append(ImplDef.definitionArgID), bestType),
-      )) continue;
+        false,
+      ))) continue;
 
-      if (!assignable(
+      if (!Result.isOk(assignable(
         ctx,
         bestType,
         varSubst(
-            ctx, ImplDef.definitionArgID, ID.mk().append(ImplDef.definitionArgID), bindingType),
-      )) return Option.mk();
+          ctx,
+          ImplDef.definitionArgID,
+          ID.mk().append(ImplDef.definitionArgID),
+          bindingType,
+        ),
+        false,
+      ))) return Option.mk();
     }
     bestArgType = argType;
     bestType = bindingType;
@@ -3212,9 +3254,8 @@ Object _varReduce(Ctx ctx, Object arg) {
 Object _varTypeCheck(Ctx ctx, Object arg) {
   return Option.cases(
     ctx.getBinding(Var.id(arg)),
-    some: (binding) => Result.map(
+    some: (binding) => Result.wrapErr(
       Binding.valueType(ctx, binding),
-      (_) => _,
       'var ${Binding.name(ctx, binding)} doesn\'t type check',
     ),
     none: () => Result.mkErr('unknown var ${Var.id(arg)}'),
@@ -3612,89 +3653,82 @@ Object _fnExprReduce(Ctx ctx, Object fnData) => Expr.mk(impl: FnExpr.exprImpl, d
 
 @DartFn('916ccdd7-75de-4c37-b728-a318b101aff7')
 Object _fnExprTypeCheck(Ctx ctx, Object fn) {
-  return Result.flatMap(
-    typeCheck(ctx, FnExpr.argType(fn)),
-    (argTypeType) {
-      if (!assignable(ctx, Type.lit(Type.type), argTypeType)) {
-        return Result.mkErr('fn expr arg type expr is not a type');
-      }
-      final argType = reduce(ctx, FnExpr.argType(fn));
-      ctx = ctx.withBinding(
-        Binding.mk(
-          id: FnExpr.argID(fn),
-          type: Result.mkOk(argType),
-          name: FnExpr.argName(fn),
-        ),
-      );
-      return Option.cases(
-        FnExpr.returnType(fn),
-        none: () => FnExpr.bodyCases(
-          fn,
-          dart: (_) => Result.mkErr('dart Fn w no declared return type not allowed!'),
-          pal: (body) => Result.map(
-            typeCheck(ctx, body),
-            (bodyType) {
-              if (Expr.dataType(argType) != Literal.type) {
-                // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
-                return Fn.typeExpr(
+  return checkReduceType(ctx, FnExpr.argType(fn), 'fn expr arg type', (argType) {
+    ctx = ctx.withBinding(
+      Binding.mk(
+        id: FnExpr.argID(fn),
+        type: Result.mkOk(argType),
+        name: FnExpr.argName(fn),
+      ),
+    );
+    return Option.cases(
+      FnExpr.returnType(fn),
+      none: () => FnExpr.bodyCases(
+        fn,
+        dart: (_) => Result.mkErr('dart Fn w no declared return type not allowed!'),
+        pal: (body) => Result.map(
+          typeCheck(ctx, body),
+          (bodyType) {
+            if (Expr.dataType(argType) != Literal.type) {
+              // TODO: would like to reduce but causes loop w TypeProperty.mkExpr rn
+              return Fn.typeExpr(
+                argID: FnExpr.argID(fn),
+                argType: argType,
+                returnType: bodyType,
+              );
+            } else {
+              return Literal.mk(
+                Type.type,
+                Fn.type(
                   argID: FnExpr.argID(fn),
-                  argType: argType,
+                  argType: Literal.getValue(Expr.data(argType)),
                   returnType: bodyType,
-                );
-              } else {
-                return Literal.mk(
-                  Type.type,
-                  Fn.type(
-                    argID: FnExpr.argID(fn),
-                    argType: Literal.getValue(Expr.data(argType)),
-                    returnType: bodyType,
-                  ),
-                );
-              }
-            },
-          ),
+                ),
+              );
+            }
+          },
         ),
-        some: (returnTypeExpr) => Result.flatMap(
-          typeCheck(ctx, returnTypeExpr),
-          (returnTypeType) => assignableErrFlat(
-            ctx,
-            Type.lit(Type.type),
-            returnTypeType,
-            'return type not a type',
-            () {
-              final returnType = reduce(ctx, returnTypeExpr);
-              return FnExpr.bodyCases(
-                fn,
-                pal: (body) => Result.flatMap(
-                  typeCheck(ctx, body),
-                  (bodyType) => assignableErr(
+      ),
+      some: (returnTypeExpr) => Result.flatMap(
+        typeCheck(ctx, returnTypeExpr),
+        (returnTypeType) => assignableErrFlat(
+          ctx,
+          Type.lit(Type.type),
+          returnTypeType,
+          'return type not a type',
+          () {
+            final returnType = reduce(ctx, returnTypeExpr);
+            return FnExpr.bodyCases(
+              fn,
+              pal: (body) => Result.flatMap(
+                typeCheck(ctx, body),
+                (bodyType) => assignableErr(
+                  ctx,
+                  returnType,
+                  bodyType,
+                  'fn expr body not assignable to return type',
+                  // TODO: weird logic here around expr wrapping in FnValue.types?
+                  () => reduce(
                     ctx,
-                    returnType,
-                    bodyType,
-                    'fn expr body not assignable to return type',
-                    // TODO: weird logic here around expr wrapping in FnValue.types?
-                    () => reduce(
-                      ctx,
-                      Fn.typeExpr(
-                        argID: FnExpr.argID(fn),
-                        argType: argType,
-                        returnType: returnType,
-                      ),
+                    Fn.typeExpr(
+                      argID: FnExpr.argID(fn),
+                      argType: argType,
+                      returnType: returnType,
                     ),
                   ),
                 ),
-                // TODO: typecheck arg & return type exprs
-                dart: (_) => Result.mkOk(reduce(
-                  ctx,
-                  Fn.typeExpr(argID: FnExpr.argID(fn), argType: argType, returnType: returnType),
-                )),
-              );
-            },
-          ),
+              ),
+              // TODO: typecheck arg & return type exprs
+              dart: (_) => Result.mkOk(reduce(
+                ctx,
+                Fn.typeExpr(argID: FnExpr.argID(fn), argType: argType, returnType: returnType),
+              )),
+            );
+          },
         ),
-      );
-    },
-  );
+      ),
+    );
+  });
 }
 
 @DartFn('738cb317-4b48-4bf2-907b-e06e1e42a49a')
@@ -3705,8 +3739,14 @@ Object _fnTypeExprEval(Ctx ctx, Object arg) => Fn.type(
     );
 
 @DartFn('a814d42c-2b9b-49a0-afc2-9c6c25e47468')
-Object _fnTypeExprReduce(Ctx ctx, Object fnData) =>
-    Expr.mk(impl: FnTypeExpr.exprImpl, data: fnData);
+Object _fnTypeExprReduce(Ctx ctx, Object fnData) => reduce(
+      ctx,
+      Fn.typeExpr(
+        argID: FnTypeExpr.argID(fnData),
+        argType: FnTypeExpr.argType(fnData),
+        returnType: FnTypeExpr.returnType(fnData),
+      ),
+    );
 
 @DartFn('916ccd37-75de-4c37-b728-a318b101aff7')
 Object _fnTypeExprTypeCheck(Ctx ctx, Object fn) {
@@ -3818,18 +3858,7 @@ Object _mkListTypeCheck(Ctx ctx, Object arg) {
   if (!Result.isOk(maybeListValueType)) return maybeListValueType;
   final listValueType = Result.unwrap(maybeListValueType);
   for (final value in List.iterate(List.mkExprValues(arg))) {
-    final valueType = typeCheck(ctx, value);
-    final mapError = Result.cases(
-      valueType,
-      error: (msg) => Result.mkErr('list value doesn\' type check because $msg'),
-      ok: (type) {
-        if (!assignable(ctx, listValueType, type)) {
-          return Result.mkErr('list value not assignable to list type');
-        } else {
-          return Result.mkOk(type);
-        }
-      },
-    );
+    final mapError = typeCheckExpect(ctx, value, listValueType, 'list value', () => unitValue);
     if (!Result.isOk(mapError)) return mapError;
   }
   if (Expr.dataType(listValueType) == Literal.type) {

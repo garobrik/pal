@@ -15,12 +15,10 @@ class Vec<Value> extends Iterable<Value> with _VecMixin<Value>, DiagnosticableTr
   const Vec([this._values = const []]);
 
   @override
-  @reify
   int get length => _values.length;
 
   Vec<Value> get tail => Vec(_values.sublist(1));
 
-  @reify
   Value operator [](int i) => _values[i];
   Vec<Value> mut_array_op(int i, Value update) => Vec.from(this).._values[i] = update;
 
@@ -103,7 +101,45 @@ extension IterableExtension<V> on Iterable<V> {
   }
 }
 
+extension VecGetCursorExtension<Value> on GetCursor<Vec<Value>> {
+  GetCursor<int> get length => thenGet(Getter(const Vec(['length']), (t) => t.length));
+
+  GetCursor<Value> operator [](int i) => thenOptGet(
+        OptGetter(
+          Vec([
+            Vec<dynamic>(<dynamic>['[]', i])
+          ]),
+          (t) => (0 <= i && i < t.length) ? Optional(t[i]) : Optional.none(),
+        ),
+      );
+}
+
 extension VecInsertCursorExtension<Value> on Cursor<Vec<Value>> {
+  Cursor<Value> operator [](int i) => thenOpt(
+        OptLens(
+          Vec([
+            Vec<dynamic>(<dynamic>['[]', i])
+          ]),
+          (t) => (0 <= i && i < t.length) ? Optional(t[i]) : Optional.none(),
+          (t, s) => t.mut_array_op(i, s(t[i])),
+        ),
+      );
+
+  void operator []=(int i, Value update) {
+    mutResult(
+      (obj) => DiffResult(
+        obj.mut_array_op(i, update),
+        Diff(
+          changed: PathSet.from({
+            Vec([
+              Vec<dynamic>(<dynamic>['[]', i])
+            ])
+          }),
+        ),
+      ),
+    );
+  }
+
   void add(Value v) {
     insert(length.read(Ctx.empty), v);
   }
