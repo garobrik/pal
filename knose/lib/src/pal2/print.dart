@@ -34,13 +34,13 @@ abstract class Printable {
 
   @DartFn('0a433255-e890-48a8-b649-bdc5c8683101')
   static Object _printFn(Ctx ctx, Object arg) {
-    final impl = Option.unwrap(
-      dispatch(
-        ctx,
-        InterfaceDef.id(interfaceDef),
-        InterfaceDef.implType(interfaceDef, {dataTypeID: Any.getType(arg)}),
-      ),
+    final maybeImpl = dispatch(
+      ctx,
+      InterfaceDef.id(interfaceDef),
+      InterfaceDef.implType(interfaceDef, {dataTypeID: Any.getType(arg)}),
     );
+    if (!Option.isPresent(maybeImpl)) return 'print dispatch fail!!!\narg.toStringDeep()';
+    final impl = Option.unwrap(maybeImpl);
 
     final dataType = (impl as Dict)[dataTypeID].unwrap!;
     return eval(

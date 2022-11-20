@@ -99,6 +99,14 @@ extension IterableExtension<V> on Iterable<V> {
     }
     return null;
   }
+
+  Iterable<IndexedValue<V>> get indexed {
+    int index = -1;
+    return map((v) {
+      index++;
+      return IndexedValue(index, v);
+    });
+  }
 }
 
 extension VecGetCursorExtension<Value> on GetCursor<Vec<Value>> {

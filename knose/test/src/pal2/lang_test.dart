@@ -6,10 +6,8 @@ import 'package:knose/src/pal2/lang.dart';
 void main() async {
   final coreModule = await Module.loadFromFile('core');
   final printModule = await Module.loadFromFile('Print');
-  late final coreCtx = Module.load(
-    Ctx.empty.withFnMap(langFnMap).withFnMap(Printable.fnMap),
-    [coreModule, printModule],
-  );
+  late final coreCtx =
+      Module.load(Ctx.empty.withFnMaps([langFnMap, Printable.fnMap]), [coreModule, printModule]);
 
   test('load core module', () {
     expect(coreCtx, isNotNull);

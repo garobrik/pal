@@ -2145,11 +2145,90 @@ abstract class Migration {
 }
 
 final migrations = [
+  FnReturnTypeConcrete(),
   FixDotPlaceholder(),
   ImplNames(),
   ValueDefNameToFn(),
   WrapListMkExprTypes(),
 ];
+
+class FnReturnTypeConcrete extends Migration {
+  @override
+  T doMigrate<T>(T obj) {
+    if (obj is! Dict) return obj;
+    if (obj.containsKey(Fn.returnTypeID)) {
+      final returnType = obj[Fn.returnTypeID].unwrap! as Dict;
+      if (returnType.containsKey(TypeTree.treeID)) {
+        final cursor = Cursor<Object>(obj);
+        cursor[Fn.returnTypeID][TypeTree.treeID][UnionTag.valueID] = Type.lit(Type.type);
+        return cursor.read(Ctx.empty) as T;
+      }
+    } else if (obj.containsKey(Type.IDID)) {
+      final props = obj[Type.propertiesID].unwrap! as Dict;
+      final cursor = Cursor<Object>(obj);
+      if (props.containsKey(Expr.dataID)) {
+        for (final indexedProp in Map.mkExprEntries(Expr.data(props)).indexed) {
+          if (Pair.first(indexedProp.value) != Literal.mk(ID.type, Fn.returnTypeID)) continue;
+          if (Expr.dataType(Pair.second(indexedProp.value)) != Literal.type) {
+            if (Literal.getType(Expr.data(Pair.second(indexedProp.value))) != Expr.type) {
+              throw UnimplementedError();
+            }
+          }
+          cursor[Type.propertiesID][Expr.dataID][Map.mkEntriesID][List.itemsID]
+              .cast<Vec>()[indexedProp.index][Pair.secondID]
+              .set(Literal.getValue(Expr.data(Pair.second(indexedProp.value))));
+          return cursor.read(Ctx.empty) as T;
+        }
+        return obj;
+      } else if (props.containsKey(Map.entriesID)) {
+        final maybeExpr = Map.entries(props)[Fn.returnTypeID];
+        if (!maybeExpr.isPresent) return obj;
+        final expr = maybeExpr.unwrap!;
+        if (Expr.dataType(expr) == Literal.type) {
+          cursor[Type.propertiesID][Map.entriesID][Fn.returnTypeID].set(
+            Literal.getValue(Expr.data(expr)),
+          );
+          return cursor.read(Ctx.empty) as T;
+        }
+      } else if (props.containsKey(TypeTree.treeID)) {
+      } else {
+        throw UnimplementedError();
+      }
+    } else if (obj.containsKey(Expr.dataID)) {
+      if ((obj[Expr.dataID].unwrap! as Dict).containsKey(TypeTree.treeID)) return obj;
+      final cursor = Cursor<Object>(obj);
+      if (Expr.dataType(obj) == Literal.type) {
+        if (Literal.getType(Expr.data(obj)) == Type.type) {
+          final typeValue = Literal.getValue(Expr.data(obj));
+          final props = Type.properties(typeValue);
+          final maybeExpr = props[Fn.returnTypeID];
+          if (!maybeExpr.isPresent) return obj;
+          final expr = maybeExpr.unwrap!;
+          if (!(expr as Dict).containsKey(Expr.dataID)) return obj;
+          if (Expr.dataType(expr) == Literal.type) {
+            cursor[Expr.dataID][Literal.valueID][Type.propertiesID][Map.entriesID][Fn.returnTypeID]
+                .set(
+              Literal.getValue(Expr.data(expr)),
+            );
+            return cursor.read(Ctx.empty) as T;
+          } else {
+            return Fn.typeExpr(
+              argID: props[Fn.argIDID].unwrap! as ID,
+              argType: Literal.mk(Type.type, props[Fn.argTypeID].unwrap!),
+              returnType: expr,
+            ) as T;
+          }
+        }
+      }
+    }
+    return obj;
+  }
+
+  @override
+  T doUnmigrate<T>(T obj) {
+    throw UnimplementedError();
+  }
+}
 
 class FixDotPlaceholder extends Migration {
   @override
