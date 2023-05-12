@@ -1,5 +1,5 @@
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart' hide Table, TableRow;
+import 'package:flutter/material.dart' hide Table, TableRow, DropdownMenu;
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:knose/infra_widgets.dart';

@@ -3,21 +3,19 @@ version: 0.1.0
 description: >-
   Highly opinionated granular reactive state management for immutable state objects. (Words!)
 publish_to: none
-
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   meta:
   ctx:
-    path:
-      ../ctx
+    path: ../ctx
   flutter:
     sdk: flutter
 
 dev_dependencies:
   reified_lenses_builder:
     path: ../reified_lenses_builder
-  build_runner: 
+  build_runner:
   lints: ^2.0.0
-  test: 
+  test:

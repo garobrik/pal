@@ -67,15 +67,15 @@ Widget _tableConfig(
                     ),
                   );
                 },
-                child: Row(
-                  children: const [Icon(Icons.add), Text('New row view')],
+                child: const Row(
+                  children: [Icon(Icons.add), Text('New row view')],
                 ),
               )
             ],
           ),
         ),
-        child: Row(
-          children: const [
+        child: const Row(
+          children: [
             Text('Row views'),
             Icon(Icons.arrow_drop_down),
           ],

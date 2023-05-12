@@ -1,6 +1,6 @@
 import 'package:uuid/uuid.dart';
 
-abstract class UUID<T extends UUID<dynamic>> extends Comparable<T> {
+abstract class UUID<T extends UUID<dynamic>> implements Comparable<T> {
   static const _uuid = Uuid();
 
   final String id;

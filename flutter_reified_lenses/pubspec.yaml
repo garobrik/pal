@@ -3,9 +3,8 @@ version: 0.1.0
 description: >-
   Flutter extensions for the reified_lenses library.
 publish_to: none
-
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   reified_lenses:
@@ -19,6 +18,5 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^2.0.1
   reified_lenses_builder:
-    path:
-      ../reified_lenses_builder
+    path: ../reified_lenses_builder
   build_runner: ^2.0.1

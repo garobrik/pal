@@ -6,7 +6,7 @@ import 'dart:core';
 import 'dart:core' as dart;
 
 import 'package:ctx/ctx.dart';
-import 'package:flutter/material.dart' hide Placeholder;
+import 'package:flutter/material.dart' hide Placeholder, DropdownMenu;
 import 'package:flutter/services.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' hide Dict, Vec, Pair;
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart' as reified;
@@ -1374,7 +1374,7 @@ Widget _genericPlaceholder(
                   child: BoundTextFormField(
                     inputText,
                     ctx: ctx,
-                    style: Theme.of(context).textTheme.bodyText2,
+                    style: Theme.of(context).textTheme.bodyMedium,
                     focusNode: focusNode,
                     decoration: const InputDecoration(
                       contentPadding: EdgeInsets.only(left: 2, top: 4, bottom: 4),
@@ -1509,7 +1509,7 @@ Widget _inlineTextField(Ctx ctx, Cursor<String> text) {
           text,
           ctx: ctx,
           decoration: const InputDecoration.collapsed(hintText: null),
-          style: Theme.of(context).textTheme.bodyText2,
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
       ),
     ),

@@ -73,7 +73,7 @@ Widget _tableHeaderDropdown(
   required Cursor<pal_table.Column> column,
   required Cursor<bool> isOpen,
 }) {
-  final textStyle = Theme.of(context).textTheme.bodyText1;
+  final textStyle = Theme.of(context).textTheme.bodyLarge;
   const padding = EdgeInsetsDirectional.only(top: 10, bottom: 10, start: 5);
   final dropdownFocus = useFocusNode();
 
@@ -169,8 +169,8 @@ Widget _columnConfigurationDropdown(
             ],
           ),
         ),
-        child: Row(
-          children: const [Icon(Icons.list), Text('Column type')],
+        child: const Row(
+          children: [Icon(Icons.list), Text('Column type')],
         ),
       ),
       ...columnSpecificConfiguration(context, column, ctx: ctx),
@@ -183,8 +183,8 @@ Widget _columnConfigurationDropdown(
               table.columnIDs.read(Ctx.empty).indexWhere((id) => id == idToDelete)!,
             );
           },
-          child: Row(
-            children: const [Icon(Icons.delete), Text('Delete column')],
+          child: const Row(
+            children: [Icon(Icons.delete), Text('Delete column')],
           ),
         ),
     ],
@@ -231,9 +231,9 @@ Widget _newColumnButton({
         openColumns?[columnID] = true;
       }
     },
-    child: Row(
+    child: const Row(
       mainAxisSize: MainAxisSize.min,
-      children: const [Icon(Icons.add), Text('New column')],
+      children: [Icon(Icons.add), Text('New column')],
     ),
   );
 }

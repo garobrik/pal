@@ -12,7 +12,7 @@ import 'package:knose/widget.dart' as widget;
 
 part 'widget.g.dart';
 
-Route generateWidgetRoute(
+Route<void> generateWidgetRoute(
   Ctx ctx,
   pal.ID widgetID,
 ) {
@@ -53,7 +53,7 @@ Route generateWidgetRoute(
                       child: BoundTextFormField(
                         title,
                         ctx: ctx,
-                        style: Theme.of(context).textTheme.headline6,
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
                     ),
                   ),

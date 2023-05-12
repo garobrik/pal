@@ -4,7 +4,6 @@ import 'package:flutter/material.dart' hide Placeholder;
 import 'package:pal/src/ide.dart';
 import 'package:pal/src/lang.dart';
 import 'package:pal/src/theme.dart';
-import 'package:infra_widgets/focus_trap.dart';
 
 void main() {
   runApp(const Pal());
@@ -15,15 +14,11 @@ class Pal extends StatelessWidget {
 
   // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
-    return DisableBuiltinFocusTrap(
-      child: MaterialApp(
+  Widget build(BuildContext context) => MaterialApp(
         title: 'pal',
         theme: theme(Colors.grey, Brightness.light),
         home: const SingleExprEditor(),
-      ),
-    );
-  }
+      );
 }
 
 class SingleExprEditor extends StatefulWidget {

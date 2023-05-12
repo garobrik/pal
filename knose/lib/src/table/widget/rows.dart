@@ -160,9 +160,9 @@ Widget _openRowButton(
                 ),
               );
             },
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(
             Icons.open_in_full,
             size: 16,

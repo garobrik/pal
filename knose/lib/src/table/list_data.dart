@@ -184,8 +184,8 @@ Widget _listConfig({
               ],
             ),
           ),
-          child: Row(
-            children: const [Icon(Icons.list), Text('Element type')],
+          child: const Row(
+            children: [Icon(Icons.list), Text('Element type')],
           ),
         ),
         ...specifiConfig,

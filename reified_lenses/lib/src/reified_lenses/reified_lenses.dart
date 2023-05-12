@@ -88,7 +88,7 @@ typedef SetterF<T, S> = T Function(T, S);
 typedef TransformF<T> = T Function(T);
 
 @immutable
-abstract class OptGetter<T, S> {
+abstract mixin class OptGetter<T, S> {
   const factory OptGetter(Path path, OptGetterF<T, S> getter) = _OptGetterImpl;
 
   Path get path;
@@ -96,7 +96,7 @@ abstract class OptGetter<T, S> {
 }
 
 @immutable
-abstract class Getter<T, S> implements OptGetter<T, S> {
+abstract mixin class Getter<T, S> implements OptGetter<T, S> {
   const factory Getter(Path path, GetterF<T, S> getter) = _GetterImpl;
   static Getter<S, S> identity<S>() => _IdentityImpl();
 
@@ -107,13 +107,13 @@ abstract class Getter<T, S> implements OptGetter<T, S> {
 }
 
 @immutable
-abstract class OptLens<T, S> implements OptGetter<T, S> {
+abstract mixin class OptLens<T, S> implements OptGetter<T, S> {
   const factory OptLens(Path path, OptGetterF<T, S> getF, MutaterF<T, S> mutF) = _OptLensImpl;
   T mut(T t, S Function(S) f);
 }
 
 @immutable
-abstract class Lens<T, S> implements Getter<T, S>, OptLens<T, S> {
+abstract mixin class Lens<T, S> implements Getter<T, S>, OptLens<T, S> {
   const factory Lens(Path path, GetterF<T, S> getF, MutaterF<T, S> mutF) = _LensImpl;
   static Lens<T, T> identity<T>() => _IdentityImpl();
 

@@ -16,9 +16,14 @@ class Parser<T> {
             ? ParseSuccess(result, str.substring(lit.length))
             : ParseFailure('could not match $lit against $str'));
 
+  static Parser<T> litThen<T>(String lit, Parser<T> andThen) =>
+      Parser.lit(null, lit).andThen((_) => andThen);
+
+  Parser<T> skip(String lit) => andThen((t) => Parser.lit(t, lit));
+
   static Parser<String> until(String stop) => Parser((str) {
         final index = str.indexOf(stop);
-        return ParseSuccess(str.substring(0, index), str.substring(index));
+        return ParseSuccess(str.substring(0, index), str.substring(index + stop.length));
       });
 
   Parser.tryEach(List<Parser<T>> parsers)
@@ -55,7 +60,7 @@ class Parser<T> {
 
   static Parser<Object> value(Type type) {
     if (type is TypeType) return Type.parser;
-    throw Exception('don\'t know how to parse type $type');
+    throw Exception('don\'t know how to parse value of type $type');
   }
 }
 
@@ -118,10 +123,9 @@ abstract class Type extends Serializable {
 
   static final Parser<Type> parser = Parser.tryEach([
     Parser.lit(Type.type, 'Type'),
-    Parser.lit(null, 'FnType(').andThen((_) => Type.parser).andThen((type) => Parser.lit(null, ', ')
-        .andThen((_) => Type.parser)
+    Parser.litThen('FnType(', Type.parser).andThen((type) => Parser.litThen(', ', Type.parser)
         .andThen((retType) => Parser.lit(FnType(type, retType), ')'))),
-    Parser.lit(null, 'ForeignType(').andThen((_) => Parser.until(')').map(ForeignType.new)),
+    Parser.litThen('ForeignType(', Parser.until(')')).map(ForeignType.new),
   ]);
 
   @override
@@ -189,21 +193,17 @@ abstract class Expr extends Serializable {
 
   static Parser<Expr> parser = Parser.tryEach([
     Parser.lit(Placeholder.expr, 'Placeholder'),
-    Parser.lit(null, 'Literal(').andThen((_) => Type.parser).andThen((type) => Parser.lit(
-            null, ', ')
-        .andThen((_) => Parser.value(type).andThen((obj) => Parser.lit(Literal(type, obj), ')')))),
-    Parser.lit(null, 'Var(')
-        .andThen((_) => Parser.until(')'))
-        .andThen((varID) => Parser.lit(Var(varID), ')')),
-    Parser.lit(null, 'FnApp(').andThen((_) => Expr.parser).andThen((fn) => Parser.lit(null, ', ')
-        .andThen((_) => Expr.parser)
-        .andThen((arg) => Parser.lit(FnApp(fn, arg), ')'))),
-    Parser.lit(null, 'FnDef(').andThen((_) => Parser.until(',')).andThen((argID) =>
-        Parser.lit(null, ', ').andThen((_) => Expr.parser).andThen((argType) =>
-            Parser.lit(null, ', ').andThen((_) => Expr.parser).andThen((returnType) =>
-                Parser.lit(null, ', ')
-                    .andThen((_) => Expr.parser)
-                    .andThen((body) => Parser.lit(FnDef(argID, argType, returnType, body), ')'))))),
+    Parser.litThen('Literal(', Type.parser).andThen(
+      (type) => Parser.litThen(', ', Parser.value(type).skip(')').map((obj) => Literal(type, obj))),
+    ),
+    Parser.litThen('Var(', Parser.until(')')).map(Var.new),
+    Parser.litThen('FnApp(', Expr.parser)
+        .andThen((fn) => Parser.litThen(', ', Expr.parser).skip(')').map((arg) => FnApp(fn, arg))),
+    Parser.litThen('FnDef(', Parser.until(',')).andThen((argID) => Expr.parser.andThen((argType) =>
+        Parser.lit(null, ', ').andThen((_) => Expr.parser).andThen((returnType) =>
+            Parser.lit(null, ', ')
+                .andThen((_) => Expr.parser)
+                .andThen((body) => Parser.lit(FnDef(argID, argType, returnType, body), ')'))))),
     Parser.lit(null, 'FnTypeExpr(').andThen((_) => Parser.until(',')).andThen((argID) =>
         Parser.lit(null, ', ').andThen((_) => Expr.parser).andThen((argType) =>
             Parser.lit(null, ', ')
@@ -282,14 +282,6 @@ class FnTypeExpr extends Expr {
 
   static Expr chain(Iterable<MapEntry<ID, Expr>> args, Expr returnType) =>
       args.toList().reversed.fold(returnType, (ret, arg) => FnTypeExpr(arg.key, arg.value, ret));
-}
-
-class MacroUse extends Expr {
-  final Expr argType;
-  final Expr macro;
-  final Expr macroArg;
-
-  const MacroUse(this.argType, this.macro, this.macroArg);
 }
 
 class BindingCtx {
@@ -447,19 +439,6 @@ TypeCheckResult typeCheck(TypeCtx ctx, Expr expr) {
     });
   } else if (expr is Placeholder) {
     return TypeCheckFailure('placeholder needs to be filled in');
-  } else if (expr is MacroUse) {
-    return typeCheck(ctx, expr.argType).expect(ctx, Type.expr, (_, givenMacroArgType) {
-      return typeCheck(ctx, expr.macro).expect(ctx, FnApp(macroTypeDef, givenMacroArgType),
-          (_, macro) {
-        return typeCheck(ctx, expr.macroArg).expect(ctx, givenMacroArgType, (_, macroArg) {
-          final expandedMacro = typeCheck(ctx, FnApp(macro, macroArg)).assertOk.redex;
-          if (expandedMacro is! Literal) {
-            return TypeCheckFailure('macro expansion must fully resolve');
-          }
-          return typeCheck(ctx, expandedMacro.val as Expr);
-        });
-      });
-    });
   } else {
     throw Exception('unknown typeCheck expr type ${expr.runtimeType}');
   }

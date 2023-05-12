@@ -13,5 +13,5 @@ class InheritedValue<V> extends InheritedWidget {
       context.dependOnInheritedWidgetOfExactType<InheritedValue<V>>()?.value;
 
   @override
-  bool updateShouldNotify(covariant InheritedValue oldWidget) => value != oldWidget.value;
+  bool updateShouldNotify(covariant InheritedValue<V> oldWidget) => value != oldWidget.value;
 }

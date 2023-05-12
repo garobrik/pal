@@ -76,10 +76,10 @@ Widget _mainTableWidget(BuildContext context, Ctx ctx, Object data) {
                       ElevatedButton(
                         onPressed: () => table.addRow(),
                         focusNode: ctx.defaultFocus,
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.start,
-                          children: const [Icon(Icons.add), Text('New row')],
+                          children: [Icon(Icons.add), Text('New row')],
                         ),
                       ),
                     ],

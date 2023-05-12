@@ -38,7 +38,7 @@ class InlineTextField extends StatelessWidget {
           child: TextFormField(
             initialValue: text,
             decoration: const InputDecoration.collapsed(hintText: null),
-            style: Theme.of(context).textTheme.bodyText2,
+            style: Theme.of(context).textTheme.bodyMedium,
             onChanged: onChanged,
             onFieldSubmitted: onFieldSubmitted,
           ),

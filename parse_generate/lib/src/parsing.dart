@@ -729,7 +729,7 @@ class FunctionType implements Type {
 }
 
 @meta.immutable
-abstract class ConcreteType implements Type {
+abstract mixin class ConcreteType implements Type {
   String get name;
   Iterable<Type> get args;
 

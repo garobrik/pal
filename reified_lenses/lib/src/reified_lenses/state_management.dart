@@ -4,7 +4,7 @@ import 'package:reified_lenses/reified_lenses.dart';
 
 typedef PathMapSet<V> = TrieMapSet<Object, V>;
 
-abstract class GetCursor<S> implements DiagnosticableTree {
+abstract mixin class GetCursor<S> implements DiagnosticableTree {
   const factory GetCursor(S state) = _ValueCursor<S>;
   factory GetCursor.compute(
     S Function(Ctx) computation, {
@@ -55,7 +55,7 @@ extension ReaderCtxExtension on Ctx {
   Reader? get reader => get<Reader>();
 }
 
-abstract class Cursor<S> implements GetCursor<S> {
+abstract mixin class Cursor<S> implements GetCursor<S> {
   factory Cursor(S state) => MutableStateCursor(
         ListenableStateBase(state),
         Lens.identity(),
@@ -150,7 +150,7 @@ class ListenableStateBase<T> implements MutableListenableState<T> {
 
 String _defaultThenOptErrorMsg() => 'Tried to compose an optional cursor with no current value.';
 
-abstract class StateCursorBase<T, S> implements GetCursor<S> {
+abstract mixin class StateCursorBase<T, S> implements GetCursor<S> {
   ListenableState<T> get state;
   OptGetter<T, S> get lens;
 
@@ -359,7 +359,7 @@ class _ComputedState<T> implements Reader, ListenableState<T> {
   }
 }
 
-abstract class _FlattenStateBase<T> implements ListenableState<T> {
+abstract mixin class _FlattenStateBase<T> implements ListenableState<T> {
   GetCursor<GetCursor<T>> get viewed;
   void Function()? get disposeListener;
   set disposeListener(void Function()? disposeListener);

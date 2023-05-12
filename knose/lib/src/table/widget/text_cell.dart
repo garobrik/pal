@@ -48,7 +48,7 @@ Widget _tableCellTextField<T>(
   required Optional<T> Function(String) parse,
   required bool expands,
 }) {
-  final textStyle = Theme.of(context).textTheme.bodyText2;
+  final textStyle = Theme.of(context).textTheme.bodyMedium;
   const padding = EdgeInsetsDirectional.only(top: 10, bottom: 5, start: 5, end: 0);
   final padding2 = EdgeInsetsDirectional.only(
     top: padding.top - 5 + 1,
@@ -65,7 +65,7 @@ Widget _tableCellTextField<T>(
     dropdown: ScrollConfiguration(
       behavior: const ScrollBehavior().copyWith(scrollbars: false),
       child: Container(
-        decoration: BoxDecoration(color: Theme.of(context).backgroundColor),
+        decoration: BoxDecoration(color: Theme.of(context).colorScheme.background),
         alignment: AlignmentDirectional.topStart,
         child: TextFormField(
           initialValue: toText(value.read(Ctx.empty)),

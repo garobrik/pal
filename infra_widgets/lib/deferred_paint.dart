@@ -148,10 +148,6 @@ class RenderDeferredPainter extends RenderProxyBox {
   double computeMaxIntrinsicHeight(double width) => 0.0;
 
   @override
-  double? computeDistanceToActualBaseline(TextBaseline baseline) =>
-      super.computeDistanceToActualBaseline(baseline);
-
-  @override
   Size computeDryLayout(BoxConstraints constraints) => computeSizeForNoChild(constraints);
 
   @override

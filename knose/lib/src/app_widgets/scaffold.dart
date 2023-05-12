@@ -137,7 +137,7 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
     child: BoundTextFormField(
       title,
       ctx: Ctx.empty,
-      style: Theme.of(context).textTheme.headline6,
+      style: Theme.of(context).textTheme.titleLarge,
       decoration: const InputDecoration(hintText: 'title'),
     ),
   );
@@ -147,7 +147,7 @@ Widget _editableScaffoldTitle(BuildContext context, Cursor<String> title) {
 Widget _scaffoldTitle(Ctx ctx, BuildContext context, GetCursor<String> title) {
   return Text(
     title.read(ctx),
-    style: Theme.of(context).textTheme.headline6,
+    style: Theme.of(context).textTheme.titleLarge,
   );
 }
 

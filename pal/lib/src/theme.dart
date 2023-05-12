@@ -7,7 +7,7 @@ ThemeData theme(MaterialColor swatch, Brightness brightness) {
     brightness: brightness,
     primarySwatch: swatch,
     primaryTextTheme: TextTheme(
-      headline6: TextStyle(color: colorScheme.onSurface),
+      titleLarge: TextStyle(color: colorScheme.onSurface),
     ),
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(
