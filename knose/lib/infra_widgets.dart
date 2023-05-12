@@ -6,7 +6,3 @@ export 'src/infra_widgets/reorder_resizeable.dart';
 export 'src/infra_widgets/intrinsics.dart';
 export 'src/infra_widgets/ticker_provider_hook.dart';
 export 'src/infra_widgets/divider.dart';
-export 'src/infra_widgets/inherited_value.dart';
-export 'src/infra_widgets/deferred_paint.dart';
-export 'src/infra_widgets/focus_trap.dart';
-export 'src/infra_widgets/aligned_widget_span.dart';

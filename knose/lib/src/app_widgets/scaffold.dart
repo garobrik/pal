@@ -2,7 +2,7 @@ import 'package:ctx/ctx.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reified_lenses/flutter_reified_lenses.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:knose/infra_widgets.dart';
+import 'package:infra_widgets/deferred_paint.dart';
 import 'package:knose/app_widgets.dart';
 import 'package:knose/shortcuts.dart';
 import 'package:knose/model.dart' as model;

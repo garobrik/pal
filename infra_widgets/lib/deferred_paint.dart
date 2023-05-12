@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:knose/infra_widgets.dart';
+import 'package:infra_widgets/inherited_value.dart';
 
 class DeferredPaintTarget extends StatefulWidget {
   final Widget child;

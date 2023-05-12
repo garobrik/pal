@@ -27,6 +27,8 @@ dependencies:
   meta:
   ctx:
     path: ../ctx
+  infra_widgets:
+    path: ../infra_widgets
 
 dev_dependencies:
   test:

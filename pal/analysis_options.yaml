@@ -1,0 +1,16 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  enable-experiment:
+    - variance
+  strong-mode:
+    implicit-casts: false
+    implicit-dynamic: false
+  errors:
+    todo: ignore
+
+linter:
+  rules:
+    omit_local_variable_types: false
+    unnecessary_this: false
+    non_constant_identifier_names: false
