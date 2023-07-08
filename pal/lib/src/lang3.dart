@@ -17,7 +17,7 @@ class Hash {
     return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
   }
 
-  static int all(List<Object> objects) => finish(objects.map((o) => o.hashCode).fold(0, combine));
+  static int all(List<Object?> objects) => finish(objects.map((o) => o.hashCode).fold(0, combine));
 }
 
 sealed class Expr {
@@ -45,12 +45,12 @@ sealed class Expr {
           fn: FnApp(fn: FnApp(fn: Var(id: _fnDefID), arg: Var(id: var argID)), arg: var argType),
           arg: var body
         ) =>
-          (FnDef(argID, argType, body), restRest),
+          (FnDef(argID == '_' ? null : argID, argType, body), restRest),
         FnApp(
           fn: FnApp(fn: FnApp(fn: Var(id: _fnTypeID), arg: Var(id: var argID)), arg: var argType),
           arg: var retType
         ) =>
-          (FnType(argID, argType, retType), restRest),
+          (FnType(argID == '_' ? null : argID, argType, retType), restRest),
         var expr => (expr, restRest)
       };
     } else {
@@ -123,7 +123,7 @@ class FnApp extends Expr {
 }
 
 class FnDef extends Expr {
-  final ID argID;
+  final ID? argID;
   final Expr argType;
   final Expr body;
 
@@ -131,7 +131,7 @@ class FnDef extends Expr {
 }
 
 class FnType extends Expr {
-  final ID argID;
+  final ID? argID;
   final Expr argType;
   final Expr retType;
 
@@ -233,9 +233,9 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
 
       switch (fnType) {
         case FnType(:var argID, :var retType):
-          actualType = retType.substExpr(argID, argRedex);
+          actualType = argID != null ? retType.substExpr(argID, argRedex) : retType;
           redex = switch (fnRedex) {
-            FnDef(:var argID, :var body) => body.substExpr(argID, argRedex),
+            FnDef(:var argID, :var body) => argID != null ? body.substExpr(argID, argRedex) : body,
             _ => FnApp(fnRedex, argRedex),
           };
         case _:
@@ -248,12 +248,20 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       final (argCtx, _, argRedex) = argResult.success!;
       ctx = argCtx;
 
-      final retResult = check(ctx.add(expr.argID, (argRedex, null)), Type, expr.retType);
+      final retResult = check(
+        expr.argID != null ? ctx.add(expr.argID!, (argRedex, null)) : ctx,
+        Type,
+        expr.retType,
+      );
       if (retResult.isFailure) return retResult.wrap('return type of $expr');
       final (retCtx, _, retRedex) = retResult.success!;
-      final oldArgID = ctx[expr.argID];
-      ctx = retCtx.without(expr.argID);
-      if (oldArgID != null) ctx = ctx.add(expr.argID, oldArgID);
+
+      final oldArgBinding = ctx[expr.argID];
+      ctx = retCtx;
+      if (expr.argID != null) {
+        ctx = ctx.without(expr.argID!);
+        if (oldArgBinding != null) ctx = ctx.add(expr.argID!, oldArgBinding);
+      }
 
       actualType = Type;
       redex = FnType(expr.argID, argRedex, retRedex);
@@ -264,13 +272,20 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       final (argCtx, _, argRedex) = argResult.success!;
       ctx = argCtx;
 
-      final bodyResult = check(ctx.add(expr.argID, (argRedex, null)), null, expr.body);
+      final bodyResult = check(
+        expr.argID != null ? ctx.add(expr.argID!, (argRedex, null)) : ctx,
+        null,
+        expr.body,
+      );
       if (bodyResult.isFailure) return bodyResult.wrap('body of $expr');
       final (bodyCtx, bodyType, bodyRedex) = bodyResult.success!;
 
-      final oldArgID = ctx[expr.argID];
-      ctx = bodyCtx.without(expr.argID);
-      if (oldArgID != null) ctx = ctx.add(expr.argID, oldArgID);
+      final oldArgBinding = ctx[expr.argID];
+      ctx = bodyCtx;
+      if (expr.argID != null) {
+        ctx = ctx.without(expr.argID!);
+        if (oldArgBinding != null) ctx = ctx.add(expr.argID!, oldArgBinding);
+      }
 
       actualType = FnType(expr.argID, argRedex, bodyType);
       redex = FnDef(expr.argID, argRedex, bodyRedex);
@@ -288,7 +303,8 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
 Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
       Var a => ctx[a]?.$2 == null ? a : reduce(ctx, ctx[a]!.$2!),
       FnApp a => switch (reduce(ctx, a.fn)) {
-          FnDef fn => reduce(ctx, fn.body.substExpr(fn.argID, a.arg)),
+          FnDef(:var argID, :var body) =>
+            reduce(ctx, argID != null ? body.substExpr(argID, a.arg) : body),
           _ => a,
         },
       _ => a
@@ -302,7 +318,8 @@ Result<TypeCtx> assignable(TypeCtx ctx, Expr a, Expr b) {
     case (FnType a, FnType b):
       final argCtx = assignable(ctx, b.argType, a.argType);
       if (argCtx.isFailure) return argCtx;
-      return assignable(argCtx.success!, a.retType, b.retType).map((ctx) => ctx.without(b.argID));
+      return assignable(argCtx.success!, a.retType, b.retType)
+          .map((ctx) => b.argID != null ? ctx.without(b.argID!) : ctx);
     case (Var a, Expr b):
       if (ctx[a.id] == null) {
         return Success(ctx.add(a.id, (Type, b)));
@@ -339,7 +356,7 @@ extension on EvalCtx {
 
 class Closure {
   final EvalCtx ctx;
-  final ID argID;
+  final ID? argID;
   final Expr body;
 
   Closure(this.ctx, this.argID, this.body);
@@ -386,7 +403,8 @@ Object eval(EvalCtx ctx, Expr expr) {
       final fn = eval(ctx, expr.fn);
       final arg = eval(ctx, expr.arg);
       return switch (fn) {
-        Closure clos => eval(clos.ctx.add(clos.argID, arg), clos.body),
+        Closure(:var argID, :var ctx, :var body) =>
+          eval(argID != null ? ctx.add(argID, arg) : ctx, body),
         Object Function(EvalCtx, Object) dartFn => dartFn(ctx, arg),
         _ => throw Exception('unknown fn object, type: ${fn.runtimeType}, value: $fn'),
       };

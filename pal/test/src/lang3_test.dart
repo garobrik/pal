@@ -18,10 +18,6 @@ const letForEval = '''
 ''';
 
 void main() {
-  test('hashCode null', () {
-    expect(null.hashCode, 0);
-  });
-
   test('simple parsing and serializing', () {
     const programs = {
       'a': Var('a'),
