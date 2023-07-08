@@ -1,4 +1,5 @@
 import 'package:pal/src/lang3.dart';
+import 'package:pal/src/lang3src.dart';
 import 'package:test/test.dart';
 
 const letForEval = '''
@@ -48,14 +49,30 @@ void main() {
   });
 
   test('let check', () {
-    final result = check(defaultTypeCtx, Type, Expr.parse(letForEval).$1);
+    final result = check(coreTypeCtx, Type, Expr.parse(letForEval).$1);
     expect(result.isFailure, isFalse);
-    expect(result.success!.$1, defaultTypeCtx);
+    expect(result.success!.$1, coreTypeCtx);
     expect(result.success!.$2, Type);
     expect(result.success!.$3, Type);
   });
 
   test('let eval', () {
-    expect(eval(defaultEvalCtx, Expr.parse(letForEval).$1), type);
+    expect(eval(coreEvalCtx, Expr.parse(letForEval).$1), type);
+  });
+
+  test('compile exprs', () {
+    var typeCtx = coreTypeCtx;
+    var evalCtx = coreEvalCtx;
+    for (final binding in exprs) {
+      final (expr, _) = Expr.parse(binding.source);
+      final checkResult = check(typeCtx, null, expr);
+      expect(checkResult.isFailure, isFalse);
+      final (_, type, redex) = checkResult.success!;
+      expect(typeCtx, isNot(contains(binding.id)));
+      typeCtx[binding.id] = (type, redex);
+      final evald = eval(evalCtx, expr);
+      expect(evalCtx, isNot(contains(binding.id)));
+      evalCtx[binding.id] = evald;
+    }
   });
 }

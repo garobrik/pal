@@ -377,7 +377,7 @@ sealed class TypeValue {
   const TypeValue();
 }
 
-class TypeType {
+class TypeType extends TypeValue {
   const TypeType._();
 }
 
@@ -390,8 +390,8 @@ class FnTypeType extends TypeValue {
   const FnTypeType(this.argType, this.returnType);
 }
 
-final EvalCtx defaultEvalCtx = {Type.id: type};
-final TypeCtx defaultTypeCtx = {Type.id: (Type, Type)};
+final EvalCtx coreEvalCtx = {Type.id: type};
+final TypeCtx coreTypeCtx = {Type.id: (Type, Type)};
 
 Object eval(EvalCtx ctx, Expr expr) {
   switch (expr) {
@@ -413,9 +413,10 @@ Object eval(EvalCtx ctx, Expr expr) {
         expr.body,
       );
     case FnType expr:
+      final argType = eval(ctx, expr.argType) as TypeValue;
       return FnTypeType(
-        eval(ctx, expr.argType) as TypeValue,
-        eval(ctx, expr.retType) as TypeValue,
+        argType,
+        eval(expr.argID != null ? ctx.add(expr.argID!, argType) : ctx, expr.retType) as TypeValue,
       );
   }
 }
