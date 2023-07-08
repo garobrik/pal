@@ -67,8 +67,6 @@ sealed class Expr {
         FnApp(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
       };
 
-  Expr substVar(ID from, ID to) => substExpr(from, Var(to));
-
   Expr substExpr(ID from, Expr to) => switch (this) {
         Var(:var id) => id == from ? to : this,
         FnApp(:var fn, :var arg) => FnApp(fn.substExpr(from, to), arg.substExpr(from, to)),
