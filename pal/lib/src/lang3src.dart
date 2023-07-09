@@ -2,9 +2,11 @@ import 'lang3.dart';
 
 class Binding {
   final ID id;
-  final String source;
+  final String? typeSource;
+  final String valueSource;
 
-  const Binding(this.id, this.source);
+  const Binding(this.id, this.valueSource) : typeSource = null;
+  const Binding.typed(this.id, this.typeSource, this.valueSource);
 }
 
 const exprs = [
@@ -19,16 +21,16 @@ const exprs = [
       )
     )
   '''),
-  Binding('Boolean', '''
+  Binding.typed('Bool', 'Type', '''
     FnType(R)(Type)(FnType(t)(R)(FnType(f)(R)(R)))
   '''),
-  Binding('true', '''
+  Binding.typed('true', 'Bool', '''
     FnDef(R)(Type)(FnDef(t)(R)(FnDef(f)(R)(t)))
   '''),
-  Binding('false', '''
+  Binding.typed('false', 'Bool', '''
     FnDef(R)(Type)(FnDef(t)(R)(FnDef(f)(R)(f)))
   '''),
-  Binding('if', '''
-    FnDef(R)(Type)(FnDef(b)(Boolean)(FnDef(t)(R)(FnDef(f)(R)(b(R)(t)(f)))))
+  Binding.typed('if', 'FnType(R)(Type)(FnType(_)(Bool)(FnType(_)(R)(FnType(_)(R)(R))))', '''
+    FnDef(R)(Type)(FnDef(b)(Bool)(FnDef(t)(R)(FnDef(f)(R)(b(R)(t)(f)))))
   '''),
 ];
