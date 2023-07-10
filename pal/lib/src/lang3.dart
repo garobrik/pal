@@ -202,7 +202,7 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
   switch (expr) {
     case Var expr:
       final bound = ctx[expr.id];
-      if (bound == null) return Failure('unknown var $expr');
+      if (bound == null) return Failure('unknown var $expr in ctx:\n  $ctx');
       if (bound.$1 == null && expectedType != null) {
         ctx = ctx.add(expr.id, (expectedType, bound.$2));
         actualType = expectedType;
@@ -316,8 +316,7 @@ Result<TypeCtx> assignable(TypeCtx ctx, Expr a, Expr b) {
     case (FnType a, FnType b):
       final argCtx = assignable(ctx, b.argType, a.argType);
       if (argCtx.isFailure) return argCtx;
-      return assignable(argCtx.success!, a.retType, b.retType)
-          .map((ctx) => b.argID != null ? ctx.without(b.argID!) : ctx);
+      return assignable(argCtx.success!, a.retType, b.retType);
     case (Var a, Expr b):
       if (ctx[a.id] == null) {
         return Success(ctx.add(a.id, (Type, b)));

@@ -35,6 +35,27 @@ const letBool = '''
   )
 ''';
 
+const isSuccess = IsSuccess();
+
+class IsSuccess extends Matcher {
+  const IsSuccess();
+
+  @override
+  Description describe(Description description) => StringDescription('Expected Success');
+
+  @override
+  bool matches(item, Map<dynamic, dynamic> matchState) => item is Success;
+
+  @override
+  Description describeMismatch(
+    dynamic item,
+    Description mismatchDescription,
+    Map<dynamic, dynamic> matchState,
+    bool verbose,
+  ) =>
+      StringDescription('message: ${(item as Failure).msg}');
+}
+
 void main() {
   test('simple parsing and serializing', () {
     const programs = {
@@ -67,7 +88,7 @@ void main() {
 
   test('let check', () {
     final result = check(coreTypeCtx, Type, Expr.parse(letForEval).$1);
-    expect(result.isFailure, isFalse);
+    expect(result, isSuccess);
     expect(result.success!.$1, coreTypeCtx);
     expect(result.success!.$2, Type);
     expect(result.success!.$3, Type);
@@ -79,7 +100,7 @@ void main() {
 
   test('letBool check', () {
     final result = check(coreTypeCtx, Type, Expr.parse(letForEval).$1);
-    expect(result.isFailure, isFalse);
+    expect(result, isSuccess);
     expect(result.success!.$1, coreTypeCtx);
     expect(result.success!.$2, Type);
     expect(result.success!.$3, Type);
@@ -99,12 +120,12 @@ void main() {
       } else {
         final (typeExpr, _) = Expr.parse(binding.typeSource!);
         final typeResult = check(typeCtx, Type, typeExpr);
-        expect(typeResult.isFailure, isFalse);
+        expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  $typeExpr');
         (_, _, expectedType) = typeResult.success!;
       }
       final (expr, _) = Expr.parse(binding.valueSource);
       final checkResult = check(typeCtx, expectedType, expr);
-      expect(checkResult.isFailure, isFalse);
+      expect(checkResult, isSuccess, reason: 'typing expr of ${binding.id}:\n  $expr');
       final (_, type, redex) = checkResult.success!;
       expect(typeCtx, isNot(contains(binding.id)));
       typeCtx[binding.id] = (type, redex);
