@@ -76,7 +76,7 @@ const exprs = [
         FnDef(l)(List(E))(
           FnDef(init)(R)(
             FnDef(f)(FnType(_)(E)(FnType(_)(R)(R)))(
-              l(init)(f)
+              l(R)(init)(f)
             )
           )
         )
