@@ -61,11 +61,76 @@ const exprs = [
         FnDef(l)(List(E))(
           FnDef(R)(Type)(
             FnDef(nil)(R)(
-              FnDef(f)(FnType(_)(E)(FnType(_)(R)(R)))(
-                f(e)(l(R)(nil)(f))
+              FnDef(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
+                cons(e)(l(R)(nil)(cons))
               )
             )
           )
+        )
+      )
+    )
+  '''),
+  Binding('fold', '''
+    FnDef(E)(Type)(
+      FnDef(R)(Type)(
+        FnDef(l)(List(E))(
+          FnDef(init)(R)(
+            FnDef(f)(FnType(_)(E)(FnType(_)(R)(R)))(
+              l(init)(f)
+            )
+          )
+        )
+      )
+    )
+  '''),
+  Binding.typed('DPair', 'FnType(T)(Type)(FnType(_)(FnType(_)(T)(Type))(Type))', '''
+    FnDef(T)(Type)(
+      FnDef(f)(FnType(_)(T)(Type))(
+        FnType(R)(Type)(
+          FnType(_)(FnType(t)(T)(FnType(_)(f(t))(R)))(
+            R
+          )
+        )
+      )
+    )
+  '''),
+  Binding.typed(
+      'DPair.mk',
+      'FnType(T)(Type)(FnType(f)(FnType(_)(T)(Type))(FnType(t)(T)(FnType(t2)(f(T))(DPair(T)(f)))))',
+      '''
+    FnDef(T)(Type)(
+      FnDef(f)(FnType(_)(T)(Type))(
+        FnDef(t)(T)(
+          FnDef(t2)(f(T))(
+            FnDef(R)(Type)(
+              FnDef(m)(FnType(t)(T)(FnType(_)(f(t))(R)))(
+                m(t)(t2)
+              )
+            )
+          )
+        )
+      )
+    )
+'''),
+  Binding('DPair.match', '''
+    FnDef(T)(Type)(
+      FnDef(f)(FnType(_)(T)(Type))(
+        FnDef(R)(Type)(
+          FnDef(d)(DPair(T)(f))(
+            FnDef(f)(FnType(t)(T)(FnType(_)(f(t))(R)))(
+              d(R)(f)
+            )
+          )
+        )
+      )
+    )
+  '''),
+  Binding.typed('DPair.first',
+      'FnType(T)(Type)(FnType(f)(FnType(_)(T)(Type))(FnType(_)(DPair(T)(f))(T)))', '''
+    FnDef(T)(Type)(
+      FnDef(f)(FnType(_)(T)(Type))(
+        FnDef(d)(DPair(T)(f))(
+          d(T)(FnDef(t)(T)(FnDef(_)(f(t))(t)))
         )
       )
     )
