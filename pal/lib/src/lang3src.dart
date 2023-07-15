@@ -145,5 +145,12 @@ const exprs = [
         )
       )
     )
-  ''')
+  '''),
+  Binding.typed('HList', 'FnType(l)(List(Type))(Type)', '''
+    FnDef(l)(List(Type))(
+      FnType(R)(Type)(
+        fold(Type)(Type)(reverse(Type)(l))(R)(FnDef(e)(Type)(FnDef(r)(Type)(FnType(_)(e)(r))))
+      )
+    )
+  '''),
 ];
