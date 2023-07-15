@@ -62,7 +62,7 @@ const exprs = [
           FnDef(R)(Type)(
             FnDef(nil)(R)(
               FnDef(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
-                cons(e)(l(R)(nil)(cons))
+                l(R)(cons(e)(nil))(cons)
               )
             )
           )
