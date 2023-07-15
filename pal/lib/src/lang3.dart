@@ -314,9 +314,17 @@ Result<TypeCtx> assignable(TypeCtx ctx, Expr a, Expr b) {
     case (Type, _):
       return Success(ctx);
     case (FnType a, FnType b):
-      final argCtx = assignable(ctx, b.argType, a.argType);
+      final argCtx = assignable(ctx, b.argType, a.argType).wrap('''
+        args of:
+          $a
+          $b
+      ''');
       if (argCtx.isFailure) return argCtx;
-      return assignable(argCtx.success!, a.retType, b.retType);
+      return assignable(argCtx.success!, a.retType, b.retType).wrap('''
+        return types of:
+          $a
+          $b
+      ''');
     case (Var a, Expr b):
       if (ctx[a.id] == null) {
         return Success(ctx.add(a.id, (Type, b)));
@@ -422,5 +430,5 @@ Object eval(EvalCtx ctx, Expr expr) {
 
 extension Indent on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
-  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx:\n$indent';
+  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n$indent';
 }
