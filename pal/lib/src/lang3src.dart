@@ -83,6 +83,17 @@ const exprs = [
       )
     )
   '''),
+  Binding.typed('reverse', 'FnType(E)(Type)(FnType(l)(List(E))(List(E)))', '''
+    FnDef(E)(Type)(
+      FnDef(l)(List(E))(
+        fold(E)(List(E))(l)(empty(E))(FnDef(e)(E)(
+          FnDef(r)(List(E))(
+            append(E)(e)(r)
+          )
+        ))
+      )
+    )
+  '''),
   Binding.typed('DPair', 'FnType(T)(Type)(FnType(_)(FnType(_)(T)(Type))(Type))', '''
     FnDef(T)(Type)(
       FnDef(f)(FnType(_)(T)(Type))(
