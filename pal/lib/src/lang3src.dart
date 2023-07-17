@@ -94,6 +94,28 @@ const exprs = [
       )
     )
   '''),
+  Binding('foldr', '''
+    FnDef(E)(Type)(
+      FnDef(R)(Type)(
+        FnDef(l)(List(E))(
+          FnDef(init)(R)(
+            FnDef(f)(FnType(_)(E)(FnType(_)(R)(R)))(
+              fold(E)(R)(reverse(E)(l))(init)(f)
+            )
+          )
+        )
+      )
+    )
+  '''),
+  Binding.typed('map', '''
+    FnType(E)(Type)(FnType(R)(Type)(FnType(f)(FnType(_)(E)(R))(FnType(l)(List(E))(List(R)))))
+  ''', '''
+    FnDef(E)(Type)(FnDef(R)(Type)(FnDef(f)(FnType(_)(E)(R))(FnDef(l)(List(E))(
+      fold(E)(List(R))(l)(empty(R))(FnDef(e)(E)(FnDef(l2)(List(R))(
+        append(R)(f(e))(l2)
+      ))
+    )))))
+  '''),
   Binding.typed('DPair', 'FnType(T)(Type)(FnType(_)(FnType(_)(T)(Type))(Type))', '''
     FnDef(T)(Type)(
       FnDef(f)(FnType(_)(T)(Type))(
@@ -122,7 +144,7 @@ const exprs = [
         )
       )
     )
-'''),
+  '''),
   Binding('DPair.match', '''
     FnDef(T)(Type)(
       FnDef(f)(FnType(_)(T)(Type))(
