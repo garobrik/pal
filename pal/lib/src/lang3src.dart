@@ -3,10 +3,11 @@ import 'lang3.dart';
 class Binding {
   final ID id;
   final String? typeSource;
-  final String valueSource;
+  final String? valueSource;
 
   const Binding(this.id, this.valueSource) : typeSource = null;
   const Binding.typed(this.id, this.typeSource, this.valueSource);
+  const Binding.assumed(this.id, this.typeSource) : valueSource = null;
 }
 
 const exprs = [
@@ -38,43 +39,60 @@ const exprs = [
   ''')
   ],
   [
+    Binding.typed('Nat', 'Type', 'FnType(R)(Type)(FnType(_)(R)(FnType(_)(FnType(_)(R)(R))(R)))'),
+    Binding.typed('Zero', 'Nat', 'FnDef(R)(Type)(FnDef(z)(R)(FnDef(_)(FnType(_)(R)(R))(z)))'),
+    Binding.typed('Succ', 'FnType(_)(Nat)(Nat)',
+        'FnDef(n)(Nat)(FnDef(R)(Type)(FnDef(z)(R)(FnDef(s)(FnType(_)(R)(R))(s(n(R)(z)(s))))))'),
+  ],
+  [
+    Binding.assumed('NatInd', '''
+      FnType(P)(FnType(_)(Nat)(Type))(
+        FnType(_)(FnType(n)(Nat)(FnType(_)(P(n))(P(Succ(n)))))(
+          FnType(_)(P(Zero))(
+            FnDef(n)(Nat)(P(n))
+          )
+        )
+      )
+    '''),
+  ],
+  [
     Binding.typed('List', 'FnType(_)(Type)(Type)', '''
-    FnDef(E)(Type)(
-      FnType(R)(Type)(
-        FnType(nil)(R)(
-          FnType(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
-            R
+      FnDef(E)(Type)(
+        FnType(R)(Type)(
+          FnType(nil)(R)(
+            FnType(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
+              R
+            )
           )
         )
       )
-    )
-  '''),
+    '''),
     Binding.typed('empty', 'FnType(E)(Type)(List(E))', '''
-    FnDef(E)(Type)(
-      FnDef(R)(Type)(
-        FnDef(nil)(R)(
-          FnDef(_)(FnType(_)(E)(FnType(_)(R)(R)))(
-            nil
+      FnDef(E)(Type)(
+        FnDef(R)(Type)(
+          FnDef(nil)(R)(
+            FnDef(_)(FnType(_)(E)(FnType(_)(R)(R)))(
+              nil
+            )
           )
         )
       )
-    )
-  '''),
+    '''),
     Binding.typed('append', 'FnType(E)(Type)(FnType(e)(E)(FnType(l)(List(E))(List(E))))', '''
-    FnDef(E)(Type)(
-      FnDef(e)(E)(
-        FnDef(l)(List(E))(
-          FnDef(R)(Type)(
-            FnDef(nil)(R)(
-              FnDef(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
-                l(R)(cons(e)(nil))(cons)
+      FnDef(E)(Type)(
+        FnDef(e)(E)(
+          FnDef(l)(List(E))(
+            FnDef(R)(Type)(
+              FnDef(nil)(R)(
+                FnDef(cons)(FnType(_)(E)(FnType(_)(R)(R)))(
+                  l(R)(cons(e)(nil))(cons)
+                )
               )
             )
           )
         )
       )
-    )
-  '''),
+    '''),
     Binding.typed('fold', '''
       FnType(E)(Type)(FnType(R)(Type)(FnType(_)(FnType(_)(E)(FnType(_)(R)(R)))(
         FnType(_)(R)(FnType(f)(List(E))(
@@ -167,6 +185,71 @@ const exprs = [
   ''')
   ],
   [
+    Binding.typed('Pair', 'FnType(_)(Type)(FnType(_)(Type)(Type))', '''
+      FnDef(A)(Type)(FnDef(B)(Type)(
+        FnType(R)(Type)(
+          FnType(_)(FnType(_)(A)(FnType(_)(B)))(R)
+        )
+      ))
+    '''),
+    Binding.typed('Pair.mk', '''
+      FnType(A)(Type)(FnType(B)(Type)(FnType(_)(A)(FnType(_)(B)(Pair(A)(B)))))
+    ''', '''
+      FnDef(A)(Type)(FnDef(B)(Type)(
+        FnDef(a)(A)(FnDef(b)(B)(
+          FnDef(R)(Type)(
+            FnDef(m)(FnType(_)(A)(FnType(_)(B)))(m(a)(b))
+          )
+        ))
+      ))
+    '''),
+    Binding.typed('Pair.match', '''
+      FnType(A)(Type)(FnType(B)(Type)(
+        FnType(_)(R)(FnType(_)(Pair(A)(B))(
+          FnType(_)(FnType(_)(A)(FnType(_)(B)(R)))(R)
+        ))
+      ))
+    ''', '''
+      FnDef(A)(Type)(
+        FnDef(B)(Type)(
+          FnDef(R)(Type)(
+            FnDef(p)(Pair(A)(B))(
+              FnDef(m)(FnType(_)(A)(FnType(_)(B)(R)))(
+                p(R)(m)
+              )
+            )
+          )
+        )
+      )
+    ''')
+  ],
+  [
+    Binding.typed('HList', 'FnType(l)(List(Type))(Type)', '''
+      FnDef(l)(List(Type))(
+        FnType(R)(Type)(
+          fold(Type)(Type)(
+            FnDef(e)(Type)(FnDef(r)(Type)(FnType(_)(e)(r)))
+          )(R)(reverse(Type)(l))
+        )
+      )
+    '''),
+    Binding.typed('HList.mk', '''
+      FnType(l)(List(Type))(
+        fold(Type)(Type)(
+          FnDef(e)(Type)(FnDef(r)(Type)(FnType(_)(e)(r)))
+        )(HList(l))(reverse(Type)(l))
+      )
+    ''', '''
+      FnDef(l)(List(Type))(
+        FnType(R)(Type)(
+          fold(Type)(Type)(
+            FnDef(e)(Type)(FnDef(r)(Type)(FnType(_)(e)(r)))
+          )(R)(reverse(Type)(l))
+        )
+      )
+    '''),
+  ],
+  [
     Binding.typed('DPair', 'FnType(T)(Type)(FnType(_)(FnType(_)(T)(Type))(Type))', '''
     FnDef(T)(Type)(
       FnDef(f)(FnType(_)(T)(Type))(
@@ -221,16 +304,5 @@ const exprs = [
         )
       )
     ''')
-  ],
-  [
-    Binding.typed('HList', 'FnType(l)(List(Type))(Type)', '''
-      FnDef(l)(List(Type))(
-        FnType(R)(Type)(
-          fold(Type)(Type)(
-            FnDef(e)(Type)(FnDef(r)(Type)(FnType(_)(e)(r)))
-          )(R)(reverse(Type)(l))
-        )
-      )
-    '''),
   ],
 ];

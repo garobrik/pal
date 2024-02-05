@@ -322,7 +322,7 @@ extension IDMapOps<T> on Map<ID, T> {
 }
 
 typedef TypeCtx = Map<ID, (Expr?, Expr?)>;
-typedef EvalCtx = Map<ID, Object>;
+typedef EvalCtx = Map<ID, Object?>;
 
 Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) {
   late final Expr actualType;

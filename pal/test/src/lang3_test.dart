@@ -141,16 +141,21 @@ void main() {
               reason: 'typing type of ${binding.id}:\n  $origExpectedType');
           (_, _, expectedType) = typeResult.success!;
         }
-        final (expr, _) = Expr.parse(binding.valueSource);
-        final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, expr);
-        expect(checkResult, isSuccess, reason: 'typing expr of ${binding.id}:\n  $expr');
-        final (_, type, redex) = checkResult.success!;
-        expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
-        extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (type, null));
-        moduleTypeCtx = moduleTypeCtx.add(binding.id, (origExpectedType ?? type, redex));
-        final evald = eval(evalCtx, expr);
+        late final Object? value;
+        if (binding.valueSource != null) {
+          final (expr, _) = Expr.parse(binding.valueSource!);
+          final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, expr);
+          expect(checkResult, isSuccess, reason: 'typing expr of ${binding.id}:\n  $expr');
+          final (_, type, redex) = checkResult.success!;
+          expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (type, null));
+          moduleTypeCtx = moduleTypeCtx.add(binding.id, (origExpectedType ?? type, redex));
+          value = eval(evalCtx, expr);
+        } else {
+          value = null;
+        }
         expect(evalCtx, isNot(contains(binding.id)));
-        evalCtx = evalCtx.add(binding.id, evald);
+        evalCtx = evalCtx.add(binding.id, value);
       }
       typeCtx = typeCtx.union(moduleTypeCtx);
     }
