@@ -11,243 +11,306 @@ extension IDExtension on ID {
       );
 }
 
-sealed class Expr {
-  const Expr();
+typedef Tokens = List<(String, int, int)>;
+typedef Parser<T> = (T, Tokens) Function(Tokens);
+
+sealed class Expr<T extends Object> {
+  final T? t;
+  const Expr(this.t);
 
   @override
-  String toString() {
-    return toStringIndent(100, 100).join('\n');
+  String toString() => _serializeIndent(80);
+
+  String _serializeApp(List<Expr<Object>> args) {
+    switch (this) {
+      case App(:var fn, :var arg):
+        return fn._serializeApp([arg, ...args]);
+      default:
+        return '${this._serialize()}(${args.map((arg) => arg._serialize()).join(', ')})';
+    }
   }
 
-  List<String> toStringIndent(int spaceOnNewLine, int remainingLine) {
+  String _serializeFn(FnKind kind, List<(ID?, Expr<Object>)> args) {
+    switch (this) {
+      case Fn(kind: var thisKind, :var argID, :var argType, result: var body) when thisKind == kind:
+        return body._serializeFn(kind, [...args, (argID, argType)]);
+      default:
+        final argPart =
+            '${kind == Fn.Def ? '(' : '['}${args.map((pair) => pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}').join(', ')}${kind == Fn.Def ? ')' : ']'}';
+        final bodyPart = this is Var ? '{${this._serialize()}}' : '{ ${this._serialize()} }';
+        return '$argPart$bodyPart';
+    }
+  }
+
+  String _serialize() {
     switch (this) {
       case Var(:var id):
-        return [id];
-      case FnApp(:var fn, :var arg):
-        final fnString = fn.toStringIndent(spaceOnNewLine, remainingLine);
-        final argRemainingLine = remainingLine - fnString.last.length - 2;
-        final argString = arg.toStringIndent(spaceOnNewLine - 2, argRemainingLine);
-        final fits = argString.first.length <= argRemainingLine;
-        final fitsOne = fits && argString.length == 1;
-        final fitsNew = argString.map((s) => s.trim().length).sum() <= spaceOnNewLine - 2;
-        return [
-          ...fnString.sublist(0, fnString.length - 1),
-          if (fitsOne)
-            '${fnString.last}(${argString.first})'
-          else if (fitsNew) ...[
-            '${fnString.last}(',
-            '  ${argString.map((s) => s.trim()).join()}',
-            ')'
-          ] else if (fits) ...[
-            '${fnString.last}(${argString.first}',
-            ...argString.sublist(1, argString.length - 1),
-            if (argString.last == ')') '))' else ...[argString.last, ')']
-          ] else ...[
-            '${fnString.last}(',
-            ...argString.map((s) => '  $s'),
-            ')'
-          ]
-        ];
-      case FnDef(:var argID, :var argType, :var body):
-        argID = argID ?? '_';
-        final argPart = '$argID:  ->'.length;
-        final argTypeString = argType.toStringIndent(spaceOnNewLine - 2, remainingLine - argPart);
-        final typeFits = argTypeString.length == 1 && argTypeString.first.length <= remainingLine;
-        final argPartString = [
-          if (typeFits)
-            '$argID: ${argTypeString.first} ->'
-          else ...[
-            '$argID:',
-            ...argTypeString.sublist(0, argTypeString.length - 1).map((s) => '  $s'),
-            '  ${argTypeString.last} ->'
-          ]
-        ];
-        final bodyRemainingLine = remainingLine - argPartString.last.length - 1;
-        final bodyString = body.toStringIndent(spaceOnNewLine - 2, bodyRemainingLine);
-        final fits = bodyString.first.length <= bodyRemainingLine;
-        return [
-          ...argPartString.sublist(0, argPartString.length - 1),
-          if (fits) ...[
-            '${argPartString.last} ${bodyString.first}',
-            ...bodyString.sublist(1)
-          ] else ...[
-            argPartString.last,
-            '  ${bodyString.first}',
-            ...bodyString.sublist(1).map((s) => '  $s')
-          ],
-        ];
-      case FnType(:var argID, :var argType, :var retType):
-        var argPart = (argID == null ? ' =>' : '$argID:  =>').length;
-        if (argType is FnType) argPart += 2;
-        var argTypeString = argType.toStringIndent(spaceOnNewLine - 2, remainingLine - argPart);
-        if (argType is FnType) {
-          argTypeString = ['(${argTypeString.first}', ...argTypeString.skip(1)];
-          argTypeString = [
-            ...argTypeString.take(argTypeString.length - 1),
-            '${argTypeString.last})'
-          ];
+        return id;
+      case App():
+        return this._serializeApp([]);
+      case Fn(:var kind):
+        return this._serializeFn(kind, []);
+    }
+  }
+
+  String _serializeAppIndent(int colRemaining, List<Expr<Object>> args) {
+    switch (this) {
+      case App(:var fn, :var arg):
+        return fn._serializeAppIndent(colRemaining, [arg, ...args]);
+      default:
+        final oneLine = _serializeApp(args);
+        if (oneLine.length < colRemaining) {
+          return oneLine;
         }
-        final typeFits = argTypeString.length == 1 && argTypeString.first.length <= remainingLine;
-        argID = argID == null ? '' : '$argID: ';
-        final argPartString = [
-          if (typeFits)
-            '$argID${argTypeString.first} =>'
-          else ...[
-            argID.trim(),
-            ...argTypeString.sublist(0, argTypeString.length - 1).map((s) => '  $s'),
-            '  ${argTypeString.last} =>'
-          ]
-        ];
-        final retTypeRemainingLine = remainingLine - argPartString.last.length - 1;
-        final retTypeString = retType.toStringIndent(spaceOnNewLine - 2, retTypeRemainingLine);
-        final fits = retTypeString.first.length <= retTypeRemainingLine;
-        return [
-          ...argPartString.sublist(0, argPartString.length - 1),
-          if (fits) ...[
-            '${argPartString.last} ${retTypeString.first}',
-            ...retTypeString.sublist(1)
-          ] else ...[
-            argPartString.last,
-            '  ${retTypeString.first}',
-            ...retTypeString.sublist(1).map((s) => '  $s')
-          ],
-        ];
+        final lines = args.map((arg) => arg._serializeIndent(colRemaining - 3).indent);
+        return '''
+$this(
+${lines.join(',\n')}
+)''';
     }
   }
 
-  static (Expr, String) parse(String s) {
-    s = s.trim();
-    if (s.last == ')') {
-      var (expr, rest) = parse(s.rest);
-      assert(rest.last == '(', s);
-      rest = rest.rest;
-      if (rest.isEmpty) return (expr, rest.rest);
-      assert(rest.last.trim().isNotEmpty);
-      var (fn, restRest) = parse(rest);
-      return switch (FnApp(fn, expr)) {
-        FnApp(
-          fn: FnApp(fn: FnApp(fn: Var(id: _fnDefID), arg: Var(id: var argID)), arg: var argType),
-          arg: var body
-        ) =>
-          (FnDef(argID == '_' ? null : argID, argType, body), restRest),
-        FnApp(
-          fn: FnApp(fn: FnApp(fn: Var(id: _fnTypeID), arg: Var(id: var argID)), arg: var argType),
-          arg: var retType
-        ) =>
-          (FnType(argID == '_' ? null : argID, argType, retType), restRest),
-        var expr => (expr, restRest)
+  String _serializeFnIndent(int colRemaining, FnKind kind, List<(ID?, Expr<Object>)> args) {
+    switch (this) {
+      case Fn(kind: var thisKind, :var argID, :var argType, result: var body) when thisKind == kind:
+        return body._serializeFnIndent(colRemaining, kind, [...args, (argID, argType)]);
+      default:
+        final oneLine = _serializeFn(kind, args);
+        if (oneLine.length < colRemaining) {
+          return oneLine;
+        }
+        final argPart =
+            '${kind == Fn.Def ? '(' : '['}${args.map((pair) => pair.$1 == null ? '${pair.$2}' : '${pair.$1}: ${pair.$2}').join(', ')}${kind == Fn.Def ? ')' : ']'}';
+        return '''$argPart {
+${this._serializeIndent(colRemaining - 2).indent}
+}''';
+    }
+  }
+
+  String _serializeIndent(int colRemaining) {
+    switch (this) {
+      case Var(:var id):
+        return id;
+      case App():
+        return this._serializeAppIndent(colRemaining, []);
+      case Fn(:var kind):
+        return this._serializeFnIndent(colRemaining, kind, []);
+    }
+  }
+
+  static const _specialChars = ' \n<>()[]{},:.';
+  static Tokens tokenize(String s) {
+    final ret = <(String, int, int)>[];
+    int line = 0;
+    int col = 0;
+
+    while (s.isNotEmpty) {
+      var index = 0;
+      while (index < s.length && !_specialChars.contains(s[index])) {
+        index++;
+      }
+
+      if (index == 0) {
+        if (s[0] == '\n') {
+          line++;
+          col = 0;
+        } else {
+          if (s[0] != ' ') {
+            ret.add((s.substring(0, 1), line, col));
+          }
+          col++;
+        }
+        s = s.substring(1);
+      } else {
+        ret.add((s.substring(0, index), line, col));
+        col += index;
+        s = s.substring(index);
+      }
+    }
+    return ret;
+  }
+
+  static Parser<void> _parseLit(String lit) => (tokens) {
+        assert(tokens.isNotEmpty && tokens[0].$1 == lit, tokens.toString());
+        return (null, tokens.sublist(1));
       };
-    } else {
-      assert(s.last != '(', s);
-      final idStart = s.lastIndexOf(RegExp(r'[() \n]')) + 1;
-      return (Var(s.substring(idStart)), s.substring(0, idStart).trim());
+
+  static Parser<T> _then<T>(
+    Parser<T> f1,
+    Parser<void> f2,
+  ) =>
+      (tokens) {
+        final (result, remaining) = f1(tokens);
+        return (result, f2(remaining).$2);
+      };
+
+  static Parser<Expr<(int, int)>> _parseFn(FnKind kind, String endParen) => (tokens) {
+        var (argType, remaining) = _parse(tokens);
+        late final String? id;
+        assert(remaining.isNotEmpty);
+        switch ((argType, remaining[0].$1)) {
+          case (Var(id: var varID), ':'):
+            id = varID;
+            (argType, remaining) = _parse(remaining.sublist(1));
+          default:
+            id = null;
+        }
+        final pos = (tokens[0].$2, tokens[0].$3);
+
+        tokens = remaining;
+        assert(tokens.isNotEmpty);
+        final (result, next) = switch (tokens) {
+          [(',', _, _), ...var remaining] => _parseFn(kind, endParen)(remaining),
+          [(var e, _, _), (var n, var line, var col), ...var remaining] when e == endParen =>
+            switch ((e, n)) {
+              ('>', '(') => _parseFn(kind, ')')(remaining),
+              (_, '{') => _then(_parse, _parseLit('}'))(remaining),
+              _ => throw Exception('unexpected $n at $line:$col')
+            },
+          _ => throw Exception('unexpected $tokens')
+        };
+
+        return (Fn(kind, id, argType, result, pos), next);
+      };
+
+  static Parser<Expr<(int, int)>> _parseFnAppBody(Expr<(int, int)> fn, String end) => (tokens) {
+        assert(tokens.isNotEmpty);
+        final (arg, remaining) = _parse(tokens);
+        final (tok, line, col) = remaining[0];
+        if (tok == end) {
+          return _parseFnApp(
+            _parseLit(end)(remaining).$2,
+            App(fn, arg, (tokens[0].$2, tokens[0].$3)),
+          );
+        } else if (tok == ',') {
+          return _parseFnAppBody(App(fn, arg, (tokens[0].$2, tokens[0].$3)), end)(
+            _parseLit(',')(remaining).$2,
+          );
+        } else {
+          throw Exception('unexpected $tok at $line:$col');
+        }
+      };
+
+  static (Expr<(int, int)>, Tokens) _parseFnApp(Tokens tokens, Expr<(int, int)> fn) {
+    switch (tokens) {
+      case [('(', _, _), ...var rest]:
+        final (expr, remaining) = _parseFnAppBody(fn, ')')(rest);
+        return _parseFnApp(remaining, expr);
+      case [('<', _, _), ...var rest]:
+        final (expr, remaining) = _parseFnAppBody(fn, '>')(rest);
+        return _parseFnApp(remaining, expr);
+      default:
+        return (fn, tokens);
     }
   }
 
+  static (Expr<(int, int)>, Tokens) _parse(Tokens tokens) {
+    switch (tokens) {
+      case [('<' || '(' || '[', _, _), ...final afterToken]:
+        final (fn, rest) = switch (tokens[0].$1) {
+          '<' => _parseFn(Fn.Def, '>'),
+          '(' => _parseFn(Fn.Def, ')'),
+          '[' => _parseFn(Fn.Typ, ']'),
+          var t => throw Exception('unexpected $t')
+        }(afterToken);
+        return _parseFnApp(rest, fn);
+      case [(var token, var line, var col), ...final rest]:
+        assert(!_specialChars.contains(token), tokens);
+        return _parseFnApp(rest, Var(token, (line, col)));
+      case _:
+        throw Exception('unexpected end');
+    }
+  }
+
+  static Expr<(int, int)> parse(String s) => _parse(tokenize(s)).$1;
   Set<ID> get freeVars => switch (this) {
         Var(:var id) => {id},
-        FnDef(:var argID, :var body, :var argType) =>
-          body.freeVars.difference({argID}).union(argType.freeVars),
-        FnType(:var argID, :var retType, :var argType) =>
-          retType.freeVars.difference({argID}).union(argType.freeVars),
-        FnApp(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
+        Fn(:var argID, :var result, :var argType) =>
+          result.freeVars.difference({argID}).union(argType.freeVars),
+        App(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
       };
 
   Expr substExpr(ID from, Expr to) {
     switch (this) {
       case Var(:var id):
         return id == from ? to : this;
-      case FnApp(:var fn, :var arg):
-        return FnApp(fn.substExpr(from, to), arg.substExpr(from, to));
-      case FnType(:var argID, :var argType, :var retType):
-        final origRetType = retType;
-        final origArgID = argID;
+      case App(:var fn, :var arg):
+        return App(fn.substExpr(from, to), arg.substExpr(from, to));
+      case Fn(:var kind, :var argID, :var argType, :var result):
+        if (argID == from) {
+          return Fn(kind, argID, argType.substExpr(from, to), result);
+        } else if (argID == null) {
+          return Fn(kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
+        }
+        var newArgID = argID;
 
-        while (to.freeVars.contains(argID)) {
-          argID = argID!.freshen;
+        while (to.freeVars.contains(newArgID)) {
+          newArgID = newArgID.freshen;
         }
 
-        if (argID != origArgID) retType = retType.substExpr(origArgID!, Var(argID!));
+        if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
 
-        return FnType(
-          origArgID == from ? origArgID : argID,
-          argType.substExpr(from, to),
-          origArgID == from ? origRetType : retType.substExpr(from, to),
-        );
-      case FnDef(:var argID, :var argType, :var body):
-        final origBody = body;
-        final origArgID = argID;
-
-        while (to.freeVars.contains(argID)) {
-          argID = argID!.freshen;
-        }
-
-        if (argID != origArgID) body = body.substExpr(origArgID!, Var(argID!));
-
-        return FnDef(
-          origArgID == from ? origArgID : argID,
-          argType.substExpr(from, to),
-          origArgID == from ? origBody : body.substExpr(from, to),
-        );
+        return Fn(kind, newArgID, argType.substExpr(from, to), result.substExpr(from, to));
     }
   }
 
-  @override
-  bool operator ==(Object other) =>
-      other is Expr &&
-      switch ((this, other)) {
-        (Var thisV, Var other) => thisV.id == other.id,
-        (FnApp thisF, FnApp other) => thisF.arg == other.arg && thisF.fn == other.fn,
-        (FnDef thisD, FnDef other) =>
-          thisD.argID == other.argID && thisD.argType == other.argType && thisD.body == other.body,
-        (FnType thisT, FnType other) => thisT.argID == other.argID &&
-            thisT.argType == other.argType &&
-            thisT.retType == other.retType,
+  bool alphaEquiv(Expr b, [List<String?> ctxA = const [], List<String?> ctxB = const []]) =>
+      switch ((this, b)) {
+        (Var(id: var a), Var(id: var b)) =>
+          ctxA.indexOf(a) == ctxB.indexOf(b) && (ctxA.contains(a) || (a == b)),
+        (App a, App b) => a.fn.alphaEquiv(b.fn, ctxA, ctxB) && a.arg.alphaEquiv(b.arg, ctxA, ctxB),
+        (Fn a, Fn b) => a.kind == b.kind &&
+            a.argType.alphaEquiv(b.argType, ctxA, ctxB) &&
+            a.result.alphaEquiv(b.result, [a.argID, ...ctxA], [b.argID, ...ctxB]),
         _ => false,
       };
 
   @override
-  int get hashCode => switch (this) {
-        Var v => Hash.all([v.id]),
-        FnApp fn => Hash.all([fn.fn, fn.arg]),
-        FnType t => Hash.all([t.argID, t.argType, t.retType]),
-        FnDef d => Hash.all([d.argID, d.argType, d.body]),
+  bool operator ==(Object other) => other is Expr && this.alphaEquiv(other);
+
+  int _hashCode(List<String?> ctx) => switch (this) {
+        Var v => Hash.all([!ctx.contains(v.id) ? v.id.hashCode : ctx.indexOf(v.id).hashCode]),
+        App fn => Hash.all([fn.fn._hashCode(ctx), fn.arg._hashCode(ctx)]),
+        Fn f => Hash.all([
+            f.kind.hashCode,
+            f.argType._hashCode(ctx),
+            f.result._hashCode([f.argID, ...ctx])
+          ]),
       };
+
+  @override
+  int get hashCode => _hashCode(const []);
 }
 
-class Var extends Expr {
+class Var<T extends Object> extends Expr<T> {
   final ID id;
 
-  const Var(this.id);
+  const Var(this.id, [super.t]);
 }
 
-class FnApp extends Expr {
+class App<T extends Object> extends Expr<T> {
   final Expr fn;
   final Expr arg;
 
-  const FnApp(this.fn, this.arg);
+  const App(this.fn, this.arg, [super.t]);
 }
 
-class FnDef extends Expr {
+enum FnKind { Def, Typ }
+
+class Fn<T extends Object> extends Expr<T> {
+  static const Def = FnKind.Def;
+  static const Typ = FnKind.Typ;
+
+  final FnKind kind;
   final ID? argID;
   final Expr argType;
-  final Expr body;
+  final Expr result;
 
-  const FnDef(this.argID, this.argType, this.body);
-}
-
-class FnType extends Expr {
-  final ID? argID;
-  final Expr argType;
-  final Expr retType;
-
-  const FnType(this.argID, this.argType, this.retType);
+  const Fn(this.kind, this.argID, this.argType, this.result, [super.t]);
 }
 
 const _typeID = 'Type';
 const Type = Var(_typeID);
-const _fnDefID = 'FnDef';
-const _fnTypeID = 'FnType';
 
 // Type Checking
 
@@ -317,7 +380,7 @@ extension IDMapOps<T> on Map<ID, T> {
 
   EvalCtx restrict(Iterable<ID> ids) => {
         for (final id in ids)
-          if (this.containsKey(id)) id: this.get(id)!
+          if (this.containsKey(id)) id: this.get(id)
       };
 }
 
@@ -343,7 +406,7 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       final (_, boundRedex) = bound;
       redex = boundRedex ?? expr;
 
-    case FnApp expr:
+    case App expr:
       final argResult = check(ctx, null, expr.arg);
       if (argResult.isFailure) return argResult.wrap('arg of $expr');
       final (argCtx, argType, argRedex) = argResult.success!;
@@ -359,21 +422,22 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       ctx = fnCtx;
 
       switch (fnType) {
-        case FnType(:var argID, argType: var fnArgType, :var retType):
+        case Fn(kind: Fn.Typ, :var argID, argType: var fnArgType, result: var retType):
           final assignableResult = assignable(ctx, fnArgType, argType);
           if (assignableResult.isFailure) {
-            return assignableResult.wrap('checking passed arg in fnapp $expr').castFailure();
+            return assignableResult.wrap('checking passed arg in fnapp:\n$expr').castFailure();
           }
           actualType = argID != null ? retType.substExpr(argID, argRedex) : retType;
           redex = switch (fnRedex) {
-            FnDef(:var argID, :var body) => argID != null ? body.substExpr(argID, argRedex) : body,
-            _ => FnApp(fnRedex, argRedex),
+            Fn(kind: Fn.Def, :var argID, result: var body) =>
+              argID != null ? body.substExpr(argID, argRedex) : body,
+            _ => App(fnRedex, argRedex),
           };
         case _:
           return Failure('tried to apply non fn ${expr.fn} of type $fnType');
       }
 
-    case FnType expr:
+    case Fn expr:
       final argResult = check(ctx, Type, expr.argType);
       if (argResult.isFailure) return argResult.wrap('arg type of $expr');
       final (argCtx, _, argRedex) = argResult.success!;
@@ -384,11 +448,11 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       }
       final retResult = check(
         expr.argID != null ? ctx.add(expr.argID!, (argRedex, null)) : ctx,
-        Type,
-        expr.retType,
+        expr.kind == Fn.Typ ? Type : null,
+        expr.result,
       );
       if (retResult.isFailure) return retResult.wrap('return type of $expr');
-      final (retCtx, _, retRedex) = retResult.success!;
+      final (retCtx, retType, retRedex) = retResult.success!;
 
       final oldArgBinding = expr.argID == null ? null : ctx.get(expr.argID!);
       ctx = retCtx;
@@ -397,35 +461,8 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
         if (oldArgBinding != null) ctx = ctx.add(expr.argID!, oldArgBinding);
       }
 
-      actualType = Type;
-      redex = FnType(expr.argID, argRedex, retRedex);
-
-    case FnDef expr:
-      final argResult = check(ctx, Type, expr.argType);
-      if (argResult.isFailure) return argResult.wrap('arg type of $expr');
-      final (argCtx, _, argRedex) = argResult.success!;
-      ctx = argCtx;
-
-      if (ctx.containsKey(expr.argID)) {
-        return Failure('shadowed variable ${expr.argID}');
-      }
-      final bodyResult = check(
-        expr.argID != null ? ctx.add(expr.argID!, (argRedex, null)) : ctx,
-        null,
-        expr.body,
-      );
-      if (bodyResult.isFailure) return bodyResult.wrap('body of $expr');
-      final (bodyCtx, bodyType, bodyRedex) = bodyResult.success!;
-
-      final oldArgBinding = expr.argID == null ? null : ctx.get(expr.argID!);
-      ctx = bodyCtx;
-      if (expr.argID != null) {
-        ctx = ctx.without(expr.argID!);
-        if (oldArgBinding != null) ctx = ctx.add(expr.argID!, oldArgBinding);
-      }
-
-      actualType = FnType(expr.argID, argRedex, bodyType);
-      redex = FnDef(expr.argID, argRedex, bodyRedex);
+      actualType = expr.kind == Fn.Typ ? Type : Fn(Fn.Typ, expr.argID, argRedex, retType);
+      redex = Fn(expr.kind, expr.argID, argRedex, retRedex);
   }
 
   if (expectedType != null) {
@@ -440,47 +477,41 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
 Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
       Var a =>
         ctx.get(a.id)?.$2 == null || ctx.get(a.id)?.$2 == a ? a : reduce(ctx, ctx.get(a.id)!.$2!),
-      FnApp a => switch (reduce(ctx, a.fn)) {
-          FnDef(:var argID, :var body) =>
+      App a => switch (reduce(ctx, a.fn)) {
+          Fn(kind: Fn.Def, :var argID, result: var body) =>
             reduce(ctx, argID != null ? body.substExpr(argID, a.arg) : body),
-          var fn => FnApp(fn, reduce(ctx, a.arg)),
+          var fn => App(fn, reduce(ctx, a.arg)),
         },
-      FnType a => FnType(a.argID, reduce(ctx, a.argType), reduce(ctx, a.retType)),
-      FnDef a => FnDef(a.argID, reduce(ctx, a.argType), reduce(ctx, a.body)),
+      Fn a => Fn(a.kind, a.argID, reduce(ctx, a.argType), reduce(ctx, a.result)),
     };
 
 Result<TypeCtx> assignable(TypeCtx ctx, Expr a, Expr b) {
-  if (a == b) return Success(ctx);
+  if (a.alphaEquiv(b)) return Success(ctx);
   switch ((a, b)) {
     case (Type, _):
       return Success(ctx);
-    case (FnType a, FnType b):
+    case (Fn a, Fn b) when a.kind == Fn.Typ && b.kind == Fn.Typ:
       final argCtx = assignable(ctx, b.argType, a.argType).wrap('''
-        args of:
-          $a
-          $b
-      ''');
+args of:
+${a.toString().indent}
+${b.toString().indent}''');
       if (argCtx.isFailure) return argCtx;
-      final retCtx = assignable(argCtx.success!, a.retType, b.retType).wrap('''
-        return types of:
-          $a
-          $b
-      ''');
+      final retCtx = assignable(argCtx.success!, a.result, b.result).wrap('''
+return types of:
+${a.toString().indent}
+${b.toString().indent}''');
       return retCtx.map((ctx) => a.argID == null ? ctx : ctx.without(a.argID!));
     case (Var a, Expr b):
-      if (ctx.get(a.id) == null) {
-        return Success(ctx.add(a.id, (Type, b)));
-      } else if (ctx.get(a.id)!.$2 == null) {
+      if (ctx.get(a.id) == null || ctx.get(a.id)!.$2 == null) {
         return Success(ctx.add(a.id, (Type, b)));
       } else {
         return assignable(ctx, ctx.get(a.id)!.$2!, b);
       }
-    case (FnApp a, FnApp b):
+    case (App a, App b):
       final fnCtx = assignable(ctx, a.fn, b.fn).wrap('''
-        fns of:
-          $a
-          $b 
-      ''');
+fns of:
+${a.toString().indent}
+${b.toString().indent}''');
       if (fnCtx.isFailure) return fnCtx;
       return assignable(fnCtx.success!, a.arg, b.arg);
     case _:
@@ -502,12 +533,20 @@ class Closure {
 
   @override
   bool operator ==(Object other) =>
-      other is Closure && argID == other.argID && body == other.body && ctx.equals(other.ctx);
+      other is Closure &&
+      argID == other.argID &&
+      body.alphaEquiv(other.body) &&
+      ctx.equals(other.ctx);
 
   @override
   int get hashCode {
     final sortedKeys = SplayTreeSet.of(ctx.keys);
-    return Hash.all([argID, body, ...sortedKeys, ...sortedKeys.map((k) => ctx.get(k)!)]);
+    return Hash.all([
+      argID.hashCode,
+      body.hashCode,
+      ...sortedKeys.map((k) => k.hashCode),
+      ...sortedKeys.map((k) => ctx.get(k)!.hashCode)
+    ]);
   }
 }
 
@@ -533,9 +572,9 @@ final TypeCtx coreTypeCtx = {Type.id: (Type, Type)};
 
 Object eval(EvalCtx ctx, Expr expr) {
   switch (expr) {
-    case Var expr:
+    case Var():
       return ctx.get(expr.id) ?? (throw Exception('$ctx: ${expr.id}'));
-    case FnApp expr:
+    case App():
       final fn = eval(ctx, expr.fn);
       final arg = eval(ctx, expr.arg);
       return switch (fn) {
@@ -544,30 +583,24 @@ Object eval(EvalCtx ctx, Expr expr) {
         Object Function(EvalCtx, Object) dartFn => dartFn(ctx, arg),
         _ => throw Exception('unknown fn object, type: ${fn.runtimeType}, value: $fn'),
       };
-    case FnDef expr:
+    case Fn(kind: Fn.Def):
       return Closure(
-        ctx.restrict((expr.body).freeVars.difference({expr.argID})),
+        ctx.restrict((expr.result).freeVars.difference({expr.argID})),
         expr.argID,
-        expr.body,
+        expr.result,
       );
-    case FnType expr:
+    case Fn(kind: Fn.Typ):
       final argType = eval(ctx, expr.argType) as TypeValue;
       return FnTypeType(
         argType,
-        eval(expr.argID != null ? ctx.add(expr.argID!, argType) : ctx, expr.retType) as TypeValue,
+        eval(expr.argID != null ? ctx.add(expr.argID!, argType) : ctx, expr.result) as TypeValue,
       );
   }
 }
 
 extension on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
-  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n$indent';
-  String get last => this[this.length - 1];
-  String get rest => this.substring(0, this.length - 1);
-}
-
-extension on Iterable<int> {
-  int sum() => this.reduce((a, b) => a + b);
+  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
 }
 
 class Hash {
@@ -583,5 +616,5 @@ class Hash {
     return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
   }
 
-  static int all(List<Object?> objects) => finish(objects.map((o) => o.hashCode).fold(0, combine));
+  static int all(List<int> hashes) => finish(hashes.fold(0, combine));
 }
