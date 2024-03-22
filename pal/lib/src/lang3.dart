@@ -1,4 +1,5 @@
 // ignore_for_file: constant_identifier_names
+// ignore_for_file: prefer_function_declarations_over_variables
 
 import 'dart:collection';
 
@@ -13,10 +14,117 @@ extension IDExtension on ID {
 
 typedef Tokens = List<(String, int, int)>;
 typedef Parser<T> = (T, Tokens) Function(Tokens);
+const SPECIAL_CHARS = ' \n<>()[]{},:.=-';
+
+Tokens tokenize(String s) {
+  final ret = <(String, int, int)>[];
+  int line = 0;
+  int col = 0;
+
+  while (s.isNotEmpty) {
+    var index = 0;
+    while (index < s.length && !SPECIAL_CHARS.contains(s[index])) {
+      index++;
+    }
+
+    if (index == 0) {
+      if (s[0] == '\n') {
+        line++;
+        col = 0;
+      } else {
+        if (s[0] != ' ') {
+          ret.add((s.substring(0, 1), line, col));
+        }
+        col++;
+      }
+      s = s.substring(1);
+    } else {
+      ret.add((s.substring(0, index), line, col));
+      col += index;
+      s = s.substring(index);
+    }
+  }
+  return ret;
+}
+
+class Binding<T extends Object> {
+  final ID id;
+  final Expr<T>? type;
+  final Expr<T>? value;
+
+  const Binding(this.id, this.type, this.value) : assert(type != null || value != null);
+}
+
+typedef Program = List<List<Binding>>;
+
+final Parser<Program> parseProgram = (tokens) {
+  if (tokens.isEmpty) {
+    return ([[]], []);
+  }
+  if (tokens.first.$1 == '-') {
+    final remaining = parseProgram(tokens.sublist(tokens.indexWhere((tok) => tok.$1 != '-')));
+    return ([[], ...remaining.$1], remaining.$2);
+  }
+  assert(!SPECIAL_CHARS.contains(tokens[0].$1), tokens.toString());
+
+  final id = tokens.first.$1;
+  tokens = tokens.tail;
+  Expr? type;
+  if (tokens.first.$1 == ':') {
+    tokens = tokens.tail;
+    (type, tokens) = Expr.parse(tokens);
+  }
+  Expr? value;
+  if (tokens.first.$1 == '=') {
+    tokens = tokens.tail;
+    (value, tokens) = Expr.parse(tokens);
+  }
+
+  final (remaining, []) = parseProgram(tokens);
+  return (
+    [
+      [Binding(id, type, value), ...remaining.first],
+      ...remaining.tail
+    ],
+    []
+  );
+};
+
+String serializeProgram(Program p, {int lineLength = 100}) => p
+    .map((m) => m.map((b) {
+          String result = b.id;
+          final type = b.type?.toString();
+          final value = b.value?.toString();
+          if (type != null) {
+            result += ': ';
+            var lines = type.split('\n');
+            if (lines.first.length <= 100 - result.length) {
+              result += lines.first;
+              lines = lines.tail;
+            }
+            if (lines.isNotEmpty) {
+              result += '\n';
+              result += lines.join('\n');
+            }
+          }
+          if (value != null) {
+            result += ' = ';
+            var lines = value.split('\n');
+            if (lines.first.length <= 100 - result.split('\n').last.length) {
+              result += lines.first;
+              lines = lines.tail;
+            }
+            if (lines.isNotEmpty) {
+              result += '\n';
+              result += lines.join('\n');
+            }
+          }
+        }).join('\n\n'))
+    .join('\n\n--------------------\n\n');
 
 sealed class Expr<T extends Object> {
   final T? t;
-  const Expr(this.t);
+  const Expr({this.t});
 
   @override
   String toString() => _serializeIndent(80);
@@ -98,41 +206,9 @@ ${this._serializeIndent(colRemaining - 2).indent}
     }
   }
 
-  static const _specialChars = ' \n<>()[]{},:.';
-  static Tokens tokenize(String s) {
-    final ret = <(String, int, int)>[];
-    int line = 0;
-    int col = 0;
-
-    while (s.isNotEmpty) {
-      var index = 0;
-      while (index < s.length && !_specialChars.contains(s[index])) {
-        index++;
-      }
-
-      if (index == 0) {
-        if (s[0] == '\n') {
-          line++;
-          col = 0;
-        } else {
-          if (s[0] != ' ') {
-            ret.add((s.substring(0, 1), line, col));
-          }
-          col++;
-        }
-        s = s.substring(1);
-      } else {
-        ret.add((s.substring(0, index), line, col));
-        col += index;
-        s = s.substring(index);
-      }
-    }
-    return ret;
-  }
-
   static Parser<void> _parseLit(String lit) => (tokens) {
         assert(tokens.isNotEmpty && tokens[0].$1 == lit, tokens.toString());
-        return (null, tokens.sublist(1));
+        return (null, tokens.tail);
       };
 
   static Parser<T> _then<T>(
@@ -144,14 +220,16 @@ ${this._serializeIndent(colRemaining - 2).indent}
         return (result, f2(remaining).$2);
       };
 
-  static Parser<Expr<(int, int)>> _parseFn(FnKind kind, String endParen) => (tokens) {
-        var (argType, remaining) = _parse(tokens);
+  static Parser<Expr<(int, int)>> _parseFn(bool implicit, FnKind? kind) => (tokens) {
+        assert(implicit || kind != null);
+
+        var (argType, remaining) = parse(tokens);
         late final String? id;
         assert(remaining.isNotEmpty);
         switch ((argType, remaining[0].$1)) {
           case (Var(id: var varID), ':'):
             id = varID;
-            (argType, remaining) = _parse(remaining.sublist(1));
+            (argType, remaining) = parse(remaining.tail);
           default:
             id = null;
         }
@@ -159,31 +237,39 @@ ${this._serializeIndent(colRemaining - 2).indent}
 
         tokens = remaining;
         assert(tokens.isNotEmpty);
+
+        final endParen = implicit
+            ? '>'
+            : kind == Fn.Def
+                ? ')'
+                : ']';
+
         final (result, next) = switch (tokens) {
-          [(',', _, _), ...var remaining] => _parseFn(kind, endParen)(remaining),
+          [(',', _, _), ...var remaining] => _parseFn(implicit, kind)(remaining),
           [(var e, _, _), (var n, var line, var col), ...var remaining] when e == endParen =>
-            switch ((e, n)) {
-              ('>', '(') => _parseFn(kind, ')')(remaining),
-              (_, '{') => _then(_parse, _parseLit('}'))(remaining),
+            switch ((implicit, n)) {
+              (true, '(') => _parseFn(false, Fn.Def)(remaining),
+              (true, '[') => _parseFn(false, Fn.Typ)(remaining),
+              (_, '{') => _then(parse, _parseLit('}'))(remaining),
               _ => throw Exception('unexpected $n at $line:$col')
             },
           _ => throw Exception('unexpected $tokens')
         };
 
-        return (Fn(kind, id, argType, result, pos), next);
+        return (Fn(kind ?? Fn.Def, id, argType, result, t: pos), next);
       };
 
   static Parser<Expr<(int, int)>> _parseFnAppBody(Expr<(int, int)> fn, String end) => (tokens) {
         assert(tokens.isNotEmpty);
-        final (arg, remaining) = _parse(tokens);
+        final (arg, remaining) = parse(tokens);
         final (tok, line, col) = remaining[0];
         if (tok == end) {
           return _parseFnApp(
             _parseLit(end)(remaining).$2,
-            App(fn, arg, (tokens[0].$2, tokens[0].$3)),
+            App(fn, arg, t: (tokens[0].$2, tokens[0].$3)),
           );
         } else if (tok == ',') {
-          return _parseFnAppBody(App(fn, arg, (tokens[0].$2, tokens[0].$3)), end)(
+          return _parseFnAppBody(App(fn, arg, t: (tokens[0].$2, tokens[0].$3)), end)(
             _parseLit(',')(remaining).$2,
           );
         } else {
@@ -204,25 +290,24 @@ ${this._serializeIndent(colRemaining - 2).indent}
     }
   }
 
-  static (Expr<(int, int)>, Tokens) _parse(Tokens tokens) {
+  static final Parser<Expr<(int, int)>> parse = (tokens) {
     switch (tokens) {
       case [('<' || '(' || '[', _, _), ...final afterToken]:
         final (fn, rest) = switch (tokens[0].$1) {
-          '<' => _parseFn(Fn.Def, '>'),
-          '(' => _parseFn(Fn.Def, ')'),
-          '[' => _parseFn(Fn.Typ, ']'),
+          '<' => _parseFn(true, null),
+          '(' => _parseFn(false, Fn.Def),
+          '[' => _parseFn(false, Fn.Typ),
           var t => throw Exception('unexpected $t')
         }(afterToken);
         return _parseFnApp(rest, fn);
       case [(var token, var line, var col), ...final rest]:
-        assert(!_specialChars.contains(token), tokens);
-        return _parseFnApp(rest, Var(token, (line, col)));
+        assert(!SPECIAL_CHARS.contains(token), tokens);
+        return _parseFnApp(rest, Var(token, t: (line, col)));
       case _:
         throw Exception('unexpected end');
     }
-  }
+  };
 
-  static Expr<(int, int)> parse(String s) => _parse(tokenize(s)).$1;
   Set<ID> get freeVars => switch (this) {
         Var(:var id) => {id},
         Fn(:var argID, :var result, :var argType) =>
@@ -258,8 +343,11 @@ ${this._serializeIndent(colRemaining - 2).indent}
       switch ((this, b)) {
         (Var(id: var a), Var(id: var b)) =>
           ctxA.indexOf(a) == ctxB.indexOf(b) && (ctxA.contains(a) || (a == b)),
-        (App a, App b) => a.fn.alphaEquiv(b.fn, ctxA, ctxB) && a.arg.alphaEquiv(b.arg, ctxA, ctxB),
-        (Fn a, Fn b) => a.kind == b.kind &&
+        (App a, App b) => a.implicit == b.implicit &&
+            a.fn.alphaEquiv(b.fn, ctxA, ctxB) &&
+            a.arg.alphaEquiv(b.arg, ctxA, ctxB),
+        (Fn a, Fn b) => a.implicit == b.implicit &&
+            a.kind == b.kind &&
             a.argType.alphaEquiv(b.argType, ctxA, ctxB) &&
             a.result.alphaEquiv(b.result, [a.argID, ...ctxA], [b.argID, ...ctxB]),
         _ => false,
@@ -270,11 +358,12 @@ ${this._serializeIndent(colRemaining - 2).indent}
 
   int _hashCode(List<String?> ctx) => switch (this) {
         Var v => Hash.all([!ctx.contains(v.id) ? v.id.hashCode : ctx.indexOf(v.id).hashCode]),
-        App fn => Hash.all([fn.fn._hashCode(ctx), fn.arg._hashCode(ctx)]),
-        Fn f => Hash.all([
-            f.kind.hashCode,
-            f.argType._hashCode(ctx),
-            f.result._hashCode([f.argID, ...ctx])
+        App app => Hash.all([app.implicit.hashCode, app.fn._hashCode(ctx), app.arg._hashCode(ctx)]),
+        Fn fn => Hash.all([
+            fn.implicit.hashCode,
+            fn.kind.hashCode,
+            fn.argType._hashCode(ctx),
+            fn.result._hashCode([fn.argID, ...ctx])
           ]),
       };
 
@@ -285,14 +374,15 @@ ${this._serializeIndent(colRemaining - 2).indent}
 class Var<T extends Object> extends Expr<T> {
   final ID id;
 
-  const Var(this.id, [super.t]);
+  const Var(this.id, {super.t});
 }
 
 class App<T extends Object> extends Expr<T> {
+  final bool implicit;
   final Expr fn;
   final Expr arg;
 
-  const App(this.fn, this.arg, [super.t]);
+  const App(this.fn, this.arg, {this.implicit = false, super.t});
 }
 
 enum FnKind { Def, Typ }
@@ -302,11 +392,12 @@ class Fn<T extends Object> extends Expr<T> {
   static const Typ = FnKind.Typ;
 
   final FnKind kind;
+  final bool implicit;
   final ID? argID;
   final Expr argType;
   final Expr result;
 
-  const Fn(this.kind, this.argID, this.argType, this.result, [super.t]);
+  const Fn(this.kind, this.argID, this.argType, this.result, {this.implicit = false, super.t});
 }
 
 const _typeID = 'Type';
@@ -601,6 +692,10 @@ Object eval(EvalCtx ctx, Expr expr) {
 extension on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
+}
+
+extension<T> on List<T> {
+  List<T> get tail => sublist(1);
 }
 
 class Hash {

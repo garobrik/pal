@@ -1,5 +1,6 @@
+import 'dart:io';
+
 import 'package:pal/src/lang3.dart';
-import 'package:pal/src/lang3src.dart';
 import 'package:test/test.dart';
 
 const letForEval = '''
@@ -63,13 +64,13 @@ void main() {
       ),
     };
     for (final MapEntry(key: program, value: parsed) in programs.entries) {
-      expect(Expr.parse(program), equals(parsed));
+      expect(Expr.parse(tokenize(program)).$1, equals(parsed));
       // expect(Expr.parse(program).toString(), equals(program));
     }
   });
 
   test('let check', () {
-    final result = check(coreTypeCtx, Type, Expr.parse(letForEval));
+    final result = check(coreTypeCtx, Type, Expr.parse(tokenize(letForEval)).$1);
     expect(result, isSuccess);
     expect(result.success!.$1, coreTypeCtx);
     expect(result.success!.$2, Type);
@@ -77,40 +78,37 @@ void main() {
   });
 
   test('let eval', () {
-    expect(eval(coreEvalCtx, Expr.parse(letForEval)), type);
+    expect(eval(coreEvalCtx, Expr.parse(tokenize(letForEval)).$1), type);
   });
 
   test('compile exprs', () {
+    final exprs = parseProgram(tokenize(File('lib/src/core.pal').readAsStringSync())).$1;
     var typeCtx = coreTypeCtx;
     var evalCtx = coreEvalCtx;
     for (final module in exprs) {
       TypeCtx extModuleTypeCtx = {};
       TypeCtx moduleTypeCtx = {};
       for (final binding in module) {
-        late final Expr? origExpectedType;
         late final Expr? expectedType;
-        if (binding.typeSource == null) {
-          origExpectedType = null;
+        if (binding.type == null) {
           expectedType = null;
         } else {
-          origExpectedType = Expr.parse(binding.typeSource!);
-          final typeResult = check(typeCtx.union(moduleTypeCtx), Type, origExpectedType);
-          expect(typeResult, isSuccess,
-              reason: 'typing type of ${binding.id}:\n  $origExpectedType');
+          final typeResult = check(typeCtx.union(moduleTypeCtx), Type, binding.type!);
+          expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  ${binding.type}');
           (_, _, expectedType) = typeResult.success!;
         }
         late final Object? value;
-        if (binding.valueSource != null) {
-          final expr = Expr.parse(binding.valueSource!);
-          final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, expr);
-          expect(checkResult, isSuccess, reason: 'typing expr of ${binding.id}:\n  $expr');
+        if (binding.value != null) {
+          final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, binding.value!);
+          expect(checkResult, isSuccess,
+              reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
           final (_, type, redex) = checkResult.success!;
           expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (origExpectedType ?? type, null));
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type ?? type, null));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, (type, redex));
-          value = eval(evalCtx, expr);
+          value = eval(evalCtx, binding.value!);
         } else {
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (origExpectedType!, null));
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type!, null));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, (expectedType, null));
           value = null;
         }

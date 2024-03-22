@@ -1,0 +1,174 @@
+id = <T: Type>(t: T) {t}
+
+------------
+
+Eq: [T: Type, T1: T, T2: T]{ Type } = <T: Type, T1: T, T2: T>{ 
+  [R: Type, f: [[T1]{T2},[T2]{T1}]{R}]{ R } 
+}
+
+refl: [T: Type, v: T]{ Eq<T, v, v> } = <T: Type, v: T>{ 
+  <R: Type>(f: [[v]{v},[v]{v}]{R}){ f(id<v>, id<v>) } 
+}
+
+subst: [T: Type, T1: T, T2: T, P: Eq<T, T1, T2>, a: T1]{ T2 } = <
+  T: Type, 
+  T1: T, 
+  T2: T, 
+  P: Eq<T, T1, T2>
+>{ 
+  P<[T1]{T2}>((to: [T1]{T2}, [T2]{T1}){ to }) 
+}
+
+substr: [T: Type, T1: T, T2: T, P: Eq<T, T1, T2>, a: T2]{ T1 } = <
+  T: Type, 
+  T1: T, 
+  T2: T, 
+  P: Eq<T, T1, T2>
+>{ 
+  P<[T2]{T1}>(([T1]{T2}, from: [T2]{T1}){ from }) 
+}
+
+------------
+
+Nat: Type = [R: Type, zero: R, next: [R]{R}] { R }
+
+zero: Nat = (R: Type, z: R, [R]{R}) { z }
+
+next: [Nat]{Nat} = (n: Nat){ (R: Type, z: R, f: [R]{R}) { f(n<R>(z, f)) } }
+
+------------
+
+NatInd: [ P: [Nat]{Type}, P(zero), [n: Nat, P(n)]{P(next(n))} ] { [n: Nat]{P(n)} }
+
+------------
+
+List: [Type]{Type} =  <E: Type>{ [R: Type, empty: R, prepend: [E, R]{R} ]{ R } }
+
+empty: [E: Type]{ List<E> } = <E: Type>{ <R: Type>(emp: R, pre: [E, R]{R}){ emp } }
+
+prepend: [E: Type, E, List<E>]{List<E>} = <E: Type>(elem: E, list: List<E>){ 
+  <R: Type>(emp: R, pre: [E, R]{R} ){ list<R>(pre(elem, emp), pre) }
+}
+
+fold: [R: Type, E: Type, R, [E, R]{R}, List<E>]{ R } = 
+  <R: Type, E: Type>(init: R, f: [E, R]{R}, l: List<E>) { 
+    l<R>(init, f) 
+  }
+
+prop_fold_empty: [R: Type, E: Type, init: R, f: [E, R]{R}]{ 
+  Eq<R, fold<R, E>(init, f, empty<E>), init> 
+} = <R: Type, E: Type, init: R, f: [E, R]{R}>{ refl<R, init> }
+
+prop_fold_prepend: [R: Type, E: Type, init: R, f: [E, R]{R}, e: E, l: List<E>]{ 
+  Eq<R, fold<R, E>(init, f, prepend<E>(e, l)), fold<R, E>(f(e, init), f, l)> 
+} = <R: Type, E: Type, init: R, f: [E, R]{R}, e: E, l: List<E>>{ 
+  refl<R, fold<R, E>(f(e, init), f, l)> 
+}
+
+--------------
+
+dfold: [E: Type, P: [List<E>]{Type}, P(empty<E>), [l: List<E>, e: E, P(l)]{ P(prepend<E>(e, l)) }]{
+  [l: List<E>]{ P(l) }
+}
+
+-------------
+
+append: [E: Type, E, List<E>]{List<E>} = <E: Type>(elem: E){
+  fold<List<E>, E>(prepend<E>(elem, empty<E>), prepend<E>)
+}
+
+-------------
+
+reverse: [E: Type, List<E>]{ List<E> } = <E: Type>{
+  fold<List<E>, E>(empty<E>, (e: E, r: List<E>){
+      prepend<E>(e, r)
+  })
+}
+
+foldr: [R: Type, E: Type, R, [E, R]{R}, List<E>]{R} = 
+  <R: Type, E: Type>(init: R, f: [E, R]{R}, l: List<E>){
+    fold<R, E>(init, f, reverse<E>(l))
+  }
+
+prop_foldr_pre: [R: Type, E: Type, e: E, l: List<E>, init: R, f: [E, R]{R}]{
+  Eq<R, f(e, foldr<R, E>(init, f, l)), foldr<R, E>(init, f, prepend<E>(e, l))> 
+}
+
+prop_foldr_app: [R: Type, E: Type, e: E, l: List<E>, init: R, f: [E, R]{R}]{
+  Eq<R, foldr<R, E>(f(e, init), f, l), foldr<R, E>(init, f, append<E>(e, l))> 
+}
+
+---------------
+
+List2Fn: [Type, List<Type>]{Type} = <R: Type> { 
+  foldr<Type, Type>(R, (E: Type, Acc: Type){ [E]{Acc} }) 
+}
+
+prop_List2Fn_emp: [R: Type]{ 
+  Eq<Type, List2Fn<R, empty<Type>>, R> 
+} = <R: Type>{ refl<Type, R> }
+
+prop_List2Fn_pre: [R: Type, L: List<Type>, E: Type]{ 
+  Eq<Type, List2Fn<R, prepend<Type>(E, L)>,  [E]{List2Fn<R, L>}> 
+}
+    
+prop_List2Fn_app: [R: Type, L: List<Type>, E: Type]{ 
+  Eq<Type, List2Fn<[E]{R}, L>, List2Fn<R, append<Type>(E, L)>> 
+}
+
+---------------
+
+HList: [List<Type>]{Type} = (l: List<Type>) { [R: Type, List2Fn<R, l>]{ R } }
+    
+HListInd = (L: List<Type>) {
+  [W: List<Type>, w: HList<W>]{ 
+    List2Fn<
+      [R: Type, List2Fn<List2Fn<R, L>, W>]{R}, 
+      L
+    >
+  }
+}
+
+mkHList: [L: List<Type>]{List2Fn<HList<L>, L>} = <L: List<Type>> {
+  dfold<Type, HListInd>(
+    (W: List<Type>, w: HList<W>) { w },
+    <Rest: List<Type>, E: Type>(acc: HListInd<Rest>) {
+      (W: List<Type>, w: HList<W>) {
+        substr(
+          Type,
+          List2Fn<
+            [R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>]{R}, 
+            prepend<Type>(E, Rest)
+          >,
+          [E]{
+            List2Fn<
+              [R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>]{R}, 
+              Rest
+            >
+          }, 
+          prop_List2Fn_pre<
+            [R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>]{R}, 
+            Rest, 
+            E
+          >, 
+          (e: E){acc(
+            append<Type>(E, W),
+            <R: Type>{ 
+              (f: List2Fn<R, append<Type>(E, W)>){ w<[E]{R}>(
+                substr(
+                  Type,
+                  List2Fn<[E]{R}, W>, 
+                  List2Fn<R, append<Type>(E, W)>,
+                  prop_List2Fn_app<R, W, E>, 
+                  f
+                ),
+                e
+              )}
+            }
+          )}
+        )
+      }
+    },
+    L
+  )(empty<Type>, id)
+}
