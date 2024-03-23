@@ -173,10 +173,12 @@ sealed class Expr<T extends Object> {
                 pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
             .join(', ');
         final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
-        final explicitArgPart = explicitArgs.isEmpty
-            ? ''
-            : combineArgs(explicitArgs).parenthesize(kind == Fn.Def ? '(' : '[');
-        final bodyPart = this is Var ? '{${this._serialize()}}' : ' { ${this._serialize()} }';
+        final explicitArgPart =
+            explicitArgs.isEmpty ? '' : combineArgs(explicitArgs).parenthesize('(');
+        final paren = kind == Fn.Def ? '{' : '[';
+        final bodyPart = this is Var
+            ? this._serialize().parenthesize(paren)
+            : ' ${' ${this._serialize()} '.parenthesize(paren)}';
 
         return '$argPart$explicitArgPart$bodyPart';
     }
@@ -238,12 +240,12 @@ ${MATCHING_PAREN[paren]}''';
                 pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
             .join(', ');
         final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
-        final explicitArgPart = explicitArgs.isEmpty
-            ? ''
-            : combineArgs(explicitArgs).parenthesize(kind == Fn.Def ? '(' : '[');
-        return '''$argPart$explicitArgPart {
+        final explicitArgPart =
+            explicitArgs.isEmpty ? '' : combineArgs(explicitArgs).parenthesize('(');
+        final paren = kind == Fn.Def ? '{' : '[';
+        return '''$argPart$explicitArgPart $paren
 ${this._serializeIndent(colRemaining - 2).indent}
-}''';
+${MATCHING_PAREN[paren]}''';
     }
   }
 
@@ -272,9 +274,7 @@ ${this._serializeIndent(colRemaining - 2).indent}
         return (result, f2(remaining).$2);
       };
 
-  static Parser<Expr<(int, int)>> _parseFn(bool implicit, FnKind? kind) => (tokens) {
-        assert(implicit || kind != null);
-
+  static Parser<Expr<(int, int)>> _parseFn(bool implicit) => (tokens) {
         var (argType, remaining) = parse(tokens);
         late final String? id;
         assert(remaining.isNotEmpty);
@@ -290,25 +290,24 @@ ${this._serializeIndent(colRemaining - 2).indent}
         tokens = remaining;
         assert(tokens.isNotEmpty);
 
-        final endParen = implicit
-            ? '>'
-            : kind == Fn.Def
-                ? ')'
-                : ']';
-
-        final (result, next) = switch (tokens) {
-          [(',', _, _), ...var remaining] => _parseFn(implicit, kind)(remaining),
-          [(var e, _, _), (var n, var line, var col), ...var remaining] when e == endParen =>
+        final ((result, next), kind) = switch (tokens) {
+          [(',', _, _), ...var remaining] => switch (_parseFn(implicit)(remaining)) {
+              (var fn, var next) => ((fn, next), (fn as Fn).kind)
+            },
+          [(var e, _, _), (var n, var line, var col), ...var remaining]
+              when e == MATCHING_PAREN[PAREN_FOR[implicit]] =>
             switch ((implicit, n)) {
-              (true, '(') => _parseFn(false, Fn.Def)(remaining),
-              (true, '[') => _parseFn(false, Fn.Typ)(remaining),
-              (_, '{') => _then(parse, _parseLit('}'))(remaining),
+              (true, '(') => switch (_parseFn(false)(remaining)) {
+                  (var fn, var next) => ((fn, next), (fn as Fn).kind)
+                },
+              (_, '{') => (_then(parse, _parseLit('}'))(remaining), Fn.Def),
+              (_, '[') => (_then(parse, _parseLit(']'))(remaining), Fn.Typ),
               _ => throw Exception('unexpected $n at $line:$col')
             },
           _ => throw Exception('unexpected $tokens')
         };
 
-        return (Fn(implicit, kind ?? Fn.Def, id, argType, result, t: pos), next);
+        return (Fn(implicit, kind, id, argType, result, t: pos), next);
       };
 
   static Parser<Expr<(int, int)>> _parseFnAppBody(bool implicit, Expr<(int, int)> fn) => (tokens) {
@@ -347,9 +346,8 @@ ${this._serializeIndent(colRemaining - 2).indent}
     switch (tokens) {
       case [('<' || '(' || '[', _, _), ...final afterToken]:
         final (fn, rest) = switch (tokens[0].$1) {
-          '<' => _parseFn(true, null),
-          '(' => _parseFn(false, Fn.Def),
-          '[' => _parseFn(false, Fn.Typ),
+          '<' => _parseFn(true),
+          '(' => _parseFn(false),
           var t => throw Exception('unexpected $t')
         }(afterToken);
         return _parseFnApp(rest, fn);
