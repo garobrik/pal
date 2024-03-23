@@ -1,6 +1,7 @@
 import 'dart:io';
 
-import 'lang3.dart';
+import 'parse.dart';
+import 'serialize.dart';
 
 void main(List<String> args) {
   final file = File(args.first);
