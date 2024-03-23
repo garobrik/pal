@@ -14,6 +14,8 @@ extension IDExtension on ID {
 
 typedef Tokens = List<(String, int, int)>;
 typedef Parser<T> = (T, Tokens) Function(Tokens);
+const PAREN_FOR = {true: '<', false: '('};
+const MATCHING_PAREN = {'(': ')', '<': '>', '[': ']', '{': '}'};
 const SPECIAL_CHARS = ' \n<>()[]{},:.=-';
 
 Tokens tokenize(String s) {
@@ -90,37 +92,49 @@ final Parser<Program> parseProgram = (tokens) {
   );
 };
 
-String serializeProgram(Program p, {int lineLength = 100}) => p
-    .map((m) => m.map((b) {
-          String result = b.id;
-          final type = b.type?.toString();
-          final value = b.value?.toString();
-          if (type != null) {
-            result += ': ';
-            var lines = type.split('\n');
-            if (lines.first.length <= 100 - result.length) {
-              result += lines.first;
-              lines = lines.tail;
-            }
-            if (lines.isNotEmpty) {
-              result += '\n';
-              result += lines.join('\n');
-            }
-          }
-          if (value != null) {
-            result += ' = ';
-            var lines = value.split('\n');
-            if (lines.first.length <= 100 - result.split('\n').last.length) {
-              result += lines.first;
-              lines = lines.tail;
-            }
-            if (lines.isNotEmpty) {
-              result += '\n';
-              result += lines.join('\n');
-            }
-          }
-        }).join('\n\n'))
-    .join('\n\n--------------------\n\n');
+String serializeProgram(Program p, {int lineLength = 100}) {
+  String serializeBinding(Binding b) {
+    String result = b.id;
+    final type = b.type?.toString();
+    final value = b.value?.toString();
+    if (type != null) {
+      result += ': ';
+      var lines = type.split('\n');
+      if (lines.first.length <= 100 - result.length) {
+        result += lines.first;
+        lines = lines.tail;
+        if (lines.isNotEmpty) {
+          result += '\n';
+          result += lines.join('\n');
+        }
+      } else {
+        result += '\n';
+        result += lines.join('\n').indent;
+      }
+    }
+    if (value != null) {
+      result += ' = ';
+      var lines = value.split('\n');
+      if (lines.first.length <= 100 - result.split('\n').last.length) {
+        result += lines.first;
+        lines = lines.tail;
+        if (lines.isNotEmpty) {
+          result += '\n';
+          result += lines.join('\n');
+        }
+      } else {
+        result += '\n';
+        result += lines.join('\n').indent;
+      }
+    }
+    return result;
+  }
+
+  String serializeModule(List<Binding> m) => m.map(serializeBinding).join('\n\n');
+
+// ignore: prefer_interpolation_to_compose_strings
+  return p.map(serializeModule).join('\n\n--------------------\n\n') + '\n';
+}
 
 sealed class Expr<T extends Object> {
   final T? t;
@@ -129,24 +143,42 @@ sealed class Expr<T extends Object> {
   @override
   String toString() => _serializeIndent(80);
 
-  String _serializeApp(List<Expr<Object>> args) {
+  String _serializeApp(bool implicit, List<Expr<Object>> args) {
     switch (this) {
-      case App(:var fn, :var arg):
-        return fn._serializeApp([arg, ...args]);
+      case App(implicit: var im, :var fn, :var arg) when implicit == im:
+        return fn._serializeApp(implicit, [arg, ...args]);
       default:
-        return '${this._serialize()}(${args.map((arg) => arg._serialize()).join(', ')})';
+        return '${this._serialize()}${args.map((arg) => arg._serialize()).join(', ').parenthesize(implicit ? '<' : '(')}';
     }
   }
 
-  String _serializeFn(FnKind kind, List<(ID?, Expr<Object>)> args) {
+  String _serializeFn(
+    bool implicit,
+    FnKind kind,
+    List<(ID?, Expr<Object>)> args,
+    List<(ID?, Expr<Object>)> explicitArgs,
+  ) {
     switch (this) {
-      case Fn(kind: var thisKind, :var argID, :var argType, result: var body) when thisKind == kind:
-        return body._serializeFn(kind, [...args, (argID, argType)]);
+      case Fn(implicit: var im, kind: var thisKind, :var argID, :var argType, result: var body)
+          when thisKind == kind && !(implicit == false && im == true):
+        if (im) {
+          return body._serializeFn(im, kind, [...args, (argID, argType)], explicitArgs);
+        } else {
+          return body._serializeFn(im, kind, args, [...explicitArgs, (argID, argType)]);
+        }
+
       default:
-        final argPart =
-            '${kind == Fn.Def ? '(' : '['}${args.map((pair) => pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}').join(', ')}${kind == Fn.Def ? ')' : ']'}';
-        final bodyPart = this is Var ? '{${this._serialize()}}' : '{ ${this._serialize()} }';
-        return '$argPart$bodyPart';
+        String combineArgs(List<(ID?, Expr<Object>)> args) => args
+            .map((pair) =>
+                pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
+            .join(', ');
+        final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
+        final explicitArgPart = explicitArgs.isEmpty
+            ? ''
+            : combineArgs(explicitArgs).parenthesize(kind == Fn.Def ? '(' : '[');
+        final bodyPart = this is Var ? '{${this._serialize()}}' : ' { ${this._serialize()} }';
+
+        return '$argPart$explicitArgPart$bodyPart';
     }
   }
 
@@ -154,42 +186,62 @@ sealed class Expr<T extends Object> {
     switch (this) {
       case Var(:var id):
         return id;
-      case App():
-        return this._serializeApp([]);
-      case Fn(:var kind):
-        return this._serializeFn(kind, []);
+      case App(:var implicit):
+        return this._serializeApp(implicit, []);
+      case Fn(:var implicit, :var kind):
+        return this._serializeFn(implicit, kind, [], []);
     }
   }
 
-  String _serializeAppIndent(int colRemaining, List<Expr<Object>> args) {
+  String _serializeAppIndent(int colRemaining, bool implicit, List<Expr<Object>> args) {
     switch (this) {
-      case App(:var fn, :var arg):
-        return fn._serializeAppIndent(colRemaining, [arg, ...args]);
+      case App(implicit: var im, :var fn, :var arg) when implicit == im:
+        return fn._serializeAppIndent(colRemaining, implicit, [arg, ...args]);
       default:
-        final oneLine = _serializeApp(args);
+        final oneLine = _serializeApp(implicit, args);
         if (oneLine.length < colRemaining) {
           return oneLine;
         }
         final lines = args.map((arg) => arg._serializeIndent(colRemaining - 3).indent);
+        final paren = implicit ? '<' : '(';
         return '''
-$this(
+$this$paren
 ${lines.join(',\n')}
-)''';
+${MATCHING_PAREN[paren]}''';
     }
   }
 
-  String _serializeFnIndent(int colRemaining, FnKind kind, List<(ID?, Expr<Object>)> args) {
+  String _serializeFnIndent(
+    int colRemaining,
+    bool implicit,
+    FnKind kind,
+    List<(ID?, Expr<Object>)> args,
+    List<(ID?, Expr<Object>)> explicitArgs,
+  ) {
     switch (this) {
-      case Fn(kind: var thisKind, :var argID, :var argType, result: var body) when thisKind == kind:
-        return body._serializeFnIndent(colRemaining, kind, [...args, (argID, argType)]);
+      case Fn(implicit: var im, kind: var thisKind, :var argID, :var argType, result: var body)
+          when thisKind == kind && !(implicit == false && im == true):
+        if (im) {
+          return body._serializeFnIndent(
+              colRemaining, im, kind, [...args, (argID, argType)], explicitArgs);
+        } else {
+          return body._serializeFnIndent(
+              colRemaining, im, kind, args, [...explicitArgs, (argID, argType)]);
+        }
       default:
-        final oneLine = _serializeFn(kind, args);
+        final oneLine = _serializeFn(implicit, kind, args, explicitArgs);
         if (oneLine.length < colRemaining) {
           return oneLine;
         }
-        final argPart =
-            '${kind == Fn.Def ? '(' : '['}${args.map((pair) => pair.$1 == null ? '${pair.$2}' : '${pair.$1}: ${pair.$2}').join(', ')}${kind == Fn.Def ? ')' : ']'}';
-        return '''$argPart {
+        String combineArgs(List<(ID?, Expr<Object>)> args) => args
+            .map((pair) =>
+                pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
+            .join(', ');
+        final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
+        final explicitArgPart = explicitArgs.isEmpty
+            ? ''
+            : combineArgs(explicitArgs).parenthesize(kind == Fn.Def ? '(' : '[');
+        return '''$argPart$explicitArgPart {
 ${this._serializeIndent(colRemaining - 2).indent}
 }''';
     }
@@ -199,10 +251,10 @@ ${this._serializeIndent(colRemaining - 2).indent}
     switch (this) {
       case Var(:var id):
         return id;
-      case App():
-        return this._serializeAppIndent(colRemaining, []);
-      case Fn(:var kind):
-        return this._serializeFnIndent(colRemaining, kind, []);
+      case App(:var implicit):
+        return this._serializeAppIndent(colRemaining, implicit, []);
+      case Fn(:var implicit, :var kind):
+        return this._serializeFnIndent(colRemaining, implicit, kind, [], []);
     }
   }
 
@@ -256,20 +308,21 @@ ${this._serializeIndent(colRemaining - 2).indent}
           _ => throw Exception('unexpected $tokens')
         };
 
-        return (Fn(kind ?? Fn.Def, id, argType, result, t: pos), next);
+        return (Fn(implicit, kind ?? Fn.Def, id, argType, result, t: pos), next);
       };
 
-  static Parser<Expr<(int, int)>> _parseFnAppBody(Expr<(int, int)> fn, String end) => (tokens) {
+  static Parser<Expr<(int, int)>> _parseFnAppBody(bool implicit, Expr<(int, int)> fn) => (tokens) {
         assert(tokens.isNotEmpty);
         final (arg, remaining) = parse(tokens);
         final (tok, line, col) = remaining[0];
+        final end = MATCHING_PAREN[PAREN_FOR[implicit]]!;
         if (tok == end) {
           return _parseFnApp(
             _parseLit(end)(remaining).$2,
-            App(fn, arg, t: (tokens[0].$2, tokens[0].$3)),
+            App(implicit, fn, arg, t: (tokens[0].$2, tokens[0].$3)),
           );
         } else if (tok == ',') {
-          return _parseFnAppBody(App(fn, arg, t: (tokens[0].$2, tokens[0].$3)), end)(
+          return _parseFnAppBody(implicit, App(implicit, fn, arg, t: (tokens[0].$2, tokens[0].$3)))(
             _parseLit(',')(remaining).$2,
           );
         } else {
@@ -280,10 +333,10 @@ ${this._serializeIndent(colRemaining - 2).indent}
   static (Expr<(int, int)>, Tokens) _parseFnApp(Tokens tokens, Expr<(int, int)> fn) {
     switch (tokens) {
       case [('(', _, _), ...var rest]:
-        final (expr, remaining) = _parseFnAppBody(fn, ')')(rest);
+        final (expr, remaining) = _parseFnAppBody(false, fn)(rest);
         return _parseFnApp(remaining, expr);
       case [('<', _, _), ...var rest]:
-        final (expr, remaining) = _parseFnAppBody(fn, '>')(rest);
+        final (expr, remaining) = _parseFnAppBody(true, fn)(rest);
         return _parseFnApp(remaining, expr);
       default:
         return (fn, tokens);
@@ -319,13 +372,13 @@ ${this._serializeIndent(colRemaining - 2).indent}
     switch (this) {
       case Var(:var id):
         return id == from ? to : this;
-      case App(:var fn, :var arg):
-        return App(fn.substExpr(from, to), arg.substExpr(from, to));
-      case Fn(:var kind, :var argID, :var argType, :var result):
+      case App(:var implicit, :var fn, :var arg):
+        return App(implicit, fn.substExpr(from, to), arg.substExpr(from, to));
+      case Fn(:var implicit, :var kind, :var argID, :var argType, :var result):
         if (argID == from) {
-          return Fn(kind, argID, argType.substExpr(from, to), result);
+          return Fn(implicit, kind, argID, argType.substExpr(from, to), result);
         } else if (argID == null) {
-          return Fn(kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
+          return Fn(implicit, kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
         }
         var newArgID = argID;
 
@@ -335,7 +388,8 @@ ${this._serializeIndent(colRemaining - 2).indent}
 
         if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
 
-        return Fn(kind, newArgID, argType.substExpr(from, to), result.substExpr(from, to));
+        return Fn(
+            implicit, kind, newArgID, argType.substExpr(from, to), result.substExpr(from, to));
     }
   }
 
@@ -382,7 +436,7 @@ class App<T extends Object> extends Expr<T> {
   final Expr fn;
   final Expr arg;
 
-  const App(this.fn, this.arg, {this.implicit = false, super.t});
+  const App(this.implicit, this.fn, this.arg, {super.t});
 }
 
 enum FnKind { Def, Typ }
@@ -397,7 +451,7 @@ class Fn<T extends Object> extends Expr<T> {
   final Expr argType;
   final Expr result;
 
-  const Fn(this.kind, this.argID, this.argType, this.result, {this.implicit = false, super.t});
+  const Fn(this.implicit, this.kind, this.argID, this.argType, this.result, {super.t});
 }
 
 const _typeID = 'Type';
@@ -513,7 +567,13 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       ctx = fnCtx;
 
       switch (fnType) {
-        case Fn(kind: Fn.Typ, :var argID, argType: var fnArgType, result: var retType):
+        case Fn(
+            :var implicit,
+            kind: Fn.Typ,
+            :var argID,
+            argType: var fnArgType,
+            result: var retType
+          ):
           final assignableResult = assignable(ctx, fnArgType, argType);
           if (assignableResult.isFailure) {
             return assignableResult.wrap('checking passed arg in fnapp:\n$expr').castFailure();
@@ -522,7 +582,7 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
           redex = switch (fnRedex) {
             Fn(kind: Fn.Def, :var argID, result: var body) =>
               argID != null ? body.substExpr(argID, argRedex) : body,
-            _ => App(fnRedex, argRedex),
+            _ => App(implicit, fnRedex, argRedex),
           };
         case _:
           return Failure('tried to apply non fn ${expr.fn} of type $fnType');
@@ -552,8 +612,9 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
         if (oldArgBinding != null) ctx = ctx.add(expr.argID!, oldArgBinding);
       }
 
-      actualType = expr.kind == Fn.Typ ? Type : Fn(Fn.Typ, expr.argID, argRedex, retType);
-      redex = Fn(expr.kind, expr.argID, argRedex, retRedex);
+      actualType =
+          expr.kind == Fn.Typ ? Type : Fn(expr.implicit, Fn.Typ, expr.argID, argRedex, retType);
+      redex = Fn(expr.implicit, expr.kind, expr.argID, argRedex, retRedex);
   }
 
   if (expectedType != null) {
@@ -570,10 +631,10 @@ Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
         ctx.get(a.id)?.$2 == null || ctx.get(a.id)?.$2 == a ? a : reduce(ctx, ctx.get(a.id)!.$2!),
       App a => switch (reduce(ctx, a.fn)) {
           Fn(kind: Fn.Def, :var argID, result: var body) =>
-            reduce(ctx, argID != null ? body.substExpr(argID, a.arg) : body),
-          var fn => App(fn, reduce(ctx, a.arg)),
+            reduce(ctx, argID != null ? body.substExpr(argID, reduce(ctx, a.arg)) : body),
+          var fn => App(a.implicit, fn, reduce(ctx, a.arg)),
         },
-      Fn a => Fn(a.kind, a.argID, reduce(ctx, a.argType), reduce(ctx, a.result)),
+      Fn a => Fn(a.implicit, a.kind, a.argID, reduce(ctx, a.argType), reduce(ctx, a.result)),
     };
 
 Result<TypeCtx> assignable(TypeCtx ctx, Expr a, Expr b) {
@@ -692,6 +753,7 @@ Object eval(EvalCtx ctx, Expr expr) {
 extension on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
+  String parenthesize(String paren) => '$paren$this${MATCHING_PAREN[paren]}';
 }
 
 extension<T> on List<T> {

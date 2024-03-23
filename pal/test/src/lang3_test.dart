@@ -48,24 +48,25 @@ void main() {
   test('simple parsing and serializing', () {
     const programs = {
       // 'a': Var('a'),
-      'a(b)': App(Var('a'), Var('b')),
-      'a(b(c))': App(Var('a'), App(Var('b'), Var('c'))),
-      'a(b)(c)': App(App(Var('a'), Var('b')), Var('c')),
-      'a(b, c)': App(App(Var('a'), Var('b')), Var('c')),
-      'a(b(c)(d))(e)': App(App(Var('a'), App(App(Var('b'), Var('c')), Var('d'))), Var('e')),
-      '<A: Type>(a: A){a}': Fn(Fn.Def, 'A', Var('Type'), Fn(Fn.Def, 'a', Var('A'), Var('a'))),
-      ''' (f: [Type, Type]{Type}, a: Type) {
-            f(a, a)
-          }''': Fn(
+      'a(b)': App(false, Var('a'), Var('b')),
+      'a(b(c))': App(false, Var('a'), App(false, Var('b'), Var('c'))),
+      'a(b, c)': App(false, App(false, Var('a'), Var('b')), Var('c')),
+      'a(b(c, d), e)': App(false,
+          App(false, Var('a'), App(false, App(false, Var('b'), Var('c')), Var('d'))), Var('e')),
+      'a<b>(c)': App(false, App(true, Var('a'), Var('b')), Var('c')),
+      '<A: Type>(a: A){a}':
+          Fn(true, Fn.Def, 'A', Var('Type'), Fn(false, Fn.Def, 'a', Var('A'), Var('a'))),
+      '(f: [Type, Type]{Type}, a: Type) { f(a, a) }': Fn(
+        false,
         Fn.Def,
         'f',
-        Fn(Fn.Typ, null, Var('Type'), Fn(Fn.Typ, null, Var('Type'), Var('Type'))),
-        Fn(Fn.Def, 'a', Var('Type'), App(App(Var('f'), Var('a')), Var('a'))),
+        Fn(false, Fn.Typ, null, Var('Type'), Fn(false, Fn.Typ, null, Var('Type'), Var('Type'))),
+        Fn(false, Fn.Def, 'a', Var('Type'), App(false, App(false, Var('f'), Var('a')), Var('a'))),
       ),
     };
     for (final MapEntry(key: program, value: parsed) in programs.entries) {
       expect(Expr.parse(tokenize(program)).$1, equals(parsed));
-      // expect(Expr.parse(program).toString(), equals(program));
+      expect(Expr.parse(tokenize(program)).$1.toString(), equals(program));
     }
   });
 
