@@ -1,7 +1,5 @@
 // ignore_for_file: constant_identifier_names
 
-import 'dart:collection';
-
 import 'serialize.dart';
 
 typedef Program = List<List<Binding>>;
@@ -29,52 +27,6 @@ sealed class Expr<T extends Object> {
 
   @override
   String toString() => serializeExprIndent(80);
-
-  Set<ID> get freeVars => switch (this) {
-        Var(:var id) => {id},
-        Fn(:var argID, :var result, :var argType) =>
-          result.freeVars.difference({argID}).union(argType.freeVars),
-        App(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
-      };
-
-  Expr substExpr(ID from, Expr to) {
-    switch (this) {
-      case Var(:var id):
-        return id == from ? to : this;
-      case App(:var implicit, :var fn, :var arg):
-        return App(implicit, fn.substExpr(from, to), arg.substExpr(from, to));
-      case Fn(:var implicit, :var kind, :var argID, :var argType, :var result):
-        if (argID == from) {
-          return Fn(implicit, kind, argID, argType.substExpr(from, to), result);
-        } else if (argID == null) {
-          return Fn(implicit, kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
-        }
-        var newArgID = argID;
-
-        while (to.freeVars.contains(newArgID)) {
-          newArgID = newArgID.freshen;
-        }
-
-        if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
-
-        return Fn(
-            implicit, kind, newArgID, argType.substExpr(from, to), result.substExpr(from, to));
-    }
-  }
-
-  bool alphaEquiv(Expr b, [List<String?> ctxA = const [], List<String?> ctxB = const []]) =>
-      switch ((this, b)) {
-        (Var(id: var a), Var(id: var b)) =>
-          ctxA.indexOf(a) == ctxB.indexOf(b) && (ctxA.contains(a) || (a == b)),
-        (App a, App b) => a.implicit == b.implicit &&
-            a.fn.alphaEquiv(b.fn, ctxA, ctxB) &&
-            a.arg.alphaEquiv(b.arg, ctxA, ctxB),
-        (Fn a, Fn b) => a.implicit == b.implicit &&
-            a.kind == b.kind &&
-            a.argType.alphaEquiv(b.argType, ctxA, ctxB) &&
-            a.result.alphaEquiv(b.result, [a.argID, ...ctxA], [b.argID, ...ctxB]),
-        _ => false,
-      };
 
   @override
   bool operator ==(Object other) => other is Expr && this.alphaEquiv(other);
@@ -123,8 +75,57 @@ class Fn<T extends Object> extends Expr<T> {
   const Fn(this.implicit, this.kind, this.argID, this.argType, this.result, {super.t});
 }
 
-const _typeID = 'Type';
-const Type = Var(_typeID);
+extension ExprOps<T extends Object> on Expr<T> {
+  Set<ID> get freeVars => switch (this) {
+        Var(:var id) => {id},
+        Fn(:var argID, :var result, :var argType) =>
+          result.freeVars.difference({argID}).union(argType.freeVars),
+        App(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
+      };
+
+  Expr<T> substExpr(ID from, Expr<T> to) {
+    switch (this) {
+      case Var(:var id):
+        return id == from ? to : this;
+      case App(:var implicit, :var fn, :var arg):
+        return App(implicit, fn.substExpr(from, to), arg.substExpr(from, to));
+      case Fn(:var implicit, :var kind, :var argID, :var argType, :var result):
+        if (argID == from) {
+          return Fn(implicit, kind, argID, argType.substExpr(from, to), result);
+        } else if (argID == null) {
+          return Fn(implicit, kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
+        }
+        var newArgID = argID;
+
+        while (to.freeVars.contains(newArgID)) {
+          newArgID = newArgID.freshen;
+        }
+
+        if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
+
+        return Fn(
+            implicit, kind, newArgID, argType.substExpr(from, to), result.substExpr(from, to));
+    }
+  }
+
+  bool alphaEquiv(Expr b, [List<String?> ctxA = const [], List<String?> ctxB = const []]) =>
+      switch ((this, b)) {
+        (Var(id: var a), Var(id: var b)) =>
+          ctxA.indexOf(a) == ctxB.indexOf(b) && (ctxA.contains(a) || (a == b)),
+        (App a, App b) => a.implicit == b.implicit &&
+            a.fn.alphaEquiv(b.fn, ctxA, ctxB) &&
+            a.arg.alphaEquiv(b.arg, ctxA, ctxB),
+        (Fn a, Fn b) => a.implicit == b.implicit &&
+            a.kind == b.kind &&
+            a.argType.alphaEquiv(b.argType, ctxA, ctxB) &&
+            a.result.alphaEquiv(b.result, [a.argID, ...ctxA], [b.argID, ...ctxB]),
+        _ => false,
+      };
+}
+
+const typeID = 'Type';
+const Type = Var(typeID);
+const TypeCtx coreTypeCtx = IDMap({typeID: (Type, Type)});
 
 // Type Checking
 
@@ -174,32 +175,42 @@ class Failure<T> extends Result<T> {
   Failure<T2> cast<T2>() => Failure(msg);
 }
 
-extension IDMapOps<T> on Map<ID, T> {
-  T? get(ID key) => this[key];
-  Map<ID, T> add(ID key, T value) => {...this, key: value};
-  Map<ID, T> union(Map<ID, T> other) => {...this, ...other};
-  Map<ID, T> without(ID key) {
-    final map = {...this};
-    map.remove(key);
-    return map;
+extension type const IDMap<T>(Map<ID, T> map) {
+  static IDMap<T> empty<T>() => const IDMap({});
+
+  Iterable<ID> get keys => map.keys;
+  T? get(ID key) => map[key];
+  IDMap<T> add(ID key, T value) => IDMap({...map, key: value});
+  IDMap<T> union(IDMap<T> other) => IDMap({...map, ...other.map});
+  IDMap<T> without(ID key) {
+    final newMap = {...map};
+    newMap.remove(key);
+    return IDMap(newMap);
   }
 
-  bool equals(Map<ID, T> other) {
-    if (length != other.length) return false;
-    for (final MapEntry(:key, :value) in entries) {
+  bool containsKey(ID key) => map.containsKey(key);
+
+  bool equals(IDMap<T> other) {
+    if (map.length != other.map.length) return false;
+    for (final MapEntry(:key, :value) in map.entries) {
       if (other.get(key) != value) return false;
     }
     return true;
   }
 
-  EvalCtx restrict(Iterable<ID> ids) => {
+  IDMap<T> restrict(Iterable<ID> ids) => IDMap({
         for (final id in ids)
-          if (this.containsKey(id)) id: this.get(id)
-      };
+          if (this.containsKey(id)) id: this.get(id) as T
+      });
 }
 
-typedef TypeCtx = Map<ID, (Expr?, Expr?)>;
-typedef EvalCtx = Map<ID, Object?>;
+typedef TypeCtx = IDMap<(Expr?, Expr?)>;
+
+// n: Nat
+// a: <T: Type, R: Type>(n: Nat, r: R, t: T) [ t ]
+// a(n, n, t)
+// a(n)(n)(t)
+// a(n): <T: Type, R: Type>(r: R, t: T) [ t ]
 
 Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) {
   late final Expr actualType;
@@ -254,7 +265,6 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
             _ => App(implicit, fnRedex, argRedex),
           };
         case _:
-          return Failure('tried to apply non fn ${expr.fn} of type $fnType');
       }
 
     case Fn expr:
@@ -263,7 +273,7 @@ Result<(TypeCtx, Expr, Expr)> check(TypeCtx ctx, Expr? expectedType, Expr expr) 
       final (argCtx, _, argRedex) = argResult.success!;
       ctx = argCtx;
 
-      if (ctx.containsKey(expr.argID)) {
+      if (expr.argID != null && ctx.containsKey(expr.argID!)) {
         return Failure('shadowed variable ${expr.argID}');
       }
       final retResult = check(
@@ -337,85 +347,6 @@ ${b.toString().indent}''');
       return assignable(fnCtx.success!, a.arg, b.arg);
     case _:
       return Failure('not assignable:\n  $a\n  $b');
-  }
-}
-
-// Evaluation
-
-class Closure {
-  final EvalCtx ctx;
-  final ID? argID;
-  final Expr body;
-
-  Closure(this.ctx, this.argID, this.body);
-
-  @override
-  String toString() => 'Closure($ctx, $argID, $body)';
-
-  @override
-  bool operator ==(Object other) =>
-      other is Closure &&
-      argID == other.argID &&
-      body.alphaEquiv(other.body) &&
-      ctx.equals(other.ctx);
-
-  @override
-  int get hashCode {
-    final sortedKeys = SplayTreeSet.of(ctx.keys);
-    return Hash.all([
-      argID.hashCode,
-      body.hashCode,
-      ...sortedKeys.map((k) => k.hashCode),
-      ...sortedKeys.map((k) => ctx.get(k)!.hashCode)
-    ]);
-  }
-}
-
-sealed class TypeValue {
-  const TypeValue();
-}
-
-class TypeType extends TypeValue {
-  const TypeType._();
-}
-
-const type = TypeType._();
-
-class FnTypeType extends TypeValue {
-  final TypeValue argType;
-  final TypeValue returnType;
-
-  const FnTypeType(this.argType, this.returnType);
-}
-
-final EvalCtx coreEvalCtx = {Type.id: type};
-final TypeCtx coreTypeCtx = {Type.id: (Type, Type)};
-
-Object eval(EvalCtx ctx, Expr expr) {
-  switch (expr) {
-    case Var():
-      return ctx.get(expr.id) ?? (throw Exception('$ctx: ${expr.id}'));
-    case App():
-      final fn = eval(ctx, expr.fn);
-      final arg = eval(ctx, expr.arg);
-      return switch (fn) {
-        Closure(:var argID, :var ctx, :var body) =>
-          eval(argID != null ? ctx.add(argID, arg) : ctx, body),
-        Object Function(EvalCtx, Object) dartFn => dartFn(ctx, arg),
-        _ => throw Exception('unknown fn object, type: ${fn.runtimeType}, value: $fn'),
-      };
-    case Fn(kind: Fn.Def):
-      return Closure(
-        ctx.restrict((expr.result).freeVars.difference({expr.argID})),
-        expr.argID,
-        expr.result,
-      );
-    case Fn(kind: Fn.Typ):
-      final argType = eval(ctx, expr.argType) as TypeValue;
-      return FnTypeType(
-        argType,
-        eval(expr.argID != null ? ctx.add(expr.argID!, argType) : ctx, expr.result) as TypeValue,
-      );
   }
 }
 

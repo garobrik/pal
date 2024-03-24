@@ -20,11 +20,11 @@ substr: <T: Type, T1: T, T2: T>(P: Eq<T, T1, T2>, a: T2)[T1] =
 
 --------------------
 
-Nat: Type = (R: Type, zero: R, next: (R)[R])[R]
+Nat: Type = <R: Type>(zero: R, next: (R)[R])[R]
 
-zero: Nat = (R: Type, z: R, (R)[R]){z}
+zero: Nat = <R: Type>(z: R, (R)[R]){z}
 
-next: (Nat)[Nat] = (n: Nat, R: Type, z: R, f: (R)[R]) { f(n<R>(z, f)) }
+next: (Nat)[Nat] = (n: Nat){ <R: Type>(z: R, f: (R)[R]) { f(n<R>(z, f)) } }
 
 --------------------
 

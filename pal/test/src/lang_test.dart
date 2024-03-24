@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:pal/src/eval.dart';
 import 'package:pal/src/lang.dart';
 import 'package:pal/src/parse.dart';
 import 'package:test/test.dart';
@@ -88,8 +89,8 @@ void main() {
     var typeCtx = coreTypeCtx;
     var evalCtx = coreEvalCtx;
     for (final module in exprs) {
-      TypeCtx extModuleTypeCtx = {};
-      TypeCtx moduleTypeCtx = {};
+      TypeCtx extModuleTypeCtx = IDMap.empty();
+      TypeCtx moduleTypeCtx = IDMap.empty();
       for (final binding in module) {
         late final Expr? expectedType;
         if (binding.type == null) {
