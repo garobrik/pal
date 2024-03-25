@@ -15,3 +15,5 @@ linter:
     omit_local_variable_types: false
     unnecessary_this: false
     non_constant_identifier_names: false
+    constant_identifier_names: false
+    avoid_print: false

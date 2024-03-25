@@ -1,12 +1,12 @@
-id = <T: Type>(t: T){t}
+id = <T: _>(t: T){t}
 
 --------------------
 
-Eq: <T: Type>(T1: T, T2: T)[Type] = 
-  <T: Type, T1: T, T2: T> { (R: Type, f: ((T1)[T2], (T2)[T1])[R])[R] }
+Eq: <T: _>(T1: T, T2: T)[Type] = 
+  <T: _, T1: T, T2: T> { (R: _, f: ((T1)[T2], (T2)[T1])[R])[R] }
 
-refl: <T: Type, v: T> [ Eq<T, v, v> ] = 
-  <T: Type, v: T, R: Type>(f: ((v)[v], (v)[v])[R]) { f(id<v>, id<v>) }
+refl: <T: _, v: T> [ Eq<_, v, v> ] = 
+  <T: _, v: T, R: _>(f: ((T)[T], (T)[T])[R]) { f(id<_>, id<_>) }
 
 subst: <T: Type, T1: T, T2: T>(P: Eq<T, T1, T2>, a: T1)[T2] = 
   <T: Type, T1: T, T2: T, P: Eq<T, T1, T2>> {
@@ -24,7 +24,7 @@ Nat: Type = <R: Type>(zero: R, next: (R)[R])[R]
 
 zero: Nat = <R: Type>(z: R, (R)[R]){z}
 
-next: (Nat)[Nat] = (n: Nat){ <R: Type>(z: R, f: (R)[R]) { f(n<R>(z, f)) } }
+next: (Nat)[Nat] = (n: Nat) { <R: Type>(z: R, f: (R)[R]) { f(n<R>(z, f)) } }
 
 --------------------
 

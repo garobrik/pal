@@ -46,7 +46,7 @@ String serializeProgram(Program p, {int lineLength = 100}) {
 }
 
 extension Serialize on Expr {
-  String _serializeApp(bool implicit, List<Expr<Object>> args) {
+  String _serializeApp(bool implicit, List<Expr> args) {
     switch (this) {
       case App(implicit: var im, :var fn, :var arg) when implicit == im:
         return fn._serializeApp(implicit, [arg, ...args]);
@@ -58,20 +58,20 @@ extension Serialize on Expr {
   String _serializeFn(
     bool implicit,
     FnKind kind,
-    List<(ID?, Expr<Object>)> args,
-    List<(ID?, Expr<Object>)> explicitArgs,
+    List<(ID?, Expr)> args,
+    List<(ID?, Expr)> explicitArgs,
   ) {
     switch (this) {
-      case Fn(implicit: var im, kind: var thisKind, :var argID, :var argType, result: var body)
+      case Fn(implicit: var im, kind: var thisKind, :var argID, :var argType, :var result)
           when thisKind == kind && !(implicit == false && im == true):
         if (im) {
-          return body._serializeFn(im, kind, [...args, (argID, argType)], explicitArgs);
+          return result._serializeFn(im, kind, [...args, (argID, argType)], explicitArgs);
         } else {
-          return body._serializeFn(im, kind, args, [...explicitArgs, (argID, argType)]);
+          return result._serializeFn(im, kind, args, [...explicitArgs, (argID, argType)]);
         }
 
       default:
-        String combineArgs(List<(ID?, Expr<Object>)> args) => args
+        String combineArgs(List<(ID?, Expr)> args) => args
             .map((pair) =>
                 pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
             .join(', ');
@@ -89,6 +89,8 @@ extension Serialize on Expr {
 
   String _serialize() {
     switch (this) {
+      case Hole():
+        return '_';
       case Var(:var id):
         return id;
       case App(:var implicit):
@@ -98,7 +100,7 @@ extension Serialize on Expr {
     }
   }
 
-  String _serializeAppIndent(int colRemaining, bool implicit, List<Expr<Object>> args) {
+  String _serializeAppIndent(int colRemaining, bool implicit, List<Expr> args) {
     switch (this) {
       case App(implicit: var im, :var fn, :var arg) when implicit == im:
         return fn._serializeAppIndent(colRemaining, implicit, [arg, ...args]);
@@ -120,8 +122,8 @@ ${MATCHING_PAREN[paren]}''';
     int colRemaining,
     bool implicit,
     FnKind kind,
-    List<(ID?, Expr<Object>)> args,
-    List<(ID?, Expr<Object>)> explicitArgs,
+    List<(ID?, Expr)> args,
+    List<(ID?, Expr)> explicitArgs,
   ) {
     switch (this) {
       case Fn(implicit: var im, kind: var thisKind, :var argID, :var argType, result: var body)
@@ -138,7 +140,7 @@ ${MATCHING_PAREN[paren]}''';
         if (oneLine.length < colRemaining) {
           return oneLine;
         }
-        String combineArgs(List<(ID?, Expr<Object>)> args) => args
+        String combineArgs(List<(ID?, Expr)> args) => args
             .map((pair) =>
                 pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
             .join(', ');
@@ -154,6 +156,8 @@ ${MATCHING_PAREN[paren]}''';
 
   String serializeExprIndent(int colRemaining) {
     switch (this) {
+      case Hole():
+        return '_';
       case Var(:var id):
         return id;
       case App(:var implicit):

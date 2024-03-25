@@ -6,9 +6,9 @@ import 'package:pal/src/parse.dart';
 import 'package:test/test.dart';
 
 const letForEval = '''
-  (let: [T: Type, V: Type, V, [V]{T}]{T}) {
+  (let: (T: Type, V: Type, V, (V)[T])[T]) {
     let(Type, Type, Type, (d: Type){d})
-  }((T: Type, V: Type, var: V, fn: [V]{T}){
+  }((T: Type, V: Type, var: V, fn: (V)[T]){
     fn(var)
   })
 ''';
@@ -22,7 +22,7 @@ class IsSuccess extends Matcher {
   Description describe(Description description) => StringDescription('Expected Success');
 
   @override
-  bool matches(item, Map<dynamic, dynamic> matchState) => item is Success;
+  bool matches(item, Map<dynamic, dynamic> matchState) => item is Progress;
 
   @override
   Description describeMismatch(
@@ -31,7 +31,7 @@ class IsSuccess extends Matcher {
     Map<dynamic, dynamic> matchState,
     bool verbose,
   ) =>
-      StringDescription('message: ${(item as Failure).msg}');
+      StringDescription('message: ${(item as Failure).reason}');
 }
 
 void main() {
@@ -58,7 +58,7 @@ void main() {
       'a<b>(c)': App(false, App(true, Var('a'), Var('b')), Var('c')),
       '<A: Type>(a: A){a}':
           Fn(true, Fn.Def, 'A', Var('Type'), Fn(false, Fn.Def, 'a', Var('A'), Var('a'))),
-      '(f: [Type, Type]{Type}, a: Type) { f(a, a) }': Fn(
+      '(f: (Type, Type)[Type], a: Type) { f(a, a) }': Fn(
         false,
         Fn.Def,
         'f',
@@ -75,9 +75,10 @@ void main() {
   test('let check', () {
     final result = check(coreTypeCtx, Type, parseExpr(tokenize(letForEval)).$1);
     expect(result, isSuccess);
-    expect(result.success!.$1, coreTypeCtx);
-    expect(result.success!.$2, Type);
-    expect(result.success!.$3, Type);
+    var Progress(result: (type, redex), :inferences) = result as CheckProgress;
+    expect(inferences.isEmpty, true);
+    expect(type, Type);
+    expect(redex, Type);
   });
 
   test('let eval', () {
@@ -92,27 +93,27 @@ void main() {
       TypeCtx extModuleTypeCtx = IDMap.empty();
       TypeCtx moduleTypeCtx = IDMap.empty();
       for (final binding in module) {
-        late final Expr? expectedType;
-        if (binding.type == null) {
-          expectedType = null;
-        } else {
+        print(binding.id);
+        Expr expectedType = hole;
+        if (binding.type != null) {
           final typeResult = check(typeCtx.union(moduleTypeCtx), Type, binding.type!);
           expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  ${binding.type}');
-          (_, _, expectedType) = typeResult.success!;
+          Progress(result: (_, expectedType)) = typeResult as CheckProgress;
         }
         late final Object? value;
         if (binding.value != null) {
           final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, binding.value!);
           expect(checkResult, isSuccess,
               reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
-          final (_, type, redex) = checkResult.success!;
+          final Progress(result: (type, redex)) = checkResult as CheckProgress;
           expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type ?? type, null));
+          print(type.toString());
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type ?? type, hole));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, (type, redex));
           value = eval(evalCtx, binding.value!);
         } else {
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type!, null));
-          moduleTypeCtx = moduleTypeCtx.add(binding.id, (expectedType, null));
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type!, hole));
+          moduleTypeCtx = moduleTypeCtx.add(binding.id, (expectedType, hole));
           value = null;
         }
         expect(evalCtx, isNot(contains(binding.id)));

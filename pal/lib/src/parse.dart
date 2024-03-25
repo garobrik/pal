@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_function_declarations_over_variables, constant_identifier_names
+// ignore_for_file: prefer_function_declarations_over_variables, constant_identifier_names, prefer_interpolation_to_compose_strings
 
 import 'lang.dart';
 
@@ -6,7 +6,9 @@ typedef Tokens = List<(String, int, int)>;
 typedef Parser<T> = (T, Tokens) Function(Tokens);
 const PAREN_FOR = {true: '<', false: '('};
 const MATCHING_PAREN = {'(': ')', '<': '>', '[': ']', '{': '}'};
-const SPECIAL_CHARS = ' \n<>()[]{},:.=-';
+const IN_WORD_CHARS = '_-';
+const OUT_WORD_CHARS = ' \n<>()[]{},:.=';
+const SPECIAL_CHARS = OUT_WORD_CHARS + IN_WORD_CHARS;
 
 Tokens tokenize(String s) {
   final ret = <(String, int, int)>[];
@@ -15,8 +17,11 @@ Tokens tokenize(String s) {
 
   while (s.isNotEmpty) {
     var index = 0;
-    while (index < s.length && !SPECIAL_CHARS.contains(s[index])) {
+    if (!SPECIAL_CHARS.contains(s[index])) {
       index++;
+      while (index < s.length && !OUT_WORD_CHARS.contains(s[index])) {
+        index++;
+      }
     }
 
     if (index == 0) {
@@ -154,20 +159,18 @@ Parser<Expr<(int, int)>> _parseFnApp(Expr<(int, int)> fn) => (tokens) {
     };
 
 final Parser<Expr<(int, int)>> parseExpr = (tokens) {
-  switch (tokens) {
-    case [('<' || '(' || '[', _, _), ...final afterToken]:
-      final (fn, rest) = switch (tokens[0].$1) {
-        '<' => _parseFn(true),
-        '(' => _parseFn(false),
-        var t => throw Exception('unexpected $t')
-      }(afterToken);
-      return _parseFnApp(fn)(rest);
-    case [(var token, var line, var col), ...final rest]:
-      assert(!SPECIAL_CHARS.contains(token), tokens);
-      return _parseFnApp(Var(token, t: (line, col)))(rest);
-    case _:
-      throw Exception('unexpected end');
-  }
+  final [(token, line, col), ...rest] = tokens;
+
+  final (initExpr, remaining) = switch (token) {
+    '<' => _parseFn(true)(rest),
+    '(' => _parseFn(false)(rest),
+    '_' => (Hole(t: (line, col)), rest),
+    _ => SPECIAL_CHARS.contains(token)
+        ? throw Exception('unexpected $token')
+        : (Var(token, t: (line, col)), rest),
+  };
+
+  return _parseFnApp(initExpr)(remaining);
 };
 
 extension<T> on List<T> {
