@@ -218,17 +218,17 @@ typedef CheckProgress = Progress<(Expr, Expr)>;
 typedef CheckFailure = Failure<(Expr, Expr)>;
 
 CheckResult check(TypeCtx ctx, Expr expectedType, Expr expr) {
-  final progress = _check(ctx, expectedType, expr);
+  final progress = _check(ctx, expectedType, hole, expr);
   if (progress is CheckProgress) {
     assert(progress.result.$1.complete);
   }
   return progress;
 }
 
-CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expr) {
+CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr) {
   CheckResult subCheck(TypeCtx ctx, Expr expr) {
     if (expr is Hole) {
-      return const Progress((hole, hole));
+      return Progress((expectedType, expectedValue));
     } else if (expr is Var) {
       final bound = ctx.get(expr.id);
       if (bound == null) return Failure('unknown var $expr in ctx:\n  $ctx');
@@ -251,7 +251,7 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expr) {
       // TODO: persist partial state across loops?
       // TODO: force two loop iterations to get argType?
       // TODO: implicit? argID?
-      final fnResult = _check(ctx, Fn.typ(false, null, hole, expectedType), expr.fn);
+      final fnResult = _check(ctx, Fn.typ(false, null, hole, expectedType), hole, expr.fn);
       if (fnResult is CheckFailure) return fnResult.wrap('fn of $expr');
       if (fnResult is! CheckProgress) throw Exception();
       inferences = inferences.union(fnResult.inferences);
@@ -264,7 +264,7 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expr) {
         );
       }
 
-      final argResult = _check(ctx, fnType is Fn ? fnType.argType : hole, expr.arg);
+      final argResult = _check(ctx, fnType is Fn ? fnType.argType : hole, hole, expr.arg);
       if (argResult is CheckFailure) return argResult.wrap('arg of $expr');
       if (argResult is! CheckProgress) throw Exception();
 
@@ -293,7 +293,12 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expr) {
 
       TypeCtx inferences = const IDMap({});
 
-      final argResult = _check(ctx, Type, expr.argType);
+      final argResult = _check(
+        ctx,
+        Type,
+        expectedType is Fn ? expectedType.argType : hole,
+        expr.argType,
+      );
 
       if (argResult is CheckFailure) return argResult.wrap('arg type of $expr');
       if (argResult is! CheckProgress) throw Exception();
@@ -307,6 +312,7 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expr) {
         argID != null ? ctx.add(argID, (argTypeRedex, hole)) : ctx,
         // TODO: use expectedType to enforce retResult type
         expr.kind == Fn.Typ ? Type : hole,
+        hole,
         expr.result,
       );
       if (retResult is CheckFailure) return retResult.wrap('arg type of $expr');
