@@ -89,10 +89,8 @@ extension Serialize on Expr {
 
   String _serialize() {
     switch (this) {
-      case Hole():
-        return '_';
       case Var(:var id):
-        return id;
+        return HOLE_ID.hasMatch(id) ? '_' : id;
       case App(:var implicit):
         return this._serializeApp(implicit, []);
       case Fn(:var implicit, :var kind):
@@ -156,10 +154,8 @@ ${MATCHING_PAREN[paren]}''';
 
   String serializeExprIndent(int colRemaining) {
     switch (this) {
-      case Hole():
-        return '_';
       case Var(:var id):
-        return id;
+        return HOLE_ID.hasMatch(id) ? '_' : id;
       case App(:var implicit):
         return this._serializeAppIndent(colRemaining, implicit, []);
       case Fn(:var implicit, :var kind):
@@ -168,7 +164,7 @@ ${MATCHING_PAREN[paren]}''';
   }
 }
 
-extension on String {
+extension StringOps on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String parenthesize(String paren) => '$paren$this${MATCHING_PAREN[paren]}';
 }

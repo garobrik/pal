@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:pal/src/eval.dart';
 import 'package:pal/src/lang.dart';
 import 'package:pal/src/parse.dart';
+import 'package:pal/src/serialize.dart';
 import 'package:test/test.dart';
 
 const letForEval = '''
@@ -35,19 +36,7 @@ class IsSuccess extends Matcher {
 }
 
 void main() {
-  test('freshen', () {
-    const ids = {
-      'R': 'R1',
-      'R1': 'R2',
-      'R9': 'R10',
-      'R10': 'R11',
-    };
-    for (final MapEntry(key: id, value: freshenedID) in ids.entries) {
-      expect(id.freshen, equals(freshenedID));
-    }
-  });
-
-  test('simple parsing and serializing', () {
+  test('parsing and serializing', () {
     const programs = {
       // 'a': Var('a'),
       'a(b)': App(false, Var('a'), Var('b')),
@@ -65,6 +54,13 @@ void main() {
         Fn(false, Fn.Typ, null, Var('Type'), Fn(false, Fn.Typ, null, Var('Type'), Var('Type'))),
         Fn(false, Fn.Def, 'a', Var('Type'), App(false, App(false, Var('f'), Var('a')), Var('a'))),
       ),
+      '(f: (_, Type)[Type], a: Type) { _(a, _) }': Fn(
+        false,
+        Fn.Def,
+        'f',
+        Fn(false, Fn.Typ, null, Var('_0'), Fn(false, Fn.Typ, null, Var('Type'), Var('Type'))),
+        Fn(false, Fn.Def, 'a', Var('Type'), App(false, App(false, Var('_1'), Var('a')), Var('_2'))),
+      ),
     };
     for (final MapEntry(key: program, value: parsed) in programs.entries) {
       expect(parseExpr(tokenize(program)).$1, equals(parsed));
@@ -75,10 +71,10 @@ void main() {
   test('let check', () {
     final result = check(coreTypeCtx, Type, parseExpr(tokenize(letForEval)).$1);
     expect(result, isSuccess);
-    var Progress(result: (type, redex), :inferences) = result as CheckProgress;
+    var Progress(result: Jdg(:type, :value), :inferences) = result as CheckProgress;
     expect(inferences.isEmpty, true);
     expect(type, Type);
-    expect(redex, Type);
+    expect(value, Type);
   });
 
   test('let eval', () {
@@ -94,26 +90,27 @@ void main() {
       TypeCtx moduleTypeCtx = IDMap.empty();
       for (final binding in module) {
         print(binding.id);
-        Expr expectedType = hole;
+        Expr? expectedType;
         if (binding.type != null) {
           final typeResult = check(typeCtx.union(moduleTypeCtx), Type, binding.type!);
           expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  ${binding.type}');
-          Progress(result: (_, expectedType)) = typeResult as CheckProgress;
+          Progress(result: Jdg(value: expectedType)) = typeResult as CheckProgress;
         }
         late final Object? value;
         if (binding.value != null) {
           final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, binding.value!);
           expect(checkResult, isSuccess,
               reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
-          final Progress(result: (type, redex)) = checkResult as CheckProgress;
+          final Progress(result: Jdg(:type, value: redex)) = checkResult as CheckProgress;
           expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
-          print(type.toString());
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type ?? type, hole));
-          moduleTypeCtx = moduleTypeCtx.add(binding.id, (type, redex));
+          print(type.toString().indent);
+          print(redex.toString().indent);
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(binding.type ?? type, null));
+          moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(type, redex));
           value = eval(evalCtx, binding.value!);
         } else {
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, (binding.type!, hole));
-          moduleTypeCtx = moduleTypeCtx.add(binding.id, (expectedType, hole));
+          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(binding.type!, null));
+          moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(expectedType, null));
           value = null;
         }
         expect(evalCtx, isNot(contains(binding.id)));

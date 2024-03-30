@@ -6,11 +6,20 @@ typedef Program = List<List<Binding>>;
 
 typedef ID = String;
 
-extension IDExtension on ID {
-  ID get freshen => this.replaceFirstMapped(
+extension IDExtension on ID {}
+
+extension on Iterable<ID> {
+  static ID _freshen(ID id) => id.replaceFirstMapped(
         RegExp('[0-9]*\$'),
         (match) => ((int.tryParse(match[0]!) ?? 0) + 1).toString(),
       );
+
+  ID freshen(ID id) {
+    while (contains(id)) {
+      id = _freshen(id);
+    }
+    return id;
+  }
 }
 
 class Binding<T extends Object> {
@@ -32,7 +41,6 @@ sealed class Expr<T extends Object> {
   bool operator ==(Object other) => other is Expr && this.alphaEquiv(other);
 
   int _hashCode(List<String?> ctx) => switch (this) {
-        Hole() => 0,
         Var v => Hash.all([!ctx.contains(v.id) ? v.id.hashCode : ctx.indexOf(v.id).hashCode]),
         App app => Hash.all([app.implicit.hashCode, app.fn._hashCode(ctx), app.arg._hashCode(ctx)]),
         Fn fn => Hash.all([
@@ -46,12 +54,6 @@ sealed class Expr<T extends Object> {
   @override
   int get hashCode => _hashCode(const []);
 }
-
-class Hole<T extends Object> extends Expr<T> {
-  const Hole({super.t});
-}
-
-const hole = Hole();
 
 class Var<T extends Object> extends Expr<T> {
   final ID id;
@@ -86,7 +88,6 @@ class Fn<T extends Object> extends Expr<T> {
 
 extension ExprOps<T extends Object> on Expr<T> {
   Set<ID> get freeVars => switch (this) {
-        Hole() => {},
         Var(:var id) => {id},
         Fn(:var argID, :var result, :var argType) =>
           result.freeVars.difference({argID}).union(argType.freeVars),
@@ -95,8 +96,6 @@ extension ExprOps<T extends Object> on Expr<T> {
 
   Expr<T> substExpr(ID from, Expr<T> to) {
     switch (this) {
-      case Hole():
-        return this;
       case Var(:var id):
         return id == from ? to : this;
       case App(:var implicit, :var fn, :var arg):
@@ -107,11 +106,7 @@ extension ExprOps<T extends Object> on Expr<T> {
         } else if (argID == null) {
           return Fn(implicit, kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
         }
-        var newArgID = argID;
-
-        while (to.freeVars.contains(newArgID)) {
-          newArgID = newArgID.freshen;
-        }
+        var newArgID = to.freeVars.freshen(argID);
 
         if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
 
@@ -138,20 +133,18 @@ extension ExprOps<T extends Object> on Expr<T> {
             a.result.alphaEquiv(b.result, [a.argID, ...ctxA], [b.argID, ...ctxB]),
         _ => false,
       };
-
-  bool get complete => switch (this) {
-        Hole() => false,
-        Var() => true,
-        App a => a.fn.complete && a.arg.complete,
-        Fn f => f.argType.complete && f.result.complete,
-      };
 }
 
 const typeID = 'Type';
 const Type = Var(typeID);
-const TypeCtx coreTypeCtx = IDMap({typeID: (Type, Type)});
+const TypeCtx coreTypeCtx = IDMap({typeID: Ann(Type, Type)});
 
 // Type Checking
+
+extension<T extends Object> on TypeCtx<T> {
+  TypeCtx<T> addAll(Iterable<ID> ids) =>
+      union(IDMap({for (final id in ids) id: const Ann.empty()}));
+}
 
 extension type const IDMap<T>(Map<ID, T> map) {
   static IDMap<T> empty<T>() => const IDMap({});
@@ -183,7 +176,30 @@ extension type const IDMap<T>(Map<ID, T> map) {
       });
 }
 
-typedef TypeCtx<T extends Object> = IDMap<(Expr<T>, Expr<T>)>;
+class Ann<T extends Object> {
+  final Expr<T>? type;
+  final Expr<T>? value;
+
+  const Ann(this.type, this.value);
+  const Ann.empty()
+      : type = null,
+        value = null;
+
+  @override
+  String toString() => '${value ?? '_'}: ${type ?? '_'}';
+}
+
+class Jdg<T extends Object> {
+  final Expr<T> type;
+  final Expr<T> value;
+
+  const Jdg(this.type, this.value);
+
+  @override
+  String toString() => '$value: $type';
+}
+
+typedef TypeCtx<T extends Object> = IDMap<Ann>;
 
 sealed class Result<T> {
   const Result();
@@ -213,65 +229,78 @@ $reason
 ''';
 }
 
-typedef CheckResult = Result<(Expr, Expr)>;
-typedef CheckProgress = Progress<(Expr, Expr)>;
-typedef CheckFailure = Failure<(Expr, Expr)>;
+typedef CheckResult = Result<Jdg>;
+typedef CheckProgress = Progress<Jdg>;
+typedef CheckFailure = Failure<Jdg>;
 
-CheckResult check(TypeCtx ctx, Expr expectedType, Expr expr) {
-  final progress = _check(ctx, expectedType, hole, expr);
-  if (progress is CheckProgress) {
-    assert(progress.result.$1.complete);
+CheckResult check(TypeCtx ctx, Expr? expectedType, Expr expr) {
+  expectedType = expectedType ?? Var([...ctx.keys, ...expr.freeVars].freshen('EXPECTED_TYPE'));
+  final expectedValue = Var([...ctx.keys, ...expr.freeVars].freshen('EXPECTED_VALUE'));
+  final progress = _check(ctx, expectedType, expectedValue, expr);
+  if (progress case CheckProgress(result: Jdg(:var type, :var value))) {
+    assert(type.freeVars.every((v) => ctx.containsKey(v)), type.toString());
+    assert(value.freeVars.every((v) => ctx.containsKey(v)), value.toString());
   }
   return progress;
 }
 
 CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr) {
   CheckResult subCheck(TypeCtx ctx, Expr expr) {
-    if (expr is Hole) {
-      return Progress((expectedType, expectedValue));
-    } else if (expr is Var) {
-      final bound = ctx.get(expr.id);
-      if (bound == null) return Failure('unknown var $expr in ctx:\n  $ctx');
-      final (type, redex) = bound;
-      if (type is Hole && expectedType is! Hole) {
-        final newBinding = (expectedType, redex is Hole ? expr : redex);
-        return Progress(
-          (newBinding.$1, newBinding.$2),
-          IDMap({expr.id: newBinding}),
-        );
-      } else if (type is! Hole) {
-        return Progress((type, redex is Hole ? expr : redex));
-      } else {
-        return const Progress((hole, hole));
+/////// Check Var
+    if (expr is Var) {
+      final Ann(:type, value: redex) = ctx.get(expr.id) ?? const Ann(null, null);
+      if (type != null && type is! Var) {
+        return Progress(Jdg(type, redex ?? expr));
       }
+
+      return Progress(
+        Jdg(expectedType, redex ?? expr),
+        IDMap({
+          expr.id: Ann(expectedType, redex),
+          if (type is Var) type.id: Ann(expectedType, redex)
+        }),
+      );
+
+/////// Check App
     } else if (expr is App) {
-      Expr fnType = const Fn.typ(false, null, hole, hole);
+      final fnArgTypeVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('FN_ARG_TYPE_'));
+      final fnRedexVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('FN_REDEX_'));
+      Expr fnType = Fn.typ(false, null, fnArgTypeVar, expectedType);
       Expr fnRedex = expr.fn;
       TypeCtx inferences = const IDMap({});
       // TODO: persist partial state across loops?
       // TODO: force two loop iterations to get argType?
-      // TODO: implicit? argID?
-      final fnResult = _check(ctx, Fn.typ(false, null, hole, expectedType), hole, expr.fn);
+      // TODO: implicit? argID? match var names in expected type?
+      final fnResult = _check(
+        ctx.addAll([fnArgTypeVar.id, fnRedexVar.id]),
+        fnType,
+        fnRedexVar,
+        expr.fn,
+      );
       if (fnResult is CheckFailure) return fnResult.wrap('fn of $expr');
       if (fnResult is! CheckProgress) throw Exception();
-      inferences = inferences.union(fnResult.inferences);
-      ctx = ctx.union(fnResult.inferences);
+      var newInferences = fnResult.inferences.without(fnArgTypeVar.id).without(fnRedexVar.id);
+      inferences = inferences.union(newInferences);
+      ctx = ctx.union(newInferences);
 
-      (fnType, fnRedex) = fnResult.result;
-      if (fnType is! Fn && fnType is! Hole) {
-        return Failure(
-          'expected type of fn applied at ${expr.t} to be function type!\nexpression:\n${expr.fn.toString().indent}\nactualType:${fnType.toString().indent}',
-        );
-      }
+      Jdg(type: fnType, value: fnRedex) = fnResult.result;
 
-      final argResult = _check(ctx, fnType is Fn ? fnType.argType : hole, hole, expr.arg);
+      final argTypeVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('ARG_TYPE_'));
+      final argRedexVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('ARG_REDEX_'));
+      final argResult = _check(
+        ctx.addAll([argTypeVar.id, argRedexVar.id]),
+        fnType is Fn ? fnType.argType : argTypeVar,
+        argRedexVar,
+        expr.arg,
+      );
       if (argResult is CheckFailure) return argResult.wrap('arg of $expr');
       if (argResult is! CheckProgress) throw Exception();
 
-      inferences = inferences.union(argResult.inferences);
-      ctx = ctx.union(argResult.inferences);
+      newInferences = argResult.inferences.without(argTypeVar.id).without(argRedexVar.id);
+      inferences = inferences.union(newInferences);
+      ctx = ctx.union(newInferences);
 
-      final (_, argRedex) = argResult.result;
+      final Jdg(value: argRedex) = argResult.result;
 
       Expr doSubst(Expr fn, Expr def) => fn is Fn
           ? fn.argID != null
@@ -280,55 +309,67 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr
           : def;
 
       return Progress(
-        (
-          doSubst(fnType, hole),
+        Jdg(
+          doSubst(fnType, expectedType),
           doSubst(fnRedex, App(expr.implicit, fnRedex, argRedex)),
         ),
         inferences,
       );
+
+/////// Check Fn
     } else if (expr case Fn(:var argID)) {
       if (argID != null && ctx.containsKey(argID)) {
-        return Failure('shadowed variable ${expr.argID}');
+        return Failure('shadowed variable $argID');
       }
 
       TypeCtx inferences = const IDMap({});
 
+      final argTypeVar = Var([...ctx.keys, ...expr.argType.freeVars].freshen('ARG_TYPE_'));
       final argResult = _check(
-        ctx,
+        ctx.addAll([argTypeVar.id]),
         Type,
-        expectedType is Fn ? expectedType.argType : hole,
+        expectedType is Fn ? expectedType.argType : argTypeVar,
         expr.argType,
       );
 
       if (argResult is CheckFailure) return argResult.wrap('arg type of $expr');
       if (argResult is! CheckProgress) throw Exception();
-      inferences = inferences.union(argResult.inferences);
-      ctx = ctx.union(argResult.inferences);
+      var newInferences = argResult.inferences.without(argTypeVar.id);
+      inferences = inferences.union(newInferences);
+      ctx = ctx.union(newInferences);
 
-      var (_, argTypeRedex) = argResult.result;
+      var Jdg(value: argTypeRedex) = argResult.result;
 
-      final retResult = _check(
+      final resTypeVar = Var([...ctx.keys, ...expr.result.freeVars].freshen('RES_TYPE_'));
+      final resRedexVar = Var([...ctx.keys, ...expr.result.freeVars].freshen('RES_REDEX_'));
+      final resResult = _check(
         // TODO: fill in redex somehow?
-        argID != null ? ctx.add(argID, (argTypeRedex, hole)) : ctx,
-        // TODO: use expectedType to enforce retResult type
-        expr.kind == Fn.Typ ? Type : hole,
-        hole,
+        (argID != null ? ctx.add(argID, Ann(argTypeRedex, null)) : ctx)
+            .addAll([resTypeVar.id, resRedexVar.id]),
+        // TODO: need to match var names here
+        expr.kind == Fn.Typ
+            ? Type
+            : expectedType is Fn
+                ? expectedType.result
+                : resTypeVar,
+        resRedexVar,
         expr.result,
       );
-      if (retResult is CheckFailure) return retResult.wrap('arg type of $expr');
-      if (retResult is! CheckProgress) throw Exception();
-      inferences = inferences.union(retResult.inferences);
-      final (retType, retRedex) = retResult.result;
+      if (resResult is CheckFailure) return resResult.wrap('arg type of $expr');
+      if (resResult is! CheckProgress) throw Exception();
+      newInferences = resResult.inferences.without(resTypeVar.id).without(resRedexVar.id);
+      inferences = inferences.union(resResult.inferences);
+      final Jdg(type: retType, value: retRedex) = resResult.result;
 
       if (argID != null) {
-        argTypeRedex = inferences.get(argID)?.$1 ?? argTypeRedex;
+        argTypeRedex = inferences.get(argID)?.type ?? argTypeRedex;
         inferences = inferences.without(argID);
       }
 
       return Progress(
-        (
-          expr.kind == Fn.Typ ? Type : Fn(expr.implicit, Fn.Typ, expr.argID, argTypeRedex, retType),
-          Fn(expr.implicit, expr.kind, expr.argID, argTypeRedex, retRedex),
+        Jdg(
+          expr.kind == Fn.Typ ? Type : Fn(expr.implicit, Fn.Typ, argID, argTypeRedex, retType),
+          Fn(expr.implicit, expr.kind, argID, argTypeRedex, retRedex),
         ),
         argID != null ? inferences.without(argID) : inferences,
       );
@@ -337,10 +378,12 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr
     }
   }
 
+/////// Unify
+
   bool gotMore = true;
   TypeCtx inferences = const IDMap({});
-  Expr resultType = hole;
-  while (gotMore && !resultType.complete) {
+  late Expr resultType;
+  while (gotMore) {
     gotMore = false;
 
     final result = subCheck(ctx, expr);
@@ -351,22 +394,23 @@ CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr
     inferences = result.inferences;
     ctx = ctx.union(result.inferences);
 
-    (resultType, expr) = result.result;
+    Jdg(type: resultType, value: expr) = result.result;
 
-    if (expectedType is! Hole) {
-      final result = unify(ctx, reduce(ctx, expectedType), reduce(ctx, resultType));
+    final unifyResult = unify(ctx, reduce(ctx, expectedType), reduce(ctx, resultType));
 
-      if (result is AssgnFailure) {
-        return Failure(result.reason.wrap('checking expected type in:\n$expr'));
-      }
-      if (result is! AssgnProgress) throw Exception();
-      if (!result.inferences.isEmpty) gotMore = true;
-      inferences = inferences.union(result.inferences);
-      ctx = ctx.union(result.inferences);
+    if (unifyResult is AssgnFailure) {
+      return Failure(unifyResult.reason.wrap('checking expected type in:\n$expr'));
     }
+    if (unifyResult is! AssgnProgress) throw Exception();
+    if (!unifyResult.inferences.isEmpty) gotMore = true;
+    inferences = inferences.union(unifyResult.inferences);
+    ctx = ctx.union(unifyResult.inferences);
   }
 
-  return Progress((reduce(ctx, resultType), reduce(ctx, expr)), inferences);
+  return Progress(
+    Jdg(reduce(ctx, resultType), reduce(ctx, expr)),
+    inferences,
+  );
 }
 
 typedef AssgnResult = Result<void>;
@@ -379,10 +423,6 @@ AssgnResult unify(TypeCtx ctx, Expr a, Expr b) {
     case (Type, _):
       return const Progress(null);
     case (_, Type):
-      return const Progress(null);
-    case (Hole _, _):
-      return const Progress(null);
-    case (_, Hole _):
       return const Progress(null);
     case (Fn a, Fn b) when a.kind == Fn.Typ && b.kind == Fn.Typ:
       final argCtx = unify(ctx, a.argType, b.argType);
@@ -410,10 +450,10 @@ ${b.toString().indent}''');
         ),
       );
     case (Var a, Expr b):
-      if (ctx.get(a.id) == null || ctx.get(a.id)!.$2 is Hole) {
-        return Progress(null, IDMap({a.id: (Type, b)}));
+      if (ctx.get(a.id) == null || ctx.get(a.id)!.value == null) {
+        return Progress(null, IDMap({a.id: Ann(Type, b)}));
       } else {
-        return unify(ctx, ctx.get(a.id)!.$2, b);
+        return unify(ctx, ctx.get(a.id)!.value!, b);
       }
     case (App a, App b):
       final fnCtx = unify(ctx, a.fn, b.fn);
@@ -443,9 +483,8 @@ ${b.fn.toString().indent}''');
 }
 
 Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
-      Hole() => a,
       Var a => switch (ctx.get(a.id)) {
-          (_, var redex) when redex is! Hole && redex != a => reduce(ctx, redex),
+          Jdg(value: var redex) when redex != a => reduce(ctx, redex),
           _ => a,
         },
       App a => switch (reduce(ctx, a.fn)) {
@@ -457,7 +496,6 @@ Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
     };
 
 extension on String {
-  String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
 }
 
