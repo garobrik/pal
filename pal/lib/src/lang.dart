@@ -148,11 +148,6 @@ const TypeCtx coreTypeCtx = IDMap({typeID: Ann(Type, Type)});
 
 // Type Checking
 
-extension<T extends Object> on TypeCtx<T> {
-  TypeCtx<T> addAll(Iterable<ID> ids) =>
-      union(IDMap({for (final id in ids) id: const Ann.empty()}));
-}
-
 extension type const IDMap<T>(Map<ID, T> map) {
   static IDMap<T> empty<T>() => const IDMap({});
 
@@ -206,7 +201,7 @@ class Ann<T extends Object> {
 }
 
 class Jdg<T extends Object> {
-  final Expr<T> type;
+  final Expr<T>? type;
   final Expr<T> value;
 
   const Jdg(this.type, this.value);
@@ -272,26 +267,21 @@ Result<Jdg> check(TypeCtx ctx, Expr? expectedType, Expr expr) {
   );
   if (result case Progress(ctx: var subCtx, result: Jdg(:var type, :var value))) {
     subCtx.filter((_, ann) => ann.value == Type).keys.forEach((k) {
-      type = type.substExpr(k, Type);
+      type = type?.substExpr(k, Type);
       value = value.substExpr(k, Type);
     });
-    assert(type.freeVars.every((v) => ctx.containsKey(v)), type.toString());
+    assert(type != null && type!.freeVars.every((v) => ctx.containsKey(v)), type.toString());
     assert(value.freeVars.every((v) => ctx.containsKey(v)), value.toString());
     return Progress.same(Jdg(type, value), ctx);
   }
   return result;
 }
 
-Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
-  if (expected != null && expected.alphaEquiv(expr)) {
-    return Progress.same(Jdg(expectedType, expr), ctx);
-  }
+Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
   Result<Jdg> unifyStep(TypeCtx ctx, Expr expr) {
     switch ((expected, expr)) {
-      // case (Type, _):
-      //   return Progress.same(Jdg(expectedType, expr), ctx);
-      // case (_, Type):
-      //   return Progress.same(a, ctx);
+      case (null || Type, Type):
+        return Progress.same(const Jdg(Type, Type), ctx);
 
       case (_, Var expr) when ctx.get(expr.id)?.value != null && ctx.get(expr.id)?.value != Type:
         return unify(ctx, expectedType, expected, ctx.get(expr.id)!.value!);
@@ -306,9 +296,10 @@ Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
         }
         var type = ctx.get(expr.id)?.type;
         if (type == null || type == Type) type = expectedType;
-        return Progress.more(
+        return Progress(
           Jdg(type, expected ?? expr),
           ctx.add(expr.id, Ann(type, expected)),
+          expected != null || type != ctx.get(expr.id)?.type,
         );
 
       case (Var expected, Expr expr):
@@ -320,48 +311,33 @@ Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
         return Progress.more(Jdg(type, expr), ctx.add(expected.id, Ann(type, expr)));
 
       case (App? expected, App expr):
-        final argTypeVar = Var(
-            [...ctx.keys, ...?expected?.fn.freeVars, ...expr.fn.freeVars].freshen('FN_ARG_TYPE_'));
-        final fnType = Fn.typ(false, null, argTypeVar, expectedType);
-        // TODO: persist partial state across loops?
-        // TODO: force two loop iterations to get argType?
-        // TODO: implicit? argID? match var names in expected type?
+        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
+        if (expected != null) errCtx.writeln(expected.arg.toString().indent);
+        errCtx.writeln(expr.arg.toString().indent);
 
-        final errCtx = StringBuffer('fn${expected != null ? 's' : ''} of:');
-        if (expected != null) errCtx.writeln(expected.fn.toString().indent);
-        errCtx.writeln(expr.fn.toString().indent);
+        return unify(ctx, null, expected?.arg, expr.arg).map(false, errCtx.toString(),
+            (arg, ctx, gotMore) {
+          final fnType = arg.type != null && expectedType != null
+              ? Fn.typ(false, null, arg.type!, expectedType)
+              : null;
 
-        return unify(ctx.addAll([argTypeVar.id]), fnType, expected?.fn, expr.fn)
-            .map(false, errCtx.toString(), (fn, ctx, gotMore) {
-          final Jdg(type: fnType, value: fnValue) = fn;
+          final errCtx = StringBuffer('fn${expected != null ? 's' : ''} of:');
+          if (expected != null) errCtx.writeln(expected.fn.toString().indent);
+          errCtx.writeln(expr.fn.toString().indent);
 
-          final argVar = Var(
-              [...ctx.keys, ...?expected?.fn.freeVars, ...expr.fn.freeVars].freshen('ARG_TYPE_'));
-          final argType = fnType is Fn ? fnType.argType : argTypeVar;
+          return unify(ctx, fnType, expected?.fn, expr.fn).map(gotMore, errCtx.toString(),
+              (fn, ctx, gotMore) {
+            Expr? type = expectedType;
+            if (fn.type case Fn(:var argID, :var result)) {
+              type = argID != null ? result.substExpr(argID, arg.value) : result;
+            }
 
-          final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
-          if (expected != null) errCtx.writeln(expected.arg.toString().indent);
-          errCtx.writeln(expr.arg.toString().indent);
+            Expr value = App(expr.implicit, fn.value, arg.value);
+            if (fn.value case Fn(:var argID, :var result)) {
+              value = argID != null ? result.substExpr(argID, arg.value) : result;
+            }
 
-          return unify(ctx.addAll([argVar.id]), argType, expected?.arg, expr.arg)
-              .map(gotMore, '$errCtx', (arg, ctx, gotMore) {
-            // TODO: do something w argType
-            final Jdg(value: argValue) = arg;
-
-            Expr doSubst(Expr fn, Expr def) => fn is Fn
-                ? fn.argID != null
-                    ? fn.result.substExpr(fn.argID!, argValue)
-                    : fn.result
-                : def;
-
-            var jdg = Jdg(
-              doSubst(fnType, expectedType),
-              doSubst(fnValue, App(expr.implicit, fnValue, argValue)),
-            );
-            (ctx, jdg) = removeVar(argTypeVar, ctx, jdg);
-            (ctx, jdg) = removeVar(argVar, ctx, jdg);
-
-            return Progress(jdg, ctx, gotMore);
+            return Progress(Jdg(type, value), ctx, gotMore);
           });
         });
 
@@ -372,34 +348,31 @@ Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
 
         return unify(ctx, Type, expected?.argType, expr.argType).map(false, '$errCtx',
             (argType, ctx, gotMore) {
-          final resTypeVar = Var([
-            ...ctx.keys,
-            ...?expected?.result.freeVars,
-            ...expr.result.freeVars
-          ].freshen('RES_TYPE_'));
           final argID = expected?.argID ?? expr.argID;
           final resultType = expr.kind == Fn.Typ
               ? Type
               : expectedType is Fn
                   ? expectedType.result
-                  : resTypeVar;
+                  : null;
 
           final errCtx = StringBuffer('result${expected != null ? 's' : ''} of:');
           if (expected != null) errCtx.writeln(expected.result.toString().indent);
           errCtx.writeln(expr.result.toString().indent);
 
           return unify(
-            (argID == null ? ctx : ctx.add(argID, Ann(argType.value, null)))
-                .addAll([resTypeVar.id]),
+            argID == null ? ctx : ctx.add(argID, Ann(argType.value, null)),
             resultType,
             expected?.result,
             expr.result,
           ).map(gotMore, '$errCtx', (result, ctx, gotMore) {
             var jdg = Jdg(
-              expr.kind == Fn.Typ ? Type : Fn.typ(expr.implicit, argID, argType.value, result.type),
+              expr.kind == Fn.Typ
+                  ? Type
+                  : result.type == null
+                      ? null
+                      : Fn.typ(expr.implicit, argID, argType.value, result.type!),
               Fn(expr.implicit, expr.kind, argID, argType.value, result.value),
             );
-            (ctx, jdg) = removeVar(resTypeVar, ctx, jdg);
 
             return Progress(jdg, ctx, gotMore);
           });
@@ -411,38 +384,29 @@ Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
 
   bool gotAnyMore = false;
   bool gotMore = true;
-  late Expr resultType;
+  Expr? resultType;
   while (gotMore) {
+    if (expected != null && expected.alphaEquiv(expr)) {
+      return unify(ctx, null, null, expr);
+    }
     final result = unifyStep(ctx, expr);
     if (result is Failure<Jdg>) return result;
     Progress(result: Jdg(type: resultType, value: expr), :gotMore, :ctx) = result as Progress<Jdg>;
 
-    final unifyResult = unify(ctx, Type, reduce(ctx, expectedType), reduce(ctx, resultType));
-    if (unifyResult is Failure<Jdg>) {
-      return Failure(unifyResult.reason.wrap('checking expected type in:\n$expr'));
+    if (expectedType != null && resultType != null) {
+      final unifyResult = unify(ctx, Type, expectedType, resultType);
+      if (unifyResult is Failure<Jdg>) {
+        return Failure(unifyResult.reason.wrap('checking expected type in:\n$expr'));
+      }
+      Progress(result: Jdg(value: resultType), :gotMore, :ctx) = unifyResult as Progress<Jdg>;
+      gotMore = unifyResult.gotMore || gotMore;
     }
-    Progress(result: Jdg(value: resultType), :gotMore, :ctx) = unifyResult as Progress<Jdg>;
-    resultType = reduce(ctx, resultType);
+
+    resultType = resultType == null ? null : reduce(ctx, resultType);
     expr = reduce(ctx, expr);
-    gotMore = unifyResult.gotMore || gotMore;
     gotAnyMore = gotAnyMore || gotMore;
   }
   return Progress(Jdg(resultType, expr), ctx, gotAnyMore);
-}
-
-(TypeCtx, Jdg) removeVar(Var v, TypeCtx ctx, Jdg jdg) {
-  final equivalents = ctx.filter((id, e) => e.value == v);
-  final canonicalEquivalent = equivalents.keys.firstOrNull;
-  ctx = ctx.union(IDMap({
-    for (final id in equivalents.keys)
-      id: Ann(
-        equivalents.get(id)!.type,
-        id == canonicalEquivalent ? null : equivalents.get(id)!.value,
-      )
-  }));
-  Expr doRemove(Expr e) =>
-      canonicalEquivalent == null ? e : e.substExpr(v.id, Var(canonicalEquivalent));
-  return (ctx.without(v.id), Jdg(doRemove(jdg.type), doRemove(jdg.value)));
 }
 
 Expr reduce(TypeCtx ctx, Expr expr) => switch (expr) {
