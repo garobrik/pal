@@ -71,8 +71,8 @@ void main() {
   test('let check', () {
     final result = check(coreTypeCtx, Type, parseExpr(tokenize(letForEval)).$1);
     expect(result, isSuccess);
-    var Progress(result: Jdg(:type, :value), :inferences) = result as CheckProgress;
-    expect(inferences.isEmpty, true);
+    var Progress(result: Jdg(:type, :value), :gotMore) = result as Progress<Jdg>;
+    expect(gotMore, true);
     expect(type, Type);
     expect(value, Type);
   });
@@ -94,14 +94,15 @@ void main() {
         if (binding.type != null) {
           final typeResult = check(typeCtx.union(moduleTypeCtx), Type, binding.type!);
           expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  ${binding.type}');
-          Progress(result: Jdg(value: expectedType)) = typeResult as CheckProgress;
+          Progress(result: Jdg(value: expectedType)) = typeResult as Progress<Jdg>;
+          print(expectedType.toString().indent);
         }
         late final Object? value;
         if (binding.value != null) {
           final checkResult = check(typeCtx.union(moduleTypeCtx), expectedType, binding.value!);
           expect(checkResult, isSuccess,
               reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
-          final Progress(result: Jdg(:type, value: redex)) = checkResult as CheckProgress;
+          final Progress(result: Jdg(:type, value: redex)) = checkResult as Progress<Jdg>;
           expect(typeCtx.union(moduleTypeCtx), isNot(contains(binding.id)));
           print(type.toString().indent);
           print(redex.toString().indent);

@@ -94,6 +94,13 @@ extension ExprOps<T extends Object> on Expr<T> {
         App(:var fn, :var arg) => fn.freeVars.union(arg.freeVars),
       };
 
+  bool occurs(Var v) => switch (this) {
+        Var(:var id) => v.id == id,
+        App(:var fn, :var arg) => fn.occurs(v) || arg.occurs(v),
+        Fn(:var argID, :var argType, :var result) =>
+          argType.occurs(v) || (v.id != argID && result.occurs(v))
+      };
+
   Expr<T> substExpr(ID from, Expr<T> to) {
     switch (this) {
       case Var(:var id):
@@ -174,6 +181,11 @@ extension type const IDMap<T>(Map<ID, T> map) {
         for (final id in ids)
           if (this.containsKey(id)) id: this.get(id) as T
       });
+
+  IDMap<T> filter(bool Function(ID, T) f) => IDMap({
+        for (final entry in map.entries)
+          if (f(entry.key, entry.value)) entry.key: entry.value
+      });
 }
 
 class Ann<T extends Object> {
@@ -186,7 +198,11 @@ class Ann<T extends Object> {
         value = null;
 
   @override
-  String toString() => '${value ?? '_'}: ${type ?? '_'}';
+  String toString() {
+    final valueStr = switch (value) { Var(:var id) => id, _ => value?.toString() };
+    final typeStr = switch (type) { Var(:var id) => id, _ => type?.toString() };
+    return '$valueStr: $typeStr';
+  }
 }
 
 class Jdg<T extends Object> {
@@ -196,23 +212,40 @@ class Jdg<T extends Object> {
   const Jdg(this.type, this.value);
 
   @override
-  String toString() => '$value: $type';
+  String toString() {
+    final valueStr = switch (value) { Var(:var id) => id, _ => value.toString() };
+    final typeStr = switch (type) { Var(:var id) => id, _ => type.toString() };
+    return '$valueStr: $typeStr';
+  }
 }
 
 typedef TypeCtx<T extends Object> = IDMap<Ann>;
 
 sealed class Result<T> {
   const Result();
+
+  Result<T2> map<T2>(
+    bool gotMore,
+    String? ctx,
+    Result<T2> Function(T result, TypeCtx ctx, bool gotMore) f,
+  ) =>
+      switch (this) {
+        Progress<T> p => f(p.result, p.ctx, gotMore || p.gotMore),
+        Failure<T> f => f.wrap(ctx),
+      };
 }
 
 class Progress<T> extends Result<T> {
   final T result;
-  final TypeCtx inferences;
+  final TypeCtx ctx;
+  final bool gotMore;
 
-  const Progress(this.result, [this.inferences = const IDMap({})]);
+  const Progress(this.result, this.ctx, this.gotMore);
+  const Progress.more(this.result, this.ctx) : gotMore = true;
+  const Progress.same(this.result, this.ctx) : gotMore = false;
 
   @override
-  String toString() => '$result, $inferences';
+  String toString() => '$result, $gotMore';
 }
 
 class Failure<T> extends Result<T> {
@@ -229,270 +262,201 @@ $reason
 ''';
 }
 
-typedef CheckResult = Result<Jdg>;
-typedef CheckProgress = Progress<Jdg>;
-typedef CheckFailure = Failure<Jdg>;
-
-CheckResult check(TypeCtx ctx, Expr? expectedType, Expr expr) {
-  expectedType = expectedType ?? Var([...ctx.keys, ...expr.freeVars].freshen('EXPECTED_TYPE'));
-  final expectedValue = Var([...ctx.keys, ...expr.freeVars].freshen('EXPECTED_VALUE'));
-  final progress = _check(ctx, expectedType, expectedValue, expr);
-  if (progress case CheckProgress(result: Jdg(:var type, :var value))) {
+Result<Jdg> check(TypeCtx ctx, Expr? expectedType, Expr expr) {
+  final expectedTypeVar = Var([...ctx.keys, ...expr.freeVars].freshen('EXPECTED_TYPE'));
+  final result = unify(
+    ctx,
+    expectedType ?? expectedTypeVar,
+    null,
+    expr,
+  );
+  if (result case Progress(ctx: var subCtx, result: Jdg(:var type, :var value))) {
+    subCtx.filter((_, ann) => ann.value == Type).keys.forEach((k) {
+      type = type.substExpr(k, Type);
+      value = value.substExpr(k, Type);
+    });
     assert(type.freeVars.every((v) => ctx.containsKey(v)), type.toString());
     assert(value.freeVars.every((v) => ctx.containsKey(v)), value.toString());
+    return Progress.same(Jdg(type, value), ctx);
   }
-  return progress;
+  return result;
 }
 
-CheckResult _check(TypeCtx ctx, Expr expectedType, Expr expectedValue, Expr expr) {
-  CheckResult subCheck(TypeCtx ctx, Expr expr) {
-/////// Check Var
-    if (expr is Var) {
-      final Ann(:type, value: redex) = ctx.get(expr.id) ?? const Ann(null, null);
-      if (type != null && type is! Var) {
-        return Progress(Jdg(type, redex ?? expr));
-      }
+Result<Jdg> unify(TypeCtx ctx, Expr expectedType, Expr? expected, Expr expr) {
+  if (expected != null && expected.alphaEquiv(expr)) {
+    return Progress.same(Jdg(expectedType, expr), ctx);
+  }
+  Result<Jdg> unifyStep(TypeCtx ctx, Expr expr) {
+    switch ((expected, expr)) {
+      // case (Type, _):
+      //   return Progress.same(Jdg(expectedType, expr), ctx);
+      // case (_, Type):
+      //   return Progress.same(a, ctx);
 
-      return Progress(
-        Jdg(expectedType, redex ?? expr),
-        IDMap({
-          expr.id: Ann(expectedType, redex),
-          if (type is Var) type.id: Ann(expectedType, redex)
-        }),
-      );
+      case (_, Var expr) when ctx.get(expr.id)?.value != null && ctx.get(expr.id)?.value != Type:
+        return unify(ctx, expectedType, expected, ctx.get(expr.id)!.value!);
 
-/////// Check App
-    } else if (expr is App) {
-      final fnArgTypeVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('FN_ARG_TYPE_'));
-      final fnRedexVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('FN_REDEX_'));
-      Expr fnType = Fn.typ(false, null, fnArgTypeVar, expectedType);
-      Expr fnRedex = expr.fn;
-      TypeCtx inferences = const IDMap({});
-      // TODO: persist partial state across loops?
-      // TODO: force two loop iterations to get argType?
-      // TODO: implicit? argID? match var names in expected type?
-      final fnResult = _check(
-        ctx.addAll([fnArgTypeVar.id, fnRedexVar.id]),
-        fnType,
-        fnRedexVar,
-        expr.fn,
-      );
-      if (fnResult is CheckFailure) return fnResult.wrap('fn of $expr');
-      if (fnResult is! CheckProgress) throw Exception();
-      var newInferences = fnResult.inferences.without(fnArgTypeVar.id).without(fnRedexVar.id);
-      inferences = inferences.union(newInferences);
-      ctx = ctx.union(newInferences);
+      case (Var expected, _)
+          when ctx.get(expected.id)?.value != null && ctx.get(expected.id)?.value != Type:
+        return unify(ctx, expectedType, ctx.get(expected.id)!.value!, expr);
 
-      Jdg(type: fnType, value: fnRedex) = fnResult.result;
+      case (Expr? expected, Var expr):
+        if (expected?.occurs(expr) ?? false) {
+          return Failure('cycle: $expected in $expr');
+        }
+        var type = ctx.get(expr.id)?.type;
+        if (type == null || type == Type) type = expectedType;
+        return Progress.more(
+          Jdg(type, expected ?? expr),
+          ctx.add(expr.id, Ann(type, expected)),
+        );
 
-      final argTypeVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('ARG_TYPE_'));
-      final argRedexVar = Var([...ctx.keys, ...expr.fn.freeVars].freshen('ARG_REDEX_'));
-      final argResult = _check(
-        ctx.addAll([argTypeVar.id, argRedexVar.id]),
-        fnType is Fn ? fnType.argType : argTypeVar,
-        argRedexVar,
-        expr.arg,
-      );
-      if (argResult is CheckFailure) return argResult.wrap('arg of $expr');
-      if (argResult is! CheckProgress) throw Exception();
+      case (Var expected, Expr expr):
+        if (expr.occurs(expected)) {
+          return Failure('cycle: $expr in $expected');
+        }
+        var type = ctx.get(expected.id)?.type;
+        if (type == null || type == Type) type = expectedType;
+        return Progress.more(Jdg(type, expr), ctx.add(expected.id, Ann(type, expr)));
 
-      newInferences = argResult.inferences.without(argTypeVar.id).without(argRedexVar.id);
-      inferences = inferences.union(newInferences);
-      ctx = ctx.union(newInferences);
+      case (App? expected, App expr):
+        final argTypeVar = Var(
+            [...ctx.keys, ...?expected?.fn.freeVars, ...expr.fn.freeVars].freshen('FN_ARG_TYPE_'));
+        final fnType = Fn.typ(false, null, argTypeVar, expectedType);
+        // TODO: persist partial state across loops?
+        // TODO: force two loop iterations to get argType?
+        // TODO: implicit? argID? match var names in expected type?
 
-      final Jdg(value: argRedex) = argResult.result;
+        final errCtx = StringBuffer('fn${expected != null ? 's' : ''} of:');
+        if (expected != null) errCtx.writeln(expected.fn.toString().indent);
+        errCtx.writeln(expr.fn.toString().indent);
 
-      Expr doSubst(Expr fn, Expr def) => fn is Fn
-          ? fn.argID != null
-              ? fn.result.substExpr(fn.argID!, argRedex)
-              : fn.result
-          : def;
+        return unify(ctx.addAll([argTypeVar.id]), fnType, expected?.fn, expr.fn)
+            .map(false, errCtx.toString(), (fn, ctx, gotMore) {
+          final Jdg(type: fnType, value: fnValue) = fn;
 
-      return Progress(
-        Jdg(
-          doSubst(fnType, expectedType),
-          doSubst(fnRedex, App(expr.implicit, fnRedex, argRedex)),
-        ),
-        inferences,
-      );
+          final argVar = Var(
+              [...ctx.keys, ...?expected?.fn.freeVars, ...expr.fn.freeVars].freshen('ARG_TYPE_'));
+          final argType = fnType is Fn ? fnType.argType : argTypeVar;
 
-/////// Check Fn
-    } else if (expr case Fn(:var argID)) {
-      if (argID != null && ctx.containsKey(argID)) {
-        return Failure('shadowed variable $argID');
-      }
+          final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
+          if (expected != null) errCtx.writeln(expected.arg.toString().indent);
+          errCtx.writeln(expr.arg.toString().indent);
 
-      TypeCtx inferences = const IDMap({});
+          return unify(ctx.addAll([argVar.id]), argType, expected?.arg, expr.arg)
+              .map(gotMore, '$errCtx', (arg, ctx, gotMore) {
+            // TODO: do something w argType
+            final Jdg(value: argValue) = arg;
 
-      final argTypeVar = Var([...ctx.keys, ...expr.argType.freeVars].freshen('ARG_TYPE_'));
-      final argResult = _check(
-        ctx.addAll([argTypeVar.id]),
-        Type,
-        expectedType is Fn ? expectedType.argType : argTypeVar,
-        expr.argType,
-      );
+            Expr doSubst(Expr fn, Expr def) => fn is Fn
+                ? fn.argID != null
+                    ? fn.result.substExpr(fn.argID!, argValue)
+                    : fn.result
+                : def;
 
-      if (argResult is CheckFailure) return argResult.wrap('arg type of $expr');
-      if (argResult is! CheckProgress) throw Exception();
-      var newInferences = argResult.inferences.without(argTypeVar.id);
-      inferences = inferences.union(newInferences);
-      ctx = ctx.union(newInferences);
+            var jdg = Jdg(
+              doSubst(fnType, expectedType),
+              doSubst(fnValue, App(expr.implicit, fnValue, argValue)),
+            );
+            (ctx, jdg) = removeVar(argTypeVar, ctx, jdg);
+            (ctx, jdg) = removeVar(argVar, ctx, jdg);
 
-      var Jdg(value: argTypeRedex) = argResult.result;
+            return Progress(jdg, ctx, gotMore);
+          });
+        });
 
-      final resTypeVar = Var([...ctx.keys, ...expr.result.freeVars].freshen('RES_TYPE_'));
-      final resRedexVar = Var([...ctx.keys, ...expr.result.freeVars].freshen('RES_REDEX_'));
-      final resResult = _check(
-        // TODO: fill in redex somehow?
-        (argID != null ? ctx.add(argID, Ann(argTypeRedex, null)) : ctx)
-            .addAll([resTypeVar.id, resRedexVar.id]),
-        // TODO: need to match var names here
-        expr.kind == Fn.Typ
-            ? Type
-            : expectedType is Fn
-                ? expectedType.result
-                : resTypeVar,
-        resRedexVar,
-        expr.result,
-      );
-      if (resResult is CheckFailure) return resResult.wrap('arg type of $expr');
-      if (resResult is! CheckProgress) throw Exception();
-      newInferences = resResult.inferences.without(resTypeVar.id).without(resRedexVar.id);
-      inferences = inferences.union(resResult.inferences);
-      final Jdg(type: retType, value: retRedex) = resResult.result;
+      case (Fn? expected, Fn expr) when expected == null || expected.kind == expr.kind:
+        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
+        if (expected != null) errCtx.writeln(expected.argType.toString().indent);
+        errCtx.writeln(expr.argType.toString().indent);
 
-      if (argID != null) {
-        argTypeRedex = inferences.get(argID)?.type ?? argTypeRedex;
-        inferences = inferences.without(argID);
-      }
+        return unify(ctx, Type, expected?.argType, expr.argType).map(false, '$errCtx',
+            (argType, ctx, gotMore) {
+          final resTypeVar = Var([
+            ...ctx.keys,
+            ...?expected?.result.freeVars,
+            ...expr.result.freeVars
+          ].freshen('RES_TYPE_'));
+          final argID = expected?.argID ?? expr.argID;
+          final resultType = expr.kind == Fn.Typ
+              ? Type
+              : expectedType is Fn
+                  ? expectedType.result
+                  : resTypeVar;
 
-      return Progress(
-        Jdg(
-          expr.kind == Fn.Typ ? Type : Fn(expr.implicit, Fn.Typ, argID, argTypeRedex, retType),
-          Fn(expr.implicit, expr.kind, argID, argTypeRedex, retRedex),
-        ),
-        argID != null ? inferences.without(argID) : inferences,
-      );
-    } else {
-      throw Exception('unexpected case ${expr.runtimeType}');
+          final errCtx = StringBuffer('result${expected != null ? 's' : ''} of:');
+          if (expected != null) errCtx.writeln(expected.result.toString().indent);
+          errCtx.writeln(expr.result.toString().indent);
+
+          return unify(
+            (argID == null ? ctx : ctx.add(argID, Ann(argType.value, null)))
+                .addAll([resTypeVar.id]),
+            resultType,
+            expected?.result,
+            expr.result,
+          ).map(gotMore, '$errCtx', (result, ctx, gotMore) {
+            var jdg = Jdg(
+              expr.kind == Fn.Typ ? Type : Fn.typ(expr.implicit, argID, argType.value, result.type),
+              Fn(expr.implicit, expr.kind, argID, argType.value, result.value),
+            );
+            (ctx, jdg) = removeVar(resTypeVar, ctx, jdg);
+
+            return Progress(jdg, ctx, gotMore);
+          });
+        });
+      case _:
+        return Failure('can\'t unify:\n  $expected\n  $expr');
     }
   }
 
-/////// Unify
-
+  bool gotAnyMore = false;
   bool gotMore = true;
-  TypeCtx inferences = const IDMap({});
   late Expr resultType;
   while (gotMore) {
-    gotMore = false;
+    final result = unifyStep(ctx, expr);
+    if (result is Failure<Jdg>) return result;
+    Progress(result: Jdg(type: resultType, value: expr), :gotMore, :ctx) = result as Progress<Jdg>;
 
-    final result = subCheck(ctx, expr);
-
-    if (result is CheckFailure) return result.wrap();
-    if (result is! CheckProgress) throw Exception();
-    if (!result.inferences.isEmpty) gotMore = true;
-    inferences = result.inferences;
-    ctx = ctx.union(result.inferences);
-
-    Jdg(type: resultType, value: expr) = result.result;
-
-    final unifyResult = unify(ctx, reduce(ctx, expectedType), reduce(ctx, resultType));
-
-    if (unifyResult is AssgnFailure) {
+    final unifyResult = unify(ctx, Type, reduce(ctx, expectedType), reduce(ctx, resultType));
+    if (unifyResult is Failure<Jdg>) {
       return Failure(unifyResult.reason.wrap('checking expected type in:\n$expr'));
     }
-    if (unifyResult is! AssgnProgress) throw Exception();
-    if (!unifyResult.inferences.isEmpty) gotMore = true;
-    inferences = inferences.union(unifyResult.inferences);
-    ctx = ctx.union(unifyResult.inferences);
+    Progress(result: Jdg(value: resultType), :gotMore, :ctx) = unifyResult as Progress<Jdg>;
+    resultType = reduce(ctx, resultType);
+    expr = reduce(ctx, expr);
+    gotMore = unifyResult.gotMore || gotMore;
+    gotAnyMore = gotAnyMore || gotMore;
   }
-
-  return Progress(
-    Jdg(reduce(ctx, resultType), reduce(ctx, expr)),
-    inferences,
-  );
+  return Progress(Jdg(resultType, expr), ctx, gotAnyMore);
 }
 
-typedef AssgnResult = Result<void>;
-typedef AssgnProgress = Progress<void>;
-typedef AssgnFailure = Failure<void>;
-
-AssgnResult unify(TypeCtx ctx, Expr a, Expr b) {
-  if (a.alphaEquiv(b)) return const Progress(null);
-  switch ((a, b)) {
-    case (Type, _):
-      return const Progress(null);
-    case (_, Type):
-      return const Progress(null);
-    case (Fn a, Fn b) when a.kind == Fn.Typ && b.kind == Fn.Typ:
-      final argCtx = unify(ctx, a.argType, b.argType);
-      if (argCtx is AssgnFailure) {
-        return argCtx.wrap('''
-args of:
-${a.toString().indent}
-${b.toString().indent}''');
-      }
-      if (argCtx is! Progress) throw Exception();
-      final retCtx = unify(ctx.union(argCtx.inferences), a.result, b.result);
-
-      if (retCtx is AssgnFailure) {
-        return retCtx.wrap('''
-return types of:
-${a.toString().indent}
-${b.toString().indent}''');
-      }
-      if (retCtx is! Progress) throw Exception();
-
-      return Progress(
-        null,
-        argCtx.inferences.union(
-          a.argID == null ? retCtx.inferences : retCtx.inferences.without(a.argID!),
-        ),
-      );
-    case (Var a, Expr b):
-      if (ctx.get(a.id) == null || ctx.get(a.id)!.value == null) {
-        return Progress(null, IDMap({a.id: Ann(Type, b)}));
-      } else {
-        return unify(ctx, ctx.get(a.id)!.value!, b);
-      }
-    case (App a, App b):
-      final fnCtx = unify(ctx, a.fn, b.fn);
-
-      if (fnCtx is AssgnFailure) {
-        return fnCtx.wrap('''
-fns of:
-${a.fn.toString().indent}
-${b.fn.toString().indent}''');
-      }
-      if (fnCtx is! Progress) throw Exception();
-
-      final argCtx = unify(ctx.union(fnCtx.inferences), a.arg, b.arg);
-
-      if (argCtx is AssgnFailure) {
-        return argCtx.wrap('''
-args of:
-${a.fn.toString().indent}
-${b.fn.toString().indent}''');
-      }
-      if (argCtx is! Progress) throw Exception();
-
-      return Progress(null, fnCtx.inferences.union(argCtx.inferences));
-    case _:
-      return Failure('can\'t unify:\n  $a\n  $b');
-  }
+(TypeCtx, Jdg) removeVar(Var v, TypeCtx ctx, Jdg jdg) {
+  final equivalents = ctx.filter((id, e) => e.value == v);
+  final canonicalEquivalent = equivalents.keys.firstOrNull;
+  ctx = ctx.union(IDMap({
+    for (final id in equivalents.keys)
+      id: Ann(
+        equivalents.get(id)!.type,
+        id == canonicalEquivalent ? null : equivalents.get(id)!.value,
+      )
+  }));
+  Expr doRemove(Expr e) =>
+      canonicalEquivalent == null ? e : e.substExpr(v.id, Var(canonicalEquivalent));
+  return (ctx.without(v.id), Jdg(doRemove(jdg.type), doRemove(jdg.value)));
 }
 
-Expr reduce(TypeCtx ctx, Expr a) => switch (a) {
-      Var a => switch (ctx.get(a.id)) {
-          Jdg(value: var redex) when redex != a => reduce(ctx, redex),
-          _ => a,
+Expr reduce(TypeCtx ctx, Expr expr) => switch (expr) {
+      Var expr => switch (ctx.get(expr.id)) {
+          Ann(value: var redex) when redex != Type && redex != null => reduce(ctx, redex),
+          _ => expr,
         },
-      App a => switch (reduce(ctx, a.fn)) {
+      App expr => switch (reduce(ctx, expr.fn)) {
           Fn(kind: Fn.Def, :var argID, result: var body) =>
-            reduce(ctx, argID != null ? body.substExpr(argID, reduce(ctx, a.arg)) : body),
-          var fn => App(a.implicit, fn, reduce(ctx, a.arg)),
+            reduce(ctx, argID != null ? body.substExpr(argID, reduce(ctx, expr.arg)) : body),
+          var fn => App(expr.implicit, fn, reduce(ctx, expr.arg)),
         },
-      Fn a => Fn(a.implicit, a.kind, a.argID, reduce(ctx, a.argType), reduce(ctx, a.result)),
+      Fn expr => Fn(expr.implicit, expr.kind, expr.argID, reduce(ctx, expr.argType),
+          reduce(ctx, expr.result)),
     };
 
 extension on String {

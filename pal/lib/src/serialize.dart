@@ -51,7 +51,7 @@ extension Serialize on Expr {
       case App(implicit: var im, :var fn, :var arg) when implicit == im:
         return fn._serializeApp(implicit, [arg, ...args]);
       default:
-        return '${this._serialize()}${args.map((arg) => arg._serialize()).join(', ').parenthesize(implicit ? '<' : '(')}';
+        return '${this._serializeExpr()}${args.map((arg) => arg._serializeExpr()).join(', ').parenthesize(implicit ? '<' : '(')}';
     }
   }
 
@@ -72,25 +72,26 @@ extension Serialize on Expr {
 
       default:
         String combineArgs(List<(ID?, Expr)> args) => args
-            .map((pair) =>
-                pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
+            .map((pair) => pair.$1 == null
+                ? pair.$2._serializeExpr()
+                : '${pair.$1}: ${pair.$2._serializeExpr()}')
             .join(', ');
         final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
         final explicitArgPart =
             explicitArgs.isEmpty ? '' : combineArgs(explicitArgs).parenthesize('(');
         final paren = kind == Fn.Def ? '{' : '[';
         final bodyPart = this is Var
-            ? this._serialize().parenthesize(paren)
-            : ' ${' ${this._serialize()} '.parenthesize(paren)}';
+            ? this._serializeExpr().parenthesize(paren)
+            : ' ${' ${this._serializeExpr()} '.parenthesize(paren)}';
 
         return '$argPart$explicitArgPart$bodyPart';
     }
   }
 
-  String _serialize() {
+  String _serializeExpr() {
     switch (this) {
       case Var(:var id):
-        return HOLE_ID.hasMatch(id) ? '_' : id;
+        return id;
       case App(:var implicit):
         return this._serializeApp(implicit, []);
       case Fn(:var implicit, :var kind):
@@ -139,8 +140,9 @@ ${MATCHING_PAREN[paren]}''';
           return oneLine;
         }
         String combineArgs(List<(ID?, Expr)> args) => args
-            .map((pair) =>
-                pair.$1 == null ? pair.$2._serialize() : '${pair.$1}: ${pair.$2._serialize()}')
+            .map((pair) => pair.$1 == null
+                ? pair.$2._serializeExpr()
+                : '${pair.$1}: ${pair.$2._serializeExpr()}')
             .join(', ');
         final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
         final explicitArgPart =
@@ -155,7 +157,7 @@ ${MATCHING_PAREN[paren]}''';
   String serializeExprIndent(int colRemaining) {
     switch (this) {
       case Var(:var id):
-        return HOLE_ID.hasMatch(id) ? '_' : id;
+        return id;
       case App(:var implicit):
         return this._serializeAppIndent(colRemaining, implicit, []);
       case Fn(:var implicit, :var kind):
