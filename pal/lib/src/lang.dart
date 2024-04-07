@@ -113,7 +113,7 @@ extension ExprOps<T extends Object> on Expr<T> {
         } else if (argID == null) {
           return Fn(implicit, kind, argID, argType.substExpr(from, to), result.substExpr(from, to));
         }
-        var newArgID = to.freeVars.freshen(argID);
+        var newArgID = to.freeVars.difference({argID}).freshen(argID);
 
         if (argID != newArgID) result = result.substExpr(argID, Var(newArgID));
 
@@ -272,7 +272,7 @@ Result<Jdg> check(TypeCtx ctx, Expr? expectedType, Expr expr) {
     });
     assert(type != null && type!.freeVars.every((v) => ctx.containsKey(v)), type.toString());
     assert(value.freeVars.every((v) => ctx.containsKey(v)), value.toString());
-    return Progress.same(Jdg(type, value), ctx);
+    return Progress.same(Jdg(type, value), subCtx);
   }
   return result;
 }
@@ -295,7 +295,7 @@ Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
           return Failure('cycle: $expected in $expr');
         }
         var type = ctx.get(expr.id)?.type;
-        if (type == null || type == Type) type = expectedType;
+        if ((type == null || type == Type) && expectedType != null) type = expectedType;
         return Progress(
           Jdg(type, expected ?? expr),
           ctx.add(expr.id, Ann(type, expected)),
@@ -311,9 +311,9 @@ Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
         return Progress.more(Jdg(type, expr), ctx.add(expected.id, Ann(type, expr)));
 
       case (App? expected, App expr):
-        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
+        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:\n');
         if (expected != null) errCtx.writeln(expected.arg.toString().indent);
-        errCtx.writeln(expr.arg.toString().indent);
+        errCtx.write(expr.arg.toString().indent);
 
         return unify(ctx, null, expected?.arg, expr.arg).map(false, errCtx.toString(),
             (arg, ctx, gotMore) {
@@ -321,9 +321,9 @@ Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
               ? Fn.typ(false, null, arg.type!, expectedType)
               : null;
 
-          final errCtx = StringBuffer('fn${expected != null ? 's' : ''} of:');
+          final errCtx = StringBuffer('fn${expected != null ? 's' : ''} of:\n');
           if (expected != null) errCtx.writeln(expected.fn.toString().indent);
-          errCtx.writeln(expr.fn.toString().indent);
+          errCtx.write(expr.fn.toString().indent);
 
           return unify(ctx, fnType, expected?.fn, expr.fn).map(gotMore, errCtx.toString(),
               (fn, ctx, gotMore) {
@@ -342,9 +342,9 @@ Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
         });
 
       case (Fn? expected, Fn expr) when expected == null || expected.kind == expr.kind:
-        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:');
+        final errCtx = StringBuffer('arg${expected != null ? 's' : ''} of:\n');
         if (expected != null) errCtx.writeln(expected.argType.toString().indent);
-        errCtx.writeln(expr.argType.toString().indent);
+        errCtx.write(expr.argType.toString().indent);
 
         return unify(ctx, Type, expected?.argType, expr.argType).map(false, '$errCtx',
             (argType, ctx, gotMore) {
@@ -355,9 +355,9 @@ Result<Jdg> unify(TypeCtx ctx, Expr? expectedType, Expr? expected, Expr expr) {
                   ? expectedType.result
                   : null;
 
-          final errCtx = StringBuffer('result${expected != null ? 's' : ''} of:');
+          final errCtx = StringBuffer('result${expected != null ? 's' : ''} of:\n');
           if (expected != null) errCtx.writeln(expected.result.toString().indent);
-          errCtx.writeln(expr.result.toString().indent);
+          errCtx.write(expr.result.toString().indent);
 
           return unify(
             argID == null ? ctx : ctx.add(argID, Ann(argType.value, null)),
