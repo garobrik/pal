@@ -45,12 +45,12 @@ fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] =
 
 prop_fold_empty: <R: Type, E: Type, init: R, f: (E, R)[R]> [
   Eq<R, fold<R, E>(init, f, empty<E>), init>
-] = <R: Type, E: Type, init: R, f: (E, R)[R]> { refl<R, init> }
+] = <R: _, E: _, init: _, f: _> { refl<_, _> }
 
 prop_fold_prepend: <R: Type, E: Type, init: R, f: (E, R)[R], e: E, l: List<E>> [
   Eq<R, fold<R, E>(init, f, prepend<E>(e, l)), fold<R, E>(f(e, init), f, l)>
-] = <R: Type, E: Type, init: R, f: (E, R)[R], e: E, l: List<E>> {
-  refl<R, fold<R, E>(f(e, init), f, l)>
+] = <R: _, E: _, init: _, f: _, e: _, l: _> {
+  refl<_, _>
 }
 
 --------------------
