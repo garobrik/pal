@@ -95,7 +95,7 @@ void main() {
           print(redex.toString().indent);
           extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(origType ?? type, null));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(type, redex));
-          value = eval(evalCtx, binding.value!);
+          value = eval(evalCtx, redex);
         } else {
           extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(origType, null));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(expectedType, null));

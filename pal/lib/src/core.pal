@@ -3,28 +3,28 @@ id = <T: _>(t: T){t}
 --------------------
 
 Eq: <T: _>(T1: T, T2: T)[Type] = 
-  <T: _, T1: _, T2: _> { (R: _, f: ((T1)[T2], (T2)[T1])[R])[R] }
+  <T: _>(T1: _, T2: _) { (R: _, f: ((T1)[T2], (T2)[T1])[R])[R] }
 
-refl: <T: _, v: T> [ Eq<_, v, v> ] = 
+refl: <T: _, v: T> [ Eq<_>(v, v) ] = 
   <T: _, v: _, R: _>(f: _) { f(id<_>, id<_>) }
 
-subst: <T: Type, T1: T, T2: T>(P: Eq<T, T1, T2>, a: T1)[T2] = 
-  <T: Type, T1: T, T2: T, P: Eq<T, T1, T2>> {
-    P<(T1)[T2]>((to: (T1)[T2], (T2)[T1]){to})
+subst: <T: _, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T1)[T2] = 
+  <T: _, T1: _, T2: _>(P: _) {
+    P<_>((to: _, _){to})
   }
 
-substr: <T: Type, T1: T, T2: T>(P: Eq<T, T1, T2>, a: T2)[T1] = 
-  <T: Type, T1: T, T2: T, P: Eq<T, T1, T2>> {
-    P<(T2)[T1]>(((T1)[T2], from: (T2)[T1]){from})
+substr: <T: _, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T2)[T1] = 
+  <T: _, T1: _, T2: _>(P: _) {
+    P<_>((_, from: _){from})
   }
 
 --------------------
 
-Nat: Type = <R: Type>(zero: R, next: (R)[R])[R]
+Nat: Type = <R: _>(zero: R, next: (R)[R])[R]
 
-zero: Nat = <R: Type>(z: R, (R)[R]){z}
+zero: Nat = <R: _>(z: _, _){z}
 
-next: (Nat)[Nat] = (n: Nat) { <R: Type>(z: R, f: (R)[R]) { f(n<R>(z, f)) } }
+next: (Nat)[Nat] = (n: _) { <R: _>(z: _, f: (R)[R]) { f(n<_>(z, f)) } }
 
 --------------------
 
@@ -32,12 +32,12 @@ NatInd: <P: <Nat>[Type], P<zero>, (n: Nat, P<n>) [ P<next(n)> ]>(n: Nat) [ P<n> 
 
 --------------------
 
-List: <Type>[Type] = <E: Type> { (R: Type, empty: R, prepend: (E, R)[R])[R] }
+List: <Type>[Type] = <E: _> { <R: _>(empty: R, prepend: (E, R)[R])[R] }
 
-empty: <E: Type> [ List<E> ] = <E: Type, R: Type>(emp: R, pre: (E, R)[R]){emp}
+empty: <E: _> [ List<E> ] = <E: _, R: _>(emp: _, _){emp}
 
-prepend: <E: Type>(E, List<E>) [ List<E> ] = <E: Type>(elem: E, list: List<E>) {
-  <R: Type>(emp: R, pre: (E, R)[R]) { list<R>(pre(elem, emp), pre) }
+prepend: <E: Type>(E, List<E>) [ List<E> ] = <E: _>(elem: E, list: List<E>) {
+  <R: _>(emp: _, pre: (E, R)[R]) { list<_>(pre(elem, emp), pre) }
 }
 
 fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] = 
