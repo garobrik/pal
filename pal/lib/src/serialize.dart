@@ -1,11 +1,11 @@
 import 'lang.dart';
 import 'parse.dart';
 
-String serializeProgram(Program p, {int lineLength = 100}) {
+String serializeProgram(Program p, {int lineLength = 80}) {
   String serializeBinding(Binding b) {
     String result = b.id;
-    final type = b.type?.toString();
-    final value = b.value?.toString();
+    final type = b.type?.serializeExprIndent(lineLength);
+    final value = b.value?.serializeExprIndent(lineLength);
     if (type != null) {
       result += ': ';
       var lines = type.split('\n');
@@ -45,7 +45,11 @@ String serializeProgram(Program p, {int lineLength = 100}) {
   return p.map(serializeModule).join('\n\n--------------------\n\n') + '\n';
 }
 
+bool _withFullHoleNames = false;
+
 extension Serialize on Expr {
+  bool get isHole => switch (this) { Var(:var id) when id.startsWith('_') => true, _ => false };
+
   String _serializeApp(bool implicit, List<Expr> args) {
     switch (this) {
       case App(implicit: var im, :var fn, :var arg) when implicit == im:
@@ -54,6 +58,21 @@ extension Serialize on Expr {
         return '${this._serializeExpr()}${args.map((arg) => arg._serializeExpr()).join(', ').parenthesize(implicit ? '<' : '(')}';
     }
   }
+
+  String _serializeArg(FnKind kind, (ID?, Expr) arg) => switch ((kind, arg)) {
+        (Fn.Typ, (null, var expr)) => expr._serializeExpr(),
+        (Fn.Typ, (var id, var expr)) when expr.isHole =>
+          '${id == null || id.startsWith('_') ? '_' : id}:',
+        (Fn.Typ, (var id, var expr)) => '$id: ${expr._serializeExpr()}',
+        (Fn.Def, (var id, var expr)) when expr.isHole =>
+          id == null || id.startsWith('_') ? '_' : id,
+        (Fn.Def, (null, var expr)) => ':${expr._serializeExpr()}',
+        (Fn.Def, (var id, var expr)) =>
+          '${id == null || id.startsWith('_') ? '_' : id}: ${expr._serializeExpr()}',
+      };
+
+  String _combineArgs(FnKind kind, List<(ID?, Expr)> args) =>
+      args.map((arg) => _serializeArg(kind, arg)).join(', ');
 
   String _serializeFn(
     bool implicit,
@@ -71,14 +90,9 @@ extension Serialize on Expr {
         }
 
       default:
-        String combineArgs(List<(ID?, Expr)> args) => args
-            .map((pair) => pair.$1 == null
-                ? pair.$2._serializeExpr()
-                : '${pair.$1}: ${pair.$2._serializeExpr()}')
-            .join(', ');
-        final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
+        final argPart = args.isEmpty ? '' : _combineArgs(kind, args).parenthesize('<');
         final explicitArgPart =
-            explicitArgs.isEmpty ? '' : combineArgs(explicitArgs).parenthesize('(');
+            explicitArgs.isEmpty ? '' : _combineArgs(kind, explicitArgs).parenthesize('(');
         final paren = kind == Fn.Def ? '{' : '[';
         final bodyPart = this is Var
             ? this._serializeExpr().parenthesize(paren)
@@ -91,7 +105,7 @@ extension Serialize on Expr {
   String _serializeExpr() {
     switch (this) {
       case Var(:var id):
-        return id;
+        return id.startsWith('_') && !_withFullHoleNames ? '_' : id;
       case App(:var implicit):
         return this._serializeApp(implicit, []);
       case Fn(:var implicit, :var kind):
@@ -108,7 +122,7 @@ extension Serialize on Expr {
         if (oneLine.length < colRemaining) {
           return oneLine;
         }
-        final lines = args.map((arg) => arg.serializeExprIndent(colRemaining - 3).indent);
+        final lines = args.map((arg) => arg._serializeExprIndent(colRemaining - 3).indent);
         final paren = implicit ? '<' : '(';
         return '''
 $this$paren
@@ -139,30 +153,30 @@ ${MATCHING_PAREN[paren]}''';
         if (oneLine.length < colRemaining) {
           return oneLine;
         }
-        String combineArgs(List<(ID?, Expr)> args) => args
-            .map((pair) => pair.$1 == null
-                ? pair.$2._serializeExpr()
-                : '${pair.$1}: ${pair.$2._serializeExpr()}')
-            .join(', ');
-        final argPart = args.isEmpty ? '' : combineArgs(args).parenthesize('<');
+        final argPart = args.isEmpty ? '' : _combineArgs(kind, args).parenthesize('<');
         final explicitArgPart =
-            explicitArgs.isEmpty ? '' : combineArgs(explicitArgs).parenthesize('(');
+            explicitArgs.isEmpty ? '' : _combineArgs(kind, explicitArgs).parenthesize('(');
         final paren = kind == Fn.Def ? '{' : '[';
         return '''$argPart$explicitArgPart $paren
-${this.serializeExprIndent(colRemaining - 2).indent}
+${this._serializeExprIndent(colRemaining - 2).indent}
 ${MATCHING_PAREN[paren]}''';
     }
   }
 
-  String serializeExprIndent(int colRemaining) {
+  String _serializeExprIndent(int colRemaining) {
     switch (this) {
-      case Var(:var id):
-        return id;
+      case Var():
+        return _serializeExpr();
       case App(:var implicit):
         return this._serializeAppIndent(colRemaining, implicit, []);
       case Fn(:var implicit, :var kind):
         return this._serializeFnIndent(colRemaining, implicit, kind, [], []);
     }
+  }
+
+  String serializeExprIndent(int colRemaining, {bool withFullHoleNames = false}) {
+    _withFullHoleNames = withFullHoleNames;
+    return _serializeExprIndent(colRemaining);
   }
 }
 

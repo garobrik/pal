@@ -35,7 +35,7 @@ sealed class Expr<T extends Object> {
   const Expr({this.t});
 
   @override
-  String toString() => serializeExprIndent(80);
+  String toString() => serializeExprIndent(80, withFullHoleNames: true);
 
   @override
   bool operator ==(Object other) => other is Expr && this.alphaEquiv(other);

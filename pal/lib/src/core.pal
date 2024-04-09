@@ -1,30 +1,26 @@
-id = <T: _>(t: T){t}
+id = <T>(t: T){t}
 
 --------------------
 
-Eq: <T: _>(T1: T, T2: T)[Type] = 
-  <T: _>(T1: _, T2: _) { (R: _, f: ((T1)[T2], (T2)[T1])[R])[R] }
+Eq: <T:>(T1: T, T2: T)[Type] = <T>(T1, T2) { (R:, f: ((T1)[T2], (T2)[T1])[R])[R] }
 
-refl: <T: _, v: T> [ Eq<_>(v, v) ] = 
-  <T: _, v: _, R: _>(f: _) { f(id<_>, id<_>) }
+refl: <T:, v: T> [ Eq<_>(v, v) ] = <T, v, R>(f) { f(id<_>, id<_>) }
 
-subst: <T: _, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T1)[T2] = 
-  <T: _, T1: _, T2: _>(P: _) {
-    P<_>((to: _, _){to})
-  }
+subst: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T1)[T2] = <T, T1, T2>(P) { P<_>((to, _){to}) }
 
-substr: <T: _, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T2)[T1] = 
-  <T: _, T1: _, T2: _>(P: _) {
-    P<_>((_, from: _){from})
-  }
+substr: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T2)[T1] = <T, T1, T2>(P) { P<_>((_, from){from}) }
 
 --------------------
 
-Nat: Type = <R: _>(zero: R, next: (R)[R])[R]
+Nat: Type = <Result:>(baseCase: Result, inductiveStep: (Result)[Result])[Result]
 
-zero: Nat = <R: _>(z: _, _){z}
+zero: Nat = <Result>(baseCase, _){baseCase}
 
-next: (Nat)[Nat] = (n: _) { <R: _>(z: _, f: (R)[R]) { f(n<_>(z, f)) } }
+next: (Nat)[Nat] = (previous) {
+  <Result>(baseCase, inductiveStep: (Result)[Result]) {
+    inductiveStep(previous<_>(baseCase, inductiveStep))
+  }
+}
 
 --------------------
 
@@ -32,12 +28,12 @@ NatInd: <P: <Nat>[Type], P<zero>, (n: Nat, P<n>) [ P<next(n)> ]>(n: Nat) [ P<n> 
 
 --------------------
 
-List: <Type>[Type] = <E: _> { <R: _>(empty: R, prepend: (E, R)[R])[R] }
+List: <Type>[Type] = <E> { <R:>(empty: R, prepend: (E, R)[R])[R] }
 
-empty: <E: _> [ List<E> ] = <E: _, R: _>(emp: _, _){emp}
+empty: <E:> [ List<E> ] = <E, R>(emp, _){emp}
 
-prepend: <E: Type>(E, List<E>) [ List<E> ] = <E: _>(elem: E, list: List<E>) {
-  <R: _>(emp: _, pre: (E, R)[R]) { list<_>(pre(elem, emp), pre) }
+prepend: <E: Type>(E, List<E>) [ List<E> ] = <E>(elem: E, list: List<E>) {
+  <R>(emp, pre: (E, R)[R]) { list<_>(pre(elem, emp), pre) }
 }
 
 fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] = 
@@ -45,13 +41,11 @@ fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] =
 
 prop_fold_empty: <R: Type, E: Type, init: R, f: (E, R)[R]> [
   Eq<R, fold<R, E>(init, f, empty<E>), init>
-] = <R: _, E: _, init: _, f: _> { refl<_, _> }
+] = <R, E, init, f> { refl<_, _> }
 
 prop_fold_prepend: <R: Type, E: Type, init: R, f: (E, R)[R], e: E, l: List<E>> [
-  Eq<R, fold<R, E>(init, f, prepend<E>(e, l)), fold<R, E>(f(e, init), f, l)>
-] = <R: _, E: _, init: _, f: _, e: _, l: _> {
-  refl<_, _>
-}
+  Eq<R>(fold<R, E>(init, f, prepend<E>(e, l)), fold<R, E>(f(e, init), f, l))
+] = <R, E, init, f, e, l> { refl<_, _> }
 
 --------------------
 

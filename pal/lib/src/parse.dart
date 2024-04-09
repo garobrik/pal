@@ -97,26 +97,35 @@ Parser<T> _then<T>(
     };
 
 Parser<Expr<(int, int)>> _parseFn(bool implicit) => (ctx) {
-      var (argType, (remaining, numHoles)) = _parseExpr(ctx);
-      late final String? id;
-      assert(remaining.isNotEmpty);
-      switch ((argType, remaining[0].$1)) {
-        case (Var(id: var varID), ':'):
+      String? id;
+      Expr<(int, int)>? maybe;
+      Expr<(int, int)>? argType;
+      if (ctx case ([(':', _), ...var rest], var numHoles)) {
+        id = null;
+        (argType, ctx) = _parseExpr((rest, numHoles));
+      } else {
+        (maybe, ctx) = _parseExpr(ctx);
+        final ([(token, (line, col)), ...rest], numHoles) = ctx;
+        if ((maybe, token) case (Var(id: var varID), ':')) {
+          ctx = (rest, numHoles);
+          maybe = null;
           id = varID;
-          (argType, (remaining, numHoles)) = _parseExpr((remaining.tail, numHoles));
-        default:
-          id = null;
+          var ([(token, _), ...], _) = ctx;
+          if (token != ',' && token != MATCHING_PAREN[PAREN_FOR[implicit]]) {
+            (argType, ctx) = _parseExpr(ctx);
+          }
+        } else if (token != ',' && token != MATCHING_PAREN[PAREN_FOR[implicit]]) {
+          throw Exception('unexpected $token at $line:$col');
+        }
       }
       final ([(_, pos), ...], _) = ctx;
 
-      var tokens = remaining;
-      assert(tokens.isNotEmpty);
-
-      final ((result, next), kind) = switch (tokens) {
-        [(',', _), ...var remaining] => switch (_parseFn(implicit)((remaining, numHoles))) {
+      final ((result, next), kind) = switch (ctx) {
+        ([(',', _), ...var remaining], var numHoles) => switch (
+              _parseFn(implicit)((remaining, numHoles))) {
             (var fn, var next) => ((fn, next), (fn as Fn).kind)
           },
-        [(var e, _), (var n, (var line, var col)), ...var remaining]
+        ([(var e, _), (var n, (var line, var col)), ...var remaining], var numHoles)
             when e == MATCHING_PAREN[PAREN_FOR[implicit]] =>
           switch ((implicit, n)) {
             (true, '(') => switch (_parseFn(false)((remaining, numHoles))) {
@@ -126,10 +135,23 @@ Parser<Expr<(int, int)>> _parseFn(bool implicit) => (ctx) {
             (_, '[') => (_then(_parseExpr, _parseLit(']'))((remaining, numHoles)), Fn.Typ),
             _ => throw Exception('unexpected $n at $line:$col')
           },
-        _ => throw Exception('unexpected $tokens')
+        _ => throw Exception('unexpected $ctx')
       };
+      ctx = next;
 
-      return (Fn(implicit, kind, id, argType, result, t: pos), next);
+      if (maybe != null) {
+        if (kind == Fn.Typ) {
+          argType = maybe;
+        } else {
+          id = (maybe as Var).id;
+        }
+      }
+      if (argType == null) {
+        final (tokens, numHoles) = ctx;
+        argType = Var('_$numHoles');
+        ctx = (tokens, numHoles + 1);
+      }
+      return (Fn(implicit, kind, id, argType, result, t: pos), ctx);
     };
 
 Parser<Expr<(int, int)>> _parseFnAppBody(bool implicit, Expr<(int, int)> fn) => (ctx) {
