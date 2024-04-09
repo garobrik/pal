@@ -24,17 +24,22 @@ next: (Nat)[Nat] = (previous) {
 
 --------------------
 
-NatInd: <P: <Nat>[Type], P<zero>, (n: Nat, P<n>) [ P<next(n)> ]>(n: Nat) [ P<n> ]
+applyNTimes: <P: <Nat>[Type]>(num: Nat, <n: Nat>(P<n>) [ P<next(n)> ], P<zero>) [ P<num> ]
 
 --------------------
 
-List: <Type>[Type] = <E> { <R:>(empty: R, prepend: (E, R)[R])[R] }
-
-empty: <E:> [ List<E> ] = <E, R>(emp, _){emp}
-
-prepend: <E: Type>(E, List<E>) [ List<E> ] = <E>(elem: E, list: List<E>) {
-  <R>(emp, pre: (E, R)[R]) { list<_>(pre(elem, emp), pre) }
+List = <Element> {
+  <Result:>(initial: Result, combine: (Element, Result)[Result])[Result]
 }
+
+empty: <Element:> [ List<Element> ] = <Element, Result>(initial, _){initial}
+
+prepend: <Element:>(Element, List<Element>) [ List<Element> ] = 
+  <Element>(element: Element, list: List<Element>) {
+    <Result>(initial, combine: (Element, Result)[Result]) {
+      list<_>(combine(element, initial), combine)
+    }
+  }
 
 fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] = 
   <R: Type, E: Type>(init: R, f: (E, R)[R], l: List<E>) { l<R>(init, f) }
