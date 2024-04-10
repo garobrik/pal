@@ -104,8 +104,10 @@ extension Serialize on Expr {
 
   String _serializeExpr() {
     switch (this) {
+      case Var(:var id) when id.startsWith('_') && !_withFullHoleNames:
+        return '_';
       case Var(:var id):
-        return id.startsWith('_') && !_withFullHoleNames ? '_' : id;
+        return id;
       case App(:var implicit):
         return this._serializeApp(implicit, []);
       case Fn(:var implicit, :var kind):
@@ -125,7 +127,7 @@ extension Serialize on Expr {
         final lines = args.map((arg) => arg._serializeExprIndent(colRemaining - 3).indent);
         final paren = implicit ? '<' : '(';
         return '''
-$this$paren
+${this._serializeExprIndent(colRemaining)}$paren
 ${lines.join(',\n')}
 ${MATCHING_PAREN[paren]}''';
     }

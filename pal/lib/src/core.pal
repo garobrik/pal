@@ -41,16 +41,22 @@ prepend: <Element:>(Element, List<Element>) [ List<Element> ] =
     }
   }
 
-fold: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] = 
-  <R: Type, E: Type>(init: R, f: (E, R)[R], l: List<E>) { l<R>(init, f) }
+fold: <Result:, Element:>(Result, (Element, Result)[Result], List<Element>)[Result] = 
+  <Result, Element>(initial, combine: (Element, Result)[Result], list: List<Element>) {
+    list<_>(initial, combine)
+  }
 
-prop_fold_empty: <R: Type, E: Type, init: R, f: (E, R)[R]> [
-  Eq<R, fold<R, E>(init, f, empty<E>), init>
-] = <R, E, init, f> { refl<_, _> }
+prop_fold_empty: <Result:, Element:, initial: Result, combine: (Element, Result)[Result]> [
+  Eq<_>(fold<_, _>(initial, combine, empty<_>), initial)
+] = <_, _, _, _> { refl<_, _> }
 
-prop_fold_prepend: <R: Type, E: Type, init: R, f: (E, R)[R], e: E, l: List<E>> [
-  Eq<R>(fold<R, E>(init, f, prepend<E>(e, l)), fold<R, E>(f(e, init), f, l))
-] = <R, E, init, f, e, l> { refl<_, _> }
+prop_fold_prepend: 
+  <Result:, Element:, initial: Result, combine: (Element, Result)[Result], element: Element, list: List<E>> [
+    Eq<_>(
+      fold<_, _>(initial, combine, prepend<_>(element, list)),
+      fold<_, _>(combine(element, initial), combine, list)
+    )
+  ] = <_, _, _, _, _, _> { refl<_, _> }
 
 --------------------
 
@@ -120,7 +126,10 @@ mkHList: <L: List<Type>> [ List2Fn<HList<L>, L> ] = <L: List<Type>> {
           prepend<Type>(E, Rest)
         >,
         (E) [
-          List2Fn<(R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>)[R], Rest>
+          List2Fn<
+            (R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>)[R],
+            Rest
+          >
         ]
       >(
         prop_List2Fn_pre<
@@ -133,7 +142,11 @@ mkHList: <L: List<Type>> [ List2Fn<HList<L>, L> ] = <L: List<Type>> {
             append<Type>(E, W),
             <R: Type>(f: List2Fn<R, append<Type>(E, W)>) {
               w<(E)[R]>(
-                substr<Type, List2Fn<(E)[R], W>, List2Fn<R, append<Type>(E, W)>>(
+                substr<
+                  Type,
+                  List2Fn<(E)[R], W>,
+                  List2Fn<R, append<Type>(E, W)>
+                >(
                   prop_List2Fn_app<R, W, E>,
                   f
                 ),
