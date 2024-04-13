@@ -1,14 +1,12 @@
 id = <T>(t: T){t}
 
---------------------
-
 Eq: <T:>(T1: T, T2: T)[Type] = <T>(T1, T2) { (R:, f: ((T1)[T2], (T2)[T1])[R])[R] }
 
 refl: <T:, v: T> [ Eq<_>(v, v) ] = <T, v, R>(f) { f(id<_>, id<_>) }
 
-subst: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T1)[T2] = <T, T1, T2>(P) { P<_>((to, _){to}) }
+reduce: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T1)[T2] = <T, T1, T2>(P) { P<_>((to, _){to}) }
 
-substr: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T2)[T1] = <T, T1, T2>(P) { P<_>((_, from){from}) }
+expand: <T:, T1: T, T2: T>(P: Eq<_>(T1, T2), a: T2)[T1] = <T, T1, T2>(P) { P<_>((_, from){from}) }
 
 --------------------
 
@@ -24,7 +22,10 @@ next: (Nat)[Nat] = (previous) {
 
 --------------------
 
-applyNTimes: <P: <Nat>[Type]>(num: Nat, <n: Nat>(P<n>) [ P<next(n)> ], P<zero>) [ P<num> ]
+applyNTimes: 
+  <Result: <Nat>[Type]>(Result<zero>, <number: Nat>(Result<number>) [ Result<next(number)> ], number: Nat) [
+    Result<number>
+  ]
 
 --------------------
 
@@ -41,45 +42,51 @@ prepend: <Element:>(Element, List<Element>) [ List<Element> ] =
     }
   }
 
-fold: <Result:, Element:>(Result, (Element, Result)[Result], List<Element>)[Result] = 
+foldl: <Result:, Element:>(Result, (Element, Result)[Result], List<Element>)[Result] = 
   <Result, Element>(initial, combine: (Element, Result)[Result], list: List<Element>) {
     list<_>(initial, combine)
   }
 
-prop_fold_empty: <Result:, Element:, initial: Result, combine: (Element, Result)[Result]> [
-  Eq<_>(fold<_, _>(initial, combine, empty<_>), initial)
+prop_foldl_empty: <Result:, Element:, initial: Result, combine: (Element, Result)[Result]> [
+  Eq<_>(foldl<_, _>(initial, combine, empty<_>), initial)
 ] = <_, _, _, _> { refl<_, _> }
 
-prop_fold_prepend: 
+prop_foldl_prepend: 
   <Result:, Element:, initial: Result, combine: (Element, Result)[Result], element: Element, list: List<E>> [
     Eq<_>(
-      fold<_, _>(initial, combine, prepend<_>(element, list)),
-      fold<_, _>(combine(element, initial), combine, list)
+      foldl<_, _>(initial, combine, prepend<_>(element, list)),
+      foldl<_, _>(combine(element, initial), combine, list)
     )
   ] = <_, _, _, _, _, _> { refl<_, _> }
 
 --------------------
 
-dfold: 
-  <E: Type, P: <List<E>>[Type]>(P<empty<E>>, (l: List<E>, e: E, P<l>) [ P<prepend<E>(e, l)> ], l: List<E>) [
-    P<l>
+dfoldl: 
+  <Element:, Result: <List<Element>>[Type]>(Result<empty<_>>, (list: List<Element>, element: Element, Result<list>) [ Result<prepend<_>(element, list)> ], list: List<Element>) [
+    Result<list>
   ]
 
 --------------------
 
-append: <E: Type>(E, List<E>) [ List<E> ] = 
-  <E: Type>(elem: E) { fold<List<E>, E>(prepend<E>(elem, empty<E>), prepend<E>) }
+append: <Element:>(Element, List<Element>) [ List<Element> ] = 
+  <_>(element) { foldl<_, _>(prepend<_>(element, empty<_>), prepend<_>) }
 
 --------------------
 
-reverse: <E: Type>(List<E>) [ List<E> ] = <E: Type> {
-  fold<List<E>, E>(empty<E>, (e: E, r: List<E>) { prepend<E>(e, r) })
-}
+reverse: <Element:>(List<Element>) [ List<Element> ] = <_> { foldl<_, _>(empty<_>, prepend<_>) }
 
-foldr: <R: Type, E: Type>(R, (E, R)[R], List<E>)[R] = 
-  <R: Type, E: Type>(init: R, f: (E, R)[R], l: List<E>) {
-    fold<R, E>(init, f, reverse<E>(l))
+prop_reverse_empty: <Element:>[Eq<List<Element>>(reverse<_>(empty<_>), empty<_>)] = <_>{ refl<_, _> }
+
+--------------------
+
+foldr: <Result:, Element:>(Result, (Element, Result)[Result], List<Element>)[Result] = 
+  <Result, Element>(initial: Result, combine: (Element, Result)[Result], list: List<Element>) {
+    foldl<_, _>(initial, combine, reverse<_>(list))
   }
+
+prop_foldr_empty: <Result:, Element:, initial: Result, combine: (Element, Result)[Result]> [
+  Eq<_>(foldr<_, _>(initial, combine, empty<_>), initial)
+] = <_, _, _, _> { refl<_, _> }
 
 prop_foldr_pre: <R: Type, E: Type, e: E, l: List<E>, init: R, f: (E, R)[R]> [
   Eq<R, f(e, foldr<R, E>(init, f, l)), foldr<R, E>(init, f, prepend<E>(e, l))>
@@ -91,11 +98,11 @@ prop_foldr_app: <R: Type, E: Type, e: E, l: List<E>, init: R, f: (E, R)[R]> [
 
 --------------------
 
-List2Fn: <Type, List<Type>>[Type] = <R: Type, L: List<Type>> {
-  foldr<Type, Type>(R, (E: Type, Acc: Type) { (E)[Acc] }, L)
+List2Fn: <Type, List<Type>>[Type] = <Result: Type, list: List<Type>> {
+  foldr<_, _>(Result, (Element: Type, Accumulated: Type) { (Element)[Accumulated] }, list)
 }
 
-prop_List2Fn_emp: <R: Type> [ Eq<Type, List2Fn<R, empty<Type>>, R> ] = <R: Type> { refl<Type, R> }
+prop_List2Fn_empty: <R: Type> [ Eq<Type, List2Fn<R, empty<Type>>, R> ] = <R: Type> { refl<_, _> }
 
 prop_List2Fn_pre: <R: Type, L: List<Type>, E: Type> [
   Eq<Type, List2Fn<R, prepend<Type>(E, L)>, (E) [ List2Fn<R, L> ]>
@@ -116,10 +123,10 @@ HListInd = <L: List<Type>> {
 }
 
 mkHList: <L: List<Type>> [ List2Fn<HList<L>, L> ] = <L: List<Type>> {
-  dfold<Type, HListInd>(
+  dfoldl<Type, HListInd>(
     (W: List<Type>, w: HList<W>){w},
     (Rest: List<Type>, E: Type, acc: HListInd<Rest>, W: List<Type>, w: HList<W>) {
-      substr<
+      expand<
         Type,
         List2Fn<
           (R: Type, List2Fn<List2Fn<R, W>, append<Type>(E, Rest)>)[R],
@@ -142,7 +149,7 @@ mkHList: <L: List<Type>> [ List2Fn<HList<L>, L> ] = <L: List<Type>> {
             append<Type>(E, W),
             <R: Type>(f: List2Fn<R, append<Type>(E, W)>) {
               w<(E)[R]>(
-                substr<
+                expand<
                   Type,
                   List2Fn<(E)[R], W>,
                   List2Fn<R, append<Type>(E, W)>
