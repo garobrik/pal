@@ -37,7 +37,6 @@ monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
 
 monaco.languages.typescript.typescriptDefaults.addExtraLib(
   `
-
 import * as CSS from "csstype";
 import * as PropTypes from "prop-types";
 import { Interaction as SchedulerInteraction } from "scheduler/tracing";
@@ -2704,8 +2703,6 @@ export interface Renderer {
         callback?: () => void,
         // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
     ): Component<any, ComponentState> | Element | void;
-}
-
-`);
+}`);
 
 export { monaco };
