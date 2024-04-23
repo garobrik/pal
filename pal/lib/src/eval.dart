@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'ast.dart';
 import 'lang.dart';
 
 typedef EvalCtx = IDMap<Object?>;
@@ -50,7 +51,7 @@ class FnTypeType extends TypeValue {
   const FnTypeType(this.argType, this.returnType);
 }
 
-const EvalCtx coreEvalCtx = IDMap({typeID: type});
+final EvalCtx coreEvalCtx = IDMap({Type.id: type});
 
 Object eval(EvalCtx ctx, Expr expr) {
   switch (expr) {

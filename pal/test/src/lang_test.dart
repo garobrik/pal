@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:pal/src/ast.dart';
 import 'package:pal/src/eval.dart';
 import 'package:pal/src/lang.dart';
 import 'package:pal/src/parse.dart';
@@ -82,7 +83,8 @@ void main() {
               origType = origType?.substExpr(v, ctx.get(v)!.value!);
             }
           }
-          print(expectedType.toString().indent);
+          print('  expected:\n${expectedType.toString().indent.indent}');
+          print('  external:\n${origType.toString().indent.indent}');
         }
         late final Object? value;
         if (binding.value != null) {
@@ -91,8 +93,8 @@ void main() {
               reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
           final Progress(result: Jdg(:type, value: redex)) = checkResult as Progress<Jdg>;
           expect(moduleTypeCtx, isNot(contains(binding.id)));
-          print(type.toString().indent);
-          print(redex.toString().indent);
+          print('  internal:\n${type.toString().indent.indent}');
+          print('  redex:\n${redex.toString().indent.indent}');
           extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(origType ?? type, null));
           moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(type, redex));
           value = eval(evalCtx, redex);

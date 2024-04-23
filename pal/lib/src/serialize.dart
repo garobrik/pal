@@ -1,4 +1,4 @@
-import 'lang.dart';
+import 'ast.dart';
 import 'parse.dart';
 
 String serializeProgram(Program p, {int lineLength = 80}) {

@@ -1,6 +1,6 @@
 // ignore_for_file: prefer_function_declarations_over_variables, constant_identifier_names, prefer_interpolation_to_compose_strings
 
-import 'lang.dart';
+import 'ast.dart';
 
 typedef Token = (String, (int, int));
 typedef Tokens = List<Token>;
