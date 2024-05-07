@@ -20,11 +20,14 @@ next: (Nat)[Nat] = (previous) {
   }
 }
 
-apply: <Result:>(Result, (Result)[Result], Nat)[Result] = <Result>(init, step, nat) { nat<_>(init, step) }
+apply: <Result:>(Result, (Result)[Result], Nat)[Result] = 
+  <Result>(init, step, nat) { nat<_>(init, step) }
 
 --------------------
 
-prop_nat_0: <Result:, initial: Result, step: (Result)[Result]>[Eq<_>(apply<_>(initial, step, zero), initial)] = <_, _, _>{ refl<_, _> }
+prop_nat_0: <Result:, initial: Result, step: (Result)[Result]> [
+  Eq<_>(apply<_>(initial, step, zero), initial)
+] = <_, _, _> { refl<_, _> }
 
 applyNTimes: 
   <Result: <Nat>[Type]>(Result<zero>, <number: Nat>(Result<number>) [ Result<next(number)> ], number: Nat) [
@@ -79,7 +82,8 @@ append: <Element:>(Element, List<Element>) [ List<Element> ] =
 
 reverse: <Element:>(List<Element>) [ List<Element> ] = <_> { foldl<_, _>(empty<_>, prepend<_>) }
 
-prop_reverse_empty: <Element:>[Eq<List<Element>>(reverse<_>(empty<_>), empty<_>)] = <_>{ refl<_, _> }
+prop_reverse_empty: <Element:> [ Eq<List<Element>>(reverse<_>(empty<_>), empty<_>) ] = 
+  <_> { refl<_, _> }
 
 --------------------
 
@@ -103,7 +107,11 @@ prop_foldr_app: <R: Type, E: Type, e: E, l: List<E>, init: R, f: (E, R)[R]> [
 --------------------
 
 List2Fn: <Type, List<Type>>[Type] = <Result: Type, list: List<Type>> {
-  foldr<_, _>(Result, (Element: Type, Accumulated: Type) { (Element)[Accumulated] }, list)
+  foldr<_, _>(
+    Result,
+    (Element: Type, Accumulated: Type) { (Element)[Accumulated] },
+    list
+  )
 }
 
 prop_List2Fn_empty: <R: Type> [ Eq<Type, List2Fn<R, empty<Type>>, R> ] = <R: Type> { refl<_, _> }

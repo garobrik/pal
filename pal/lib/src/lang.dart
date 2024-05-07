@@ -1,5 +1,3 @@
-// ignore_for_file: constant_identifier_names
-
 import 'serialize.dart';
 import 'ast.dart';
 
@@ -112,10 +110,21 @@ $reason
 ''';
 }
 
+bool _printFlag = false;
+void enablePrint() => _printFlag = true;
+void disablePrint() => _printFlag = false;
+
+void maybePrint(String string) {
+  if (_printFlag) {
+    print(string);
+  }
+}
+
 Result<Jdg> check(TypeCtx origCtx, Expr? origExpectedType, Expr origExpr) {
   late Result<Jdg> Function(TypeCtx ctx, Expr expectedType, Expr expected, Expr expr) unify;
 
   Result<Jdg> doCheck(TypeCtx ctx, Expr? expectedType, Expr expr) {
+    maybePrint('check:\n${expr.toString().indent}'.indent.indent);
     Result<Jdg> checkStep(TypeCtx ctx, Expr? expectedType, Expr expr) {
       switch (expr) {
         case Var expr:
@@ -135,43 +144,59 @@ Result<Jdg> check(TypeCtx origCtx, Expr? origExpectedType, Expr origExpr) {
           return Progress(Jdg(binding?.type ?? expectedType, binding?.value ?? expr), ctx, gotMore);
 
         case App expr:
-          final errCtx = 'fn of:\n${expr.toString().indent}';
+          // recurse on fn
+          maybePrint('=> fn'.indent.indent);
+          final fnResult = doCheck(ctx, null, expr.fn);
+          if (fnResult is! Progress<Jdg>) {
+            return (fnResult as Failure<Jdg>).wrap('fn of:\n${expr.toString().indent}');
+          }
+          late final Jdg fn;
+          bool gotMore = false;
+          Progress(result: fn, :ctx) = fnResult;
+          gotMore = gotMore || fnResult.gotMore;
 
-          return doCheck(ctx, null, expr.fn).map(false, errCtx.toString(), (fn, ctx, gotMore) {
-            final errCtx = 'arg of:\n${expr.toString().indent}';
-            Expr? expectedType;
-            if (fn.value case Fn(:var argType)) {
-              expectedType = argType;
-            } else if (fn.type case Fn(:var argType)) {
-              expectedType = argType;
+          //recurse on arg
+          Expr? expectedType;
+          if (fn.value case Fn(:var argType)) {
+            expectedType = argType;
+          } else if (fn.type case Fn(:var argType)) {
+            expectedType = argType;
+          }
+
+          maybePrint('=> arg'.indent.indent);
+          final argResult = doCheck(ctx, expectedType, expr.arg);
+          if (argResult is! Progress<Jdg>) {
+            return (argResult as Failure<Jdg>).wrap('arg of:\n${expr.toString().indent}');
+          }
+          late final Jdg arg;
+          Progress(result: arg, :ctx) = argResult;
+          gotMore = gotMore || argResult.gotMore;
+
+          // maybe substitute/unify
+          Expr value = App(expr.implicit, fn.value, arg.value);
+          if (fn.value case Fn(:var argID, :var result)) {
+            value = argID != null ? result.substExpr(argID, arg.value) : result;
+          }
+          if (fn.type case Fn(:var argID, :var argType, :var result)) {
+            if (arg.type != null) {
+              final errCtx = 'checking arg type in:\n${expr.toString().indent}';
+              return unify(ctx, Type, argType, arg.type!).map(gotMore, errCtx,
+                  (argType, ctx, gotMore) {
+                return Progress(
+                  Jdg(argID != null ? result.substExpr(argID, arg.value) : result, value),
+                  ctx,
+                  gotMore,
+                );
+              });
             }
+          }
 
-            return doCheck(ctx, expectedType, expr.arg).map(gotMore, errCtx.toString(),
-                (arg, ctx, gotMore) {
-              Expr value = App(expr.implicit, fn.value, arg.value);
-              if (fn.value case Fn(:var argID, :var result)) {
-                value = argID != null ? result.substExpr(argID, arg.value) : result;
-              }
-              if (fn.type case Fn(:var argID, :var argType, :var result)) {
-                if (arg.type != null) {
-                  final errCtx = 'checking arg type in:\n${expr.toString().indent}';
-                  return unify(ctx, Type, argType, arg.type!).map(gotMore, errCtx,
-                      (argType, ctx, gotMore) {
-                    return Progress(
-                      Jdg(argID != null ? result.substExpr(argID, arg.value) : result, value),
-                      ctx,
-                      gotMore,
-                    );
-                  });
-                }
-              }
-              return Progress(Jdg(expectedType, value), ctx, gotMore);
-            });
-          });
+          return Progress(Jdg(expectedType, value), ctx, gotMore);
 
         case Fn expr:
-          final errCtx = 'arg of:\n${expr.toString().indent}';
+          final errCtx = 'arg type of:\n${expr.toString().indent}';
 
+          maybePrint('=> arg type'.indent.indent);
           return doCheck(ctx, Type, expr.argType).map(false, errCtx, (argType, ctx, gotMore) {
             if (expectedType case Fn(argType: var expectedArgType)) {
               final result = unify(ctx, Type, expectedArgType, argType.value);
@@ -196,6 +221,7 @@ Result<Jdg> check(TypeCtx origCtx, Expr? origExpectedType, Expr origExpr) {
             final errCtx = 'result of:\n${expr.toString().indent}';
             final oldArgBinding = argID == null ? null : ctx.get(argID);
 
+            maybePrint('=> result'.indent.indent);
             return doCheck(
               argID == null ? ctx : ctx.add(argID, Ann(argType.value, null)),
               expr.kind == Fn.Typ ? Type : expectedResultType,
@@ -236,7 +262,7 @@ Result<Jdg> check(TypeCtx origCtx, Expr? origExpectedType, Expr origExpr) {
         if (unifyResult is Failure<Jdg>) {
           return Failure(unifyResult.reason.wrap('checking expected type in:\n$expr'));
         }
-        Progress(result: Jdg(value: resultType), :gotMore, :ctx) = unifyResult as Progress<Jdg>;
+        Progress(result: Jdg(value: resultType), :ctx) = unifyResult as Progress<Jdg>;
         gotMore = unifyResult.gotMore || gotMore;
       }
 
@@ -249,6 +275,7 @@ Result<Jdg> check(TypeCtx origCtx, Expr? origExpectedType, Expr origExpr) {
   }
 
   unify = (TypeCtx ctx, Expr expectedType, Expr expected, Expr expr) {
+    maybePrint('unify:\n${expected.toString().indent}\n${expr.toString().indent}'.indent.indent);
     if (expected.alphaEquiv(expr)) return Progress.same(Jdg(expectedType, expr), ctx);
     switch ((expected, expr)) {
       case (_, Var expr) when ctx.get(expr.id)?.value != null && ctx.get(expr.id)?.value != Type:
@@ -390,9 +417,5 @@ Expr reduce(TypeCtx ctx, Expr expr) => switch (expr) {
       Fn expr => Fn(expr.implicit, expr.kind, expr.argID, reduce(ctx, expr.argType),
           reduce(ctx, expr.result)),
     };
-
-extension on String {
-  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
-}
 
 final TypeCtx coreTypeCtx = IDMap({Type.id: const Ann(Type, Type)});

@@ -70,6 +70,7 @@ void main() {
       TypeCtx moduleTypeCtx = typeCtx;
       for (final binding in module) {
         print(binding.id);
+        if (binding.id == 'refl') enablePrint();
         Expr? expectedType;
         Expr? origType = binding.type;
         if (origType != null) {
@@ -105,6 +106,7 @@ void main() {
         }
         expect(evalCtx, isNot(contains(binding.id)));
         evalCtx = evalCtx.add(binding.id, value);
+        disablePrint();
       }
       typeCtx = typeCtx.union(extModuleTypeCtx);
     }

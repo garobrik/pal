@@ -185,6 +185,7 @@ ${MATCHING_PAREN[paren]}''';
 extension StringOps on String {
   String get indent => splitMapJoin('\n', onNonMatch: (s) => '  $s');
   String parenthesize(String paren) => '$paren$this${MATCHING_PAREN[paren]}';
+  String wrap(String ctx) => ctx.isEmpty ? this : '$ctx\n\n$this';
 }
 
 extension<T> on List<T> {
