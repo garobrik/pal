@@ -1,57 +1,81 @@
-import {Binding, Expr, FnKind, ID, Program, isApp, isFn, isHole, isVar} from './ast';
+import {Binding, Expr, FnKind, ID, Program, Ctx, isApp, isFn, isHole, isVar} from './ast';
 import {MATCHING_PAREN, parenFor} from './parse';
 
 const parenthesize = (s: string, p: keyof typeof MATCHING_PAREN) => `${p}${s}${MATCHING_PAREN[p]}`;
-const indent = (s: string) =>
+export const indent = (s: string, times: number = 1) =>
   s
     .split('\n')
-    .map((line) => (line.length === 0 ? line : `  ${line}`))
+    .map((line) => (line.length === 0 ? line : `${'  '.repeat(times)}${line}`))
     .join('\n');
 
-export const serializeProgram = (
-  p: Program,
-  {lineLength}: {lineLength: number} = {lineLength: 80}
+export const serializeBinding = (
+  b: Binding,
+  {lineLength = 80, withFullHoleNames}: {lineLength?: number; withFullHoleNames?: boolean} = {}
 ) => {
-  const serializeBinding = (b: Binding) => {
-    let result = b.id;
-    const type = b.type ? serializeExprIndent(lineLength, b.type) : undefined;
-    const value = b.value ? serializeExprIndent(lineLength, b.value) : undefined;
-    if (type != null) {
-      result += ': ';
-      let lines = type.split('\n');
-      if (lines[0].length <= 100 - result.length) {
-        result += lines[0];
-        lines = lines.slice(1);
-        if (lines.length !== 0) {
-          result += '\n';
-          result += lines.join('\n');
-        }
-      } else {
+  let result = b.id;
+  const type = b.type ? serializeExprIndent(lineLength, b.type, withFullHoleNames) : undefined;
+  const value = b.value ? serializeExprIndent(lineLength, b.value, withFullHoleNames) : undefined;
+  if (type != null) {
+    result += ': ';
+    let lines = type.split('\n');
+    if (lines[0].length <= 100 - result.length) {
+      result += lines[0];
+      lines = lines.slice(1);
+      if (lines.length !== 0) {
         result += '\n';
-        result += indent(lines.join('\n'));
+        result += lines.join('\n');
       }
+    } else {
+      result += '\n';
+      result += indent(lines.join('\n'));
     }
-    if (value != null) {
-      result += ' = ';
-      let lines = value.split('\n');
-      if (lines[0].length <= 100 - result.split('\n')[result.split('\n').length - 1].length) {
-        result += lines[0];
-        lines = lines.slice(1);
-        if (lines.length !== 0) {
-          result += '\n';
-          result += lines.join('\n');
-        }
-      } else {
+  }
+  if (value != null) {
+    result += ' = ';
+    let lines = value.split('\n');
+    if (lines[0].length <= 100 - result.split('\n')[result.split('\n').length - 1].length) {
+      result += lines[0];
+      lines = lines.slice(1);
+      if (lines.length !== 0) {
         result += '\n';
-        result += indent(lines.join('\n'));
+        result += lines.join('\n');
       }
+    } else {
+      result += '\n';
+      result += indent(lines.join('\n'));
     }
-    return result;
-  };
+  }
+  return result;
+};
 
-  const serializeModule = (m: Binding[]) => m.map(serializeBinding).join('\n\n');
+const serializeModule = (
+  m: Binding[],
+  {
+    lineLength = 80,
+    lineSep = 2,
+    withFullHoleNames,
+  }: {lineLength: number; lineSep: number; withFullHoleNames?: boolean}
+) => m.map((b) => serializeBinding(b, {lineLength, withFullHoleNames})).join('\n'.repeat(lineSep));
 
-  return p.map(serializeModule).join('\n\n--------------------\n\n') + '\n';
+export const serializeCtx = (ctx: Ctx, lineLength = 80) => {
+  return (
+    '{\n' +
+    indent(
+      serializeModule(
+        Object.entries(ctx).map(([id, {type, value}]) => ({id, type, value})),
+        {lineLength: lineLength - 2, lineSep: 1, withFullHoleNames: true}
+      )
+    ) +
+    '\n}\n'
+  );
+};
+
+export const serializeProgram = (p: Program, {lineLength = 80}: {lineLength: number}) => {
+  return (
+    p
+      .map((m) => serializeModule(m, {lineLength, lineSep: 2, withFullHoleNames: false}))
+      .join('\n\n--------------------\n\n') + '\n'
+  );
 };
 
 let _withFullHoleNames = false;
@@ -186,7 +210,11 @@ const _serializeExprIndent = (colRemaining: number, e: Expr): string => {
   return serializeFnIndent(colRemaining, e, e.implicit, e.kind, [], []);
 };
 
-const serializeExprIndent = (colRemaining: number, e: Expr, withFullHoleNames: boolean = false) => {
+export const serializeExprIndent = (
+  colRemaining: number,
+  e: Expr,
+  withFullHoleNames: boolean = true
+) => {
   _withFullHoleNames = withFullHoleNames;
   return _serializeExprIndent(colRemaining, e);
 };

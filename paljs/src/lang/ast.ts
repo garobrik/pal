@@ -5,18 +5,41 @@ export type ID = string;
 export type IDMap<T> = Record<ID, T>;
 export type IDSet = IDMap<boolean>;
 
+export type Ann = {
+  type: Expr;
+  value?: Expr;
+};
+
+export type Ctx = IDMap<Ann>;
+
 export const set: (_: ID[]) => IDSet = (ids) => Object.fromEntries(ids.map((id) => [id, true]));
 export const empty = <T>(map: IDMap<T>) => Object.keys(map).length === 0;
 export const union: <T>(..._: Record<ID, T>[]) => Record<ID, T> = Object.assign;
-export const difference = (a: IDSet, b: IDSet): IDSet => set(Object.keys(a).filter((k) => k! in b));
+export const difference = (a: IDSet, b: IDSet): IDSet =>
+  set(Object.keys(a).filter((k) => !(k in b)));
+export const add = <T>(map: IDMap<T>, key: ID | undefined, value: NoInfer<T>): IDMap<T> =>
+  key ? {...map, [key]: value} : map;
+export const keys = <T>(map: IDMap<T>): IDSet => set(Object.keys(map));
+export const without = <T>(map: IDMap<T>, key: ID | undefined) => {
+  if (!key) return map;
+  map = {...map};
+  delete map[key];
+  return map;
+};
 
 const freshen = (id: ID) =>
-  id.replace(/[0-9]*\$/, (tail) => (tail.length === 0 ? 0 : parseInt(tail)).toString());
+  id.replace(/[0-9]*$/, (tail) => (tail.length === 0 ? 0 : parseInt(tail) + 1).toString());
 export const freshIn = (ids: IDSet, id: ID) => {
   while (id in ids) {
     id = freshen(id);
   }
   return id;
+};
+
+export const introduce = (ctx: Ctx, id: ID, type: Expr) => {
+  const v = freshIn(keys(ctx), `_${id}0`);
+  ctx = add(ctx, v, {type});
+  return [ctx, newVar(v)] as const;
 };
 
 export const isRigid = (e: Expr): boolean => {

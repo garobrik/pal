@@ -1,3 +1,25 @@
+# id expr
+
+```
+<T>(t: T){t}
+^^^^^^^^^^^^
+
+  unify _0_type <-> Type
+    _0: Type
+  introduce T: _0
+
+<T>(t: T){t}
+   ^^^^^^^^^
+  unify _0 <-> Type
+    _0 = Type
+  introduce t: T
+
+<T>(t: T){t}
+         ^^^
+  type: T
+
+```
+
 # refl type
 
 ```
@@ -35,6 +57,28 @@
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   unify _2 <-> T
     T = _2
+```
+
+# refl body
+
+```
+<T: Type, v: T>(R: Type, f: ((v)[v], (v)[v])[R])[R]
+check:
+<T: _5, v: _4, R: _3>(f: _2) { f(id<_0>, id<_1>) }
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  _5: Type
+  _appResult0
+  <T: _5, v: _4, R: _3>(f: _2)[_appResult0]
+
+  check f(a)
+  f: _0
+    introduce _argType: Type, _appResult: (x: _argType)[Type]
+    unify (x: _argType)[_appResult(x)] : Type = f.type
+    unify _argType = a.type
+    return _appResult(a.value)
+
+
 ```
 
 # prop_nat_0

@@ -21,3 +21,7 @@
 
 - https://without.boats/blog/coroutines-and-effects/
   - https://news.ycombinator.com/item?id=40097681; discussion of above
+
+# memory management
+
+- https://verdagon.dev/grimoire/grimoire
