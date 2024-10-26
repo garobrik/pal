@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:pal/src/ast.dart';
-import 'package:pal/src/eval.dart';
+import 'package:pal/src/check.dart';
 import 'package:pal/src/lang.dart';
 import 'package:pal/src/parse.dart';
-import 'package:pal/src/serialize.dart';
 import 'package:test/test.dart';
 
 const isSuccess = IsSuccess();
@@ -62,53 +61,7 @@ void main() {
   });
 
   test('compile exprs', () {
-    final exprs = parseProgram(tokenize(File('lib/src/core.pal').readAsStringSync())).$1;
-    var typeCtx = coreTypeCtx;
-    var evalCtx = coreEvalCtx;
-    for (final module in exprs) {
-      TypeCtx extModuleTypeCtx = IDMap.empty();
-      TypeCtx moduleTypeCtx = typeCtx;
-      for (final binding in module) {
-        print(binding.id);
-        if (binding.id == 'refl') enablePrint();
-        Expr? expectedType;
-        Expr? origType = binding.type;
-        if (origType != null) {
-          final typeResult = check(moduleTypeCtx, Type, origType);
-          expect(typeResult, isSuccess, reason: 'typing type of ${binding.id}:\n  $origType');
-          late TypeCtx ctx;
-          Progress(:ctx, result: Jdg(value: expectedType)) = typeResult as Progress<Jdg>;
-          while (origType?.freeVars.difference(moduleTypeCtx.keys.toSet()).isNotEmpty ?? false) {
-            for (final v
-                in origType?.freeVars.difference(moduleTypeCtx.keys.toSet()) ?? (const <ID>{})) {
-              origType = origType?.substExpr(v, ctx.get(v)!.value!);
-            }
-          }
-          print('  expected:\n${expectedType.toString().indent.indent}');
-          print('  external:\n${origType.toString().indent.indent}');
-        }
-        late final Object? value;
-        if (binding.value != null) {
-          final checkResult = check(moduleTypeCtx, expectedType, binding.value!);
-          expect(checkResult, isSuccess,
-              reason: 'typing expr of ${binding.id}:\n  ${binding.value}');
-          final Progress(result: Jdg(:type, value: redex)) = checkResult as Progress<Jdg>;
-          expect(moduleTypeCtx, isNot(contains(binding.id)));
-          print('  internal:\n${type.toString().indent.indent}');
-          print('  redex:\n${redex.toString().indent.indent}');
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(origType ?? type, null));
-          moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(type, redex));
-          value = eval(evalCtx, redex);
-        } else {
-          extModuleTypeCtx = extModuleTypeCtx.add(binding.id, Ann(origType, null));
-          moduleTypeCtx = moduleTypeCtx.add(binding.id, Ann(expectedType, null));
-          value = null;
-        }
-        expect(evalCtx, isNot(contains(binding.id)));
-        evalCtx = evalCtx.add(binding.id, value);
-        disablePrint();
-      }
-      typeCtx = typeCtx.union(extModuleTypeCtx);
-    }
+    final program = parseProgram(tokenize(File('lib/src/core.pal').readAsStringSync())).$1;
+    print(checkProgram(program));
   });
 }

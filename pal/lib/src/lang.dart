@@ -1,44 +1,9 @@
 import 'serialize.dart';
 import 'ast.dart';
 
-extension type const IDMap<T>(Map<ID, T> map) {
-  static IDMap<T> empty<T>() => const IDMap({});
-
-  Iterable<ID> get keys => map.keys;
-  bool get isEmpty => map.isEmpty;
-  T? get(ID key) => map[key];
-  IDMap<T> add(ID key, T value) => IDMap({...map, key: value});
-  IDMap<T> union(IDMap<T> other) => IDMap({...map, ...other.map});
-  IDMap<T> without(ID key) {
-    final newMap = {...map};
-    newMap.remove(key);
-    return IDMap(newMap);
-  }
-
-  bool containsKey(ID key) => map.containsKey(key);
-
-  bool equals(IDMap<T> other) {
-    if (map.length != other.map.length) return false;
-    for (final MapEntry(:key, :value) in map.entries) {
-      if (other.get(key) != value) return false;
-    }
-    return true;
-  }
-
-  IDMap<T> restrict(Iterable<ID> ids) => IDMap({
-        for (final id in ids)
-          if (this.containsKey(id)) id: this.get(id) as T
-      });
-
-  IDMap<T> filter(bool Function(ID, T) f) => IDMap({
-        for (final entry in map.entries)
-          if (f(entry.key, entry.value)) entry.key: entry.value
-      });
-}
-
 class Ann<T extends Object> {
-  final Expr<T>? type;
-  final Expr<T>? value;
+  final Expr? type;
+  final Expr? value;
 
   const Ann(this.type, this.value);
   const Ann.empty()
@@ -54,8 +19,8 @@ class Ann<T extends Object> {
 }
 
 class Jdg<T extends Object> {
-  final Expr<T>? type;
-  final Expr<T> value;
+  final Expr? type;
+  final Expr value;
 
   const Jdg(this.type, this.value);
 

@@ -20,6 +20,32 @@
 
 ```
 
+# eq body
+
+<T: Type>(T1: T, T2: T)[Type]
+<T: _0>(T1: _1, T2: _2) { (R: _3, f: ((T1)[T2], (T2)[T1])[R])[R] }
+
+_0: Type
+_1: (_0)[Type]
+_2: (_0, _1)[Type]
+_3: (_0, _1, _2)[Type]
+
+<T: _0>(T1: _1(T), T2: _2(T, T1)) { (R: _3(T, T1, T2), f: ...)[R] }
+
+unification:
+  unify _0 == Type
+  unify _1(T) == T
+  unify _2(T, T1) == T
+  unify _3(T, T1, T2) == Type
+
+_1 = \T -> T
+_2 = \T, T1 -> T
+_3 = \T, T1, T2 -> Type
+
+<T: Type>(T1: T, T2: T) { (R: Type, f: ...)[R] }
+
+
+
 # refl type
 
 ```

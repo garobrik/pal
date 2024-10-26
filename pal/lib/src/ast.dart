@@ -16,18 +16,55 @@ extension Freshen on Iterable<ID> {
   }
 }
 
+bool isHole(ID id) => id.startsWith('_');
+
+extension type const IDMap<T>(Map<ID, T> map) {
+  static IDMap<T> empty<T>() => const IDMap({});
+
+  Iterable<ID> get keys => map.keys;
+  bool get isEmpty => map.isEmpty;
+  T? get(ID? key) => map[key];
+  IDMap<T> add(ID? key, T value) => key != null ? IDMap({...map, key: value}) : this;
+  IDMap<T> union(IDMap<T> other) => IDMap({...map, ...other.map});
+  IDMap<T> without(ID? key) {
+    final newMap = {...map};
+    newMap.remove(key);
+    return IDMap(newMap);
+  }
+
+  bool containsKey(ID key) => map.containsKey(key);
+
+  bool equals(IDMap<T> other) {
+    if (map.length != other.map.length) return false;
+    for (final MapEntry(:key, :value) in map.entries) {
+      if (other.get(key) != value) return false;
+    }
+    return true;
+  }
+
+  IDMap<T> restrict(Iterable<ID> ids) => IDMap({
+        for (final id in ids)
+          if (this.containsKey(id)) id: this.get(id) as T
+      });
+
+  IDMap<T> filter(bool Function(ID, T) f) => IDMap({
+        for (final entry in map.entries)
+          if (f(entry.key, entry.value)) entry.key: entry.value
+      });
+}
+
 typedef Program = List<List<Binding>>;
 
-class Binding<T extends Object> {
+class Binding {
   final ID id;
-  final Expr<T>? type;
-  final Expr<T>? value;
+  final Expr? type;
+  final Expr? value;
 
   const Binding(this.id, this.type, this.value) : assert(type != null || value != null);
 }
 
-sealed class Expr<T extends Object> {
-  final T? t;
+sealed class Expr {
+  final (int, int)? t;
   const Expr({this.t});
 
   @override
@@ -51,38 +88,46 @@ sealed class Expr<T extends Object> {
   int get hashCode => _hashCode(const []);
 }
 
-class Var<T extends Object> extends Expr<T> {
+class Var extends Expr {
   final ID id;
 
   const Var(this.id, {super.t});
 }
 
-class App<T extends Object> extends Expr<T> {
+class App extends Expr {
   final bool implicit;
-  final Expr<T> fn;
-  final Expr<T> arg;
+  final Expr fn;
+  final Expr arg;
 
   const App(this.implicit, this.fn, this.arg, {super.t});
 }
 
 enum FnKind { Def, Typ }
 
-class Fn<T extends Object> extends Expr<T> {
+class Fn extends Expr {
   static const Def = FnKind.Def;
   static const Typ = FnKind.Typ;
 
   final FnKind kind;
   final bool implicit;
   final ID? argID;
-  final Expr<T> argType;
-  final Expr<T> result;
+  final Expr argType;
+  final Expr result;
 
   const Fn(this.implicit, this.kind, this.argID, this.argType, this.result, {super.t});
   const Fn.def(this.implicit, this.argID, this.argType, this.result, {super.t}) : kind = FnKind.Def;
   const Fn.typ(this.implicit, this.argID, this.argType, this.result, {super.t}) : kind = FnKind.Typ;
 }
 
-extension ExprOps<T extends Object> on Expr<T> {
+bool isRigid(Expr expr) {
+  if (expr is Var) return !isHole(expr.id);
+  if (expr is App) return isRigid(expr.fn) && isRigid(expr.arg);
+  throw Error();
+}
+
+Set<ID> freeHoles(Expr expr) => expr.freeVars.where(isHole).toSet();
+
+extension ExprOps on Expr {
   Set<ID> get freeVars => switch (this) {
         Var(:var id) => {id},
         Fn(:var argID, :var result, :var argType) =>
@@ -97,7 +142,8 @@ extension ExprOps<T extends Object> on Expr<T> {
           argType.occurs(v) || (v.id != argID && result.occurs(v))
       };
 
-  Expr<T> substExpr(ID from, Expr<T> to) {
+  Expr substExpr(ID? from, Expr to) {
+    if (from == null) return this;
     switch (this) {
       case Var(:var id):
         return id == from ? to : this;

@@ -159,7 +159,7 @@ const checkVar = mkProblem(function* (ctx, type: Expr | undefined, expr: Var): P
       ctx = yield {
         ctx,
         needs: set([expr.id]),
-        value: {type: binding.type ?? type, value: expr},
+        value: {type: binding.type, value: expr},
       };
     } else {
       return yield* check(type, binding.value)(ctx);

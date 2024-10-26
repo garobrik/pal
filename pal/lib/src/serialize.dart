@@ -4,8 +4,8 @@ import 'parse.dart';
 String serializeProgram(Program p, {int lineLength = 80}) {
   String serializeBinding(Binding b) {
     String result = b.id;
-    final type = b.type?.serializeExprIndent(lineLength);
-    final value = b.value?.serializeExprIndent(lineLength);
+    final type = b.type?.serializeExprIndent(lineLength, withFullHoleNames: false);
+    final value = b.value?.serializeExprIndent(lineLength, withFullHoleNames: false);
     if (type != null) {
       result += ': ';
       var lines = type.split('\n');
@@ -176,7 +176,7 @@ ${MATCHING_PAREN[paren]}''';
     }
   }
 
-  String serializeExprIndent(int colRemaining, {bool withFullHoleNames = false}) {
+  String serializeExprIndent(int colRemaining, {bool withFullHoleNames = true}) {
     _withFullHoleNames = withFullHoleNames;
     return _serializeExprIndent(colRemaining);
   }

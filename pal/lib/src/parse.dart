@@ -96,10 +96,10 @@ Parser<T> _then<T>(
       return (result, f2(remaining).$2);
     };
 
-Parser<Expr<(int, int)>> _parseFn(bool implicit) => (ctx) {
+Parser<Expr> _parseFn(bool implicit) => (ctx) {
       String? id;
-      Expr<(int, int)>? maybe;
-      Expr<(int, int)>? argType;
+      Expr? maybe;
+      Expr? argType;
       if (ctx case ([(':', _), ...var rest], var numHoles)) {
         id = null;
         (argType, ctx) = _parseExpr((rest, numHoles));
@@ -154,7 +154,7 @@ Parser<Expr<(int, int)>> _parseFn(bool implicit) => (ctx) {
       return (Fn(implicit, kind, id, argType, result, t: pos), ctx);
     };
 
-Parser<Expr<(int, int)>> _parseFnAppBody(bool implicit, Expr<(int, int)> fn) => (ctx) {
+Parser<Expr> _parseFnAppBody(bool implicit, Expr fn) => (ctx) {
       var ([(_, pos), ...], _) = ctx;
       final (arg, remaining) = _parseExpr(ctx);
       final ([(tok, (line, col)), ...], _) = remaining;
@@ -172,7 +172,7 @@ Parser<Expr<(int, int)>> _parseFnAppBody(bool implicit, Expr<(int, int)> fn) => 
       }
     };
 
-Parser<Expr<(int, int)>> _parseFnApp(Expr<(int, int)> fn) => (ctx) {
+Parser<Expr> _parseFnApp(Expr fn) => (ctx) {
       switch (ctx.$1) {
         case [('(', _), ...var rest]:
           final (expr, remaining) = _parseFnAppBody(false, fn)((rest, ctx.$2));
@@ -185,7 +185,7 @@ Parser<Expr<(int, int)>> _parseFnApp(Expr<(int, int)> fn) => (ctx) {
       }
     };
 
-final Parser<Expr<(int, int)>> _parseExpr = (ctx) {
+final Parser<Expr> _parseExpr = (ctx) {
   var ([(token, pos), ...rest], numHoles) = ctx;
 
   if (token == '_') {
@@ -206,7 +206,7 @@ final Parser<Expr<(int, int)>> _parseExpr = (ctx) {
   return _parseFnApp(initExpr)(remaining);
 };
 
-final UnholeyParser<Expr<(int, int)>> parseExpr = (tokens) {
+final UnholeyParser<Expr> parseExpr = (tokens) {
   final (result, (remaining, _)) = _parseExpr((tokens, 0));
   return (result, remaining);
 };

@@ -1,7 +1,6 @@
 import 'dart:collection';
 
 import 'ast.dart';
-import 'lang.dart';
 
 typedef EvalCtx = IDMap<Object?>;
 
