@@ -47,7 +47,7 @@ export const EditorContent = ({ doc }: { doc: Doc }) => {
       state={state}
       dispatchTransaction={(tr) => setState((s) => s.apply(tr))}
     >
-      <div className="w-full h-full" ref={setMount} />
+      <div className="w-full h-full outline-none" ref={setMount} />
     </ProseMirror>
   );
 };

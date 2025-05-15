@@ -2,7 +2,7 @@ import { AutoFocusPlugin } from '@lexical/react/LexicalAutoFocusPlugin';
 import { CheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import { ClearEditorPlugin } from '@lexical/react/LexicalClearEditorPlugin';
 import { ClickableLinkPlugin } from '@lexical/react/LexicalClickableLinkPlugin';
-import { CollaborationPlugin } from '@lexical/react/LexicalCollaborationPlugin';
+// import { CollaborationPlugin } from '@lexical/react/LexicalCollaborationPlugin';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { HashtagPlugin } from '@lexical/react/LexicalHashtagPlugin';
 import { HorizontalRulePlugin } from '@lexical/react/LexicalHorizontalRulePlugin';
@@ -11,7 +11,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
 import { TablePlugin } from '@lexical/react/LexicalTablePlugin';
 
-import { createWebrtcProvider } from './collaboration';
+// import { createWebrtcProvider } from './collaboration';
 import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { TableCellNode, TableNode, TableRowNode } from '@lexical/table';
@@ -35,12 +35,12 @@ export const Editor = ({ id }: { id: string }) => {
 
   return (
     <LexicalComposer key={id} initialConfig={initialConfig}>
-      <CollaborationPlugin
+      {/* <CollaborationPlugin
         key={id}
         id={id}
         providerFactory={createWebrtcProvider}
         shouldBootstrap={true}
-      />
+      /> */}
       <AutoFocusPlugin />
       <ClearEditorPlugin />
       <HashtagPlugin />

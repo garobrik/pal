@@ -59,7 +59,7 @@ const DocTitleContent = ({ doc }: { doc: Doc }) => {
   const [title, setTitle] = useDocMetaField(doc, 'title');
   return (
     <input
-      className="text-xl"
+      className="text-xl border-none outline-none flex-1"
       value={title}
       onChange={(ev) => setTitle(() => ev.target.value)}
     />
@@ -68,7 +68,7 @@ const DocTitleContent = ({ doc }: { doc: Doc }) => {
 
 const DocTitle = ({ id }: { id: string }) => {
   const doc = useDoc(id);
-  if (doc === 'loading') return <Skeleton />;
+  if (doc === 'loading') return <div className="flex-1"><Skeleton className="w-40" /></div>;
   return <DocTitleContent doc={doc} />;
 };
 
@@ -89,6 +89,7 @@ const LinkDeviceButton = () => {
 
 export function AppSidebar({ children }: React.PropsWithChildren) {
   const keys = useDocKeys();
+  console.log(keys);
   return (
     <SidebarProvider>
       <Sidebar collapsible="offcanvas">
@@ -122,7 +123,6 @@ export function AppSidebar({ children }: React.PropsWithChildren) {
               </>
             )}
           </Show>
-          <div className="flex-1" />
           <LinkDeviceButton />
         </header>
         {children}

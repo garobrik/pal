@@ -73,6 +73,7 @@ const initializeDoc = (id: string, password: string): DocHolder => {
     persistence,
   };
   persistence.on('synced', () => {
+    docHolder.ready = true;
     docHolder!.listeners.forEach((listener) => listener());
   });
 
@@ -91,6 +92,7 @@ export const useDoc = (id: string) => {
 
   useEffect(() => {
     docHolder.listeners.add(listener);
+    return () => { docHolder.listeners.delete(listener) };
   }, [docHolder.listeners, listener]);
 
   if (ready) {
