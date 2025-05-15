@@ -72,7 +72,7 @@ const DocTitle = ({ id }: { id: string }) => {
   return <DocTitleContent doc={doc} />;
 };
 
-const LinkDeviceButton = () => {
+export const LinkDeviceButton = () => {
   return (
     <Button
       variant="ghost"
@@ -113,7 +113,7 @@ export function AppSidebar({ children }: React.PropsWithChildren) {
         <SidebarFooter />
       </Sidebar>
       <SidebarInset>
-        <header className="flex items-center shrink-0 gap-2 border-b p-2">
+        <header className="flex justify-between items-center shrink-0 gap-2 border-b p-2">
           <SidebarTrigger className="-ml-1" />
           <Show if={() => appState.selectedDoc.get() != null}>
             {() => (
@@ -123,7 +123,7 @@ export function AppSidebar({ children }: React.PropsWithChildren) {
               </>
             )}
           </Show>
-          <LinkDeviceButton />
+          {/* <LinkDeviceButton /> */}
         </header>
         {children}
       </SidebarInset>
