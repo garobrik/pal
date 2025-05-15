@@ -121,13 +121,16 @@ export const createDoc = () => {
 export const useIsReady = () => {
   const [ready, setReady] = useState(userIndex.isLoaded);
   useEffect(() => {
-    const f = () => {
+    const listener = () => {
       setReady(true);
-      persistence.off('synced', f);
+      if (docIDs.length === 0) {
+        createDoc();
+      }
+      persistence.off('synced', listener);
     };
-    persistence.on('synced', f);
+    persistence.on('synced', listener);
     return () => {
-      persistence.off('synced', f);
+      persistence.off('synced', listener);
     };
   }, []);
   return ready;
