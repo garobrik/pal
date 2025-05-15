@@ -1,1 +1,3 @@
-export const newID = () => window.crypto.randomUUID();
+import { v4 } from 'uuid';
+
+export const newID = () => v4();

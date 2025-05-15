@@ -1,27 +1,21 @@
-import { Memo, Reactive, Show } from '@legendapp/state/react';
-import { AppSidebar } from './components/pal-sidebar';
-import { SidebarProvider } from './components/ui/sidebar';
-import { appState } from './state/app';
-import { tables } from './state/table';
+import { Memo, Show } from '@legendapp/state/react';
+import { AppSidebar } from '@/components/app-sidebar';
+import { appState } from '@/state/app';
+import { Editor } from '@/components/editor/editor';
+import { useIsReady } from '@/state/docs';
 
 function App() {
+  if (!useIsReady()) {
+    return null;
+  }
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <main className="p-4">
-        <Show if={() => appState.selectedEntity.get() != null}>
-          <Memo>
-            {() => (
-              <Reactive.input
-                className="text-xl font-semibold"
-                $value={tables[appState.selectedEntity.get()!].name}
-              />
-            )}
-          </Memo>
+    <AppSidebar>
+      <main className="p-4 flex-1">
+        <Show if={() => appState.selectedDoc.get() != null}>
+          <Memo>{() => <Editor id={appState.selectedDoc.get()!} />}</Memo>
         </Show>
-        <h1></h1>
       </main>
-    </SidebarProvider>
+    </AppSidebar>
   );
 }
 
