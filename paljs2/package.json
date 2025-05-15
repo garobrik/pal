@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "signaling": "node node_modules/y-webrtc/bin/server.js"
   },
   "dependencies": {
     "@legendapp/state": "^3.0.0-beta.13",
