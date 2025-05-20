@@ -9,7 +9,7 @@ import { WebrtcProvider } from 'y-webrtc';
 
 const syncProvider = (id: string, doc: Y.Doc, password: string) => {
   return new WebrtcProvider(id, doc, {
-    signaling: ['ws://localhost:4444'],
+    signaling: ['wss://y-webrtc-signaling.fly.dev'],
     password,
   });
 };
