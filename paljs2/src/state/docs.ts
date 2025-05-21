@@ -43,9 +43,9 @@ type DocHolder = {
   password: string;
   doc: Doc;
   ydoc: Y.Doc;
-  listeners: Set<() => void>;
-  ready: boolean;
   persistence: IndexeddbPersistence;
+  ready: () => boolean;
+  onReady: (cb: () => void) => () => void;
 };
 
 const docs = new Map<string, DocHolder>();
@@ -68,14 +68,17 @@ const initializeDoc = (id: string, password: string): DocHolder => {
     password,
     doc,
     ydoc,
-    listeners: new Set(),
-    ready: false,
     persistence,
+    ready: () => persistence.synced,
+    onReady: (cb: () => void) => {
+      const listener = () => {
+        cb();
+        persistence.off('synced', listener);
+      };
+      persistence.on('synced', listener);
+      return () => persistence.off('synced', listener);
+    },
   };
-  persistence.on('synced', () => {
-    docHolder.ready = true;
-    docHolder!.listeners.forEach((listener) => listener());
-  });
 
   docs.set(id, docHolder);
   return docHolder;
@@ -89,15 +92,12 @@ export const useDoc = (id: string) => {
   const pw = getDocPassword(id);
   const docHolder = initializeDoc(id, pw);
 
-  const [ready, setReady] = useState(docHolder.ready);
-  const listener = useCallback(() => {
+  const [ready, setReady] = useState(docHolder.ready());
+  const onReady = useCallback(() => {
     setReady(true);
   }, []);
 
-  useEffect(() => {
-    docHolder.listeners.add(listener);
-    return () => { docHolder.listeners.delete(listener) };
-  }, [docHolder.listeners, listener]);
+  useEffect(() => docHolder.onReady(onReady), [docHolder, docHolder.onReady, onReady]);
 
   if (ready) {
     return docHolder.doc;
@@ -116,7 +116,7 @@ export const selectDoc = (id: string) => {
 
 export const importDoc = (id: string, pw: string) => {
   const docHolder = initializeDoc(id, pw);
-  selectDoc(docHolder.id);
+  docHolder.onReady(() => selectDoc(docHolder.id));
 };
 
 export const createDoc = () => {
