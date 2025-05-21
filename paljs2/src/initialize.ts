@@ -2,9 +2,9 @@ import { appState } from "@/state/app";
 import { importDoc } from "@/state/docs";
 
 export const initialize = () => {
-  if (window.location.pathname === '/linkDevice') {
-    const userID = window.location.search.match(/id=([^&]+)/);
-    const password = window.location.search.match(/pw=([^&]+)/);
+  if (window.location.hash.startsWith('#/linkDevice')) {
+    const userID = window.location.hash.match(/id=([^&]+)/);
+    const password = window.location.hash.match(/pw=([^&]+)/);
     if (userID && password) {
       appState.userID.set(userID[1]);
       appState.userPassword.set(password[1]);
@@ -12,9 +12,9 @@ export const initialize = () => {
     window.location.href = window.location.origin;
   }
   
-  if (window.location.pathname === '/doc') {
-    const doc = window.location.search.match(/id=([^&]+)/);
-    const password = window.location.search.match(/pw=([^&]+)/);
+  if (window.location.hash.startsWith('#/doc')) {
+    const doc = window.location.hash.match(/id=([^&]+)/);
+    const password = window.location.hash.match(/pw=([^&]+)/);
     if (doc && password) {
       importDoc(doc[1], password[1]);
     }
