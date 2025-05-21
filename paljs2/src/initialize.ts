@@ -9,7 +9,7 @@ export const initialize = () => {
       appState.userID.set(userID[1]);
       appState.userPassword.set(password[1]);
     }
-    window.location.href = window.location.origin;
+    window.history.replaceState(null, '', window.location.origin);
   }
   
   if (window.location.hash.startsWith('#/doc')) {
@@ -18,6 +18,6 @@ export const initialize = () => {
     if (doc && password) {
       importDoc(doc[1], password[1]);
     }
-    window.location.href = window.location.origin;
+    window.history.replaceState(null, '', window.location.origin);
   }
 };
