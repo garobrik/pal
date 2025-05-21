@@ -116,6 +116,7 @@ export const selectDoc = (id: string) => {
 
 export const importDoc = (id: string, pw: string) => {
   const docHolder = initializeDoc(id, pw);
+  docIDs.push([{ id: docHolder.id, password: docHolder.password }]);
   docHolder.onReady(() => selectDoc(docHolder.id));
 };
 
