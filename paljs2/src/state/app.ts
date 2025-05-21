@@ -21,31 +21,3 @@ syncObservable(appState, {
     plugin: ObservablePersistLocalStorage,
   },
 });
-
-if (window.location.pathname === '/linkDevice') {
-  const userID = window.location.search.match(/id=([^&]+)/);
-  const password = window.location.search.match(/pw=([^&]+)/);
-  if (userID && password) {
-    appState.userID.set(userID[1]);
-    appState.userPassword.set(password[1]);
-  }
-  window.location.href = window.location.origin;
-}
-
-if (window.location.pathname === '/doc') {
-  const doc = window.location.search.match(/id=([^&]+)/);
-  const password = window.location.search.match(/pw=([^&]+)/);
-  if (doc && password) {
-    // appState.userID.set(doc[1]);
-    // appState.userPassword.set(password[1]);
-  }
-  window.location.href = window.location.origin;
-}
-
-export const linkDeviceURL = () => {
-  console.log(
-    `${
-      window.location.origin
-    }/linkDevice?id=${appState.userID.peek()}&pw=${appState.userPassword.peek()}`
-  );
-};

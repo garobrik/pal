@@ -9,7 +9,7 @@ import { WebrtcProvider } from 'y-webrtc';
 
 const syncProvider = (id: string, doc: Y.Doc, password: string) => {
   return new WebrtcProvider(id, doc, {
-    signaling: ['wss://y-webrtc-signaling.fly.dev'],
+    signaling: ['wss://pal-signaling.fly.dev'],
     password,
   });
 };
@@ -81,8 +81,12 @@ const initializeDoc = (id: string, password: string): DocHolder => {
   return docHolder;
 };
 
+export const getDocPassword = (id: string) => {
+  return docIDs.toArray().find((d) => d.id === id)!.password;
+}
+
 export const useDoc = (id: string) => {
-  const pw = docIDs.toArray().find((d) => d.id === id)!.password;
+  const pw = getDocPassword(id);
   const docHolder = initializeDoc(id, pw);
 
   const [ready, setReady] = useState(docHolder.ready);
@@ -108,6 +112,11 @@ export const useDocMetaField = <K extends keyof DocMeta>(doc: Doc, key: K) => {
 
 export const selectDoc = (id: string) => {
   appState.selectedDoc.set(id);
+};
+
+export const importDoc = (id: string, pw: string) => {
+  const docHolder = initializeDoc(id, pw);
+  selectDoc(docHolder.id);
 };
 
 export const createDoc = () => {

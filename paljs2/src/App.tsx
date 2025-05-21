@@ -3,10 +3,20 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { appState } from '@/state/app';
 import { Editor } from '@/components/editor/editor';
 import { useIsReady } from '@/state/docs';
+import { initialize } from '@/initialize';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 function App() {
-  if (!useIsReady()) {
-    return null;
+  const isReady = useIsReady();
+  useEffect(() => {
+    if (isReady) {
+      initialize();
+    }
+  }, [isReady]);
+
+  if (!isReady) {
+    return <div className="flex flex-col pt-[33%] items-center"><Loader2 className="absolute left-auto top-1/3 animate-spin" /></div>;
   }
   return (
     <AppSidebar>

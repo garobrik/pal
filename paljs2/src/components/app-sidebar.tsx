@@ -3,7 +3,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
@@ -14,10 +13,11 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { Plus, Share } from 'lucide-react';
+import { Link, Plus, Share2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Show } from '@legendapp/state/react';
-import { appState, linkDeviceURL } from '@/state/app';
+import { appState } from '@/state/app';
+import { linkDeviceURL, shareDocURL } from '@/actions';
 import { useCallback } from 'react';
 import {
   useDoc,
@@ -42,7 +42,7 @@ const DocMenuItemContent = ({ doc }: { doc: Doc }) => {
 
   return (
     <SidebarMenuItem key={doc.id}>
-      <SidebarMenuButton asChild onClick={onClick}>
+      <SidebarMenuButton asChild onClick={onClick} className="cursor-pointer">
         <a>{title}</a>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -72,24 +72,20 @@ const DocTitle = ({ id }: { id: string }) => {
   return <DocTitleContent doc={doc} />;
 };
 
-export const LinkDeviceButton = () => {
+export const ShareDocButton = () => {
   return (
     <Button
       variant="ghost"
       size="icon"
-      className="h-7 w-7"
-      onClick={() => {
-        linkDeviceURL();
-      }}
+      onClick={shareDocURL}
     >
-      <Share />
+      <Share2 />
     </Button>
   );
 };
 
 export function AppSidebar({ children }: React.PropsWithChildren) {
   const keys = useDocKeys();
-  console.log(keys);
   return (
     <SidebarProvider>
       <Sidebar collapsible="offcanvas">
@@ -98,11 +94,18 @@ export function AppSidebar({ children }: React.PropsWithChildren) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupLabel>Docs</SidebarGroupLabel>
-            <SidebarGroupAction onClick={createDoc}>
-              <Plus />
-              <span className="sr-only">New Doc</span>
-            </SidebarGroupAction>
+            <SidebarMenuButton onClick={linkDeviceURL}>
+              <Link/> Link Device
+            </SidebarMenuButton>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel className="justify-between">
+              <h2>Docs</h2>
+              <Button variant="ghost" size="icon" onClick={createDoc}>
+                <Plus />
+                <span className="sr-only">New Doc</span>
+              </Button>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               {keys.map((docID) => (
                 <DocMenuItem key={docID} id={docID} />
@@ -123,7 +126,7 @@ export function AppSidebar({ children }: React.PropsWithChildren) {
               </>
             )}
           </Show>
-          {/* <LinkDeviceButton /> */}
+          <ShareDocButton />
         </header>
         {children}
       </SidebarInset>
