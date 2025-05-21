@@ -1,5 +1,5 @@
 import { appState } from "@/state/app";
-import { importDoc } from "@/state/docs";
+import { createDoc, getDocKeys, importDoc } from "@/state/docs";
 
 export const initialize = () => {
   if (window.location.hash.startsWith('#/linkDevice')) {
@@ -19,5 +19,9 @@ export const initialize = () => {
       importDoc(doc[1], password[1]);
     }
     window.history.replaceState(null, '', window.location.origin);
+  }
+
+  if (getDocKeys().length === 0) {
+    createDoc();
   }
 };

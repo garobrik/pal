@@ -34,6 +34,10 @@ export type Doc = {
   content: Y.XmlFragment;
 };
 
+export const getDocKeys = () => {
+  return docIDs.map((d) => d.id);
+};
+
 export const useDocKeys = () => {
   return useY(docIDs).map((d) => d.id);
 };
@@ -133,9 +137,6 @@ export const useIsReady = () => {
   useEffect(() => {
     const listener = () => {
       setReady(true);
-      if (docIDs.length === 0) {
-        createDoc();
-      }
       persistence.off('synced', listener);
     };
     persistence.on('synced', listener);
